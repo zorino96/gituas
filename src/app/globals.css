@@ -1,105 +1,117 @@
 @import "tailwindcss";
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   NOCTURNE — an after-dark private bank for autonomous software.
+   obsidian night · champagne gold money · moonlight text · drifting aurora.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 @theme {
-  /* Gituas brand palette — money-green CLI, sleeping-money confidence */
-  --color-bg: #0a0e0b;
-  --color-panel: #10160f;
-  --color-panel-2: #131a12;
-  --color-line: #1f2a1d;
-  --color-fg: #e8efe2;
-  --color-fg-dim: #8aa089;
-  --color-muted: #5d7359;
-  --color-money: #aef85b;
-  --color-money-dim: #6e9a3a;
-  --color-mint: #5be8b4;
-  --color-amber: #ffb84b;
-  --color-red: #ff5a5a;
+  --color-bg: #070a14;
+  --color-panel: #0d1322;
+  --color-panel-2: #121a2d;
+  --color-line: #243049;
+  --color-fg: #efeadb;
+  --color-fg-dim: #97a0bd;
+  --color-muted: #5e6a87;
+  --color-money: #e3b23c;
+  --color-money-soft: #f3d691;
+  --color-mint: #6fb3a0;
+  --color-violet: #8b7bc7;
+  --color-amber: #d98841;
+  --color-red: #d2685e;
 
-  /* Aliases used by old shadcn-style classes */
-  --color-background: #0a0e0b;
-  --color-foreground: #e8efe2;
-  --color-card: #10160f;
-  --color-card-foreground: #e8efe2;
-  --color-popover: #10160f;
-  --color-popover-foreground: #e8efe2;
-  --color-primary: #aef85b;
-  --color-primary-foreground: #0a0e0b;
-  --color-secondary: #131a12;
-  --color-secondary-foreground: #e8efe2;
-  --color-muted-fg: #8aa089;
-  --color-muted-foreground: #8aa089;
-  --color-accent: #131a12;
-  --color-accent-foreground: #e8efe2;
-  --color-destructive: #ff5a5a;
-  --color-destructive-foreground: #0a0e0b;
-  --color-border: #1f2a1d;
-  --color-input: #1f2a1d;
-  --color-ring: #aef85b;
+  /* shadcn-style aliases so existing components keep compiling */
+  --color-background: #070a14;
+  --color-foreground: #efeadb;
+  --color-card: #0d1322;
+  --color-card-foreground: #efeadb;
+  --color-popover: #0d1322;
+  --color-popover-foreground: #efeadb;
+  --color-primary: #e3b23c;
+  --color-primary-foreground: #070a14;
+  --color-secondary: #121a2d;
+  --color-secondary-foreground: #efeadb;
+  --color-muted-foreground: #97a0bd;
+  --color-accent: #121a2d;
+  --color-accent-foreground: #efeadb;
+  --color-destructive: #d2685e;
+  --color-destructive-foreground: #070a14;
+  --color-border: #243049;
+  --color-input: #243049;
+  --color-ring: #e3b23c;
 
-  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  --font-display: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
+  --font-body: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-spline-mono), ui-monospace, "SF Mono", monospace;
+}
+
+:root {
+  --gold: #e3b23c;
+  --gold-soft: #f3d691;
+  --ink: #070a14;
+  --moon: #efeadb;
 }
 
 html, body {
   background: var(--color-bg);
   color: var(--color-fg);
-  font-family: var(--font-display);
-  font-feature-settings: "ss01", "ss02", "cv01";
+  font-family: var(--font-body);
+  letter-spacing: -0.006em;
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
   font-weight: 400;
-  letter-spacing: -0.005em;
+  line-height: 1.55;
 }
 
-/* Mono everywhere for operational data */
-.mono, code, kbd, samp, pre {
-  font-family: var(--font-mono);
-  font-feature-settings: "calt", "ss02";
-}
+.font-display { font-family: var(--font-display); }
+.font-body { font-family: var(--font-body); }
+.mono, code, kbd, samp, pre { font-family: var(--font-mono); }
 
-/* Selection */
-::selection {
-  background: rgba(174, 248, 91, 0.25);
-  color: #e8efe2;
-}
+::selection { background: rgba(227, 178, 60, 0.28); color: #fff; }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar { width: 11px; height: 11px; }
 ::-webkit-scrollbar-track { background: var(--color-bg); }
-::-webkit-scrollbar-thumb { background: var(--color-line); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--color-money-dim); }
+::-webkit-scrollbar-thumb { background: #1c2438; border-radius: 6px; border: 2px solid var(--color-bg); }
+::-webkit-scrollbar-thumb:hover { background: #2e3a57; }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   COLOR / SURFACE UTILITIES — same class names the rest of the app already uses
+   ───────────────────────────────────────────────────────────────────────── */
 @layer utilities {
-  /* Backgrounds */
   .bg-bg { background-color: var(--color-bg); }
   .bg-panel { background-color: var(--color-panel); }
   .bg-panel-2 { background-color: var(--color-panel-2); }
   .bg-line { background-color: var(--color-line); }
   .bg-money { background-color: var(--color-money); }
-  .bg-money\/10 { background-color: rgba(174, 248, 91, 0.1); }
-  .bg-money\/20 { background-color: rgba(174, 248, 91, 0.2); }
+  .bg-money\/10 { background-color: rgba(227,178,60,0.10); }
+  .bg-money\/20 { background-color: rgba(227,178,60,0.20); }
   .bg-mint { background-color: var(--color-mint); }
-  .bg-mint\/10 { background-color: rgba(91, 232, 180, 0.1); }
+  .bg-mint\/10 { background-color: rgba(111,179,160,0.12); }
   .bg-amber { background-color: var(--color-amber); }
-  .bg-amber\/10 { background-color: rgba(255, 184, 75, 0.1); }
-  .bg-red\/10 { background-color: rgba(255, 90, 90, 0.1); }
+  .bg-amber\/10 { background-color: rgba(217,136,65,0.12); }
+  .bg-amber-500 { background-color: var(--color-amber); }
+  .bg-amber-600 { background-color: #c4762f; }
+  .bg-blue-500 { background-color: var(--color-violet); }
+  .bg-red\/10 { background-color: rgba(210,104,94,0.12); }
   .bg-background { background-color: var(--color-bg); }
   .bg-foreground { background-color: var(--color-fg); }
   .bg-card { background-color: var(--color-panel); }
   .bg-muted { background-color: var(--color-panel-2); }
-  .bg-muted\/30 { background-color: rgba(31, 42, 29, 0.3); }
-  .bg-muted\/40 { background-color: rgba(31, 42, 29, 0.4); }
-  .bg-muted\/50 { background-color: rgba(31, 42, 29, 0.5); }
+  .bg-muted\/30 { background-color: rgba(18,26,45,0.5); }
+  .bg-muted\/40 { background-color: rgba(18,26,45,0.6); }
+  .bg-muted\/50 { background-color: rgba(18,26,45,0.7); }
   .bg-secondary { background-color: var(--color-panel-2); }
   .bg-primary { background-color: var(--color-money); }
 
-  /* Text */
   .text-fg { color: var(--color-fg); }
   .text-fg-dim { color: var(--color-fg-dim); }
-  .text-muted-foreground { color: var(--color-muted-fg); }
+  .text-muted-foreground { color: var(--color-fg-dim); }
   .text-money { color: var(--color-money); }
+  .text-money-soft { color: var(--color-money-soft); }
   .text-mint { color: var(--color-mint); }
+  .text-violet { color: var(--color-violet); }
   .text-amber { color: var(--color-amber); }
   .text-amber-500, .text-amber-600 { color: var(--color-amber); }
   .text-red { color: var(--color-red); }
@@ -111,49 +123,191 @@ body {
   .text-card-foreground { color: var(--color-fg); }
   .text-background { color: var(--color-bg); }
 
-  /* Borders */
   .border-line { border-color: var(--color-line); }
   .border-border { border-color: var(--color-line); }
   .border-input { border-color: var(--color-line); }
   .border-money { border-color: var(--color-money); }
-  .border-money\/40 { border-color: rgba(174, 248, 91, 0.4); }
+  .border-money\/40 { border-color: rgba(227,178,60,0.4); }
+  .border-money\/60 { border-color: rgba(227,178,60,0.6); }
   .divide-border > * + * { border-color: var(--color-line); }
   .divide-line > * + * { border-color: var(--color-line); }
   .divide-y > * + * { border-top-width: 1px; border-color: var(--color-line); }
 
-  /* Glow halo for "money" things */
-  .shadow-money { box-shadow: 0 0 24px -8px rgba(174, 248, 91, 0.3); }
-  .shadow-money-lg { box-shadow: 0 0 60px -12px rgba(174, 248, 91, 0.4); }
+  .shadow-money { box-shadow: 0 0 0 1px rgba(227,178,60,0.10), 0 24px 60px -28px rgba(227,178,60,0.4); }
+  .shadow-money-lg { box-shadow: 0 0 0 1px rgba(227,178,60,0.12), 0 40px 120px -40px rgba(227,178,60,0.45); }
+
+  .text-glow { text-shadow: 0 0 26px rgba(227,178,60,0.45), 0 0 60px rgba(227,178,60,0.18); }
+  .glow-gold { box-shadow: 0 0 40px -6px rgba(227,178,60,0.5); }
 }
 
-/* LED dot — recurring primitive across the system */
+/* ─────────────────────────────────────────────────────────────────────────
+   LED dot — recurring primitive
+   ───────────────────────────────────────────────────────────────────────── */
 .led {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 9999px;
-  background: var(--color-money);
-  box-shadow: 0 0 8px var(--color-money);
+  display: inline-block; width: 6px; height: 6px; border-radius: 9999px;
+  background: var(--color-money); box-shadow: 0 0 10px var(--color-money);
+  animation: pulse-dot 3.2s ease-in-out infinite;
 }
-.led.amber { background: var(--color-amber); box-shadow: 0 0 8px var(--color-amber); }
-.led.red { background: var(--color-red); box-shadow: 0 0 8px var(--color-red); }
-.led.mint { background: var(--color-mint); box-shadow: 0 0 8px var(--color-mint); }
-.led.dim { background: var(--color-line); box-shadow: none; }
+.led.amber { background: var(--color-amber); box-shadow: 0 0 10px var(--color-amber); }
+.led.red { background: var(--color-red); box-shadow: 0 0 10px var(--color-red); }
+.led.mint { background: var(--color-mint); box-shadow: 0 0 10px var(--color-mint); }
+.led.dim { background: #2e3a57; box-shadow: none; animation: none; }
+@keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
 
-/* Subtle scan-line vibe on big panels */
-.panel-glow {
+/* ─────────────────────────────────────────────────────────────────────────
+   THE NIGHT SKY — fixed atmospheric backdrop
+   ───────────────────────────────────────────────────────────────────────── */
+.nightsky {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
   background:
-    linear-gradient(180deg, rgba(174, 248, 91, 0.02), transparent 30%),
-    var(--color-panel);
+    radial-gradient(120% 80% at 50% -10%, #0c1426 0%, #070a14 55%, #04060d 100%);
+}
+.nightsky .aurora {
+  position: absolute; inset: -20%;
+  background:
+    radial-gradient(45% 40% at 18% 12%, rgba(111,179,160,0.16), transparent 70%),
+    radial-gradient(40% 38% at 86% 18%, rgba(139,123,199,0.16), transparent 70%),
+    radial-gradient(60% 50% at 65% 95%, rgba(227,178,60,0.10), transparent 70%);
+  filter: blur(8px);
+  animation: drift 42s ease-in-out infinite alternate;
+}
+.nightsky .stars,
+.nightsky .stars-2 {
+  position: absolute; inset: 0;
+}
+.nightsky .stars {
+  background-image:
+    radial-gradient(1.4px 1.4px at 12% 18%, rgba(255,255,255,0.9), transparent),
+    radial-gradient(1px 1px at 28% 42%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(1.6px 1.6px at 45% 12%, rgba(243,214,145,0.9), transparent),
+    radial-gradient(1px 1px at 62% 33%, rgba(255,255,255,0.65), transparent),
+    radial-gradient(1.3px 1.3px at 78% 22%, rgba(255,255,255,0.8), transparent),
+    radial-gradient(1px 1px at 88% 48%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1.5px 1.5px at 8% 64%, rgba(255,255,255,0.75), transparent),
+    radial-gradient(1px 1px at 33% 78%, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1.2px 1.2px at 54% 88%, rgba(243,214,145,0.8), transparent),
+    radial-gradient(1px 1px at 72% 72%, rgba(255,255,255,0.55), transparent),
+    radial-gradient(1.4px 1.4px at 92% 82%, rgba(255,255,255,0.7), transparent),
+    radial-gradient(1px 1px at 18% 92%, rgba(255,255,255,0.5), transparent);
+  animation: twinkle 6s ease-in-out infinite;
+}
+.nightsky .stars-2 {
+  background-image:
+    radial-gradient(1px 1px at 22% 8%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 41% 28%, rgba(255,255,255,0.45), transparent),
+    radial-gradient(1px 1px at 67% 16%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 84% 36%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 14% 52%, rgba(255,255,255,0.45), transparent),
+    radial-gradient(1px 1px at 49% 62%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 76% 58%, rgba(255,255,255,0.45), transparent),
+    radial-gradient(1px 1px at 95% 70%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 38% 96%, rgba(255,255,255,0.4), transparent);
+  animation: twinkle 9s ease-in-out infinite reverse;
+  opacity: 0.7;
+}
+.nightsky .grain {
+  position: absolute; inset: 0; opacity: 0.045; mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.nightsky .vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(120% 100% at 50% 40%, transparent 55%, rgba(2,4,10,0.8) 100%);
 }
 
-/* CLI prompt cursor */
-.cursor-blink::after {
-  content: "▌";
-  margin-left: 2px;
-  color: var(--color-money);
-  animation: blink 1s step-end infinite;
+@keyframes drift {
+  0% { transform: translate3d(-2%, -1%, 0) scale(1.02); }
+  100% { transform: translate3d(3%, 2%, 0) scale(1.08); }
 }
-@keyframes blink {
-  50% { opacity: 0; }
+@keyframes twinkle {
+  0%,100% { opacity: 0.9; } 50% { opacity: 0.45; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   THE MOON — CSS-drawn, the signature motif
+   ───────────────────────────────────────────────────────────────────────── */
+.moon {
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 36% 30%, #fffdf3 0%, #f3e8c6 32%, #ddc48c 58%, #b9975a 78%, #856a3c 100%);
+  box-shadow:
+    inset -22px -16px 48px rgba(0,0,0,0.5),
+    inset 16px 12px 36px rgba(255,250,228,0.28),
+    0 0 90px rgba(227,178,60,0.3),
+    0 0 200px rgba(227,178,60,0.14);
+  /* isolation only — never force position so Tailwind placement utilities win.
+     craters (::before, inset:0) resolve against the nearest positioned ancestor
+     wrapper that callers provide. */
+  isolation: isolate;
+  animation: moon-breathe 9s ease-in-out infinite;
+}
+.moon { position: relative; }
+.moon::before {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background:
+    radial-gradient(circle at 62% 40%, rgba(120,96,56,0.55) 0 6%, transparent 7%),
+    radial-gradient(circle at 44% 62%, rgba(120,96,56,0.45) 0 9%, transparent 10%),
+    radial-gradient(circle at 72% 70%, rgba(120,96,56,0.4) 0 5%, transparent 6%),
+    radial-gradient(circle at 30% 42%, rgba(120,96,56,0.35) 0 4%, transparent 5%);
+  mix-blend-mode: multiply; opacity: 0.7;
+}
+@keyframes moon-breathe {
+  0%,100% { filter: brightness(1); transform: translateY(0); }
+  50% { filter: brightness(1.06); transform: translateY(-6px); }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   MOTION — load reveals (above fold) + scroll reveals (below fold)
+   ───────────────────────────────────────────────────────────────────────── */
+.reveal {
+  opacity: 0;
+  animation: rise 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(22px); filter: blur(6px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+/* Always visible. A whisper-soft scroll lift that NEVER drops below full opacity,
+   so content can't get stuck hidden in any browser or in full-page screenshots. */
+.rise-in { opacity: 1; }
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .rise-in {
+      animation: rise-soft 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 22%;
+    }
+  }
+}
+@keyframes rise-soft {
+  from { transform: translateY(26px); }
+  to { transform: translateY(0); }
+}
+
+.hairline {
+  height: 1px; width: 100%;
+  background: linear-gradient(90deg, transparent, var(--color-line) 18%, var(--color-line) 82%, transparent);
+}
+.hairline-gold {
+  height: 1px; width: 100%;
+  background: linear-gradient(90deg, transparent, rgba(227,178,60,0.5) 50%, transparent);
+}
+
+.cursor-blink::after {
+  content: "▍"; margin-left: 2px; color: var(--color-money);
+  animation: blink 1.1s step-end infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* link underline grow */
+.ul-grow { position: relative; }
+.ul-grow::after {
+  content: ""; position: absolute; left: 0; bottom: -2px; height: 1px; width: 0;
+  background: var(--color-money); transition: width 0.35s cubic-bezier(0.22,1,0.36,1);
+}
+.ul-grow:hover::after { width: 100%; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .reveal, .rise-in { opacity: 1 !important; }
 }

@@ -1,42 +1,53 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Fraunces, Instrument_Sans, Spline_Sans_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 import { Providers } from "./providers";
 
-const spaceGrotesk = Space_Grotesk({
+// NOCTURNE type system — editorial serif + refined grotesque + characterful mono.
+const fraunces = Fraunces({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-space-grotesk",
+  style: ["normal", "italic"],
+  variable: "--font-fraunces",
+  display: "swap",
 });
 
-const jetbrainsMono = JetBrains_Mono({
+const instrument = Instrument_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-jetbrains-mono",
+  variable: "--font-instrument",
+  display: "swap",
+});
+
+const splineMono = Spline_Sans_Mono({
+  subsets: ["latin"],
+  variable: "--font-spline-mono",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "gituas — give it to us and sleep",
+  title: "gituas — the night shift for indie software",
   description:
-    "a multi-tenant autonomous saas orchestrator for indie devs with too many tabs. connect a repo, fund a wallet, close the laptop.",
+    "give it to us and sleep. connect a repo, fund the wallet, close the laptop. our agents deploy, market, scale and route the earnings to your bank — and leave a note for the morning.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
+    <html
+      lang="en"
+      className={`${fraunces.variable} ${instrument.variable} ${splineMono.variable}`}
+    >
       <body className="antialiased">
         <Providers>{children}</Providers>
         <Toaster
           position="top-right"
-          theme="dark"
           toastOptions={{
             style: {
-              background: "#10160f",
-              color: "#e8efe2",
-              border: "1px solid #1f2a1d",
-              fontFamily: "var(--font-jetbrains-mono)",
-              fontSize: "13px",
+              background: "#0f1525",
+              color: "#efeadb",
+              border: "1px solid #283150",
+              fontFamily: "var(--font-spline-mono)",
+              fontSize: "12.5px",
+              borderRadius: "12px",
             },
           }}
         />
