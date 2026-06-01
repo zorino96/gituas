@@ -1,0 +1,159 @@
+@import "tailwindcss";
+
+@theme {
+  /* Gituas brand palette — money-green CLI, sleeping-money confidence */
+  --color-bg: #0a0e0b;
+  --color-panel: #10160f;
+  --color-panel-2: #131a12;
+  --color-line: #1f2a1d;
+  --color-fg: #e8efe2;
+  --color-fg-dim: #8aa089;
+  --color-muted: #5d7359;
+  --color-money: #aef85b;
+  --color-money-dim: #6e9a3a;
+  --color-mint: #5be8b4;
+  --color-amber: #ffb84b;
+  --color-red: #ff5a5a;
+
+  /* Aliases used by old shadcn-style classes */
+  --color-background: #0a0e0b;
+  --color-foreground: #e8efe2;
+  --color-card: #10160f;
+  --color-card-foreground: #e8efe2;
+  --color-popover: #10160f;
+  --color-popover-foreground: #e8efe2;
+  --color-primary: #aef85b;
+  --color-primary-foreground: #0a0e0b;
+  --color-secondary: #131a12;
+  --color-secondary-foreground: #e8efe2;
+  --color-muted-fg: #8aa089;
+  --color-muted-foreground: #8aa089;
+  --color-accent: #131a12;
+  --color-accent-foreground: #e8efe2;
+  --color-destructive: #ff5a5a;
+  --color-destructive-foreground: #0a0e0b;
+  --color-border: #1f2a1d;
+  --color-input: #1f2a1d;
+  --color-ring: #aef85b;
+
+  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", "Cascadia Code", monospace;
+}
+
+html, body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-display);
+  font-feature-settings: "ss01", "ss02", "cv01";
+}
+
+body {
+  font-weight: 400;
+  letter-spacing: -0.005em;
+}
+
+/* Mono everywhere for operational data */
+.mono, code, kbd, samp, pre {
+  font-family: var(--font-mono);
+  font-feature-settings: "calt", "ss02";
+}
+
+/* Selection */
+::selection {
+  background: rgba(174, 248, 91, 0.25);
+  color: #e8efe2;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--color-bg); }
+::-webkit-scrollbar-thumb { background: var(--color-line); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-money-dim); }
+
+@layer utilities {
+  /* Backgrounds */
+  .bg-bg { background-color: var(--color-bg); }
+  .bg-panel { background-color: var(--color-panel); }
+  .bg-panel-2 { background-color: var(--color-panel-2); }
+  .bg-line { background-color: var(--color-line); }
+  .bg-money { background-color: var(--color-money); }
+  .bg-money\/10 { background-color: rgba(174, 248, 91, 0.1); }
+  .bg-money\/20 { background-color: rgba(174, 248, 91, 0.2); }
+  .bg-mint { background-color: var(--color-mint); }
+  .bg-mint\/10 { background-color: rgba(91, 232, 180, 0.1); }
+  .bg-amber { background-color: var(--color-amber); }
+  .bg-amber\/10 { background-color: rgba(255, 184, 75, 0.1); }
+  .bg-red\/10 { background-color: rgba(255, 90, 90, 0.1); }
+  .bg-background { background-color: var(--color-bg); }
+  .bg-foreground { background-color: var(--color-fg); }
+  .bg-card { background-color: var(--color-panel); }
+  .bg-muted { background-color: var(--color-panel-2); }
+  .bg-muted\/30 { background-color: rgba(31, 42, 29, 0.3); }
+  .bg-muted\/40 { background-color: rgba(31, 42, 29, 0.4); }
+  .bg-muted\/50 { background-color: rgba(31, 42, 29, 0.5); }
+  .bg-secondary { background-color: var(--color-panel-2); }
+  .bg-primary { background-color: var(--color-money); }
+
+  /* Text */
+  .text-fg { color: var(--color-fg); }
+  .text-fg-dim { color: var(--color-fg-dim); }
+  .text-muted-foreground { color: var(--color-muted-fg); }
+  .text-money { color: var(--color-money); }
+  .text-mint { color: var(--color-mint); }
+  .text-amber { color: var(--color-amber); }
+  .text-amber-500, .text-amber-600 { color: var(--color-amber); }
+  .text-red { color: var(--color-red); }
+  .text-foreground { color: var(--color-fg); }
+  .text-primary { color: var(--color-money); }
+  .text-primary-foreground { color: var(--color-bg); }
+  .text-secondary-foreground { color: var(--color-fg); }
+  .text-destructive { color: var(--color-red); }
+  .text-card-foreground { color: var(--color-fg); }
+  .text-background { color: var(--color-bg); }
+
+  /* Borders */
+  .border-line { border-color: var(--color-line); }
+  .border-border { border-color: var(--color-line); }
+  .border-input { border-color: var(--color-line); }
+  .border-money { border-color: var(--color-money); }
+  .border-money\/40 { border-color: rgba(174, 248, 91, 0.4); }
+  .divide-border > * + * { border-color: var(--color-line); }
+  .divide-line > * + * { border-color: var(--color-line); }
+  .divide-y > * + * { border-top-width: 1px; border-color: var(--color-line); }
+
+  /* Glow halo for "money" things */
+  .shadow-money { box-shadow: 0 0 24px -8px rgba(174, 248, 91, 0.3); }
+  .shadow-money-lg { box-shadow: 0 0 60px -12px rgba(174, 248, 91, 0.4); }
+}
+
+/* LED dot — recurring primitive across the system */
+.led {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--color-money);
+  box-shadow: 0 0 8px var(--color-money);
+}
+.led.amber { background: var(--color-amber); box-shadow: 0 0 8px var(--color-amber); }
+.led.red { background: var(--color-red); box-shadow: 0 0 8px var(--color-red); }
+.led.mint { background: var(--color-mint); box-shadow: 0 0 8px var(--color-mint); }
+.led.dim { background: var(--color-line); box-shadow: none; }
+
+/* Subtle scan-line vibe on big panels */
+.panel-glow {
+  background:
+    linear-gradient(180deg, rgba(174, 248, 91, 0.02), transparent 30%),
+    var(--color-panel);
+}
+
+/* CLI prompt cursor */
+.cursor-blink::after {
+  content: "▌";
+  margin-left: 2px;
+  color: var(--color-money);
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink {
+  50% { opacity: 0; }
+}

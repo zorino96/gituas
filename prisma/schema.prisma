@@ -1,0 +1,570 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model AdCampaign {
+  id                     String         @id @default(cuid())
+  projectId              String
+  platform               Platform
+  externalCampaignId     String?
+  name                   String
+  status                 CampaignStatus @default(DRAFT)
+  budgetCents            Int
+  spentCents             Int            @default(0)
+  revenueAttributedCents Int            @default(0)
+  cpaCents               Int?
+  roas                   Float?
+  copy                   String
+  creativeUrl            String?
+  targeting              Json?
+  startedAt              DateTime?
+  endedAt                DateTime?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  project                Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([platform])
+  @@index([projectId])
+}
+
+model AiUsage {
+  id                String   @id @default(cuid())
+  tenantId          String
+  date              DateTime @db.Date
+  callCount         Int      @default(0)
+  totalInputTokens  Int      @default(0)
+  totalOutputTokens Int      @default(0)
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, date])
+  @@index([tenantId])
+}
+
+model ApprovalRequest {
+  id          String         @id @default(cuid())
+  projectId   String
+  kind        ApprovalKind
+  payload     Json
+  status      ApprovalStatus @default(PENDING)
+  decidedById String?
+  decidedAt   DateTime?
+  reason      String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([status])
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  tenantId    String
+  projectId   String?
+  actor       Actor
+  action      String
+  reasoning   String?
+  metadata    Json?
+  initiatedAs MasterMode?
+  createdAt   DateTime    @default(now())
+  project     Project?    @relation(fields: [projectId], references: [id])
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([action])
+  @@index([createdAt])
+  @@index([projectId])
+  @@index([tenantId])
+}
+
+model ContentPost {
+  id              String           @id @default(cuid())
+  projectId       String
+  createdById     String?
+  sourceAssetUrl  String
+  sourceAssetType AssetType
+  description     String
+  hashtags        String[]
+  status          PostStatus       @default(DRAFT)
+  scheduledFor    DateTime?
+  publishedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  variants        ContentVariant[]
+  platformPosts   PlatformPost[]
+
+  @@index([projectId])
+  @@index([status])
+}
+
+model ContentVariant {
+  id            String      @id @default(cuid())
+  contentPostId String
+  aspectRatio   AspectRatio
+  assetUrl      String
+  createdAt     DateTime    @default(now())
+  contentPost   ContentPost @relation(fields: [contentPostId], references: [id], onDelete: Cascade)
+
+  @@unique([contentPostId, aspectRatio])
+}
+
+model ConversationMessage {
+  id                String           @id @default(cuid())
+  projectId         String
+  platform          Platform
+  channelType       ChannelType
+  direction         MessageDirection
+  externalThreadId  String?
+  externalMessageId String?
+  authorHandle      String?
+  authorName        String?
+  content           String?
+  audioUrl          String?
+  transcript        String?
+  status            MessageStatus    @default(RECEIVED)
+  generatedReply    String?
+  reasoning         String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  project           Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([platform, channelType])
+  @@index([projectId])
+}
+
+model Earnings {
+  id                String   @id @default(cuid())
+  projectId         String
+  periodStart       DateTime
+  periodEnd         DateTime
+  grossRevenueCents Int
+  platformFeeCents  Int
+  netCents          Int
+  currency          String   @default("USD")
+  createdAt         DateTime @default(now())
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([periodStart, periodEnd])
+  @@index([projectId])
+}
+
+model MarketingPlan {
+  id          String              @id @default(cuid())
+  projectId   String
+  data        Json
+  status      MarketingPlanStatus @default(DRAFT)
+  generatedBy String              @default("gemini")
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  project     Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([status])
+}
+
+model Membership {
+  id        String         @id @default(cuid())
+  tenantId  String
+  userId    String
+  role      MembershipRole @default(MEMBER)
+  createdAt DateTime       @default(now())
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([userId])
+}
+
+model MemoryItem {
+  id        String   @id @default(cuid())
+  tenantId  String
+  projectId String?
+  kind      String
+  content   String
+  embedding Json
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([tenantId, kind])
+}
+
+model OAuthCredential {
+  id                    String        @id @default(cuid())
+  tenantId              String
+  provider              OAuthProvider
+  providerAccountId     String
+  providerAccountName   String?
+  scopes                String[]
+  tokenEncrypted        String
+  refreshTokenEncrypted String?
+  expiresAt             DateTime?
+  lastUsedAt            DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  tenant                Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, provider, providerAccountId])
+  @@index([tenantId])
+}
+
+model OAuthState {
+  state        String        @id
+  codeVerifier String
+  tenantId     String
+  provider     OAuthProvider
+  redirectTo   String?
+  expiresAt    DateTime
+  createdAt    DateTime      @default(now())
+
+  @@index([expiresAt])
+  @@index([tenantId])
+}
+
+model PlatformPost {
+  id             String      @id @default(cuid())
+  contentPostId  String
+  platform       Platform
+  platformPostId String?
+  permalinkUrl   String?
+  status         PostStatus  @default(DRAFT)
+  errorMessage   String?
+  postedAt       DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  contentPost    ContentPost @relation(fields: [contentPostId], references: [id], onDelete: Cascade)
+
+  @@unique([contentPostId, platform])
+  @@index([platform])
+}
+
+model Project {
+  id                   String                @id @default(cuid())
+  tenantId             String
+  name                 String
+  slug                 String
+  description          String?
+  status               ProjectStatus         @default(ACTIVE)
+  githubRepoUrl        String?
+  githubRepoId         String?
+  githubRepoOwner      String?
+  githubRepoName       String?
+  cloudProvider        CloudProvider?
+  productionUrl        String?
+  stripeAccountId      String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  mode                 ProjectMode?
+  personality          ProjectPersonality?
+  adCampaigns          AdCampaign[]
+  approvalRequests     ApprovalRequest[]
+  auditLogs            AuditLog[]
+  contentPosts         ContentPost[]
+  conversationMessages ConversationMessage[]
+  earnings             Earnings[]
+  marketingPlans       MarketingPlan[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+}
+
+model ProjectMode {
+  id              String     @id @default(cuid())
+  projectId       String     @unique
+  masterMode      MasterMode @default(MANUAL)
+  adsMode         AgentMode  @default(OFF)
+  contentMode     AgentMode  @default(OFF)
+  replyMode       AgentMode  @default(OFF)
+  commentMode     AgentMode  @default(OFF)
+  scalingMode     AgentMode  @default(OFF)
+  requireApproval Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  project         Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model ProjectPersonality {
+  id          String   @id @default(cuid())
+  projectId   String   @unique
+  data        Json
+  version     Int      @default(1)
+  generatedBy String   @default("claude")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Tenant {
+  id                    String            @id @default(cuid())
+  name                  String
+  slug                  String            @unique
+  ownerId               String
+  plan                  TenantPlan        @default(MANUAL)
+  onboardingDismissedAt DateTime?
+  aiDailyCap            Int?
+  stripeCustomerId      String?           @unique
+  stripeSubscriptionId  String?           @unique
+  subscriptionStatus    String?
+  subscriptionTier      String?
+  currentPeriodEnd      DateTime?
+  discordWebhookUrl     String?
+  telegramBotToken      String?
+  telegramChatId        String?
+  anthropicKeyEncrypted String?
+  googleAiKeyEncrypted  String?
+  openaiKeyEncrypted    String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  owner                 User              @relation(fields: [ownerId], references: [id])
+  aiUsages              AiUsage[]
+  auditLogs             AuditLog[]
+  memberships           Membership[]
+  oauthCredentials      OAuthCredential[]
+  projects              Project[]
+  wallet                Wallet?
+}
+
+model User {
+  id            String       @id @default(cuid())
+  name          String?
+  email         String?      @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  accounts      Account[]
+  memberships   Membership[]
+  sessions      Session[]
+  tenants       Tenant[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Wallet {
+  id           String              @id @default(cuid())
+  tenantId     String              @unique
+  balanceCents Int                 @default(0)
+  currency     String              @default("USD")
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+}
+
+model WalletTransaction {
+  id          String          @id @default(cuid())
+  walletId    String
+  type        TransactionType
+  amountCents Int
+  currency    String          @default("USD")
+  description String
+  referenceId String?
+  metadata    Json?
+  createdAt   DateTime        @default(now())
+  wallet      Wallet          @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([type])
+  @@index([walletId])
+}
+
+enum Actor {
+  USER
+  AI_CLAUDE
+  AI_GEMINI
+  AI_ROUTER
+  SYSTEM
+}
+
+enum AgentMode {
+  AUTO
+  MANUAL
+  OFF
+}
+
+enum ApprovalKind {
+  CONTENT_POST
+  AD_CAMPAIGN
+  REPLY
+  COMMENT_ACTION
+  DEPLOY
+  PRICE_CHANGE
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum AspectRatio {
+  RATIO_16_9
+  RATIO_9_16
+  RATIO_1_1
+  RATIO_4_5
+}
+
+enum AssetType {
+  IMAGE
+  VIDEO
+}
+
+enum CampaignStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ACTIVE
+  PAUSED
+  KILLED
+  COMPLETED
+}
+
+enum ChannelType {
+  DM
+  COMMENT
+  EMAIL
+  VOICE_DM
+  MENTION
+}
+
+enum CloudProvider {
+  VERCEL
+  NETLIFY
+  HEROKU
+  AWS
+  RAILWAY
+  FLY_IO
+  CLOUDFLARE
+  OTHER
+}
+
+enum MarketingPlanStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum MasterMode {
+  AUTO
+  MANUAL
+}
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageStatus {
+  RECEIVED
+  PENDING_APPROVAL
+  SENT
+  DECLINED
+  FAILED
+}
+
+enum OAuthProvider {
+  GITHUB
+  STRIPE
+  META_FACEBOOK
+  META_INSTAGRAM
+  TIKTOK
+  YOUTUBE
+  X_TWITTER
+  LINKEDIN
+  REDDIT
+  GOOGLE_ADS
+  VERCEL
+  CLOUDFLARE
+}
+
+enum Platform {
+  META_FACEBOOK
+  META_INSTAGRAM
+  TIKTOK
+  YOUTUBE
+  X_TWITTER
+  LINKEDIN
+  REDDIT
+}
+
+enum PostStatus {
+  DRAFT
+  PENDING_APPROVAL
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+}
+
+enum ProjectStatus {
+  ACTIVE
+  PAUSED
+  HIBERNATING
+  ARCHIVED
+}
+
+enum TenantPlan {
+  MANUAL
+  AUTO
+  ENTERPRISE
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  SPEND_ADS
+  SPEND_API
+  SPEND_INFRA
+  EARNINGS
+  PLATFORM_FEE
+  REFUND
+}

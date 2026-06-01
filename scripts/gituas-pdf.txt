@@ -1,0 +1,983 @@
+gituas [ design package · v0.9.4 ]
+compiled · may 2026
+for niko · solo plan
+/ / G I V E I T T O U S A N D S L E E P
+Designs
+for the
+sleeping
+founder	.A multi-tenant autonomous SaaS orchestrator, designed across
+four surfaces — marketing site, web dashboard, iOS app, Android
+app — sharing one money-green CLI vocabulary.
+● type · space grotesk + jetbrains mono
+● palette · deep green-black + money lime
+● voice · lowercase, confident, terminal-fluent
+/ 0 7 · I O S · C O C K P I T	/ 0 7 · I O S · C O C K P I T	/ 0 8 · A N D R O I D · M A T E R I A L 3 C O C K P I T
++
+
+-- 1 of 20 --
+
+gituas 	02 · contents
+/ C O N T E N T S
+What's inside.
+00 	Brand 	system note · type ·
+palette · voice
+p. 02
+01 	Marketing site 	long landing ·
+gituas.com
+p. 03
+02 	Dashboard · Fleet 	overview of projects
+under management
+p. 09
+03 	Dashboard · Project 	merch-mage detail ·
+agents · revenue
+p. 10
+04 	Dashboard · Wallet 	balance · ledger ·
+withdraw
+p. 11
+05 	Dashboard · Approvals 	queue · auto-rules ·
+keyboard ops
+p. 12
+06 	Dashboard · Audit log 	every action with
+reasoning
+p. 13
+07 	iOS · cockpit 	home · approve · wallet
+· project
+p. 14
+08 	Android · cockpit 	fleet · ask the brain ·
+activity
+p. 16
+
+-- 2 of 20 --
+
+/ 0 0 · B R A N D 	p. 02
+Money-green CLI.
+Sleeping-money confidence.
+TYPE
+Space Grotesk
+display · 300 / 400 / 500 / 600
+JetBrains Mono
+data · operators · sigils
+PALETTE
+#0a0e0b 	bg · deep green-black
+#10160f 	panel
+#1f2a1d 	line
+#e8efe2 	fg
+#aef85b 	money · primary accent
+#5be8b4 	mint · secondary
+#ffb84b 	amber · pending / warn
+#ff5a5a 	red · used sparingly
+VOICE
+Lowercase-confident. Mono for
+everything operational. Display sans
+for human moments.
+$ vibe-push --deploy --market
+@claude merged PR #284
+↳ why · trending sound matched
+Your projects run themselves.
+↳ system rules · all four surfaces share the same primitives: LED dots, project marks (M·N·V·B…), reasoning footnotes (↳ why), wallet/queue/audit. mobile is a cockpit (review ·
+approve · glance), not a mini-dashboard.
+
+-- 3 of 20 --
+
+/ / G I V E I T T O U S A N D S L E E P
+Your projects
+run themselves.
+Gituas is an autonomous SaaS orchestrator for indie devs with too
+many tabs. Connect a repo, fund a wallet, close the laptop. We
+deploy, market, scale, and route the earnings back to your bank.
+connect github → 	$ vibe-push --deploy --market 	no credit card · 7-day shadow mode
+AUTONOMOUS PROJECTS UNDER MGMT (APUM)
+[ orchestrator/v0.9.4 ]
+uptime · 99.997%
+operators · 412 awake
+live · processing 1,284 jobs
+ORCHESTRATOR.LOG · LIVE 	14:02:31 UTC
+$ git push origin feature/checkout-v2
+gituas 	product 	how it works 	pricing 	changelog 	docs 	sign in 	deposit $50 →
+
+-- 4 of 20 --
+
+merch-mage · $1,204 today 	nicely-typed.app · 14 signups · cpa 3.10 	sleep-cli · ads paused (cpa>ltv) 	tiny-rss · auto-scaled to 4 dynos 	vibedb · stripe-tax wired
+/ 01 — HOW IT WORKS
+Six primitives.
+One sleeping founder. everything below compounds on top of these
+six steps — they are the entire surface
+area you ever touch.
+1,284
+↑ 142 this week
+FOUNDER REVENUE ROUTED THIS MONTH
+$842,019
+paid to 412 wallets · avg ticket $2,043
+NOW SLEEPING
+@niko 	@aman 	@ferr 	@k.lin 	@pmot 	@dvy 	@tess 	@oz
+@m.cole 	@reza 	@s.kim 	+ 401
+→ detecting changes in 14 files, 2 routes touched
+→ project merch-mage
+→ claude analysing PR #284 … ok 1.2s
+→ gemini drafting campaign brief … ok 3.4s
+→ higgsfield rendering 6s promo … rendering
+→ posting to x · linkedin · ig (queued for review)
+→ ad budget reallocated · cpa-7.32 → cpa-6.10 +17%
+$
+$
+claude 	ok gemini-1.5-pro ok higgsfieldrender
+47%
+stripe 	ok meta-graph warm x-api 	ok
+▌
+
+-- 5 of 20 --
+
+01 	VAULT · SCOPED
+Connect
+OAuth your GitHub, Stripe, cloud, and socials. Tokens
+are stored in an AES-256 vault with scoped
+permissions per integration.
+02 	PERSONALITY.JSON
+Understand
+Claude reads the repo, writes a Project Personality
+File: audience, utility, pricing, stack. Gemini drafts a
+30-day plan.
+03 	WALLET · STRIPE
+Fuel
+Deposit $50 (or more). The orchestrator allocates
+across channels — Meta, TikTok, Google Ads, server, AI
+spend — guided by historical CPA.
+04 	AUDIT-LOG
+Operate
+Posts, ads, deploys, scaling, bug-fix PRs. Every action
+is logged with reasoning. You approve sensitive
+moves; the rest just runs.
+05 	EARNINGS.LEDGER
+Earn
+Customer payments flow into Stripe. We compute net
+per project, take 1% of gross + pass-through API cost,
+route the rest to your wallet.
+06 	STRIPE-CONNECT
+Withdraw
+Stripe Connect handles KYC and payout. Hit a button
+— wire, ACH, or Wise — and the money lands in your
+bank.
+/ 02 — THE MONEY ENGINE
+FUEL
+$50.00
+deposit $50
+
+-- 6 of 20 --
+
+Fuel → Engine →
+Harvest → Withdraw
+One closed loop. The wallet spends itself across ads,
+infra and AI calls, the customers pay, the ledger
+settles, and the bank account fills. We take 1% of
+gross — never of your profit, which is gameable.
+1% of gross
+PLATFORM SHARE
+$10–$20/mo
+FIXED PLATFORM FEE
++ pass-through
+YOU PAY API AT COST
+0% of profit
+WE NEVER TOUCH IT
+/ 03 — MULTI-MODEL BRAIN
+One brain is brittle. We
+run six and let the per-tenant vector partitions stop project A's
+context from bleeding into project B.
+ENGINE
+↻
+allocate · ads / infra
+ai
+HARVEST
+$1,204
+stripe revenue
+WITHDRAW
+$1,190
+→ your bank
+W A L L E T · L I V E
+$1,190routing to wise@niko
+
+-- 7 of 20 --
+
+router pick. catastrophic forgetting handled.
+claude
+CODE COMPREHENSION · BUG-FIX PRS
+load · 78% 	merged 142 PRs this week
+gemini 1.5 pro
+LONG-CONTEXT RESEARCH · PLANS
+load · 64% 	drafted 18 30-day plans
+higgsfield + sora
+VIDEO CREATIVE
+load · 92% 	rendering 6s spot · 47%
+flux / midjourney
+STATIC IMAGERY
+load · 41% 	1,204 assets generated
+router
+PICKS WHICH MODEL PER TASK
+load · 22% 	saved $1,840 in api spend
+vector mem
+PER-TENANT MEMORY · NO LEAKAGE
+load · 58% 	412 partitions warm
+/ 04 — THE COCKPIT
+Glance once. Sleep again.
+gituas
+COCKPIT
+YOUR FLEET · TODAY
+$3,840.22 ↑ 18% WOW 14 PROJECTS AWAKE
+APPROVALS · 12 WAITING 	auto in 14m
+@gemini 	$10
+tiktok promo · merch-mage
+
+-- 8 of 20 --
+
+fleet
+wallet
+approvals 12
+audit log
+agents
+settings
+PROJECTS · 14
+M merch-mage
+N nicely-typed
+S sleep-cli
+V vibedb
+db d
+M 	T 	W 	T 	F 	S 	S 	M 	T 	W 	T 	F 	S 	S
+MERCH-MAGE
+$1,204
++18%
+NICELY-TYPED
+$842
++24%
+VIBEDB
+$640
++6%
+SLEEP-CLI
+$0
+hibernated
+approve 	edit
+@claude 	MERGE
+PR #284 · checkout v2
+approve 	edit
+@gemini 	$0
+instagram carousel · vibedb
+approve 	edit
+/ 05 — AUTONOMY WITH GUARDRAILS
+We say autonomous,
+not unsupervised.
+Every action the AI takes is written to an immutable audit
+log, with the reasoning. You can read it Tuesday morning
+AUDIT.LOG · LAST 24H · MERCH-MAGE 	● recording
+14:02:31 	@claude 	merge PR #284
+tests passing · no API surface changed · risk: low
+14:01:18 	@gemini 	draft tiktok caption
+merged feature is user-facing · trending sound matched
+13:58:02 	@router 	pause google-ads ad #44
+cpa $9.21 > 90d ltv $7.40
+
+-- 9 of 20 --
+
+over coffee — or stop the agent mid-sentence from your
+phone.
+Kill-switch
+stop any agent in one tap
+Hibernation
+0-traffic projects → static page after
+30d
+Budget caps
+per-tenant, per-channel, per-day
+Rate-limits
+platform-aware, never trip anti-spam
+Human-in-loop
+configurable per action type
+AES-256 vault
+tokens never leave encrypted
+13:42:55 	@claude 	open issue #312
+stripe webhook 429s · suggest exponential backoff
+13:21:09 	@higgsfield render 6s promo
+queue depth 2 · idle budget $0.40 available
+12:55:44 	@operator 	auto-scale → 4 dynos
+p95 latency 412ms > target 250ms · cost +$1.20/h
+12:31:02 	@gemini 	rewrite meta description
+competitor outranked on 'merch ai' last 48h
+12:14:39 	@founder 	deposit $50
+stripe pm_4kZ · auto-allocated 20/20/10/0
+/ 06 — PRICING
+Pay-as-you-go.
+We win when you do.
+1% of gross revenue per managed project. A small monthly platform fee. API costs at cost.
+
+-- 10 of 20 --
+
+/ 07 — QUESTIONS
+The things
+everyone asks.
+So you take 1% of profit? 	+
+1% of gross revenue actually — profit is gameable and hard to audit, gross is objective
+from Stripe. We never touch your margins.
+What happens to a project nobody buys? 	+
+SOLO
+$10/mo
++ 1% of gross · pass-through API
+✓ up to 5 projects
+✓ approval queue
+✓ wallet & withdraw
+✓ audit log · 30d
+✓ email alerts
+choose solo
+OPERATOR
+$20/mo
++ 1% of gross · pass-through API
+✓ unlimited projects
+✓ priority agent routing
+✓ custom approval rules
+✓ audit log · 1y
+✓ discord + telegram cockpit
+✓ auto-hibernation
+✓ stripe-connect express
+start operating →
+MOST CHOSEN
+CONGLOMERATE
+let's talk
+for indie-hacker collectives & studios
+✓ everything in operator
+✓ white-label dashboard
+✓ team seats + RBAC
+✓ dedicated vault partition
+✓ SOC2-lite handoff
+✓ founder concierge
+choose conglomerate
+
+-- 11 of 20 --
+
+Does my code leave my machine? 	+
+What if the AI posts something dumb? 	+
+Multi-tenant context bleed? 	+
+gituas
+give it to us and sleep. a multi-tenant
+autonomous saas orchestrator for indie
+devs with too many tabs.
+PRODUCT
+fleet
+wallet
+agents
+approvals
+audit
+PLATFORM
+github
+stripe
+vercel
+meta
+tiktok
+COMPANY
+about
+manifesto
+careers
+press
+changelog
+LEGAL
+privacy
+terms
+DPA
+SOC2-lite
+status
+© 2026 GITUAS LABS · MADE WITH TOO MUCH COFFEE BY ONE PERSON 	v0.9.4 · uptime 99.997% · 412 founders sleeping
+
+-- 12 of 20 --
+
+gituas
+@niko · solo plan
+$1,204.22 wallet
+▣ fleet
+$ wallet
+✓ approvals 	12
+≡ audit log
+◉ agents
+PROJECTS · 14
+M merch-mage
+N nicely-typed
+V vibedb
+B moodboard.exe
+R tiny-rss
+S sleep-cli 	·zz·
+I invo-genie
+⌬ integrations
+⚙ settings
+cockpit / Fleet 	⌕ jump · cmd-k 	+ adopt project 	N
+FLEET REVENUE · TODAY
+$3,840.22 ↑ 18.4% wow
+M T W T F S S M T W T F S S
+AD SPEND · 24H
+$214.40
+↓ 6% · cpa improving
+AI API · 24H
+$38.12
+claude 62% · gemini 30%
+INFRA · 24H
+$12.04
+auto-scaled 3x
+PROJECTS UNDER MANAGEMENT 	14 AWAKE 1 HIBERNATING 3 QUEUED
+PROJECT 	STATUS 	TODAY 	30D GROSS 	WALLET 	CPA / LTV 	AGENTS 	LAST ACTION
+M merch-mage 	live 	$1,204.00 	$28,420 	$420.10 	6.10 / 28.40 	C·G·H 	merged PR #284 · 18m 	›
+N nicely-typed 	live 	$842.00 	$19,012 	$320.40 	3.10 / 12.20 	C·G 	tiktok queued · 4m 	›
+V vibedb 	live 	$640.00 	$14,002 	$190.00 	8.40 / 22.10 	C·G·F 	stripe-tax wired · 1h 	›
+B moodboard.exe 	live 	$502.00 	$9,140 	$120.20 	12.04 / 30.20 	C·G·H·F 	video render 87% · 2m 	›
+R tiny-rss 	live 	$320.00 	$7,442 	$90.40 	4.10 / 9.80 	C 	auto-scaled 4 dynos · 22m 	›
+I invo-genie 	queued 	— 	— 	$50.00 	— / — 	G 	drafting 30d plan · 6m 	›
+S sleep-cli 	hibernating 	— 	$402 	$3.20 	— / — 	— 	static page · 17d 	›
+ORCHESTRATOR FIREHOSE · LIVE 	recording
+· tail -f orchestrator.log
+14:02:31 @claude merged PR #284 (merch-mage)
+14:01:18 @gemini drafted tiktok caption (merch-mage)
+13:58:02 @router paused google-ads #44 cpa>ltv
+MONTHLY CASH FLOW
+merch-mage 	$28,420
+nicely-typed 	$19,012
+$842k
+
+-- 13 of 20 --
+
+gituas
+@niko · solo plan
+$1,204.22 wallet
+▣ fleet
+$ wallet
+✓ approvals 	12
+≡ audit log
+◉ agents
+PROJECTS · 14
+M merch-mage
+N nicely-typed
+V vibedb
+B moodboard.exe
+R tiny-rss
+S sleep-cli 	·zz·
+I invo-genie
+⌬ integrations
+⚙ settings
+fleet / merch-mage / merch-mage 	⌕ jump · cmd-k 	LIVE 	kill switch 	N
+overview 	marketing 	revenue 	agents 	deploys 	settings
+30D GROSS REVENUE
+$28,420 ↑ 31%
+gituas fee ($284.20) + api cost ($142.18) routed · net $28,000
+to wallet
+01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16
+PAYING CUSTOMERS
+1,428
++312 / 30d
+CHURN · ROLLING
+2.1%
+↓ 0.4pp
+AGENTS · LAST 24H
+@claude
+8
+code · 1 merged
+· 2 queued
+@gemini
+24
+research · 4
+plans this week
+@higgsfield
+12
+video · 1
+rendering · 47%
+@router
+142
+ops · saved $48
+today
+CHANNEL SPEND · 24H 	$48.20 total · roas 4.2x
+google-ads 	$18.40 	5.1x
+meta · instagram 	$12.20 	3.8x
+tiktok · paid 	$10.00 	4.2x
+x · promoted 	$4.60 	2.1x
+reddit · paused 	$3.00 	1.2x
+PROJECT PERSONALITY 	auto-generated by @claude · 14 days ago
+{
+"audience": "streetwear shopify owners, 22–34, design-fluent",
+"utility": "generate on-brand mockups from product descriptions",
+"pricing": "$19/mo · 50 generations · stripe checkout",
+"tech_stack": ["next.js","supabase","vercel","stripe","flux-1.1"],
+"tone": "playful · confident · no emojis",
+"north_star": "weekly active generators > 500"
+}
+RECENT AUTONOMOUS POSTS 	6 published · 2 awaiting
+X shipped: bulk mockup gen for 50 SKUs in one prompt. tag a streetwear
+founder.
+live · 412 impressions
+IG carousel · 'before & after' mockup grid · 6 frames generated by flux
+awaiting approval
+LI long-form: how merch-mage cut design back-and-forth by 80% for small
+brands
+live · 24 reactions
+91%
+MARGIN
+
+-- 14 of 20 --
+
+gituas
+@niko · solo plan
+$1,204.22 wallet
+▣ fleet
+$ wallet
+✓ approvals 	12
+≡ audit log
+◉ agents
+PROJECTS · 14
+M merch-mage
+N nicely-typed
+V vibedb
+B moodboard.exe
+R tiny-rss
+S sleep-cli 	·zz·
+I invo-genie
+⌬ integrations
+⚙ settings
+cockpit / Wallet 	⌕ jump · cmd-k 	N
+ACTIVE ALLOCATION · PER $1 DEPOSIT 	auto-tuned by router
+google-ads 	40%
+tiktok promo 	25%
+server & infra 	20%
+ai api spend 	10%
+reserve 	5%
+LEDGER · 7 DAYS 	ALL INCOME SPEND
+today
+14:02 INCOME 	stripe · merch-mage sub · 14 customers 	+ $266.00
+today
+13:58 SPEND 	google-ads · merch-mage 	− $18.40
+today
+13:21 SPEND 	higgsfield · 6s render · moodboard 	− $1.20
+today
+12:14 DEPOSIT 	founder top-up · pm_4kZ 	+ $50.00
+WITHDRAW
+AMOUNT · USD
+$1,190.00
+max available
+25% 	50% 	max
+DESTINATION
+Wise · USD multi-currency
+•••• 4421 · arrives in 2h VERIFIED
+send $1,190.00
+stripe-connect · kyc verified · no fee · receipt to niko@example.com
+TAX · YTD
+$12,420 estimated
+stripe-tax wired · 14 jurisdictions
+download 1099-K · CSV
+WALLET · NIKO@GITUAS
+$1,204.22
+deposit 	withdraw $1,190 	allocation rules
+AVAILABLE
+$1,190.00
+ROUTING
+$14.22
+EARNED · MTD
+$842,019
+SPENT · MTD
+$1,840.20
+100%
+ALLOCATED
+▌
+
+-- 15 of 20 --
+
+gituas
+@niko · solo plan
+$1,204.22 wallet
+▣ fleet
+$ wallet
+✓ approvals 	12
+≡ audit log
+◉ agents
+PROJECTS · 14
+M merch-mage
+N nicely-typed
+V vibedb
+B moodboard.exe
+R tiny-rss
+S sleep-cli 	·zz·
+I invo-genie
+⌬ integrations
+⚙ settings
+cockpit / Approval queue 	⌕ jump · cmd-k 	12 WAITING 	auto-rules 	N
+QUEUE · 12 	auto in 14m
+@gemini · merch-mage 	$10
+TikTok 6s promo · 'before/after'
+queued · 2m ago
+@gemini · vibedb 	$0
+IG carousel · 6 frames
+queued · 3m ago
+@claude · merch-mage 	MERGE
+merge PR #284 · checkout v2
+queued · 4m ago
+@router · tiny-rss 	$2.40/H
+scale up → 6 dynos
+queued · 5m ago
+@gemini · nicely-typed 	$0
+X thread · 5 tweets
+queued · 6m ago
+@gemini · merch-mage 	$0
+LinkedIn longform · 600w
+queued · 7m ago
+@router · moodboard.exe 	+$10
+raise google-ads cap → $40
+queued · 8m ago
+@claude · vibedb 	REVIEW
+issue #312 · stripe backoff
+queued · 9m ago
+@GEMINI · MERCH-MAGE
+TikTok 6s promo ·
+'before/after'
+AUTO-APPROVES
+IN 14M
+VIDEO · 6S · 1080×1920 · DROP PREVIEW
+HERE
+CAPTION
+one product photo → fi
+brand mockups in one
+no designers harmed. #
+#merch #ai
+WHY @GEMINI CHOSE THIS
+feature 'bulk mockup' mer
+· audience signal high
+trending sound matched ·
+14% engagement
+predicted cpa $6.10 · 30d
+roas 4.6x
+BUDGET ENVELOPE
+UPLOAD
+$0
+PROMOTE
+$10
+C
+$
+approve ·
+publish edit
+AUTO-APPROVAL RULES
+X · replies < 280 chars
+IG · static posts
+TikTok video
+any spend > $25
+claude · merge to main
+claude · open issues
+THIS WEEK'S QUEUE
+142 actions
+approved 	118
+auto-approved 	18
+edited then approved 	4
+rejected 	2
+SHORTCUTS
+approve 	A
+reject 	R
+edit 	E
+next 	J / ↓
+prev 	K / ↑
+
+-- 16 of 20 --
+
+gituas
+@niko · solo plan
+$1,204.22 wallet
+▣ fleet
+$ wallet
+✓ approvals 	12
+≡ audit log
+◉ agents
+PROJECTS · 14
+M merch-mage
+N nicely-typed
+V vibedb
+B moodboard.exe
+R tiny-rss
+S sleep-cli 	·zz·
+I invo-genie
+⌬ integrations
+⚙ settings
+cockpit / Audit log 	⌕ jump · cmd-k 	RECORDING 	export csv 	N
+ACTOR
+all 	1842
+✓ @claude 	412
+✓ @gemini 	622
+✓ @higgsfield 	240
+✓ @router 	360
+✓ @founder 	18
+✓ @operator 	190
+PROJECT
+all (7)
+merch-mage
+nicely-typed
+vibedb
+moodboard.exe
+tiny-rss
+invo-genie
+sleep-cli
+SEVERITY
+info 	1212
+warn 	482
+error 	18
+sensitive 	130
+WINDOW
+1H 24H 7D 30D ALL
+1,842 EVENTS · LAST 24H 	scroll · streaming live
+14:02:31 	@claude 	merch-mage 	INFO 	merge PR #284 · checkout v2
+↳ tests passing · no API surface
+changed · risk: low · 14 files,
+312 LOC
+deploy queued to vercel · ETA 80s
+14:01:18 	@gemini 	merch-mage 	INFO 	draft tiktok caption
+↳ merged feature is user-facing
+· trending sound matched ·
+audience match 0.87
+queued for human approval · in queue 4m
+13:58:02 	@router 	merch-mage 	WARN 	pause google-ads ad #44
+↳ cpa $9.21 > 90d ltv $7.40 ·
+breach threshold 2/3 days
+ad paused · budget freed $18.40
+13:42:55 	@claude 	vibedb 	INFO 	open issue #312
+↳ stripe webhook 429s detected
+in logs · suggest exponential
+backoff with jitter
+issue opened · linked PR drafted
+13:21:09 	@higgsfield 	moodboard.exe 	INFO 	render 6s promo
+↳ queue depth 2 · idle budget
+$0.40 available · brand kit
+colors locked
+render 47% · ETA 4m20s
+12:55:44 	@operator 	tiny-rss 	WARN 	auto-scale → 4 dynos
+↳ p95 latency 412ms > target
+250ms over 3m window · cost
++$1.20/h
+scaled · p95 now 180ms
+12:31:02 	@gemini 	merch-mage 	INFO 	rewrite meta description
+↳ competitor 'mockup-ai.com'
+outranked us on 'merch ai' last
+48h · low effort win
+rewritten · indexed in 6m
+12:14:39 	@founder 	— 	SENSITIVE deposit $50
+↳ stripe pm_4kZ · auto-allocated
+20/20/10/0
+wallet 1154 → 1204
+
+-- 17 of 20 --
+
+01 · HOME 	02 · SWIPE TO APPROVE
+gituas 	all awake N
+EARNED TODAY
+$3,840
+SPENT TODAY
+$264
+NEEDS YOU · 3 	auto in 14m
+@gemini wants to publish a TikTok promo
+for merch-mage
+review → 	snooze
+FLEET · 7 PROJECTS 	↑ 18% wow
+M merch-mage
+live · ↑ 18% $1,204
+N nicely-typed
+live · ↑ 24% $842
+V vibedb
+live · ↑ 6% $640
+B moodboard.exe
+render · video 47% $502
+WALLET · NIKO
+$1,204.22
++ deposit 	withdraw
+QUEUE · APPROVALS
+12 waiting auto · 14m
+2 / 12 reviewed · swipe to continue
+6S VIDEO PREVIEW · MERCH-MAGE
+@GEMINI · MERCH-MAGE 	$10 SPEND
+TikTok 6s promo · 'before/after'
+"one product photo → fifty on-brand mockups in
+one prompt. no designers harmed."
+↳ why trending sound · audience match 0.87 ·
+predicted roas 4.6x
+← reject
+approve
+ 
+→
+✕ 	✎ ✓
+9:41 	9:41
+▣
+home
+✓
+queue
+$
+wallet
+◉
+agents
+≡
+more
+▣
+home
+✓
+queue
+$
+wallet
+◉
+agents
+≡
+more
+
+-- 18 of 20 --
+
+03 · WALLET · WITHDRAW 	04 · PROJECT DETAIL
+WALLET 	healthy
+ALLOCATION · AUTO-TUNED
+google-ads 	40%
+tiktok promo 	25%
+server & infra 	20%
+ai api spend 	10%
+reserve 	5%
+RECENT LEDGER
+stripe · merch-mage sub
+14 customers · 18m ago + $266.00
+google-ads · merch-mage
+auto-spend · 22m ago − $18.40
+deposit · founder
+stripe pm_4kZ · 2h ago + $50.00
+wise · withdraw
+verified · yest 22:01 − $1,200.00
+AVAILABLE
+$1,190
++ $14.22 routing · earnings mtd $842k
+withdraw to wise →
+M merch-mage
+live · 4 agents awake
+⋯
+30D GROSS
+$28,420 ↑ 31%
+01 02 03 04 05 06 07 08 09 10 11 12
+CUSTOMERS
+1,428
+CHURN
+2.1%
+ROAS · 7D
+4.2x
+WALLET
+$420
+AGENTS · LAST 24H 	4 awake
+C @claude
+merged PR #284 · checkout v2
+18m ago
+G @gemini
+queued tiktok caption
+4m ago
+H @higgsfield
+render 6s promo · 47%
+now
+R @router
+paused google-ads #44 cpa>ltv
+22m ago
+9:41 	9:41
+▣
+home
+✓
+queue
+$
+wallet
+◉
+agents
+≡
+more
+▣
+home
+✓
+queue
+$
+wallet
+◉
+agents
+≡
+more
+
+-- 19 of 20 --
+
+≡ 	gituas 	⌕ N
+Fleet
+all 7 	live 5 	queued 1 	hibernating 1
+M merch-mage
+↑ 18%
+$1,204
+N nicely-typed
+↑ 24%
+$842
+V vibedb
+↑ 6%
+$640
+B moodboard.exe
+render 47%
+$502
+R tiny-rss
+scaled 4d
+$320
+▣
+fleet
+✓ 12
+queue
+$
+wallet
+≡
+audit
+≡ 	gituas 	⌕ N
+Ask the brain
+@router auto 	@claude 	@gemini 	@higgsfield
+why did merch-mage sales drop last
+tuesday?
+ROUTER → GEMINI
+investigating · pulled stripe, ads,
+analytics, social mentions across 72h
+window
+GEMINI
+three signals stacked tuesday 14:00 UTC:
+· google-ads cpa spiked 38% (auction
+shift in 'merch ai')
+· competitor 'mockup-ai' launched
+product hunt push
+· checkout v1 had a 9.2% drop-off on
+mobile safari (claude has the patch in PR
+#284)
+estimated lost revenue: $420.
+recommend approving PR #284 and
+reallocating $20 of meta budget to
+retargeting.
+approve PR #284 	reallocate $20
+▣
+fleet
+✓ 12
+queue
+$
+wallet
+≡
+audit
+≡ 	gituas 	⌕ N
+Activity
+all 	needs you · 3 	wins 	alerts
+H @HIGGSFIELD · MOODBOARD.EXE 	now
+video render 47%. ETA 4m20s.
+G @GEMINI · MERCH-MAGE 	4m
+TikTok promo ready for your review.
+review 	snooze 1h
+C @CLAUDE · MERCH-MAGE 	18m
+merged PR #284 · checkout v2 live.
+R @ROUTER · MERCH-MAGE 	22m
+paused google-ads #44 · cpa exceeded ltv.
+C @CLAUDE · VIBEDB 	1h
+opened issue #312 · stripe webhook 429s.
+S @STRIPE · MERCH-MAGE 	2h
+14 new customers · +$266.00 to wallet.
+F @FOUNDER · WALLET 	yest
+withdrawal $1,200 → wise@niko confirmed.
+▣
+fleet
+✓ 12
+queue
+$
+wallet
+≡
+audit
+9:30
+FLEET REVENUE · TODAY
+$3,840.22
+↑ 18.4% wow · 7 projects awake
+M 	T 	W 	T 	F 	S 	S
+9:30 	9:30
+
+-- 20 of 20 --
+
