@@ -1,0 +1,10 @@
+import { createRequire } from "node:module";
+const require = createRequire("C:/Users/Zorin/Desktop/Music Pipeline/");
+const { chromium } = require("playwright");
+const browser = await chromium.launch({ channel: "chrome", headless: true });
+const page = await browser.newPage({ viewport: { width: 1100, height: 1000 }, deviceScaleFactor: 2 });
+await page.goto("http://localhost:3001/privacy", { waitUntil: "networkidle", timeout: 60000 });
+await page.waitForTimeout(1500);
+await page.screenshot({ path: "C:/Users/Zorin/Desktop/gituas/scripts/shot-privacy.png", fullPage: false });
+console.log("done");
+await browser.close();

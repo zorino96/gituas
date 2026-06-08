@@ -1,0 +1,17 @@
+# SELENOGRAPHY
+
+### A visual philosophy — the cartography of light in darkness
+
+---
+
+**Selenography** is the discipline of mapping the moon: charting craters, seas, and terminators on a body we only ever see by borrowed light. As an aesthetic movement it treats darkness not as absence but as the primary material — a vast, calibrated obsidian field against which a single luminous gesture becomes monumental. The work is overwhelmingly black. Into that black, light is *placed*, never sprayed: one curved stroke of moonlight, one warm seam of gold, a scatter of points charted like coordinates. Restraint is the entire grammar. The eye is given one thing to love and infinite room to love it in.
+
+The governing **form** is the arc. Selenography believes in the perfect curve and the clean subtraction — a disc with a disc removed, leaving a crescent whose two cusps taper to mathematical points. Every radius is deliberate; every tangent resolves. Negative space is treated as a drawn element, sculpted with the same care as the positive form, so that the counter — the bay, the hollow — carries as much meaning as the mass. Nothing is approximate. The geometry must feel *measured*, as though lifted from an astronomer's plate where error is not permitted.
+
+**Color** is a two-temperature system burning in the dark: cold moonlight and warm champagne gold, laid over true obsidian. Light has direction here — it falls on the lit edge as pale silver-white and pools, at the body's far seam, into a slow molten gold, the way a real moon warms toward its limb. Gold is rationed like leaf: it appears only where it earns reverence — a node, a seam, a single point of ignition. The palette never widens. Its discipline is its luxury; the work reads as expensive precisely because it refuses every color it does not need.
+
+**Scale and rhythm** come from the tension between the singular and the charted. One large silent form anchors the composition; around or within it, a small constellation of points establishes a quieter, scientific cadence — coordinates, a measured path, a graph traced star-to-star with hairline rules. This is the selenographer's hand: the impulse to *map*, to mark, to annotate the void with the cool confidence of someone documenting something real. The points are tiny and exact. The lines between them are thin enough to whisper and straight enough to trust.
+
+**Typography** is set like an engraver's caption — sparse, deliberate, never explanatory. A serif of high contrast and optical refinement carries any name, its thin strokes echoing the hairlines of the chart; supporting marks appear in a narrow monospace at the scale of a margin note, letter-spaced like a coordinate label. Text is a single instrument played softly. It sits *with* the form, balanced to the millimetre, and then it stops. No paragraph ever survives in Selenography. Words are placed the way a cartographer letters a map — only what the eye needs to orient itself.
+
+Above all, Selenography is **meticulously crafted**. Every curve is the product of countless refinements; every point of gold the result of painstaking placement; every margin the decision of someone at the absolute top of their field. The finished artifact should look as though it was labored over for many hours by a master — pristine, museum-grade, the kind of object that proves something ephemeral can be studied, mapped, and rendered with reverence. It is not decorated. It is *resolved*. The work earns its silence.

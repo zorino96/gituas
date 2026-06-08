@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..500&family=Spline+Sans+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#070a14; --panel:#0d1322; --line:#243049;
+    --fg:#efeadb; --dim:#97a0bd; --gold:#e3b23c; --moon:#f6f1e7;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--fg);
+    font-family:"Spline Sans Mono",monospace;-webkit-font-smoothing:antialiased}
+  .stage{display:flex;flex-direction:column;align-items:flex-start;gap:64px;padding:64px}
+
+  /* ---- shared SVG defs live in #svgdefs ---- */
+  .mark{display:block;filter:drop-shadow(0 0 26px rgba(227,178,60,.34)) drop-shadow(0 0 7px rgba(246,241,231,.22))}
+
+  /* ---- ICON TILE ---- */
+  #icon{width:512px;height:512px;border-radius:114px;position:relative;overflow:hidden;
+    background:
+      radial-gradient(120% 120% at 32% 26%, #131b2e 0%, #0a0f1c 46%, #05070e 100%);
+    box-shadow:inset 0 1px 0 rgba(243,228,176,.06), inset 0 0 0 1.5px rgba(227,178,60,.16);}
+  #icon .star{position:absolute;border-radius:50%;background:#efeadb}
+
+  /* ---- TRANSPARENT MARK ---- */
+  #markwrap{width:512px;height:512px;display:grid;place-items:center;background:transparent}
+
+  /* ---- LOCKUP ---- */
+  #lockup{width:1320px;height:460px;display:flex;align-items:center;gap:14px;padding:0 70px;
+    position:relative;overflow:hidden;border-radius:28px;
+    background:radial-gradient(140% 160% at 14% 30%, #0c1220 0%, #070a14 60%);}
+  #lockup .word{font-family:"Fraunces",serif;font-optical-sizing:auto;font-weight:355;
+    font-size:188px;line-height:.9;letter-spacing:-.025em;color:var(--fg);}
+  #lockup .tag{font-size:21px;letter-spacing:.34em;color:var(--dim);font-weight:300;margin-top:48px}
+  #lockup .tag b{color:var(--gold);font-weight:400}
+  #lockup .lwrap{display:flex;flex-direction:column;justify-content:center;margin-left:8px}
+
+  /* ---- BOARD (the showcase) ---- */
+  #board{width:1600px;height:1120px;position:relative;overflow:hidden;
+    background:radial-gradient(120% 120% at 26% 22%, #0c1322 0%, #070a14 58%, #05070e 100%);}
+  #board .grain{position:absolute;inset:0;opacity:.5;pointer-events:none;
+    background-image:radial-gradient(rgba(255,255,255,.5) .5px, transparent .5px);
+    background-size:5px 5px;mix-blend-mode:overlay;opacity:.04}
+  #board .vig{position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 90% at 50% 38%, transparent 52%, rgba(0,0,0,.55) 100%)}
+  #board .grid{position:absolute;inset:0;opacity:.5;pointer-events:none;
+    background-image:
+      linear-gradient(rgba(150,170,210,.05) 1px,transparent 1px),
+      linear-gradient(90deg, rgba(150,170,210,.05) 1px,transparent 1px);
+    background-size:80px 80px}
+  #board .star{position:absolute;border-radius:50%;background:#efeadb}
+
+  .eyebrow{font-size:15px;letter-spacing:.42em;color:var(--dim);font-weight:300;text-transform:uppercase}
+  .fig{font-size:13px;letter-spacing:.3em;color:#5d6a87}
+  .mono{font-family:"Spline Sans Mono",monospace}
+  .serif{font-family:"Fraunces",serif;font-optical-sizing:auto}
+
+  #board .label{position:absolute;font-family:"Spline Sans Mono",monospace;font-size:13px;
+    letter-spacing:.26em;color:#7e88a6;text-transform:uppercase}
+  #board .tick{position:absolute;background:rgba(227,178,60,.5)}
+  #board .hair{position:absolute;background:rgba(150,170,210,.18)}
+
+  /* board zones */
+  #board .head{position:absolute;left:96px;top:84px}
+  #board .head .ttl{font-family:"Fraunces",serif;font-weight:330;font-size:30px;letter-spacing:.01em;color:var(--fg);margin-top:10px}
+  #board .fignum{position:absolute;right:104px;top:90px;text-align:right}
+  #board .hero{position:absolute;left:120px;top:250px}
+  #board .heromark{width:520px;height:520px}
+
+  #board .word{position:absolute;right:110px;top:286px;text-align:right}
+  #board .word .g{font-family:"Fraunces",serif;font-optical-sizing:auto;font-weight:350;font-size:210px;line-height:.84;letter-spacing:-.03em;color:var(--fg)}
+  #board .word .tag{margin-top:74px;font-size:20px;letter-spacing:.36em;color:var(--dim);font-weight:300}
+  #board .word .tag b{color:var(--gold);font-weight:400}
+
+  /* palette + detail row */
+  #board .palette{position:absolute;right:110px;bottom:120px;display:flex;gap:26px}
+  #board .sw{display:flex;flex-direction:column;align-items:flex-start;gap:12px}
+  #board .chip{width:108px;height:108px;border-radius:16px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+  #board .sw .hx{font-size:13px;letter-spacing:.16em;color:var(--dim)}
+  #board .sw .nm{font-size:11px;letter-spacing:.28em;color:#5f6a86;text-transform:uppercase}
+
+  #board .detail{position:absolute;left:150px;bottom:120px}
+  #board .detailmark{width:230px;height:230px}
+  #board .dlabel{font-size:12px;letter-spacing:.26em;color:#7e88a6;text-transform:uppercase;margin-top:6px}
+</style>
+</head>
+<body>
+<!-- ============ SHARED DEFS + REUSABLE MARK ============ -->
+<svg width="0" height="0" id="svgdefs" style="position:absolute">
+  <defs>
+    <linearGradient id="moonGrad" x1="34" y1="26" x2="118" y2="172" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f8f3e9"/>
+      <stop offset="0.46" stop-color="#eecd86"/>
+      <stop offset="1" stop-color="#d99f2e"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.4" cy="0.4" r="0.62">
+      <stop offset="0" stop-color="#e3b23c" stop-opacity="0.42"/>
+      <stop offset="0.55" stop-color="#e3b23c" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#e3b23c" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="2.1" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="rim" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="0.7"/>
+    </filter>
+
+    <!-- The Crescent G, authored in a 200x200 space -->
+    <g id="markG">
+      <!-- crescent: outer circle r80 @ (100,100) minus inner r64 @ (150,100) -->
+      <path d="M148.04 36.03 A 80 80 0 1 0 148.04 163.97 A 64 64 0 0 1 148.04 36.03 Z" fill="url(#moonGrad)"/>
+      <!-- thin specular along the lit limb -->
+      <path d="M148.04 36.03 A 80 80 0 1 0 148.04 163.97" fill="none" stroke="#fbf7ee" stroke-opacity="0.55" stroke-width="1.4" filter="url(#rim)"/>
+      <!-- the G-bar drawn as a git commit-graph living in the counter -->
+      <g stroke="#e3b23c" stroke-width="5" stroke-linecap="round" fill="none">
+        <line x1="131" y1="86" x2="131" y2="115"/>
+        <line x1="131" y1="115" x2="95" y2="115"/>
+      </g>
+      <circle cx="95"  cy="115" r="4.6" fill="#e3b23c"/>
+      <circle cx="131" cy="86"  r="4.6" fill="#e3b23c"/>
+      <circle cx="131" cy="115" r="6.2" fill="#f7e9bd" stroke="#e3b23c" stroke-width="1.6" filter="url(#soft)"/>
+    </g>
+  </defs>
+</svg>
+
+<div class="stage">
+
+  <!-- ICON -->
+  <div id="icon">
+    <span class="star" style="width:3px;height:3px;left:120px;top:96px;opacity:.55"></span>
+    <span class="star" style="width:2px;height:2px;left:404px;top:150px;opacity:.45"></span>
+    <span class="star" style="width:2.4px;height:2.4px;left:360px;top:402px;opacity:.5"></span>
+    <span class="star" style="width:1.6px;height:1.6px;left:150px;top:380px;opacity:.4"></span>
+    <svg class="mark" viewBox="0 0 200 200" width="372" height="372"
+         style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)">
+      <use href="#markG"/>
+    </svg>
+  </div>
+
+  <!-- TRANSPARENT STANDALONE MARK -->
+  <div id="markwrap">
+    <svg class="mark" viewBox="0 0 200 200" width="440" height="440"><use href="#markG"/></svg>
+  </div>
+
+  <!-- HORIZONTAL LOCKUP -->
+  <div id="lockup">
+    <svg class="mark" viewBox="0 0 200 200" width="300" height="300"><use href="#markG"/></svg>
+    <div class="lwrap">
+      <div class="word">gituas</div>
+      <div class="tag">give it to us and <b>sleep</b></div>
+    </div>
+  </div>
+
+  <!-- ============ THE BOARD ============ -->
+  <div id="board">
+    <div class="grid"></div>
+    <div class="grain"></div>
+
+    <span class="star" style="width:3px;height:3px;left:220px;top:160px;opacity:.6"></span>
+    <span class="star" style="width:2px;height:2px;left:520px;top:120px;opacity:.45"></span>
+    <span class="star" style="width:2px;height:2px;left:1180px;top:200px;opacity:.4"></span>
+    <span class="star" style="width:2.6px;height:2.6px;left:1320px;top:560px;opacity:.5"></span>
+    <span class="star" style="width:1.8px;height:1.8px;left:300px;top:760px;opacity:.4"></span>
+    <span class="star" style="width:2px;height:2px;left:760px;top:980px;opacity:.4"></span>
+
+    <div class="head">
+      <div class="eyebrow">Nocturne · Selenography</div>
+      <div class="ttl serif">The Crescent G</div>
+    </div>
+    <div class="fignum">
+      <div class="eyebrow">fig.&nbsp;01</div>
+      <div class="label mono" style="position:static;margin-top:10px;color:#5f6a86">identity / lunar mark</div>
+    </div>
+
+    <!-- hero mark with hairline annotations -->
+    <div class="hero">
+      <div class="hair" style="left:-46px;top:260px;width:612px;height:1px"></div>
+      <div class="tick" style="left:-46px;top:251px;width:1px;height:18px"></div>
+      <div class="tick" style="left:566px;top:251px;width:1px;height:18px"></div>
+      <div class="label" style="left:-46px;top:284px">r · 80</div>
+      <div class="label" style="left:516px;top:284px">terminator</div>
+      <svg class="mark heromark" viewBox="0 0 200 200"><use href="#markG"/></svg>
+    </div>
+
+    <!-- wordmark -->
+    <div class="word">
+      <div class="g serif">gituas</div>
+      <div class="tag">give it to us and <b>sleep</b></div>
+    </div>
+
+    <!-- construction detail -->
+    <div class="detail">
+      <svg class="mark detailmark" viewBox="60 60 110 110"><use href="#markG"/></svg>
+      <div class="dlabel">counter · commit-graph</div>
+    </div>
+
+    <!-- palette -->
+    <div class="palette">
+      <div class="sw"><div class="chip" style="background:#070a14"></div><div class="hx mono">#070A14</div><div class="nm">obsidian</div></div>
+      <div class="sw"><div class="chip" style="background:#e3b23c"></div><div class="hx mono">#E3B23C</div><div class="nm">champagne</div></div>
+      <div class="sw"><div class="chip" style="background:#efeadb"></div><div class="hx mono">#EFEADB</div><div class="nm">moonlight</div></div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
