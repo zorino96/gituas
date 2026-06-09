@@ -59,10 +59,23 @@ We request only these scopes, store all tokens encrypted, and use the data solel
 - Display creator **username + avatar before every post** (verified in review).
 - Public posting needs the **audit**; until audited → `SELF_ONLY`, max 5 users / 24h.
 
-## ▶️ Tomorrow's order of operations
-1. (Dev) Build/finish the real TikTok Direct-Post integration so it works in Sandbox.
-2. Re-open the form → re-fill App details (table above) + re-upload icon.
-3. Re-add Products + Scopes + Direct Post (how-to above) + Redirect URI.
-4. Paste the App-review explanation.
-5. Upload the demo video.
-6. **Submit for review.**
+## ✅ Integration BUILT & deployed (2026-06-10)
+Real TikTok OAuth (Login Kit) + Content Posting **Direct Post** is live in code:
+- `src/lib/oauth/registry.ts` + `flow.ts` — TikTok OAuth (`client_key`, PKCE), stores token + creator avatar.
+- `src/lib/publishers/tiktok.ts` — `creator_info` query → Direct Post init (`PULL_FROM_URL`, `SELF_ONLY` until audited).
+- Integrations UI shows the connected TikTok **username + avatar** (TikTok's hard rule).
+- DB column `avatarUrl` added (Neon synced).
+
+## 🔧 To RUN it (so you can record the demo) — your steps
+1. **Vercel env:** add `TIKTOK_CLIENT_KEY` + `TIKTOK_CLIENT_SECRET` (TikTok app → Credentials) → redeploy.
+2. **TikTok → Login Kit → Configure for Web → Redirect URI:** `https://gituas.vercel.app/api/oauth/tiktok/callback`
+3. **Sandbox:** TikTok app → Sandbox → same products/scopes + add your TikTok account as a **target user**; use the sandbox key/secret in Vercel for the recording.
+4. **Sample video:** put a short MP4 at `public/demo/sample.mp4` → `https://gituas.vercel.app/demo/sample.mp4` (verified domain). A ContentPost's `sourceAssetUrl` must point to it.
+5. **Record:** gituas.vercel.app → Dashboard → Integrations → connect TikTok (shows username+avatar) → approve a post → posts SELF_ONLY → screencast the whole flow.
+
+## ▶️ Then submit
+1. Re-open the form → re-fill App details (table above) + re-upload icon.
+2. Re-add Products + Scopes + Direct Post + Redirect URI.
+3. Paste the App-review explanation.
+4. Upload the demo video.
+5. **Submit for review.**
