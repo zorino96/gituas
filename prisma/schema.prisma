@@ -221,6 +221,7 @@ model OAuthCredential {
   provider              OAuthProvider
   providerAccountId     String
   providerAccountName   String?
+  avatarUrl             String?
   scopes                String[]
   tokenEncrypted        String
   refreshTokenEncrypted String?

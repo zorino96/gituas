@@ -12,6 +12,7 @@ interface Cred {
   provider: string;
   providerAccountId: string;
   providerAccountName: string | null;
+  avatarUrl: string | null;
   scopes: string[];
   expiresAt: Date | null;
   lastUsedAt: Date | null;
@@ -141,7 +142,16 @@ function CredentialRow({ cred }: { cred: Cred }) {
 
   return (
     <li className="rounded-md border border-line bg-panel-2 px-3 py-2 flex items-center justify-between text-xs">
-      <div className="min-w-0">
+      <div className="min-w-0 flex items-center gap-2.5">
+        {cred.avatarUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={cred.avatarUrl}
+            alt=""
+            className="h-8 w-8 rounded-full border border-line object-cover shrink-0"
+          />
+        )}
+        <div className="min-w-0">
         <div className="font-mono text-fg">{cred.providerAccountName ?? cred.providerAccountId}</div>
         <div className="text-fg-dim mt-0.5 truncate">
           {cred.scopes.length > 0 && <span>scopes · <span className="font-mono">{cred.scopes.join(" ")}</span></span>}
@@ -158,6 +168,7 @@ function CredentialRow({ cred }: { cred: Cred }) {
           {testing && (
             <span className={`ml-2 ${testing.ok ? "text-money" : "text-red"}`}>· {testing.detail}</span>
           )}
+        </div>
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">

@@ -8,6 +8,7 @@
 
 import { db } from "@/lib/db";
 import { vaultDecrypt } from "@/lib/vault";
+import { publishToTikTok } from "./tiktok";
 import type { OAuthProvider, Platform } from "@/generated/prisma/client";
 
 export interface PublishResult {
@@ -179,7 +180,16 @@ export async function publishPlatformPost(platformPostId: string): Promise<Publi
     case "REDDIT": result = await publishToReddit(tenantId, content); break;
     case "X_TWITTER": result = await publishToX(tenantId, content); break;
     case "LINKEDIN": result = await publishToLinkedIn(tenantId, content); break;
-    case "TIKTOK": result = await publishStub("TikTok"); break;
+    case "TIKTOK": {
+      const tags = (pp.contentPost.hashtags ?? [])
+        .map((h) => (h.startsWith("#") ? h : `#${h}`))
+        .join(" ");
+      result = await publishToTikTok(tenantId, {
+        title: [pp.contentPost.description, tags].filter(Boolean).join(" "),
+        videoUrl: pp.contentPost.sourceAssetUrl,
+      });
+      break;
+    }
     case "YOUTUBE": result = await publishStub("YouTube"); break;
     case "META_FACEBOOK":
     case "META_INSTAGRAM": result = await publishStub("Meta"); break;

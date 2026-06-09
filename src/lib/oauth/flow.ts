@@ -43,12 +43,15 @@ export async function buildAuthorizeUrl(provider: OAuthProvider, tenantId: strin
   const clientId = process.env[cfg.envClientIdKey ?? ""];
   if (!clientId) throw new Error(`${cfg.envClientIdKey} not set`);
 
+  // TikTok deviates from the OAuth norm: the identifier param is `client_key`
+  // and scopes are comma-separated rather than space-separated.
+  const isTikTok = provider === "TIKTOK";
   const params = new URLSearchParams({
-    client_id: clientId,
+    [isTikTok ? "client_key" : "client_id"]: clientId,
     redirect_uri: redirectUriFor(provider),
     response_type: "code",
     state,
-    ...(cfg.scopes ? { scope: cfg.scopes.join(" ") } : {}),
+    ...(cfg.scopes ? { scope: cfg.scopes.join(isTikTok ? "," : " ") } : {}),
     ...(codeChallenge ? { code_challenge: codeChallenge, code_challenge_method: "S256" } : {}),
     ...(provider === "REDDIT" ? { duration: "permanent" } : {}),
   });
@@ -70,11 +73,12 @@ async function exchangeCode(cfg: ProviderConfig, code: string, codeVerifier: str
   if (!clientId) throw new Error(`${cfg.envClientIdKey} not set`);
   if (!clientSecret) throw new Error(`${cfg.envClientSecretKey} not set`);
 
+  const isTikTok = cfg.provider === "TIKTOK";
   const params = new URLSearchParams({
     grant_type: "authorization_code",
     code,
     redirect_uri: redirectUriFor(cfg.provider),
-    client_id: clientId,
+    [isTikTok ? "client_key" : "client_id"]: clientId,
     ...(cfg.mode === "oauth2_pkce" ? { code_verifier: codeVerifier } : {}),
   });
 
@@ -102,11 +106,26 @@ async function exchangeCode(cfg: ProviderConfig, code: string, codeVerifier: str
   return (await res.json()) as TokenResult;
 }
 
-async function fetchProviderAccount(cfg: ProviderConfig, accessToken: string): Promise<{ id: string; name: string }> {
+async function fetchProviderAccount(cfg: ProviderConfig, accessToken: string): Promise<{ id: string; name: string; avatarUrl?: string }> {
   // Minimal user lookups per provider so we can show a useful "providerAccountName"
   const ua = process.env.REDDIT_USER_AGENT ?? "gituas/0.9.4";
   const auth = `Bearer ${accessToken}`;
   try {
+    if (cfg.provider === "TIKTOK") {
+      // TikTok requires showing the creator's username + avatar before posting,
+      // so we capture both here at connect time.
+      const r = await fetch(
+        "https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,avatar_url",
+        { headers: { Authorization: auth } },
+      );
+      const j = await r.json();
+      const u = j?.data?.user;
+      return {
+        id: u?.open_id ?? "unknown",
+        name: u?.display_name ? `@${u.display_name}` : "tiktok",
+        avatarUrl: u?.avatar_url ?? undefined,
+      };
+    }
     if (cfg.provider === "X_TWITTER") {
       const r = await fetch("https://api.twitter.com/2/users/me", { headers: { Authorization: auth } });
       const j = await r.json();
@@ -158,6 +177,7 @@ export async function completeOAuth(provider: OAuthProvider, code: string, state
       provider,
       providerAccountId: account.id,
       providerAccountName: account.name,
+      avatarUrl: account.avatarUrl ?? null,
       scopes: (token.scope ?? cfg.scopes?.join(" ") ?? "").split(/[\s,]+/).filter(Boolean),
       tokenEncrypted: vaultEncrypt(token.access_token),
       refreshTokenEncrypted: token.refresh_token ? vaultEncrypt(token.refresh_token) : null,
@@ -165,6 +185,7 @@ export async function completeOAuth(provider: OAuthProvider, code: string, state
     },
     update: {
       providerAccountName: account.name,
+      avatarUrl: account.avatarUrl ?? null,
       scopes: (token.scope ?? cfg.scopes?.join(" ") ?? "").split(/[\s,]+/).filter(Boolean),
       tokenEncrypted: vaultEncrypt(token.access_token),
       refreshTokenEncrypted: token.refresh_token ? vaultEncrypt(token.refresh_token) : null,

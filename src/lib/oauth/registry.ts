@@ -96,14 +96,14 @@ export const PROVIDERS: ProviderConfig[] = [
   {
     provider: "TIKTOK",
     label: "tiktok",
-    mode: "oauth2",
-    scopes: ["user.info.basic", "video.publish", "video.upload"],
-    blocked: {
-      reason: "requires tiktok business center verification",
-      nextStep: "register and verify at business-api.tiktok.com, then paste client key + secret.",
-    },
+    mode: "oauth2_pkce", // TikTok requires PKCE for web apps
+    scopes: ["user.info.basic", "video.upload", "video.publish"],
+    authorizationUrl: "https://www.tiktok.com/v2/auth/authorize/",
+    tokenUrl: "https://open.tiktokapis.com/v2/oauth/token/",
+    envClientIdKey: "TIKTOK_CLIENT_KEY", // TikTok calls it client_key, not client_id
+    envClientSecretKey: "TIKTOK_CLIENT_SECRET",
     category: "social",
-    docs: "https://developers.tiktok.com/doc/oauth-user-access-token-management/",
+    docs: "https://developers.tiktok.com/doc/content-posting-api-get-started/",
   },
   {
     provider: "YOUTUBE",
