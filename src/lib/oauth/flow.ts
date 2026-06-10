@@ -43,15 +43,16 @@ export async function buildAuthorizeUrl(provider: OAuthProvider, tenantId: strin
   const clientId = process.env[cfg.envClientIdKey ?? ""];
   if (!clientId) throw new Error(`${cfg.envClientIdKey} not set`);
 
-  // TikTok deviates from the OAuth norm: the identifier param is `client_key`
-  // and scopes are comma-separated rather than space-separated.
+  // TikTok deviates from the OAuth norm: the identifier param is `client_key`.
+  // TikTok and Instagram both want comma-separated scopes.
   const isTikTok = provider === "TIKTOK";
+  const commaScopes = isTikTok || provider === "META_INSTAGRAM";
   const params = new URLSearchParams({
     [isTikTok ? "client_key" : "client_id"]: clientId,
     redirect_uri: redirectUriFor(provider),
     response_type: "code",
     state,
-    ...(cfg.scopes ? { scope: cfg.scopes.join(isTikTok ? "," : " ") } : {}),
+    ...(cfg.scopes ? { scope: cfg.scopes.join(commaScopes ? "," : " ") } : {}),
     ...(codeChallenge ? { code_challenge: codeChallenge, code_challenge_method: "S256" } : {}),
     ...(provider === "REDDIT" ? { duration: "permanent" } : {}),
   });
@@ -64,6 +65,8 @@ export interface TokenResult {
   refresh_token?: string;
   expires_in?: number;
   scope?: string;
+  /** Some providers (Instagram) return the account id with the token. */
+  providerUserId?: string;
 }
 
 async function exchangeCode(cfg: ProviderConfig, code: string, codeVerifier: string): Promise<TokenResult> {
@@ -72,6 +75,44 @@ async function exchangeCode(cfg: ProviderConfig, code: string, codeVerifier: str
   const clientSecret = process.env[cfg.envClientSecretKey ?? ""];
   if (!clientId) throw new Error(`${cfg.envClientIdKey} not set`);
   if (!clientSecret) throw new Error(`${cfg.envClientSecretKey} not set`);
+
+  if (cfg.provider === "META_INSTAGRAM") {
+    // Instagram business login: code → 1-hour token on api.instagram.com
+    // (response wrapped in a data[] array), then immediately exchange it for
+    // the 60-day long-lived token on graph.instagram.com. No refresh_token —
+    // the access token itself is refreshed later (see publishers/instagram.ts).
+    const shortRes = await fetch(cfg.tokenUrl!, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: "authorization_code",
+        redirect_uri: redirectUriFor(cfg.provider),
+        code,
+      }).toString(),
+    });
+    const shortJson = await shortRes.json().catch(() => null);
+    const short = Array.isArray(shortJson?.data) ? shortJson.data[0] : shortJson;
+    if (!shortRes.ok || !short?.access_token) {
+      throw new Error(`Instagram token exchange failed (${shortRes.status}): ${JSON.stringify(shortJson).slice(0, 200)}`);
+    }
+
+    const longRes = await fetch(
+      `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${encodeURIComponent(clientSecret)}&access_token=${encodeURIComponent(short.access_token)}`,
+    );
+    const long = await longRes.json().catch(() => null);
+    if (!longRes.ok || !long?.access_token) {
+      throw new Error(`Instagram long-lived exchange failed (${longRes.status}): ${JSON.stringify(long).slice(0, 200)}`);
+    }
+
+    return {
+      access_token: long.access_token,
+      expires_in: long.expires_in,
+      scope: typeof short.permissions === "string" ? short.permissions : undefined,
+      providerUserId: short.user_id != null ? String(short.user_id) : undefined,
+    };
+  }
 
   const isTikTok = cfg.provider === "TIKTOK";
   const params = new URLSearchParams({
@@ -111,6 +152,18 @@ async function fetchProviderAccount(cfg: ProviderConfig, accessToken: string): P
   const ua = process.env.REDDIT_USER_AGENT ?? "gituas/0.9.4";
   const auth = `Bearer ${accessToken}`;
   try {
+    if (cfg.provider === "META_INSTAGRAM") {
+      const r = await fetch(
+        "https://graph.instagram.com/v25.0/me?fields=user_id,username,profile_picture_url",
+        { headers: { Authorization: auth } },
+      );
+      const j = await r.json();
+      return {
+        id: j?.user_id != null ? String(j.user_id) : "unknown",
+        name: j?.username ? `@${j.username}` : "instagram",
+        avatarUrl: j?.profile_picture_url ?? undefined,
+      };
+    }
     if (cfg.provider === "TIKTOK") {
       // TikTok requires showing the creator's username + avatar before posting,
       // so we capture both here at connect time.
@@ -161,6 +214,9 @@ export async function completeOAuth(provider: OAuthProvider, code: string, state
 
   const token = await exchangeCode(cfg, code, stateRow.codeVerifier);
   const account = await fetchProviderAccount(cfg, token.access_token);
+  // Instagram's /me lookup can be flaky right after auth — the token exchange
+  // already carries the account id, so fall back to it.
+  if (account.id === "unknown" && token.providerUserId) account.id = token.providerUserId;
 
   const expiresAt = token.expires_in ? new Date(Date.now() + token.expires_in * 1000) : null;
 

@@ -9,6 +9,7 @@
 import { db } from "@/lib/db";
 import { vaultDecrypt } from "@/lib/vault";
 import { publishToTikTok } from "./tiktok";
+import { publishToInstagram } from "./instagram";
 import type { OAuthProvider, Platform } from "@/generated/prisma/client";
 
 export interface PublishResult {
@@ -191,8 +192,17 @@ export async function publishPlatformPost(platformPostId: string): Promise<Publi
       break;
     }
     case "YOUTUBE": result = await publishStub("YouTube"); break;
-    case "META_FACEBOOK":
-    case "META_INSTAGRAM": result = await publishStub("Meta"); break;
+    case "META_INSTAGRAM": {
+      const tags = (pp.contentPost.hashtags ?? [])
+        .map((h) => (h.startsWith("#") ? h : `#${h}`))
+        .join(" ");
+      result = await publishToInstagram(tenantId, {
+        caption: [pp.contentPost.description, tags].filter(Boolean).join(" "),
+        videoUrl: pp.contentPost.sourceAssetUrl,
+      });
+      break;
+    }
+    case "META_FACEBOOK": result = await publishStub("Facebook Pages"); break;
     default: result = { ok: false, error: "Unknown platform" };
   }
 

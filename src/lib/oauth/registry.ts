@@ -72,26 +72,31 @@ export const PROVIDERS: ProviderConfig[] = [
     docs: "https://github.com/reddit-archive/reddit/wiki/OAuth2",
   },
   {
-    provider: "META_FACEBOOK",
-    label: "meta (facebook + instagram)",
+    provider: "META_INSTAGRAM",
+    label: "instagram",
     mode: "oauth2",
-    scopes: ["pages_show_list", "pages_manage_posts", "instagram_basic", "instagram_content_publish"],
-    blocked: {
-      reason: "requires meta business verification",
-      nextStep: "complete business verification at business.facebook.com, then add app id/secret here.",
-    },
+    // Instagram API with Instagram Login (business login) — no Facebook Page needed.
+    // Three hosts: www.instagram.com (authorize) → api.instagram.com (code exchange)
+    // → graph.instagram.com (long-lived token + all publish calls). See flow.ts.
+    scopes: ["instagram_business_basic", "instagram_business_content_publish"],
+    authorizationUrl: "https://www.instagram.com/oauth/authorize",
+    tokenUrl: "https://api.instagram.com/oauth/access_token",
+    envClientIdKey: "INSTAGRAM_APP_ID",
+    envClientSecretKey: "INSTAGRAM_APP_SECRET",
     category: "social",
-    docs: "https://developers.facebook.com/docs/facebook-login/",
+    docs: "https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/",
   },
   {
-    provider: "META_INSTAGRAM",
-    label: "instagram (via meta)",
+    provider: "META_FACEBOOK",
+    label: "facebook pages",
     mode: "oauth2",
+    scopes: ["instagram_basic", "instagram_content_publish", "pages_show_list", "pages_read_engagement", "pages_manage_posts"],
     blocked: {
-      reason: "uses the meta connection above",
-      nextStep: "connect meta first — instagram posts use the linked facebook page's token.",
+      reason: "phase 2 — only needed for facebook page publishing",
+      nextStep: "instagram posting works via the instagram card above (no page needed). enable this later for page videos (requires a linked facebook page + page token).",
     },
     category: "social",
+    docs: "https://developers.facebook.com/docs/instagram-platform/instagram-api-with-facebook-login/",
   },
   {
     provider: "TIKTOK",

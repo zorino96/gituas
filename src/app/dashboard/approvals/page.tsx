@@ -3,6 +3,10 @@ import { db } from "@/lib/db";
 import { ApprovalShortcuts } from "./approval-shortcuts";
 import { ApprovalActions } from "./approval-actions";
 
+// Instagram publishing polls the media container for up to ~45s before going
+// live — keep the approve action's serverless window wide enough for it.
+export const maxDuration = 60;
+
 export default async function ApprovalsPage() {
   const session = await auth();
   if (!session?.user?.id) return null;
