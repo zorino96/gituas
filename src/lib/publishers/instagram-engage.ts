@@ -137,40 +137,38 @@ export interface IgConversation {
 export async function fetchConversations(tenantId: string, limit = 10): Promise<IgResult<IgConversation[]>> {
   return withCred(tenantId, async (cred) => {
     const t = encodeURIComponent(cred.token);
+    // List only — no field expansion. The `participants` field 500s on the
+    // Instagram-Login conversations edge, so we derive the other party from
+    // each thread's message `from` instead.
     const listRes = await fetch(
-      `${V}/${cred.igUserId}/conversations?platform=instagram&fields=id,updated_time,participants&limit=${limit}&access_token=${t}`,
+      `${V}/${cred.igUserId}/conversations?platform=instagram&limit=${limit}&access_token=${t}`,
     );
     const list = await listRes.json();
     if (!listRes.ok) return fail("IG conversations", listRes.status, list);
 
     const convos: IgConversation[] = [];
-    for (const c of (list?.data ?? []) as {
-      id: string;
-      updated_time?: string;
-      participants?: { data?: { id: string; username?: string }[] };
-    }[]) {
-      const other = (c.participants?.data ?? []).find((p) => p.id !== cred.igUserId);
+    for (const c of (list?.data ?? []) as { id: string; updated_time?: string }[]) {
       let messages: IgConversation["messages"] = [];
+      let participantId: string | undefined;
+      let participantName: string | undefined;
       try {
         const mRes = await fetch(
-          `${V}/${c.id}/messages?fields=id,message,from,created_time&limit=8&access_token=${t}`,
+          `${V}/${c.id}/messages?fields=id,message,from{id,username},created_time&limit=8&access_token=${t}`,
         );
         const m = await mRes.json();
         if (mRes.ok) {
-          messages = ((m?.data ?? []) as { id: string; message?: string; from?: { id: string }; created_time?: string }[])
+          const rows = (m?.data ?? []) as { id: string; message?: string; from?: { id: string; username?: string }; created_time?: string }[];
+          messages = rows
             .map((x) => ({ id: x.id, text: x.message, fromBusiness: x.from?.id === cred.igUserId, createdTime: x.created_time }))
             .reverse(); // newest-first → oldest-first
+          const other = rows.find((x) => x.from?.id && x.from.id !== cred.igUserId)?.from;
+          participantId = other?.id;
+          participantName = other?.username;
         }
       } catch {
-        /* leave messages empty for this thread */
+        /* leave thread without messages/participant */
       }
-      convos.push({
-        id: c.id,
-        updatedTime: c.updated_time,
-        participantId: other?.id,
-        participantName: other?.username,
-        messages,
-      });
+      convos.push({ id: c.id, updatedTime: c.updated_time, participantId, participantName, messages });
     }
     return { ok: true, data: convos };
   });
