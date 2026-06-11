@@ -128,39 +128,51 @@ export interface IgConversation {
   messages: { id: string; text?: string; fromBusiness: boolean; createdTime?: string }[];
 }
 
-/** List recent DM threads with their last few messages. */
+/**
+ * List recent DM threads with their last few messages. Done in two steps —
+ * the conversation list, then per-thread messages — because the single-call
+ * nested expansion (messages{…} on the conversations edge) is unreliable and
+ * 500s on accounts with no/empty threads.
+ */
 export async function fetchConversations(tenantId: string, limit = 10): Promise<IgResult<IgConversation[]>> {
   return withCred(tenantId, async (cred) => {
-    const fields = `id,updated_time,participants,messages.limit(8){id,message,from,created_time}`;
-    const r = await fetch(
-      `${V}/${cred.igUserId}/conversations?platform=instagram&fields=${encodeURIComponent(fields)}&limit=${limit}&access_token=${encodeURIComponent(cred.token)}`,
+    const t = encodeURIComponent(cred.token);
+    const listRes = await fetch(
+      `${V}/${cred.igUserId}/conversations?platform=instagram&fields=id,updated_time,participants&limit=${limit}&access_token=${t}`,
     );
-    const j = await r.json();
-    if (!r.ok) return fail("IG conversations", r.status, j);
-    const data: IgConversation[] = (j?.data ?? []).map((c: {
+    const list = await listRes.json();
+    if (!listRes.ok) return fail("IG conversations", listRes.status, list);
+
+    const convos: IgConversation[] = [];
+    for (const c of (list?.data ?? []) as {
       id: string;
       updated_time?: string;
       participants?: { data?: { id: string; username?: string }[] };
-      messages?: { data?: { id: string; message?: string; from?: { id: string }; created_time?: string }[] };
-    }) => {
+    }[]) {
       const other = (c.participants?.data ?? []).find((p) => p.id !== cred.igUserId);
-      const messages = (c.messages?.data ?? [])
-        .map((m) => ({
-          id: m.id,
-          text: m.message,
-          fromBusiness: m.from?.id === cred.igUserId,
-          createdTime: m.created_time,
-        }))
-        .reverse(); // API returns newest-first; show oldest-first
-      return {
+      let messages: IgConversation["messages"] = [];
+      try {
+        const mRes = await fetch(
+          `${V}/${c.id}/messages?fields=id,message,from,created_time&limit=8&access_token=${t}`,
+        );
+        const m = await mRes.json();
+        if (mRes.ok) {
+          messages = ((m?.data ?? []) as { id: string; message?: string; from?: { id: string }; created_time?: string }[])
+            .map((x) => ({ id: x.id, text: x.message, fromBusiness: x.from?.id === cred.igUserId, createdTime: x.created_time }))
+            .reverse(); // newest-first → oldest-first
+        }
+      } catch {
+        /* leave messages empty for this thread */
+      }
+      convos.push({
         id: c.id,
         updatedTime: c.updated_time,
         participantId: other?.id,
         participantName: other?.username,
         messages,
-      };
-    });
-    return { ok: true, data };
+      });
+    }
+    return { ok: true, data: convos };
   });
 }
 
