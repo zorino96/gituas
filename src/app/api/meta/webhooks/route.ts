@@ -34,7 +34,8 @@ export function GET(req: Request) {
 
 function signatureValid(raw: string, header: string | null): boolean {
   if (!header?.startsWith("sha256=")) return false;
-  const secret = process.env.INSTAGRAM_APP_SECRET ?? "";
+  const secret = process.env.INSTAGRAM_APP_SECRET;
+  if (!secret) return false; // never verify against an empty key
   const expected = createHmac("sha256", secret).update(raw).digest("hex");
   const got = header.slice("sha256=".length);
   const a = Buffer.from(expected, "hex");

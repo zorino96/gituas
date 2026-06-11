@@ -24,7 +24,8 @@ export async function POST(req: Request) {
   }
 
   const [sigPart, payloadPart] = signed.split(".", 2);
-  const secret = process.env.INSTAGRAM_APP_SECRET ?? "";
+  const secret = process.env.INSTAGRAM_APP_SECRET;
+  if (!secret) return NextResponse.json({ error: "misconfigured" }, { status: 500 });
   const expected = createHmac("sha256", secret).update(payloadPart).digest();
   const got = b64url(sigPart);
   if (expected.length !== got.length || !timingSafeEqual(expected, got)) {

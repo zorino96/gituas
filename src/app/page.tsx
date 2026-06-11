@@ -601,13 +601,20 @@ function Footer() {
   );
 }
 
+const FOOT_LINKS: Record<string, string> = {
+  privacy: "/privacy",
+  terms: "/terms",
+};
+
 function FootCol({ head, items }: { head: string; items: string[] }) {
   return (
     <div>
       <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-fg-dim mb-3">{head}</div>
       <ul className="space-y-2 text-sm">
         {items.map((i) => (
-          <li key={i}><a href="#" className="text-fg-dim hover:text-money ul-grow transition-colors">{i}</a></li>
+          <li key={i}>
+            <a href={FOOT_LINKS[i] ?? "#"} className="text-fg-dim hover:text-money ul-grow transition-colors">{i}</a>
+          </li>
         ))}
       </ul>
     </div>

@@ -31,9 +31,20 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
     back.searchParams.set("connected", upper.toLowerCase());
     return NextResponse.redirect(back);
   } catch (err) {
+    // Raw messages can echo provider API bodies (token-exchange responses),
+    // which must not end up in the URL / browser history. Log server-side,
+    // forward an opaque code.
     const msg = err instanceof Error ? err.message : "OAuth failed";
+    console.error(`[oauth:${provider}] callback failed:`, msg);
+    const code = /state/i.test(msg)
+      ? "state_expired"
+      : /exchange|token/i.test(msg)
+        ? "token_exchange_failed"
+        : /mismatch/i.test(msg)
+          ? "provider_mismatch"
+          : "oauth_failed";
     const back = new URL("/dashboard/integrations", req.url);
-    back.searchParams.set("error", msg);
+    back.searchParams.set("error", code);
     return NextResponse.redirect(back);
   }
 }

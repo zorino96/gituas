@@ -3,7 +3,20 @@ import { db } from "@/lib/db";
 import { PROVIDERS, isProviderEnvConfigured } from "@/lib/oauth/registry";
 import { IntegrationCard } from "./integration-card";
 
-export default async function IntegrationsPage() {
+const ERROR_COPY: Record<string, string> = {
+  state_expired: "the connect flow expired — try again",
+  token_exchange_failed: "the platform rejected the token exchange — try again",
+  provider_mismatch: "connect flow mismatch — start over from this page",
+  oauth_failed: "the platform connection failed — try again",
+  access_denied: "you declined the authorization on the platform",
+};
+
+export default async function IntegrationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ connected?: string; error?: string }>;
+}) {
+  const { connected, error } = await searchParams;
   const session = await auth();
   if (!session?.user?.id) return null;
 
@@ -35,6 +48,18 @@ export default async function IntegrationsPage() {
 
   return (
     <div className="px-6 py-8 max-w-7xl mx-auto space-y-8">
+      {connected && (
+        <div className="rounded-md border border-money/40 bg-money/10 px-4 py-3 text-sm">
+          <span className="font-mono text-money">✓ {connected.replace(/_/g, " ")}</span>{" "}
+          <span className="text-fg">connected successfully — the account appears below.</span>
+        </div>
+      )}
+      {error && (
+        <div className="rounded-md border border-red/40 bg-red/10 px-4 py-3 text-sm">
+          <span className="font-mono text-red">✕ connection failed</span>{" "}
+          <span className="text-fg">{ERROR_COPY[error] ?? "something went wrong — try again"}</span>
+        </div>
+      )}
       <div>
         <div className="font-mono text-[10px] uppercase tracking-wider text-fg-dim">integrations</div>
         <div className="mt-1 font-mono text-3xl">

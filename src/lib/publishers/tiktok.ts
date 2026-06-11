@@ -108,6 +108,10 @@ export async function publishToTikTok(
         disable_comment: false,
         disable_duet: false,
         disable_stitch: false,
+        // Spec-required commercial-content disclosures; Gituas posts organic
+        // brand-owned content, so both default off.
+        brand_content_toggle: false,
+        brand_organic_toggle: false,
       },
       source_info: {
         source: "PULL_FROM_URL",
