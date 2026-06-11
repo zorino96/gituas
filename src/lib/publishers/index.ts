@@ -198,7 +198,8 @@ export async function publishPlatformPost(platformPostId: string): Promise<Publi
         .join(" ");
       result = await publishToInstagram(tenantId, {
         caption: [pp.contentPost.description, tags].filter(Boolean).join(" "),
-        videoUrl: pp.contentPost.sourceAssetUrl,
+        mediaUrl: pp.contentPost.sourceAssetUrl,
+        mediaType: pp.contentPost.sourceAssetType === "VIDEO" ? "VIDEO" : "IMAGE",
       });
       break;
     }

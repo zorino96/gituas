@@ -77,8 +77,18 @@ export const PROVIDERS: ProviderConfig[] = [
     mode: "oauth2",
     // Instagram API with Instagram Login (business login) — no Facebook Page needed.
     // Three hosts: www.instagram.com (authorize) → api.instagram.com (code exchange)
-    // → graph.instagram.com (long-lived token + all publish calls). See flow.ts.
-    scopes: ["instagram_business_basic", "instagram_business_content_publish"],
+    // → graph.instagram.com (long-lived token + all publish/engage/insight calls).
+    // As of the 24 Mar 2025 launch this one product covers the full organic
+    // surface: publish + comments/@mentions + DMs + user/media insights. Each
+    // scope still needs Advanced Access via App Review to act on customer
+    // accounts (see META-SUBMISSION.md, Phase 1). See flow.ts.
+    scopes: [
+      "instagram_business_basic",
+      "instagram_business_content_publish",
+      "instagram_business_manage_comments",
+      "instagram_business_manage_insights",
+      "instagram_business_manage_messages",
+    ],
     authorizationUrl: "https://www.instagram.com/oauth/authorize",
     tokenUrl: "https://api.instagram.com/oauth/access_token",
     envClientIdKey: "INSTAGRAM_APP_ID",

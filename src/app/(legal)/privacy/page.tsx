@@ -10,7 +10,7 @@ export default function PrivacyPage() {
   return (
     <article>
       <h1 className="font-display text-4xl md:text-5xl leading-tight">Privacy Policy</h1>
-      <Updated date="June 8, 2026" />
+      <Updated date="June 11, 2026" />
 
       <Lead>
         Gituas (&ldquo;Gituas,&rdquo; &ldquo;we,&rdquo; &ldquo;us&rdquo;) is an autonomous
@@ -52,6 +52,17 @@ export default function PrivacyPage() {
           schedules, and approvals generated within Gituas.
         </LI>
         <LI>
+          <Strong>Audience engagement content.</Strong> Where you enable engagement features, we
+          receive the comments and direct messages your audience sends to your connected accounts
+          (including the message text and the sender&rsquo;s public handle/ID), so our agents can
+          read them and draft or send replies you authorize.
+        </LI>
+        <LI>
+          <Strong>Analytics and insights.</Strong> Aggregate performance metrics from connected
+          accounts — such as reach, impressions, follower counts, likes, and saves — used to report
+          results and improve the content we generate for you.
+        </LI>
+        <LI>
           <Strong>Usage and device data.</Strong> Log data such as IP address, browser type, and
           actions taken, used for security and reliability.
         </LI>
@@ -83,6 +94,26 @@ export default function PrivacyPage() {
         <code className="text-fg">video.upload</code>, and{" "}
         <code className="text-fg">video.publish</code>). The same principles apply to every other
         connected platform: least-privilege scopes, used only for the features you turn on.
+      </P>
+
+      <H2>4a. Instagram and Meta</H2>
+      <P>
+        When you connect an Instagram professional account through Instagram Login, we access your
+        data through the Instagram Platform only to (a) confirm the connected account, (b) publish
+        posts, Reels, and stories you or your configured automations authorize, (c) read and reply
+        to comments and direct messages, and (d) read account and media insights. We request only
+        the scopes required for the features you enable (such as{" "}
+        <code className="text-fg">instagram_business_basic</code>,{" "}
+        <code className="text-fg">instagram_business_content_publish</code>,{" "}
+        <code className="text-fg">instagram_business_manage_comments</code>,{" "}
+        <code className="text-fg">instagram_business_manage_messages</code>, and{" "}
+        <code className="text-fg">instagram_business_manage_insights</code>). Direct messages are
+        used <Strong>only</Strong> to respond to people who message you first, within the platform&rsquo;s
+        permitted messaging window; we never send unsolicited messages and never use messaging data
+        for advertising or profiling. Our use of information received from the Meta Platforms adheres
+        to the{" "}
+        <ExtLink href="https://developers.facebook.com/terms/">Meta Platform Terms</ExtLink> and{" "}
+        <ExtLink href="https://developers.facebook.com/devpolicy/">Developer Policies</ExtLink>.
       </P>
 
       <H2>5. How we share information</H2>

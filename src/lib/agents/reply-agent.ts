@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { getGemini } from "@/lib/gemini";
 import { assertAiBudget, recordAiCall } from "@/lib/ai-budget";
+import { sendConversationReply } from "@/lib/publishers/reply-sender";
 
 /**
  * Generates draft replies for incoming ConversationMessages (DMs, comments,
@@ -55,21 +56,29 @@ Match the brand voice from the Personality (${(project.personality.data as { ton
     const reply = response.text?.trim() ?? "";
     if (!reply) continue;
 
-    await db.conversationMessage.update({
-      where: { id: msg.id },
-      data: {
-        status: project.mode.requireApproval ? "PENDING_APPROVAL" : "SENT",
-        generatedReply: reply,
-        reasoning: "Drafted by reply-agent",
-      },
-    });
     if (project.mode.requireApproval) {
+      // Hold for a human — the approval action sends it on accept.
+      await db.conversationMessage.update({
+        where: { id: msg.id },
+        data: { status: "PENDING_APPROVAL", generatedReply: reply, reasoning: "Drafted by reply-agent" },
+      });
       await db.approvalRequest.create({
         data: {
           projectId,
           kind: "REPLY",
           status: "PENDING",
           payload: { conversationMessageId: msg.id, preview: reply.slice(0, 200) },
+        },
+      });
+    } else {
+      // Auto-send immediately and record the real outcome.
+      const sent = await sendConversationReply(project.tenant.id, msg, reply);
+      await db.conversationMessage.update({
+        where: { id: msg.id },
+        data: {
+          status: sent.ok ? "SENT" : "FAILED",
+          generatedReply: reply,
+          reasoning: sent.ok ? "Sent by reply-agent" : `Send failed: ${sent.error}`,
         },
       });
     }

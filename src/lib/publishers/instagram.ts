@@ -1,32 +1,36 @@
 // ---------------------------------------------------------------------------
-//  Instagram (Instagram API with Instagram Login) — Reels publishing
+//  Instagram (Instagram API with Instagram Login) — content publishing
 // ---------------------------------------------------------------------------
 //
 //  Flow (https://developers.facebook.com/docs/instagram-platform/content-publishing/):
-//    1. POST /{IG_USER_ID}/media            — create a REELS container; Meta
-//       pulls the video from any public https URL (no domain verification)
-//    2. GET  /{container}?fields=status_code — poll until FINISHED
+//    1. POST /{IG_USER_ID}/media            — create a container (REELS/IMAGE/
+//       STORIES); Meta pulls the asset from any public https URL
+//    2. GET  /{container}?fields=status_code — poll until FINISHED (video only;
+//       image containers are ready immediately)
 //    3. POST /{IG_USER_ID}/media_publish     — go live
 //
 //  Tokens are long-lived (60 days) and self-refreshing: there is no
 //  refresh_token. We swap in a fresh token when the current one nears expiry
 //  (must be >=24h old and not yet expired — an expired token is unrecoverable).
+//
+//  loadCred/lazyRefresh/getIgCred + the V host constant are shared with the
+//  engagement layer (comments, DMs, insights) in ./instagram-engage.ts.
 
 import { db } from "@/lib/db";
 import { vaultDecrypt, vaultEncrypt } from "@/lib/vault";
 import type { PublishResult } from "./index";
 
-const HOST = "https://graph.instagram.com";
-const V = `${HOST}/v25.0`;
+export const HOST = "https://graph.instagram.com";
+export const V = `${HOST}/v25.0`;
 
-interface IgCred {
+export interface IgCred {
   id: string;
   igUserId: string;
   token: string;
   expiresAt: Date | null;
 }
 
-async function loadCred(tenantId: string): Promise<IgCred | null> {
+export async function loadCred(tenantId: string): Promise<IgCred | null> {
   const cred = await db.oAuthCredential.findFirst({
     where: { tenantId, provider: "META_INSTAGRAM" },
     orderBy: { lastUsedAt: { sort: "desc", nulls: "last" } },
@@ -45,8 +49,14 @@ async function loadCred(tenantId: string): Promise<IgCred | null> {
   }
 }
 
+/** Load + auto-refresh a usable Instagram credential, or null if reconnect is needed. */
+export async function getIgCred(tenantId: string): Promise<IgCred | null> {
+  const cred = await loadCred(tenantId);
+  return cred ? lazyRefresh(cred) : null;
+}
+
 /** Swap in a fresh 60-day token when within 10 days of expiry. */
-async function lazyRefresh(cred: IgCred): Promise<IgCred> {
+export async function lazyRefresh(cred: IgCred): Promise<IgCred> {
   const TEN_DAYS = 10 * 24 * 60 * 60 * 1000;
   if (!cred.expiresAt || cred.expiresAt.getTime() - Date.now() > TEN_DAYS) return cred;
   try {
@@ -68,14 +78,24 @@ async function lazyRefresh(cred: IgCred): Promise<IgCred> {
   return cred;
 }
 
+export interface IgPublishInput {
+  caption: string;
+  /** Public https URL of the asset Meta will pull. */
+  mediaUrl: string;
+  /** Source asset kind — picks image_url vs video_url + container type. */
+  mediaType: "IMAGE" | "VIDEO";
+  /** FEED (default): a Reel for video / single photo for image. STORY: a Story. */
+  surface?: "FEED" | "STORY";
+}
+
 export async function publishToInstagram(
   tenantId: string,
-  content: { caption: string; videoUrl: string },
+  content: IgPublishInput,
 ): Promise<PublishResult> {
   let cred = await loadCred(tenantId);
   if (!cred) return { ok: false, error: "Instagram not connected (or token expired — reconnect)" };
-  if (!/^https:\/\//i.test(content.videoUrl)) {
-    return { ok: false, error: "Instagram needs a public https video URL" };
+  if (!/^https:\/\//i.test(content.mediaUrl)) {
+    return { ok: false, error: "Instagram needs a public https media URL" };
   }
   cred = await lazyRefresh(cred);
 
@@ -93,17 +113,26 @@ export async function publishToInstagram(
     /* quota check is best-effort */
   }
 
-  // 1. Create the REELS container
+  // 1. Create the container. The media_type + url field depend on the asset:
+  //    video → REELS (or STORIES); image → omit media_type for a feed photo,
+  //    STORIES for a story. Stories take no caption / share_to_feed.
+  const isVideo = content.mediaType === "VIDEO";
+  const isStory = content.surface === "STORY";
+  const mediaType = isStory ? "STORIES" : isVideo ? "REELS" : undefined;
+  const params: Record<string, string> = {
+    [isVideo ? "video_url" : "image_url"]: content.mediaUrl,
+    access_token: cred.token,
+  };
+  if (mediaType) params.media_type = mediaType;
+  if (!isStory) {
+    params.caption = content.caption.slice(0, 2200);
+    if (isVideo) params.share_to_feed = "true";
+  }
+
   const containerRes = await fetch(`${V}/${cred.igUserId}/media`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      media_type: "REELS",
-      video_url: content.videoUrl,
-      caption: content.caption.slice(0, 2200),
-      share_to_feed: "true",
-      access_token: cred.token,
-    }).toString(),
+    body: new URLSearchParams(params).toString(),
   });
   const containerJson = await containerRes.json();
   if (!containerRes.ok || !containerJson?.id) {
@@ -114,11 +143,11 @@ export async function publishToInstagram(
   }
   const containerId = String(containerJson.id);
 
-  // 2. Poll until FINISHED. Bounded (~45s) to stay inside serverless limits;
-  //    short marketing clips usually process well under that.
+  // 2. Poll until FINISHED. Images are usually ready on the first check; videos
+  //    take longer. Bounded (~45s) to stay inside serverless limits.
   let status = "IN_PROGRESS";
   for (let i = 0; i < 9 && status === "IN_PROGRESS"; i++) {
-    await new Promise((r) => setTimeout(r, 5000));
+    if (i > 0 || isVideo) await new Promise((r) => setTimeout(r, 5000));
     try {
       const s = await fetch(
         `${V}/${containerId}?fields=status_code&access_token=${encodeURIComponent(cred.token)}`,
