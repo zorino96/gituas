@@ -42,6 +42,32 @@ async function withCred<T>(
   }
 }
 
+// ---------- media ----------------------------------------------------------
+
+export interface IgMedia {
+  id: string;
+  caption?: string;
+  media_type?: string;
+  media_url?: string;
+  thumbnail_url?: string;
+  permalink?: string;
+  timestamp?: string;
+  comments_count?: number;
+}
+
+/** Recent media on the account (used to surface comments + per-post insights). */
+export async function fetchMedia(tenantId: string, limit = 6): Promise<IgResult<IgMedia[]>> {
+  return withCred(tenantId, async (cred) => {
+    const fields = "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,comments_count";
+    const r = await fetch(
+      `${V}/${cred.igUserId}/media?fields=${fields}&limit=${limit}&access_token=${encodeURIComponent(cred.token)}`,
+    );
+    const j = await r.json();
+    if (!r.ok) return fail("IG media", r.status, j);
+    return { ok: true, data: (j?.data ?? []) as IgMedia[] };
+  });
+}
+
 // ---------- comments -------------------------------------------------------
 
 export interface IgComment {
@@ -92,6 +118,51 @@ export async function setCommentHidden(tenantId: string, commentId: string, hide
 }
 
 // ---------- direct messages ------------------------------------------------
+
+export interface IgConversation {
+  id: string;
+  updatedTime?: string;
+  /** The other participant (the person who messaged the business). */
+  participantId?: string;
+  participantName?: string;
+  messages: { id: string; text?: string; fromBusiness: boolean; createdTime?: string }[];
+}
+
+/** List recent DM threads with their last few messages. */
+export async function fetchConversations(tenantId: string, limit = 10): Promise<IgResult<IgConversation[]>> {
+  return withCred(tenantId, async (cred) => {
+    const fields = `id,updated_time,participants,messages.limit(8){id,message,from,created_time}`;
+    const r = await fetch(
+      `${V}/${cred.igUserId}/conversations?platform=instagram&fields=${encodeURIComponent(fields)}&limit=${limit}&access_token=${encodeURIComponent(cred.token)}`,
+    );
+    const j = await r.json();
+    if (!r.ok) return fail("IG conversations", r.status, j);
+    const data: IgConversation[] = (j?.data ?? []).map((c: {
+      id: string;
+      updated_time?: string;
+      participants?: { data?: { id: string; username?: string }[] };
+      messages?: { data?: { id: string; message?: string; from?: { id: string }; created_time?: string }[] };
+    }) => {
+      const other = (c.participants?.data ?? []).find((p) => p.id !== cred.igUserId);
+      const messages = (c.messages?.data ?? [])
+        .map((m) => ({
+          id: m.id,
+          text: m.message,
+          fromBusiness: m.from?.id === cred.igUserId,
+          createdTime: m.created_time,
+        }))
+        .reverse(); // API returns newest-first; show oldest-first
+      return {
+        id: c.id,
+        updatedTime: c.updated_time,
+        participantId: other?.id,
+        participantName: other?.username,
+        messages,
+      };
+    });
+    return { ok: true, data };
+  });
+}
 
 /**
  * Send a DM reply. Per Meta policy this only succeeds for users who messaged

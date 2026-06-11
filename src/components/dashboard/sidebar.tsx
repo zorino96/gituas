@@ -13,6 +13,7 @@ const NAV = [
   { href: "/dashboard", label: "fleet", glyph: "▣" },
   { href: "/dashboard/wallet", label: "wallet", glyph: "$" },
   { href: "/dashboard/approvals", label: "approvals", glyph: "✓", badge: true },
+  { href: "/dashboard/engagement", label: "engagement", glyph: "✦" },
   { href: "/dashboard/activity", label: "audit log", glyph: "≡" },
   { href: "/dashboard/agents", label: "agents", glyph: "◉" },
 ];
