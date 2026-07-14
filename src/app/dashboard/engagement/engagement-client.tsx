@@ -115,6 +115,7 @@ export function EngagementClient() {
                 participant={conv.participantName ?? conv.participantId ?? "user"}
                 recipientId={conv.participantId ?? ""}
                 messages={conv.messages}
+                withinWindow={conv.withinWindow}
                 onDone={refresh}
               />
             ))}
@@ -173,15 +174,17 @@ function CommentRow({ commentId, username, text, onDone }: { commentId: string; 
 
 // ---- conversation row -----------------------------------------------------
 
-function ConversationRow({ participant, recipientId, messages, onDone }: {
+function ConversationRow({ participant, recipientId, messages, withinWindow, onDone }: {
   participant: string;
   recipientId: string;
   messages: { id: string; text?: string; fromBusiness: boolean }[];
+  withinWindow: boolean;
   onDone: () => void;
 }) {
   const [reply, setReply] = useState("");
   const [pending, startTransition] = useTransition();
   const lastInbound = [...messages].reverse().find((m) => !m.fromBusiness)?.text ?? "";
+  const canReply = withinWindow && !!recipientId;
 
   const draft = () =>
     startTransition(async () => {
@@ -208,16 +211,22 @@ function ConversationRow({ participant, recipientId, messages, onDone }: {
           </li>
         ))}
       </ul>
-      <div className="flex items-center gap-2">
-        <input
-          value={reply}
-          onChange={(e) => setReply(e.target.value)}
-          placeholder="reply within 24h…"
-          className="flex-1 rounded border border-line bg-panel px-2.5 py-1.5 text-xs font-mono"
-        />
-        <IconBtn onClick={draft} pending={pending} title="AI draft"><Sparkles className="h-3.5 w-3.5" /></IconBtn>
-        <IconBtn onClick={send} pending={pending} disabled={!reply.trim() || !recipientId} primary title="send"><Send className="h-3.5 w-3.5" /></IconBtn>
-      </div>
+      {canReply ? (
+        <div className="flex items-center gap-2">
+          <input
+            value={reply}
+            onChange={(e) => setReply(e.target.value)}
+            placeholder="reply…"
+            className="flex-1 rounded border border-line bg-panel px-2.5 py-1.5 text-xs font-mono"
+          />
+          <IconBtn onClick={draft} pending={pending} title="AI draft"><Sparkles className="h-3.5 w-3.5" /></IconBtn>
+          <IconBtn onClick={send} pending={pending} disabled={!reply.trim()} primary title="send"><Send className="h-3.5 w-3.5" /></IconBtn>
+        </div>
+      ) : (
+        <div className="rounded border border-line bg-bg px-2.5 py-1.5 text-[11px] text-fg-dim">
+          outside instagram&rsquo;s 24h reply window — you can reply once this person messages again
+        </div>
+      )}
     </div>
   );
 }

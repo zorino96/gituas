@@ -126,7 +126,17 @@ export interface IgConversation {
   participantId?: string;
   participantName?: string;
   messages: { id: string; text?: string; fromBusiness: boolean; createdTime?: string }[];
+  /**
+   * Whether a reply can still be delivered: Instagram only accepts a message
+   * within 24h of the person's last inbound message. `false` → the reply UI is
+   * disabled instead of letting the send fail with a raw API error.
+   */
+  withinWindow: boolean;
+  /** ISO time of the person's most recent inbound message (drives withinWindow). */
+  lastInboundAt?: string;
 }
+
+const REPLY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /**
  * List recent DM threads with their last few messages. Done in two steps —
@@ -168,8 +178,17 @@ export async function fetchConversations(tenantId: string, limit = 10): Promise<
       } catch {
         /* leave thread without messages/participant */
       }
-      convos.push({ id: c.id, updatedTime: c.updated_time, participantId, participantName, messages });
+      // The reply window is measured from the person's most recent inbound
+      // message; a business reply older than 24h is rejected by Meta.
+      const lastInbound = [...messages].reverse().find((m) => !m.fromBusiness);
+      const lastInboundAt = lastInbound?.createdTime;
+      const withinWindow = lastInboundAt
+        ? Date.now() - new Date(lastInboundAt).getTime() < REPLY_WINDOW_MS
+        : false;
+      convos.push({ id: c.id, updatedTime: c.updated_time, participantId, participantName, messages, withinWindow, lastInboundAt });
     }
+    // Newest threads first so the operator sees (and can reply to) live ones.
+    convos.sort((a, b) => new Date(b.updatedTime ?? 0).getTime() - new Date(a.updatedTime ?? 0).getTime());
     return { ok: true, data: convos };
   });
 }
@@ -191,7 +210,15 @@ export async function sendInstagramDM(tenantId: string, recipientId: string, tex
       }),
     });
     const j = await r.json();
-    if (!r.ok) return fail("IG send DM", r.status, j);
+    if (!r.ok) {
+      // Meta's 24h standard-messaging window: surface a human message instead
+      // of the raw IGApiException so the UI can explain it.
+      const err = j?.error ?? {};
+      if (err.error_subcode === 2534022 || /outside of allowed window/i.test(String(err.message ?? ""))) {
+        return { ok: false, error: "Outside Instagram's 24-hour reply window — you can only reply within 24h of the person's last message." };
+      }
+      return fail("IG send DM", r.status, j);
+    }
     return { ok: true, data: { messageId: j?.message_id } };
   });
 }
