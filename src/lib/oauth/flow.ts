@@ -46,13 +46,17 @@ export async function buildAuthorizeUrl(provider: OAuthProvider, tenantId: strin
   // TikTok deviates from the OAuth norm: the identifier param is `client_key`.
   // TikTok and Instagram both want comma-separated scopes.
   const isTikTok = provider === "TIKTOK";
-  const commaScopes = isTikTok || provider === "META_INSTAGRAM";
+  const commaScopes = isTikTok || provider === "META_INSTAGRAM" || provider === "META_FACEBOOK";
+  // Facebook Login for Business drives permissions from the login config; the
+  // scope param is kept as a fallback for classic Login.
+  const configId = cfg.configIdEnvKey ? process.env[cfg.configIdEnvKey] : undefined;
   const params = new URLSearchParams({
     [isTikTok ? "client_key" : "client_id"]: clientId,
     redirect_uri: redirectUriFor(provider),
     response_type: "code",
     state,
     ...(cfg.scopes ? { scope: cfg.scopes.join(commaScopes ? "," : " ") } : {}),
+    ...(configId ? { config_id: configId } : {}),
     ...(codeChallenge ? { code_challenge: codeChallenge, code_challenge_method: "S256" } : {}),
     ...(provider === "REDDIT" ? { duration: "permanent" } : {}),
   });
@@ -114,6 +118,60 @@ async function exchangeCode(cfg: ProviderConfig, code: string, codeVerifier: str
     };
   }
 
+  if (cfg.provider === "META_FACEBOOK") {
+    // Facebook Login for Business: code → short-lived user token, then exchange
+    // for a long-lived (~60d) user token, then mint the PAGE access token via
+    // /me/accounts. A page token derived from a long-lived user token does NOT
+    // expire, so no lazy-refresh is needed. We store the *page* token — a user
+    // token 400s on /{page-id}/feed.
+    const shortRes = await fetch(
+      `${cfg.tokenUrl}?` +
+        new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUriFor(cfg.provider),
+          code,
+        }).toString(),
+    );
+    const short = await shortRes.json().catch(() => null);
+    if (!shortRes.ok || !short?.access_token) {
+      throw new Error(`Facebook token exchange failed (${shortRes.status}): ${JSON.stringify(short).slice(0, 200)}`);
+    }
+
+    const longRes = await fetch(
+      "https://graph.facebook.com/v25.0/oauth/access_token?" +
+        new URLSearchParams({
+          grant_type: "fb_exchange_token",
+          client_id: clientId,
+          client_secret: clientSecret,
+          fb_exchange_token: short.access_token,
+        }).toString(),
+    );
+    const long = await longRes.json().catch(() => null);
+    const userToken = long?.access_token ?? short.access_token;
+
+    const pagesRes = await fetch(
+      `https://graph.facebook.com/v25.0/me/accounts?fields=id,name,access_token,tasks&access_token=${encodeURIComponent(userToken)}`,
+    );
+    const pagesJson = await pagesRes.json().catch(() => null);
+    const pages: Array<{ id?: string; name?: string; access_token?: string }> = pagesJson?.data ?? [];
+    // Prefer a specific page if configured, else the first the user administers.
+    const wanted = process.env.FACEBOOK_PAGE_ID;
+    const page = (wanted && pages.find((p) => p.id === wanted)) || pages[0];
+    if (!page?.access_token || !page.id) {
+      throw new Error(
+        `Facebook: no page token returned — grant pages_show_list and ensure the user has a Page role. (${JSON.stringify(pagesJson).slice(0, 160)})`,
+      );
+    }
+
+    return {
+      access_token: page.access_token,
+      // Page tokens (from a long-lived user token) are non-expiring.
+      scope: cfg.scopes?.join(","),
+      providerUserId: String(page.id),
+    };
+  }
+
   const isTikTok = cfg.provider === "TIKTOK";
   const params = new URLSearchParams({
     grant_type: "authorization_code",
@@ -162,6 +220,18 @@ async function fetchProviderAccount(cfg: ProviderConfig, accessToken: string): P
         id: j?.user_id != null ? String(j.user_id) : "unknown",
         name: j?.username ? `@${j.username}` : "instagram",
         avatarUrl: j?.profile_picture_url ?? undefined,
+      };
+    }
+    if (cfg.provider === "META_FACEBOOK") {
+      // `accessToken` here is the Page token, so /me resolves to the Page itself.
+      const r = await fetch(
+        `https://graph.facebook.com/v25.0/me?fields=id,name,picture.type(large){url}&access_token=${encodeURIComponent(accessToken)}`,
+      );
+      const j = await r.json();
+      return {
+        id: j?.id != null ? String(j.id) : "unknown",
+        name: j?.name ?? "facebook page",
+        avatarUrl: j?.picture?.data?.url ?? undefined,
       };
     }
     if (cfg.provider === "TIKTOK") {

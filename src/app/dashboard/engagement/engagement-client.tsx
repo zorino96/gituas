@@ -9,9 +9,14 @@ import {
   replyCommentAction,
   hideCommentAction,
   sendDmAction,
+  replyFbCommentAction,
+  hideFbCommentAction,
+  sendMessengerAction,
   draftReplyAction,
   type EngagementData,
 } from "./actions";
+
+type Platform = "META_INSTAGRAM" | "META_FACEBOOK";
 
 export function EngagementClient() {
   const [data, setData] = useState<EngagementData | null>(null);
@@ -28,11 +33,11 @@ export function EngagementClient() {
   if (loading && !data) {
     return <Shell><div className="text-sm text-fg-dim font-mono">loading engagement…</div></Shell>;
   }
-  if (!data?.connected) {
+  if (!data?.connected && !data?.facebook.connected) {
     return (
       <Shell>
         <div className="rounded-xl border border-line bg-panel px-6 py-16 text-center text-sm text-fg-dim">
-          instagram not connected — connect it from{" "}
+          no account connected — connect instagram or a facebook page from{" "}
           <a href="/dashboard/integrations" className="text-money underline">integrations</a>.
         </div>
       </Shell>
@@ -41,37 +46,104 @@ export function EngagementClient() {
 
   return (
     <Shell onRefresh={refresh} loading={loading}>
-      {/* account header */}
-      <div className="rounded-xl border border-money/40 bg-panel p-4 flex items-center gap-3">
-        {data.account?.avatarUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={data.account.avatarUrl} alt="" className="h-10 w-10 rounded-full border border-line object-cover" />
-        )}
-        <div className="min-w-0">
-          <div className="font-mono text-fg">{data.account?.name}</div>
-          <div className="text-[10px] text-fg-dim font-mono truncate">{data.account?.scopes.join(" · ")}</div>
-        </div>
-        <span className="ml-auto led" />
-      </div>
-
       {data.errors.length > 0 && (
         <div className="rounded-md border border-amber/40 bg-amber/10 p-3 text-[11px] text-amber font-mono">
           {data.errors.map((e, i) => <div key={i}>↳ {e}</div>)}
         </div>
       )}
 
+      {data.connected && (
+        <Surface
+          platform="META_INSTAGRAM"
+          account={data.account}
+          insights={data.insights}
+          postGroups={data.media
+            .filter((m) => m.comments.length > 0)
+            .map((m) => ({
+              id: m.id,
+              title: m.caption?.slice(0, 60) || m.media_type || "post",
+              permalink: m.permalink,
+              comments: m.comments.map((c) => ({ id: c.id, username: c.username, text: c.text ?? "" })),
+            }))}
+          conversations={data.conversations.map((conv) => ({
+            id: conv.id,
+            participant: conv.participantName ?? conv.participantId ?? "user",
+            recipientId: conv.participantId ?? "",
+            withinWindow: conv.withinWindow,
+            messages: conv.messages.map((m) => ({ id: m.id, text: m.text, fromBusiness: m.fromBusiness })),
+          }))}
+          onDone={refresh}
+        />
+      )}
+
+      {data.facebook.connected && (
+        <Surface
+          platform="META_FACEBOOK"
+          account={data.facebook.account}
+          insights={data.facebook.insights}
+          postGroups={data.facebook.posts
+            .filter((p) => p.comments.length > 0)
+            .map((p) => ({
+              id: p.id,
+              title: p.message?.slice(0, 60) || "post",
+              permalink: p.permalink_url,
+              comments: p.comments.map((c) => ({ id: c.id, username: c.username, text: c.message ?? "" })),
+            }))}
+          conversations={data.facebook.conversations.map((conv) => ({
+            id: conv.id,
+            participant: conv.participantName ?? conv.participantId ?? "user",
+            recipientId: conv.participantId ?? "",
+            withinWindow: conv.withinWindow,
+            messages: conv.messages.map((m) => ({ id: m.id, text: m.text, fromBusiness: m.fromPage })),
+          }))}
+          onDone={refresh}
+        />
+      )}
+    </Shell>
+  );
+}
+
+// ---- one connected surface (instagram / facebook page) --------------------
+
+interface SurfacePost { id: string; title: string; permalink?: string; comments: { id: string; username?: string; text: string }[] }
+interface SurfaceConv { id: string; participant: string; recipientId: string; withinWindow: boolean; messages: { id: string; text?: string; fromBusiness: boolean }[] }
+
+function Surface({ platform, account, insights, postGroups, conversations, onDone }: {
+  platform: Platform;
+  account?: { name: string; avatarUrl: string | null; scopes: string[] };
+  insights: { name: string; value: number }[];
+  postGroups: SurfacePost[];
+  conversations: SurfaceConv[];
+  onDone: () => void;
+}) {
+  const fb = platform === "META_FACEBOOK";
+  return (
+    <div className="space-y-5">
+      {/* account header */}
+      <div className="rounded-xl border border-money/40 bg-panel p-4 flex items-center gap-3">
+        {account?.avatarUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={account.avatarUrl} alt="" className="h-10 w-10 rounded-full border border-line object-cover" />
+        )}
+        <div className="min-w-0">
+          <div className="font-mono text-fg">{account?.name}</div>
+          <div className="text-[10px] text-fg-dim font-mono truncate">
+            {fb ? "facebook page" : "instagram"} · {account?.scopes.join(" · ")}
+          </div>
+        </div>
+        <span className="ml-auto led" />
+      </div>
+
       {/* insights */}
-      <Section icon={<BarChart3 className="h-3.5 w-3.5" />} title="insights">
-        {data.insights.length === 0 ? (
+      <Section icon={<BarChart3 className="h-3.5 w-3.5" />} title={fb ? "page insights" : "insights"}>
+        {insights.length === 0 ? (
           <Empty>no insights available yet</Empty>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {data.insights.map((m) => (
+            {insights.map((m) => (
               <div key={m.name} className="rounded-lg border border-line bg-panel-2 p-3">
                 <div className="font-mono text-2xl text-money">{m.value.toLocaleString()}</div>
-                <div className="font-mono text-[10px] uppercase tracking-wider text-fg-dim mt-1">
-                  {m.name.replace(/_/g, " ")}
-                </div>
+                <div className="font-mono text-[10px] uppercase tracking-wider text-fg-dim mt-1">{m.name.replace(/_/g, " ")}</div>
               </div>
             ))}
           </div>
@@ -80,21 +152,21 @@ export function EngagementClient() {
 
       {/* comments */}
       <Section icon={<MessageCircle className="h-3.5 w-3.5" />} title="comments">
-        {data.media.every((m) => m.comments.length === 0) ? (
-          <Empty>no comments yet — post one on a Reel to see it here</Empty>
+        {postGroups.length === 0 ? (
+          <Empty>no comments yet — post something and reply to comments here</Empty>
         ) : (
           <div className="space-y-3">
-            {data.media.filter((m) => m.comments.length > 0).map((m) => (
-              <div key={m.id} className="rounded-lg border border-line bg-panel-2 p-3">
+            {postGroups.map((p) => (
+              <div key={p.id} className="rounded-lg border border-line bg-panel-2 p-3">
                 <div className="flex items-center gap-2 text-[11px] text-fg-dim font-mono mb-2">
-                  <span className="truncate">{m.caption?.slice(0, 60) || m.media_type || "post"}</span>
-                  {m.permalink && (
-                    <a href={m.permalink} target="_blank" rel="noreferrer" className="ml-auto text-money underline shrink-0">view</a>
+                  <span className="truncate">{p.title}</span>
+                  {p.permalink && (
+                    <a href={p.permalink} target="_blank" rel="noreferrer" className="ml-auto text-money underline shrink-0">view</a>
                   )}
                 </div>
                 <ul className="space-y-2">
-                  {m.comments.map((c) => (
-                    <CommentRow key={c.id} commentId={c.id} username={c.username} text={c.text ?? ""} onDone={refresh} />
+                  {p.comments.map((c) => (
+                    <CommentRow key={c.id} platform={platform} commentId={c.id} username={c.username} text={c.text} onDone={onDone} />
                   ))}
                 </ul>
               </div>
@@ -103,32 +175,33 @@ export function EngagementClient() {
         )}
       </Section>
 
-      {/* direct messages */}
-      <Section icon={<Mail className="h-3.5 w-3.5" />} title="direct messages">
-        {data.conversations.length === 0 ? (
-          <Empty>no conversations yet — DM the account to see it here</Empty>
+      {/* direct messages / messenger */}
+      <Section icon={<Mail className="h-3.5 w-3.5" />} title={fb ? "messenger" : "direct messages"}>
+        {conversations.length === 0 ? (
+          <Empty>no conversations yet — message the {fb ? "page" : "account"} to see it here</Empty>
         ) : (
           <div className="space-y-3">
-            {data.conversations.map((conv) => (
+            {conversations.map((conv) => (
               <ConversationRow
                 key={conv.id}
-                participant={conv.participantName ?? conv.participantId ?? "user"}
-                recipientId={conv.participantId ?? ""}
+                platform={platform}
+                participant={conv.participant}
+                recipientId={conv.recipientId}
                 messages={conv.messages}
                 withinWindow={conv.withinWindow}
-                onDone={refresh}
+                onDone={onDone}
               />
             ))}
           </div>
         )}
       </Section>
-    </Shell>
+    </div>
   );
 }
 
 // ---- comment row ----------------------------------------------------------
 
-function CommentRow({ commentId, username, text, onDone }: { commentId: string; username?: string; text: string; onDone: () => void }) {
+function CommentRow({ platform, commentId, username, text, onDone }: { platform: Platform; commentId: string; username?: string; text: string; onDone: () => void }) {
   const [reply, setReply] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -138,15 +211,16 @@ function CommentRow({ commentId, username, text, onDone }: { commentId: string; 
       if (r.ok && r.reply) setReply(r.reply);
       else toast.error(r.error ?? "draft failed");
     });
+  const fb = platform === "META_FACEBOOK";
   const send = () =>
     startTransition(async () => {
-      const r = await replyCommentAction(commentId, reply);
+      const r = fb ? await replyFbCommentAction(commentId, reply) : await replyCommentAction(commentId, reply);
       if (r.ok) { toast.success("reply posted"); setReply(""); onDone(); }
       else toast.error(r.error ?? "reply failed");
     });
   const hide = () =>
     startTransition(async () => {
-      const r = await hideCommentAction(commentId, true);
+      const r = fb ? await hideFbCommentAction(commentId, true) : await hideCommentAction(commentId, true);
       if (r.ok) { toast.success("comment hidden"); onDone(); }
       else toast.error(r.error ?? "hide failed");
     });
@@ -174,7 +248,8 @@ function CommentRow({ commentId, username, text, onDone }: { commentId: string; 
 
 // ---- conversation row -----------------------------------------------------
 
-function ConversationRow({ participant, recipientId, messages, withinWindow, onDone }: {
+function ConversationRow({ platform, participant, recipientId, messages, withinWindow, onDone }: {
+  platform: Platform;
   participant: string;
   recipientId: string;
   messages: { id: string; text?: string; fromBusiness: boolean }[];
@@ -183,6 +258,7 @@ function ConversationRow({ participant, recipientId, messages, withinWindow, onD
 }) {
   const [reply, setReply] = useState("");
   const [pending, startTransition] = useTransition();
+  const fb = platform === "META_FACEBOOK";
   const lastInbound = [...messages].reverse().find((m) => !m.fromBusiness)?.text ?? "";
   const canReply = withinWindow && !!recipientId;
 
@@ -194,8 +270,8 @@ function ConversationRow({ participant, recipientId, messages, withinWindow, onD
     });
   const send = () =>
     startTransition(async () => {
-      const r = await sendDmAction(recipientId, reply);
-      if (r.ok) { toast.success("DM sent"); setReply(""); onDone(); }
+      const r = fb ? await sendMessengerAction(recipientId, reply) : await sendDmAction(recipientId, reply);
+      if (r.ok) { toast.success(fb ? "message sent" : "DM sent"); setReply(""); onDone(); }
       else toast.error(r.error ?? "send failed");
     });
 
@@ -224,7 +300,7 @@ function ConversationRow({ participant, recipientId, messages, withinWindow, onD
         </div>
       ) : (
         <div className="rounded border border-line bg-bg px-2.5 py-1.5 text-[11px] text-fg-dim">
-          outside instagram&rsquo;s 24h reply window — you can reply once this person messages again
+          outside {fb ? "messenger" : "instagram"}&rsquo;s 24h reply window — you can reply once this person messages again
         </div>
       )}
     </div>

@@ -16,6 +16,19 @@ import {
   type IgConversation,
   type IgMetric,
 } from "@/lib/publishers/instagram-engage";
+import {
+  fetchPagePosts,
+  fetchPageComments,
+  replyToPageComment,
+  hidePageComment,
+  fetchPageConversations,
+  sendMessengerMessage,
+  fetchPageInsights,
+  type FbPost,
+  type FbComment,
+  type FbConversation,
+  type FbMetric,
+} from "@/lib/publishers/facebook-engage";
 
 async function currentTenantId(): Promise<string | null> {
   const session = await auth();
@@ -27,28 +40,81 @@ async function currentTenantId(): Promise<string | null> {
   return tenant?.id ?? null;
 }
 
+export interface FacebookEngagement {
+  connected: boolean;
+  account?: { name: string; avatarUrl: string | null; scopes: string[] };
+  insights: FbMetric[];
+  posts: (FbPost & { comments: FbComment[] })[];
+  conversations: FbConversation[];
+}
+
 export interface EngagementData {
   connected: boolean;
   account?: { name: string; avatarUrl: string | null; scopes: string[] };
   insights: IgMetric[];
   media: (IgMedia & { comments: IgComment[] })[];
   conversations: IgConversation[];
+  facebook: FacebookEngagement;
   errors: string[];
+}
+
+const EMPTY_FB: FacebookEngagement = { connected: false, insights: [], posts: [], conversations: [] };
+
+/** Load Facebook Page engagement (posts+comments, Messenger, insights). */
+async function loadFacebook(tenantId: string, errors: string[]): Promise<FacebookEngagement> {
+  const cred = await db.oAuthCredential.findFirst({
+    where: { tenantId, provider: "META_FACEBOOK", NOT: { providerAccountId: { startsWith: "act_" } } },
+    orderBy: { updatedAt: "desc" },
+    select: { providerAccountName: true, providerAccountId: true, avatarUrl: true, scopes: true },
+  });
+  if (!cred) return EMPTY_FB;
+
+  const insightsRes = await fetchPageInsights(tenantId);
+  if (!insightsRes.ok) errors.push(`fb: ${insightsRes.error ?? "insights failed"}`);
+
+  const postsRes = await fetchPagePosts(tenantId, 6);
+  if (!postsRes.ok) errors.push(`fb: ${postsRes.error ?? "posts failed"}`);
+
+  const posts: (FbPost & { comments: FbComment[] })[] = [];
+  for (const p of (postsRes.data ?? []).slice(0, 5)) {
+    let comments: FbComment[] = [];
+    if ((p.comments_count ?? 0) > 0) {
+      const c = await fetchPageComments(tenantId, p.id);
+      if (c.ok) comments = c.data ?? [];
+    }
+    posts.push({ ...p, comments });
+  }
+
+  const convRes = await fetchPageConversations(tenantId);
+  if (!convRes.ok) errors.push(`fb: ${convRes.error ?? "conversations failed"}`);
+
+  return {
+    connected: true,
+    account: {
+      name: cred.providerAccountName ?? cred.providerAccountId,
+      avatarUrl: cred.avatarUrl,
+      scopes: cred.scopes,
+    },
+    insights: insightsRes.data ?? [],
+    posts,
+    conversations: convRes.data ?? [],
+  };
 }
 
 export async function loadEngagement(): Promise<EngagementData> {
   const tenantId = await currentTenantId();
-  const empty: EngagementData = { connected: false, insights: [], media: [], conversations: [], errors: [] };
+  const empty: EngagementData = { connected: false, insights: [], media: [], conversations: [], facebook: EMPTY_FB, errors: [] };
   if (!tenantId) return empty;
+
+  const errors: string[] = [];
+  const facebook = await loadFacebook(tenantId, errors);
 
   const cred = await db.oAuthCredential.findFirst({
     where: { tenantId, provider: "META_INSTAGRAM" },
     orderBy: { updatedAt: "desc" },
     select: { providerAccountName: true, providerAccountId: true, avatarUrl: true, scopes: true },
   });
-  if (!cred) return empty;
-
-  const errors: string[] = [];
+  if (!cred) return { ...empty, facebook, errors }; // IG not connected — FB may still be
 
   const insightsRes = await fetchUserInsights(tenantId);
   if (!insightsRes.ok) errors.push(insightsRes.error ?? "insights failed");
@@ -80,6 +146,7 @@ export async function loadEngagement(): Promise<EngagementData> {
     insights: insightsRes.data ?? [],
     media,
     conversations: convRes.data ?? [],
+    facebook,
     errors,
   };
 }
@@ -122,6 +189,39 @@ export async function sendDmAction(recipientId: string, text: string): Promise<{
         reasoning: `Sent an Instagram DM reply to ${recipientId}.`,
         metadata: { recipientId },
       },
+    });
+  }
+  return { ok: r.ok, error: r.error };
+}
+
+// ---------- Facebook Page actions ------------------------------------------
+
+export async function replyFbCommentAction(commentId: string, text: string): Promise<{ ok: boolean; error?: string }> {
+  const tenantId = await currentTenantId();
+  if (!tenantId) return { ok: false, error: "Not signed in" };
+  const r = await replyToPageComment(tenantId, commentId, text);
+  if (r.ok) {
+    await db.auditLog.create({
+      data: { tenantId, actor: "USER", action: "engagement.fb_comment_reply", reasoning: `Replied to Facebook comment ${commentId}.`, metadata: { commentId } },
+    });
+  }
+  return { ok: r.ok, error: r.error };
+}
+
+export async function hideFbCommentAction(commentId: string, hide: boolean): Promise<{ ok: boolean; error?: string }> {
+  const tenantId = await currentTenantId();
+  if (!tenantId) return { ok: false, error: "Not signed in" };
+  const r = await hidePageComment(tenantId, commentId, hide);
+  return { ok: r.ok, error: r.error };
+}
+
+export async function sendMessengerAction(psid: string, text: string): Promise<{ ok: boolean; error?: string }> {
+  const tenantId = await currentTenantId();
+  if (!tenantId) return { ok: false, error: "Not signed in" };
+  const r = await sendMessengerMessage(tenantId, psid, text);
+  if (r.ok) {
+    await db.auditLog.create({
+      data: { tenantId, actor: "USER", action: "engagement.fb_messenger_reply", reasoning: `Sent a Messenger reply to ${psid}.`, metadata: { psid } },
     });
   }
   return { ok: r.ok, error: r.error };

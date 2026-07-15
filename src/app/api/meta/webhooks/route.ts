@@ -34,19 +34,24 @@ export function GET(req: Request) {
 
 function signatureValid(raw: string, header: string | null): boolean {
   if (!header?.startsWith("sha256=")) return false;
-  const secret = process.env.INSTAGRAM_APP_SECRET;
-  if (!secret) return false; // never verify against an empty key
-  const expected = createHmac("sha256", secret).update(raw).digest("hex");
-  const got = header.slice("sha256=".length);
-  const a = Buffer.from(expected, "hex");
-  const b = Buffer.from(got, "hex");
-  return a.length === b.length && timingSafeEqual(a, b);
+  const got = Buffer.from(header.slice("sha256=".length), "hex");
+  // Instagram-Login and Facebook events may arrive on the same endpoint signed
+  // with different app secrets; accept a match against either.
+  const secrets = [process.env.INSTAGRAM_APP_SECRET, process.env.FACEBOOK_APP_SECRET].filter(Boolean) as string[];
+  for (const secret of secrets) {
+    const expected = Buffer.from(createHmac("sha256", secret).update(raw).digest("hex"), "hex");
+    if (expected.length === got.length && timingSafeEqual(expected, got)) return true;
+  }
+  return false;
 }
 
-/** Resolve the project that owns a connected IG business account. */
-async function projectForIgAccount(igAccountId: string): Promise<string | null> {
+/** Resolve the project that owns a connected Meta (IG business / FB Page) account. */
+async function projectForAccount(
+  provider: "META_INSTAGRAM" | "META_FACEBOOK",
+  accountId: string,
+): Promise<string | null> {
   const cred = await db.oAuthCredential.findFirst({
-    where: { provider: "META_INSTAGRAM", providerAccountId: igAccountId },
+    where: { provider, providerAccountId: accountId },
     select: { tenantId: true },
   });
   if (!cred) return null;
@@ -61,6 +66,7 @@ async function projectForIgAccount(igAccountId: string): Promise<string | null> 
 /** Idempotently store an inbound comment/DM. */
 async function ingest(input: {
   projectId: string;
+  platform: "META_INSTAGRAM" | "META_FACEBOOK";
   channelType: "DM" | "COMMENT";
   externalMessageId: string;
   externalThreadId?: string;
@@ -75,7 +81,7 @@ async function ingest(input: {
   await db.conversationMessage.create({
     data: {
       projectId: input.projectId,
-      platform: "META_INSTAGRAM",
+      platform: input.platform,
       channelType: input.channelType,
       direction: "INBOUND",
       status: "RECEIVED",
@@ -102,43 +108,69 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "bad signature" }, { status: 401 });
   }
 
-  let body: { entry?: IgEntry[] };
+  let body: { object?: string; entry?: IgEntry[] };
   try {
     body = JSON.parse(raw);
   } catch {
     return NextResponse.json({ error: "bad json" }, { status: 400 });
   }
 
+  // `object` is "instagram" for Instagram-Login events, "page" for Facebook Page.
+  const isPage = body.object === "page";
+  const platform = isPage ? "META_FACEBOOK" : "META_INSTAGRAM";
+
   for (const entry of body.entry ?? []) {
-    const projectId = entry.id ? await projectForIgAccount(entry.id) : null;
+    const projectId = entry.id ? await projectForAccount(platform, entry.id) : null;
     if (!projectId) continue;
 
-    // Comment events
+    // Comment events. IG delivers field "comments"; Page delivers field "feed"
+    // with item === "comment".
     for (const change of entry.changes ?? []) {
-      if (change.field !== "comments" || !change.value) continue;
-      const v = change.value as {
+      const v = (change.value ?? {}) as {
         id?: string;
+        comment_id?: string;
+        item?: string;
+        verb?: string;
+        message?: string;
         text?: string;
         media?: { id?: string };
-        from?: { id?: string; username?: string };
+        post_id?: string;
+        from?: { id?: string; name?: string; username?: string };
       };
-      if (!v.id) continue;
-      await ingest({
-        projectId,
-        channelType: "COMMENT",
-        externalMessageId: v.id,
-        externalThreadId: v.media?.id,
-        authorHandle: v.from?.username ?? v.from?.id,
-        content: v.text ?? "",
-      });
+      if (isPage) {
+        if (change.field !== "feed" || v.item !== "comment" || v.verb === "remove") continue;
+        const commentId = v.comment_id ?? v.id;
+        if (!commentId) continue;
+        await ingest({
+          projectId,
+          platform,
+          channelType: "COMMENT",
+          externalMessageId: commentId,
+          externalThreadId: v.post_id,
+          authorHandle: v.from?.name ?? v.from?.id,
+          content: v.message ?? v.text ?? "",
+        });
+      } else {
+        if (change.field !== "comments" || !v.id) continue;
+        await ingest({
+          projectId,
+          platform,
+          channelType: "COMMENT",
+          externalMessageId: v.id,
+          externalThreadId: v.media?.id,
+          authorHandle: v.from?.username ?? v.from?.id,
+          content: v.text ?? "",
+        });
+      }
     }
 
-    // Direct-message events (skip our own echoes)
+    // Direct-message / Messenger events (skip our own echoes).
     for (const m of entry.messaging ?? []) {
       const msg = m.message;
       if (!msg?.mid || msg.is_echo || !m.sender?.id) continue;
       await ingest({
         projectId,
+        platform,
         channelType: "DM",
         externalMessageId: msg.mid,
         externalThreadId: m.sender.id,

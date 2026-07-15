@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import { vaultDecrypt } from "@/lib/vault";
 import { publishToTikTok } from "./tiktok";
 import { publishToInstagram } from "./instagram";
+import { publishToFacebookPage } from "./facebook";
 import type { OAuthProvider, Platform } from "@/generated/prisma/client";
 
 export interface PublishResult {
@@ -203,7 +204,18 @@ export async function publishPlatformPost(platformPostId: string): Promise<Publi
       });
       break;
     }
-    case "META_FACEBOOK": result = await publishStub("Facebook Pages"); break;
+    case "META_FACEBOOK": {
+      const tags = (pp.contentPost.hashtags ?? [])
+        .map((h) => (h.startsWith("#") ? h : `#${h}`))
+        .join(" ");
+      const hasAsset = /^https:\/\//i.test(pp.contentPost.sourceAssetUrl);
+      result = await publishToFacebookPage(tenantId, {
+        message: [pp.contentPost.description, tags].filter(Boolean).join(" "),
+        mediaUrl: hasAsset ? pp.contentPost.sourceAssetUrl : undefined,
+        mediaType: pp.contentPost.sourceAssetType === "VIDEO" ? "VIDEO" : "IMAGE",
+      });
+      break;
+    }
     default: result = { ok: false, error: "Unknown platform" };
   }
 

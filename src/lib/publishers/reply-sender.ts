@@ -8,6 +8,7 @@
 //  a reply is never marked SENT without actually leaving Gituas.
 
 import { replyToComment, sendInstagramDM } from "./instagram-engage";
+import { replyToPageComment, sendMessengerMessage } from "./facebook-engage";
 import type { PublishResult } from "./index";
 
 export interface ReplyTarget {
@@ -32,6 +33,19 @@ export async function sendConversationReply(
       const recipient = target.externalThreadId;
       if (!recipient) return { ok: false, error: "DM recipient missing" };
       const r = await sendInstagramDM(tenantId, recipient, reply);
+      return { ok: r.ok, externalId: r.data?.messageId, error: r.error };
+    }
+  }
+  if (target.platform === "META_FACEBOOK") {
+    if (target.channelType === "COMMENT") {
+      if (!target.externalMessageId) return { ok: false, error: "Comment id missing" };
+      const r = await replyToPageComment(tenantId, target.externalMessageId, reply);
+      return { ok: r.ok, externalId: r.data?.id, error: r.error };
+    }
+    if (target.channelType === "DM") {
+      const psid = target.externalThreadId;
+      if (!psid) return { ok: false, error: "Messenger recipient (PSID) missing" };
+      const r = await sendMessengerMessage(tenantId, psid, reply);
       return { ok: r.ok, externalId: r.data?.messageId, error: r.error };
     }
   }

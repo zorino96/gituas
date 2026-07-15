@@ -28,6 +28,10 @@ export interface ProviderConfig {
   tokenUrl?: string;
   envClientIdKey?: string;
   envClientSecretKey?: string;
+  /** Facebook Login for Business passes a `config_id` (a login configuration
+   *  built in the App Dashboard that bundles the assets + permissions + token
+   *  type) instead of / alongside a raw `scope` string. */
+  configIdEnvKey?: string;
   manualFields?: FieldSpec[];
   blocked?: { reason: string; nextStep: string }; // platform-side verification blocks
   category: "ads" | "social" | "payments" | "infra";
@@ -100,13 +104,28 @@ export const PROVIDERS: ProviderConfig[] = [
     provider: "META_FACEBOOK",
     label: "facebook pages",
     mode: "oauth2",
-    scopes: ["instagram_basic", "instagram_content_publish", "pages_show_list", "pages_read_engagement", "pages_manage_posts"],
-    blocked: {
-      reason: "phase 2 — only needed for facebook page publishing",
-      nextStep: "instagram posting works via the instagram card above (no page needed). enable this later for page videos (requires a linked facebook page + page token).",
-    },
+    // Facebook Login for Business. The connect flow (flow.ts) exchanges the code
+    // for a long-lived user token, then mints a non-expiring PAGE access token
+    // via /me/accounts and stores that (keyed by page id). Ads use the same
+    // provider with a System-User token (keyed by act_<adAccountId>).
+    // Each scope needs Advanced Access via App Review — see META-SUBMISSION.md
+    // Phase 2A (pages) / 2B (ads).
+    scopes: [
+      "pages_show_list",
+      "pages_read_engagement",
+      "pages_manage_posts",
+      "pages_manage_engagement",
+      "pages_manage_metadata",
+      "pages_messaging",
+      "read_insights",
+    ],
+    authorizationUrl: "https://www.facebook.com/v25.0/dialog/oauth",
+    tokenUrl: "https://graph.facebook.com/v25.0/oauth/access_token",
+    envClientIdKey: "FACEBOOK_APP_ID",
+    envClientSecretKey: "FACEBOOK_APP_SECRET",
+    configIdEnvKey: "FACEBOOK_LOGIN_CONFIG_ID",
     category: "social",
-    docs: "https://developers.facebook.com/docs/instagram-platform/instagram-api-with-facebook-login/",
+    docs: "https://developers.facebook.com/docs/facebook-login/facebook-login-for-business",
   },
   {
     provider: "TIKTOK",

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { publishPlatformPost } from "@/lib/publishers";
+import { launchMetaCampaign } from "@/lib/ads/meta-ads";
 
 async function loadOwned(approvalId: string) {
   const session = await auth();
@@ -54,13 +55,52 @@ export async function approveRequest(approvalId: string) {
       });
     }
   } else if (approval.kind === "AD_CAMPAIGN") {
-    // Move any DRAFT campaign matching name → ACTIVE
+    // Flip the matching pending campaign → ACTIVE, then (for Meta) launch it as a
+    // real PAUSED campaign via the Marketing API.
     const payload = approval.payload as { name?: string };
     if (payload.name) {
-      await db.adCampaign.updateMany({
+      const campaign = await db.adCampaign.findFirst({
         where: { projectId: approval.projectId, name: payload.name, status: "PENDING_APPROVAL" },
-        data: { status: "ACTIVE", startedAt: new Date() },
       });
+      if (campaign) {
+        await db.adCampaign.update({
+          where: { id: campaign.id },
+          data: { status: "ACTIVE", startedAt: new Date() },
+        });
+        if (campaign.platform === "META_FACEBOOK") {
+          const project = await db.project.findUnique({
+            where: { id: approval.projectId },
+            select: { productionUrl: true },
+          });
+          const r = await launchMetaCampaign(approval.project.tenantId, {
+            name: campaign.name,
+            budgetCents: campaign.budgetCents,
+            copy: campaign.copy,
+            creativeUrl: campaign.creativeUrl,
+            targeting: campaign.targeting,
+            linkUrl: project?.productionUrl ?? undefined,
+          });
+          if (r.ok && r.campaignId) {
+            await db.adCampaign.update({
+              where: { id: campaign.id },
+              data: { externalCampaignId: r.campaignId },
+            });
+          } else {
+            // Launch failed — don't leave it looking live.
+            await db.adCampaign.update({ where: { id: campaign.id }, data: { status: "PAUSED" } });
+            await db.auditLog.create({
+              data: {
+                tenantId: approval.project.tenantId,
+                projectId: approval.projectId,
+                actor: "USER",
+                action: "ads.launch_failed",
+                reasoning: r.error ?? "Meta campaign launch failed.",
+                metadata: { campaignId: campaign.id },
+              },
+            });
+          }
+        }
+      }
     }
   }
 
