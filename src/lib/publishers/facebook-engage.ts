@@ -211,25 +211,46 @@ export interface FbMetric {
   value: number;
 }
 
-const DEFAULT_PAGE_METRICS = ["page_impressions", "page_post_engagements", "page_fans"];
+// The Graph API rejects the WHOLE request if any single metric is invalid for
+// the version/period, and Meta deprecated many legacy Page metrics (e.g.
+// page_post_engagements) — plus some metrics only accept one period
+// (page_fans is lifetime-only). So we query small, known-good groups by their
+// required period and keep whatever succeeds instead of failing the panel.
+const PAGE_METRIC_GROUPS: { metrics: string[]; period: string }[] = [
+  { metrics: ["page_impressions", "page_impressions_unique"], period: "day" },
+  { metrics: ["page_fans"], period: "lifetime" },
+];
 
-/** Page-level insights for a moving window (default: last day). */
-export async function fetchPageInsights(
-  tenantId: string,
-  metrics: string[] = DEFAULT_PAGE_METRICS,
-  period = "day",
-): Promise<FbResult<FbMetric[]>> {
+function readMetricValue(last: unknown): number {
+  if (typeof last === "number") return last;
+  if (last && typeof last === "object") {
+    return Object.values(last as Record<string, number>).reduce((a, b) => a + (typeof b === "number" ? b : 0), 0);
+  }
+  return 0;
+}
+
+/** Page-level insights. Best-effort: returns whatever metric groups resolve;
+ *  only fails if every group errors (e.g. token/permission problem). */
+export async function fetchPageInsights(tenantId: string): Promise<FbResult<FbMetric[]>> {
   return withCred(tenantId, async (cred) => {
-    const r = await fetch(
-      `${FB_V}/${cred.pageId}/insights?metric=${metrics.join(",")}&period=${period}&access_token=${encodeURIComponent(cred.token)}`,
-    );
-    const j = await r.json();
-    if (!r.ok) return fail("FB page insights", r.status, j);
-    const out: FbMetric[] = ((j?.data ?? []) as Array<{ name: string; values?: Array<{ value: unknown }> }>).map((m) => {
-      const last = m.values?.[m.values.length - 1]?.value;
-      const value = typeof last === "number" ? last : typeof last === "object" && last ? Object.values(last as Record<string, number>).reduce((a, b) => a + (typeof b === "number" ? b : 0), 0) : 0;
-      return { name: m.name, value };
-    });
+    const out: FbMetric[] = [];
+    let anyOk = false;
+    let lastErr: string | undefined;
+    for (const g of PAGE_METRIC_GROUPS) {
+      const r = await fetch(
+        `${FB_V}/${cred.pageId}/insights?metric=${g.metrics.join(",")}&period=${g.period}&access_token=${encodeURIComponent(cred.token)}`,
+      );
+      const j = await r.json();
+      if (!r.ok) {
+        lastErr = fail("FB page insights", r.status, j).error;
+        continue;
+      }
+      anyOk = true;
+      for (const m of (j?.data ?? []) as Array<{ name: string; values?: Array<{ value: unknown }> }>) {
+        out.push({ name: m.name, value: readMetricValue(m.values?.[m.values.length - 1]?.value) });
+      }
+    }
+    if (!anyOk) return { ok: false, error: lastErr ?? "insights unavailable" };
     return { ok: true, data: out };
   });
 }

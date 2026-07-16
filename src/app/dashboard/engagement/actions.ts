@@ -69,8 +69,10 @@ async function loadFacebook(tenantId: string, errors: string[]): Promise<Faceboo
   });
   if (!cred) return EMPTY_FB;
 
+  // Insights are best-effort: Meta withholds Page insights for small/new pages,
+  // so a failure here isn't actionable for the user — the panel just shows its
+  // empty state. Don't surface it in the error banner.
   const insightsRes = await fetchPageInsights(tenantId);
-  if (!insightsRes.ok) errors.push(`fb: ${insightsRes.error ?? "insights failed"}`);
 
   const postsRes = await fetchPagePosts(tenantId, 6);
   if (!postsRes.ok) errors.push(`fb: ${postsRes.error ?? "posts failed"}`);
