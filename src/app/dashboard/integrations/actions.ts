@@ -69,6 +69,66 @@ export async function saveManualCredential(
   revalidatePath("/dashboard/integrations");
 }
 
+/**
+ * Store a Meta Marketing API **System-User token** for one ad account.
+ *
+ * The ads path (`lib/ads/meta-ads.ts loadAdsCred`) reads a META_FACEBOOK
+ * credential keyed by `act_<adAccountId>` and uses `vaultDecrypt(tokenEncrypted)`
+ * *as the raw access token* — so we must store the bare token, NOT the JSON blob
+ * that `saveManualCredential` writes. META_FACEBOOK is also an oauth2 provider,
+ * which `saveManualCredential` refuses; hence this dedicated entry point.
+ */
+export async function saveMetaAdsCredential(adAccountId: string, token: string) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+
+  const tk = token.trim();
+  if (!tk) throw new Error("Token required");
+
+  // Normalise to the `act_<digits>` form the Marketing API + loadAdsCred expect.
+  const digits = adAccountId.trim().replace(/^act_/i, "").replace(/\D/g, "");
+  if (!digits) throw new Error("Ad account id must be numeric, e.g. act_1234567890");
+  const acct = `act_${digits}`;
+
+  const tenant = await tenantFor(session.user.id);
+  const adsScopes = ["ads_management", "ads_read", "business_management"];
+
+  await db.oAuthCredential.upsert({
+    where: {
+      tenantId_provider_providerAccountId: {
+        tenantId: tenant.id,
+        provider: "META_FACEBOOK",
+        providerAccountId: acct,
+      },
+    },
+    create: {
+      tenantId: tenant.id,
+      provider: "META_FACEBOOK",
+      providerAccountId: acct,
+      providerAccountName: `meta ads · ${acct}`,
+      scopes: adsScopes,
+      tokenEncrypted: vaultEncrypt(tk),
+    },
+    update: {
+      tokenEncrypted: vaultEncrypt(tk),
+      scopes: adsScopes,
+      lastUsedAt: null,
+    },
+  });
+
+  await db.auditLog.create({
+    data: {
+      tenantId: tenant.id,
+      actor: "USER",
+      action: "integrations.meta_ads_saved",
+      reasoning: `Saved Meta Marketing API System-User token for ${acct}.`,
+      metadata: { adAccountId: acct },
+    },
+  });
+
+  revalidatePath("/dashboard/integrations");
+}
+
 export async function disconnectIntegration(credentialId: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");

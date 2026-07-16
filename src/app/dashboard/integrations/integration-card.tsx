@@ -5,7 +5,7 @@ import { ExternalLink, Plug, Trash2, RefreshCw, ChevronDown } from "lucide-react
 import { toast } from "sonner";
 
 import type { ProviderConfig } from "@/lib/oauth/registry";
-import { saveManualCredential, disconnectIntegration, testConnection } from "./actions";
+import { saveManualCredential, saveMetaAdsCredential, disconnectIntegration, testConnection } from "./actions";
 
 interface Cred {
   id: string;
@@ -108,7 +108,10 @@ export function IntegrationCard({
           {cfg.mode === "api_key" ? (
             <ManualForm cfg={cfg} />
           ) : (
-            <OAuthForm cfg={cfg} envConfigured={envConfigured} />
+            <>
+              <OAuthForm cfg={cfg} envConfigured={envConfigured} />
+              {cfg.provider === "META_FACEBOOK" && <AdsTokenForm />}
+            </>
           )}
         </div>
       )}
@@ -250,6 +253,75 @@ function ManualForm({ cfg }: { cfg: ProviderConfig }) {
         {isPending ? "saving…" : "save credentials"}
       </button>
     </form>
+  );
+}
+
+/** Meta Marketing API System-User token entry (ads/boost), keyed by ad account.
+ *  Lives under the facebook pages card since ads ride the same META_FACEBOOK
+ *  provider — but the token is a server-side System-User token, not the Page
+ *  OAuth token, so it gets its own form + action. */
+function AdsTokenForm() {
+  const [acct, setAcct] = useState("");
+  const [token, setToken] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!acct.trim() || !token.trim()) {
+      toast.error("fill both fields");
+      return;
+    }
+    startTransition(async () => {
+      try {
+        await saveMetaAdsCredential(acct, token);
+        toast.success("ads token saved · encrypted at rest");
+        setAcct("");
+        setToken("");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "fail");
+      }
+    });
+  };
+
+  return (
+    <div className="mt-3 rounded-md border border-line bg-bg p-3">
+      <div className="font-mono text-[10px] uppercase tracking-wider text-fg-dim mb-1">
+        marketing api · system-user token
+      </div>
+      <p className="text-[10px] text-fg-dim mb-3">
+        for ads / boost. business settings → system users → generate token (scopes:
+        ads_management, ads_read, business_management), assign the ad account, paste below.
+      </p>
+      <form onSubmit={onSubmit} className="space-y-3">
+        <div>
+          <label className="font-mono text-[10px] uppercase tracking-wider text-fg-dim">ad account id</label>
+          <input
+            value={acct}
+            onChange={(e) => setAcct(e.target.value)}
+            placeholder="act_1234567890"
+            className="mt-1 w-full rounded-md border border-line bg-bg px-3 py-2 text-sm font-mono"
+          />
+        </div>
+        <div>
+          <label className="font-mono text-[10px] uppercase tracking-wider text-fg-dim">system-user token</label>
+          <input
+            type="password"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="EAAG…"
+            className="mt-1 w-full rounded-md border border-line bg-bg px-3 py-2 text-sm font-mono"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={isPending}
+          className="w-full font-mono text-xs px-3 py-2 rounded border border-money/40 text-money inline-flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          <Plug className="h-3.5 w-3.5" />
+          {isPending ? "saving…" : "save ads token"}
+        </button>
+      </form>
+    </div>
   );
 }
 
