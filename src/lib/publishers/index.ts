@@ -11,6 +11,7 @@ import { vaultDecrypt } from "@/lib/vault";
 import { publishToTikTok } from "./tiktok";
 import { publishToInstagram } from "./instagram";
 import { publishToFacebookPage } from "./facebook";
+import { publishToYouTube } from "./youtube";
 import type { OAuthProvider, Platform } from "@/generated/prisma/client";
 
 export interface PublishResult {
@@ -150,10 +151,6 @@ async function publishToLinkedIn(tenantId: string, content: { description: strin
   }
 }
 
-async function publishStub(platform: string): Promise<PublishResult> {
-  return { ok: false, error: `${platform} publisher pending business verification` };
-}
-
 // ---------- public dispatcher ----------------------------------------------
 
 export async function publishPlatformPost(platformPostId: string): Promise<PublishResult> {
@@ -192,7 +189,17 @@ export async function publishPlatformPost(platformPostId: string): Promise<Publi
       });
       break;
     }
-    case "YOUTUBE": result = await publishStub("YouTube"); break;
+    case "YOUTUBE": {
+      const tags = (pp.contentPost.hashtags ?? [])
+        .map((h) => (h.startsWith("#") ? h : `#${h}`))
+        .join(" ");
+      result = await publishToYouTube(tenantId, {
+        title: pp.contentPost.description.slice(0, 100),
+        description: [pp.contentPost.description, tags].filter(Boolean).join("\n\n"),
+        videoUrl: pp.contentPost.sourceAssetType === "VIDEO" ? pp.contentPost.sourceAssetUrl : undefined,
+      });
+      break;
+    }
     case "META_INSTAGRAM": {
       const tags = (pp.contentPost.hashtags ?? [])
         .map((h) => (h.startsWith("#") ? h : `#${h}`))

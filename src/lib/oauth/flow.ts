@@ -59,6 +59,8 @@ export async function buildAuthorizeUrl(provider: OAuthProvider, tenantId: strin
     ...(configId ? { config_id: configId } : {}),
     ...(codeChallenge ? { code_challenge: codeChallenge, code_challenge_method: "S256" } : {}),
     ...(provider === "REDDIT" ? { duration: "permanent" } : {}),
+    // Google only returns a refresh_token with offline access + a forced consent.
+    ...(provider === "YOUTUBE" ? { access_type: "offline", prompt: "consent" } : {}),
   });
 
   return `${cfg.authorizationUrl}?${params.toString()}`;
@@ -263,6 +265,19 @@ async function fetchProviderAccount(cfg: ProviderConfig, accessToken: string): P
       const r = await fetch("https://oauth.reddit.com/api/v1/me", { headers: { Authorization: auth, "User-Agent": ua } });
       const j = await r.json();
       return { id: j?.id ?? "unknown", name: `u/${j?.name ?? "reddit"}` };
+    }
+    if (cfg.provider === "YOUTUBE") {
+      const r = await fetch(
+        "https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true",
+        { headers: { Authorization: auth } },
+      );
+      const j = await r.json();
+      const ch = j?.items?.[0];
+      return {
+        id: ch?.id ?? "unknown",
+        name: ch?.snippet?.title ?? "youtube",
+        avatarUrl: ch?.snippet?.thumbnails?.default?.url ?? undefined,
+      };
     }
   } catch {
     /* fall through */

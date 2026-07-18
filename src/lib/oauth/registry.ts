@@ -143,13 +143,22 @@ export const PROVIDERS: ProviderConfig[] = [
     provider: "YOUTUBE",
     label: "youtube",
     mode: "oauth2",
-    scopes: ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube"],
-    blocked: {
-      reason: "requires youtube data api audit",
-      nextStep: "submit your app for audit at console.cloud.google.com (youtube data api v3).",
-    },
+    // Google OAuth. buildAuthorizeUrl adds access_type=offline + prompt=consent
+    // (YouTube branch) so the exchange returns a refresh_token — YouTube access
+    // tokens live only 1h, so the publisher (publishers/youtube.ts) refreshes.
+    // youtube.upload (videos.insert) + youtube.readonly (channel lookup) are both
+    // "sensitive" scopes — Google's audit is required for NON-test users, but the
+    // owner + added test users can connect + upload without it.
+    scopes: [
+      "https://www.googleapis.com/auth/youtube.upload",
+      "https://www.googleapis.com/auth/youtube.readonly",
+    ],
+    authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+    tokenUrl: "https://oauth2.googleapis.com/token",
+    envClientIdKey: "YOUTUBE_CLIENT_ID",
+    envClientSecretKey: "YOUTUBE_CLIENT_SECRET",
     category: "social",
-    docs: "https://developers.google.com/youtube/registering_an_application",
+    docs: "https://developers.google.com/youtube/v3/guides/uploading_a_video",
   },
   {
     provider: "GOOGLE_ADS",
