@@ -116,12 +116,48 @@ export default function PrivacyPage() {
         <ExtLink href="https://developers.facebook.com/devpolicy/">Developer Policies</ExtLink>.
       </P>
 
+      <H2>4b. Google and YouTube</H2>
+      <P>
+        When you connect a YouTube channel, Gituas uses YouTube API Services. We request only{" "}
+        <code className="text-fg">youtube.upload</code> (to publish the videos you or your configured
+        automations authorize) and <code className="text-fg">youtube.readonly</code> (to confirm which
+        channel is connected and to read public statistics such as view, like, and comment counts for
+        your own videos). We do not read your subscriptions, watch history, or private playlists, and
+        we never post to a channel without an action you authorized.
+      </P>
+      <P>
+        By connecting a channel you also agree to the{" "}
+        <ExtLink href="https://www.youtube.com/t/terms">YouTube Terms of Service</ExtLink>. Information
+        Gituas receives from Google APIs is handled in accordance with the{" "}
+        <ExtLink href="https://policies.google.com/privacy">Google Privacy Policy</ExtLink>.
+      </P>
+      <P>
+        <Strong>Limited Use.</Strong> Gituas&rsquo; use and transfer of information received from Google
+        APIs adheres to the{" "}
+        <ExtLink href="https://developers.google.com/terms/api-services-user-data-policy">
+          Google API Services User Data Policy
+        </ExtLink>
+        , including its Limited Use requirements. Specifically, we use this data only to provide and
+        improve the features you enabled; we do not transfer it to third parties except as necessary
+        to provide those features, to comply with applicable law, or as part of a merger or
+        acquisition; we do not use it for advertising or to build advertising profiles; and we do not
+        allow humans to read it, except with your explicit consent, to resolve a support issue you
+        raised, for security purposes, or where required by law.
+      </P>
+      <P>
+        You can revoke Gituas&rsquo; access to your Google account at any time from{" "}
+        <ExtLink href="https://myaccount.google.com/permissions">
+          your Google account permissions page
+        </ExtLink>
+        , or by disconnecting YouTube from your Gituas dashboard, which deletes the stored tokens.
+      </P>
+
       <H2>5. How we share information</H2>
       <P>We share data only with service providers that help us run Gituas, including:</P>
       <UL>
         <LI><Strong>Hosting &amp; infrastructure</Strong> — Vercel (application) and Neon (database).</LI>
         <LI><Strong>AI processing</Strong> — Google (Gemini) to generate marketing content.</LI>
-        <LI><Strong>Connected platforms</Strong> — TikTok, X, LinkedIn, Reddit, Meta, and Stripe, to which we send the content and requests you authorize.</LI>
+        <LI><Strong>Connected platforms</Strong> — TikTok, YouTube, X, LinkedIn, Reddit, Meta, and Stripe, to which we send the content and requests you authorize.</LI>
       </UL>
       <P>
         We may also disclose information if required by law or to protect the rights, safety, and

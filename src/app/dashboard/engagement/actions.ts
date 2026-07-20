@@ -29,6 +29,12 @@ import {
   type FbConversation,
   type FbMetric,
 } from "@/lib/publishers/facebook-engage";
+import {
+  fetchChannelStats,
+  fetchRecentVideos,
+  type YtMetric,
+  type YtVideo,
+} from "@/lib/publishers/youtube-engage";
 
 async function currentTenantId(): Promise<string | null> {
   const session = await auth();
@@ -48,6 +54,14 @@ export interface FacebookEngagement {
   conversations: FbConversation[];
 }
 
+/** YouTube is read-only here: no comment/DM surface, just channel + video stats. */
+export interface YouTubeEngagement {
+  connected: boolean;
+  account?: { name: string; avatarUrl: string | null; scopes: string[] };
+  stats: YtMetric[];
+  videos: YtVideo[];
+}
+
 export interface EngagementData {
   connected: boolean;
   account?: { name: string; avatarUrl: string | null; scopes: string[] };
@@ -55,10 +69,39 @@ export interface EngagementData {
   media: (IgMedia & { comments: IgComment[] })[];
   conversations: IgConversation[];
   facebook: FacebookEngagement;
+  youtube: YouTubeEngagement;
   errors: string[];
 }
 
 const EMPTY_FB: FacebookEngagement = { connected: false, insights: [], posts: [], conversations: [] };
+const EMPTY_YT: YouTubeEngagement = { connected: false, stats: [], videos: [] };
+
+/** Load YouTube channel counters + recent uploads (3 quota units total). */
+async function loadYouTube(tenantId: string, errors: string[]): Promise<YouTubeEngagement> {
+  const cred = await db.oAuthCredential.findFirst({
+    where: { tenantId, provider: "YOUTUBE" },
+    orderBy: { updatedAt: "desc" },
+    select: { providerAccountName: true, providerAccountId: true, avatarUrl: true, scopes: true },
+  });
+  if (!cred) return EMPTY_YT;
+
+  const statsRes = await fetchChannelStats(tenantId);
+  if (!statsRes.ok) errors.push(`yt: ${statsRes.error ?? "stats failed"}`);
+
+  const videosRes = await fetchRecentVideos(tenantId, 6);
+  if (!videosRes.ok) errors.push(`yt: ${videosRes.error ?? "videos failed"}`);
+
+  return {
+    connected: true,
+    account: {
+      name: cred.providerAccountName ?? cred.providerAccountId,
+      avatarUrl: cred.avatarUrl,
+      scopes: cred.scopes,
+    },
+    stats: statsRes.data ?? [],
+    videos: videosRes.data ?? [],
+  };
+}
 
 /** Load Facebook Page engagement (posts+comments, Messenger, insights). */
 async function loadFacebook(tenantId: string, errors: string[]): Promise<FacebookEngagement> {
@@ -105,18 +148,19 @@ async function loadFacebook(tenantId: string, errors: string[]): Promise<Faceboo
 
 export async function loadEngagement(): Promise<EngagementData> {
   const tenantId = await currentTenantId();
-  const empty: EngagementData = { connected: false, insights: [], media: [], conversations: [], facebook: EMPTY_FB, errors: [] };
+  const empty: EngagementData = { connected: false, insights: [], media: [], conversations: [], facebook: EMPTY_FB, youtube: EMPTY_YT, errors: [] };
   if (!tenantId) return empty;
 
   const errors: string[] = [];
   const facebook = await loadFacebook(tenantId, errors);
+  const youtube = await loadYouTube(tenantId, errors);
 
   const cred = await db.oAuthCredential.findFirst({
     where: { tenantId, provider: "META_INSTAGRAM" },
     orderBy: { updatedAt: "desc" },
     select: { providerAccountName: true, providerAccountId: true, avatarUrl: true, scopes: true },
   });
-  if (!cred) return { ...empty, facebook, errors }; // IG not connected — FB may still be
+  if (!cred) return { ...empty, facebook, youtube, errors }; // IG not connected — FB/YT may still be
 
   const insightsRes = await fetchUserInsights(tenantId);
   if (!insightsRes.ok) errors.push(insightsRes.error ?? "insights failed");
@@ -149,6 +193,7 @@ export async function loadEngagement(): Promise<EngagementData> {
     media,
     conversations: convRes.data ?? [],
     facebook,
+    youtube,
     errors,
   };
 }

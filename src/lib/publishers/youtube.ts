@@ -19,8 +19,9 @@ const UPLOAD_URL =
   "https://www.googleapis.com/upload/youtube/v3/videos?part=snippet,status&uploadType=multipart";
 
 /** Return a currently-valid access token, refreshing via the refresh_token when
- *  the stored one is (near) expired. Persists the refreshed token. */
-async function validYouTubeToken(tenantId: string): Promise<string | null> {
+ *  the stored one is (near) expired. Persists the refreshed token.
+ *  Shared with the integrations probe (lib/integrations/probe.ts). */
+export async function validYouTubeToken(tenantId: string): Promise<string | null> {
   const cred = await db.oAuthCredential.findFirst({
     where: { tenantId, provider: "YOUTUBE" },
     orderBy: { lastUsedAt: { sort: "desc", nulls: "last" } },

@@ -127,7 +127,7 @@ function CredentialRow({ cred }: { cred: Cred }) {
     startTransition(async () => {
       const r = await testConnection(cred.id);
       setTesting(r);
-      if (r.ok) toast.success("connection ok");
+      if (r.ok) toast.success(`connection ok · ${r.detail}`);
       else toast.error(r.detail);
     });
   };

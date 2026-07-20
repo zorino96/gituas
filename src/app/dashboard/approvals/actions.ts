@@ -81,9 +81,23 @@ export async function approveRequest(approvalId: string) {
             linkUrl: project?.productionUrl ?? undefined,
           });
           if (r.ok && r.campaignId) {
+            // launchMetaCampaign deliberately creates the campaign, ad set and ad
+            // as PAUSED, so nothing spends until a human resumes it in Ads
+            // Manager. Report that, rather than leaving the row reading ACTIVE
+            // while Meta delivers zero impressions.
             await db.adCampaign.update({
               where: { id: campaign.id },
-              data: { externalCampaignId: r.campaignId },
+              data: { externalCampaignId: r.campaignId, status: "PAUSED" },
+            });
+            await db.auditLog.create({
+              data: {
+                tenantId: approval.project.tenantId,
+                projectId: approval.projectId,
+                actor: "USER",
+                action: "ads.launched_paused",
+                reasoning: `Created Meta campaign ${r.campaignId} as PAUSED — resume it in Ads Manager to start delivery.`,
+                metadata: { campaignId: campaign.id, externalCampaignId: r.campaignId },
+              },
             });
           } else {
             // Launch failed — don't leave it looking live.

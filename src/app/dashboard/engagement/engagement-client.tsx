@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { RefreshCw, Sparkles, Send, EyeOff, MessageCircle, BarChart3, Mail } from "lucide-react";
+import { RefreshCw, Sparkles, Send, EyeOff, Eye, MessageCircle, BarChart3, Mail, Youtube, ThumbsUp } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -33,11 +33,11 @@ export function EngagementClient() {
   if (loading && !data) {
     return <Shell><div className="text-sm text-fg-dim font-mono">loading engagement…</div></Shell>;
   }
-  if (!data?.connected && !data?.facebook.connected) {
+  if (!data?.connected && !data?.facebook.connected && !data?.youtube.connected) {
     return (
       <Shell>
         <div className="rounded-xl border border-line bg-panel px-6 py-16 text-center text-sm text-fg-dim">
-          no account connected — connect instagram or a facebook page from{" "}
+          no account connected — connect instagram, a facebook page or youtube from{" "}
           <a href="/dashboard/integrations" className="text-money underline">integrations</a>.
         </div>
       </Shell>
@@ -99,7 +99,104 @@ export function EngagementClient() {
           onDone={refresh}
         />
       )}
+
+      {data.youtube.connected && (
+        <YouTubePanel
+          account={data.youtube.account}
+          stats={data.youtube.stats}
+          videos={data.youtube.videos}
+        />
+      )}
     </Shell>
+  );
+}
+
+// ---- youtube (read-only: channel counters + recent uploads) ----------------
+//
+//  No comment/DM surface here — the youtube.readonly scope covers statistics
+//  only, so this panel reports rather than acts.
+
+function YouTubePanel({ account, stats, videos }: {
+  account?: { name: string; avatarUrl: string | null; scopes: string[] };
+  stats: { name: string; value: number }[];
+  videos: {
+    id: string;
+    title?: string;
+    publishedAt?: string;
+    thumbnailUrl?: string;
+    permalinkUrl: string;
+    views: number;
+    likes: number;
+    comments: number;
+  }[];
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="rounded-xl border border-money/40 bg-panel p-4 flex items-center gap-3">
+        {account?.avatarUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={account.avatarUrl} alt="" className="h-10 w-10 rounded-full border border-line object-cover" />
+        )}
+        <div className="min-w-0">
+          <div className="font-mono text-fg">{account?.name}</div>
+          <div className="text-[10px] text-fg-dim font-mono truncate">
+            youtube · {account?.scopes.map((s) => s.replace("https://www.googleapis.com/auth/", "")).join(" · ")}
+          </div>
+        </div>
+        <span className="ml-auto led" />
+      </div>
+
+      <Section icon={<BarChart3 className="h-3.5 w-3.5" />} title="channel">
+        {stats.length === 0 ? (
+          <Empty>no channel stats available yet</Empty>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {stats.map((m) => (
+              <div key={m.name} className="rounded-lg border border-line bg-panel-2 p-3">
+                <div className="font-mono text-2xl text-money">{m.value.toLocaleString()}</div>
+                <div className="font-mono text-[10px] uppercase tracking-wider text-fg-dim mt-1">{m.name}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section icon={<Youtube className="h-3.5 w-3.5" />} title="recent uploads">
+        {videos.length === 0 ? (
+          <Empty>nothing uploaded yet — youtube posts need a VIDEO source asset</Empty>
+        ) : (
+          <div className="space-y-2">
+            {videos.map((v) => (
+              <a
+                key={v.id}
+                href={v.permalinkUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-3 rounded-lg border border-line bg-panel-2 p-2 hover:border-money/40"
+              >
+                {v.thumbnailUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={v.thumbnailUrl} alt="" className="h-10 w-16 rounded border border-line object-cover shrink-0" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs text-fg truncate">{v.title ?? v.id}</div>
+                  {v.publishedAt && (
+                    <div className="font-mono text-[10px] text-fg-dim mt-0.5">
+                      {new Date(v.publishedAt).toLocaleDateString()}
+                    </div>
+                  )}
+                </div>
+                <div className="font-mono text-[10px] text-fg-dim flex items-center gap-3 shrink-0">
+                  <span className="inline-flex items-center gap-1"><Eye className="h-3 w-3" />{v.views.toLocaleString()}</span>
+                  <span className="inline-flex items-center gap-1"><ThumbsUp className="h-3 w-3" />{v.likes.toLocaleString()}</span>
+                  <span className="inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{v.comments.toLocaleString()}</span>
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+      </Section>
+    </div>
   );
 }
 

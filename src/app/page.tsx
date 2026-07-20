@@ -589,7 +589,7 @@ function Footer() {
           </div>
           <FootCol head="product" items={["the night desk", "wallet", "the minds", "approvals", "audit"]} />
           <FootCol head="platform" items={["github", "stripe", "vercel", "meta", "tiktok"]} />
-          <FootCol head="company" items={["manifesto", "changelog", "privacy", "terms", "status"]} />
+          <FootCol head="company" items={["manifesto", "changelog", "privacy", "terms", "data deletion"]} />
         </div>
         <div className="hairline my-10" />
         <div className="flex flex-wrap items-center justify-between gap-3 font-mono text-xs text-fg-dim">
@@ -602,8 +602,11 @@ function Footer() {
 }
 
 const FOOT_LINKS: Record<string, string> = {
+  wallet: "/dashboard/wallet",
+  approvals: "/dashboard/approvals",
   privacy: "/privacy",
   terms: "/terms",
+  "data deletion": "/data-deletion",
 };
 
 function FootCol({ head, items }: { head: string; items: string[] }) {
@@ -611,11 +614,20 @@ function FootCol({ head, items }: { head: string; items: string[] }) {
     <div>
       <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-fg-dim mb-3">{head}</div>
       <ul className="space-y-2 text-sm">
-        {items.map((i) => (
-          <li key={i}>
-            <a href={FOOT_LINKS[i] ?? "#"} className="text-fg-dim hover:text-money ul-grow transition-colors">{i}</a>
-          </li>
-        ))}
+        {items.map((i) => {
+          const href = FOOT_LINKS[i];
+          return (
+            <li key={i}>
+              {href ? (
+                <a href={href} className="text-fg-dim hover:text-money ul-grow transition-colors">{i}</a>
+              ) : (
+                // Label, not a link — a dead href="#" reads as broken to anyone
+                // reviewing the site (Meta/Google both click through the footer).
+                <span className="text-fg-dim">{i}</span>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

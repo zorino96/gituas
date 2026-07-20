@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { vaultEncrypt } from "@/lib/vault";
+import { vaultDecrypt, vaultEncrypt } from "@/lib/vault";
 import { findProvider } from "@/lib/oauth/registry";
+import { probeCredential } from "@/lib/integrations/probe";
 import type { OAuthProvider } from "@/generated/prisma/client";
 
 async function tenantFor(userId: string) {
@@ -160,27 +161,48 @@ export async function testConnection(credentialId: string): Promise<{ ok: boolea
 
   const cred = await db.oAuthCredential.findFirst({
     where: { id: credentialId, tenant: { ownerId: session.user.id } },
-    select: { id: true, provider: true, tokenEncrypted: true, expiresAt: true },
+    select: {
+      id: true,
+      tenantId: true,
+      provider: true,
+      providerAccountId: true,
+      tokenEncrypted: true,
+      expiresAt: true,
+    },
   });
   if (!cred) return { ok: false, detail: "Not found" };
 
-  if (cred.expiresAt && cred.expiresAt < new Date()) {
+  // YouTube refreshes inside its probe, so an expired access token is fine there.
+  if (cred.expiresAt && cred.expiresAt < new Date() && cred.provider !== "YOUTUBE") {
     return { ok: false, detail: "Token expired — reconnect" };
   }
 
-  // Best-effort smoke test: decrypt and check the blob is parseable.
   try {
-    const { vaultDecrypt } = await import("@/lib/vault");
-    const raw = vaultDecrypt(cred.tokenEncrypted);
-    void raw;
+    vaultDecrypt(cred.tokenEncrypted);
   } catch {
     return { ok: false, detail: "Vault decryption failed — VAULT_KEY mismatch" };
   }
 
-  await db.oAuthCredential.update({
-    where: { id: cred.id },
-    data: { lastUsedAt: new Date() },
-  });
+  // Hit the platform for real — a credential that cannot make a call is not
+  // "connected", however cleanly it decrypts.
+  let result: { ok: boolean; detail: string };
+  try {
+    result = await probeCredential({
+      tenantId: cred.tenantId,
+      provider: cred.provider,
+      providerAccountId: cred.providerAccountId,
+      tokenEncrypted: cred.tokenEncrypted,
+    });
+  } catch (err) {
+    return { ok: false, detail: err instanceof Error ? err.message : "Probe failed" };
+  }
 
-  return { ok: true, detail: "Decrypted ok — actual platform call lands when the publisher fires." };
+  if (result.ok) {
+    await db.oAuthCredential.update({
+      where: { id: cred.id },
+      data: { lastUsedAt: new Date() },
+    });
+  }
+
+  return result;
 }
