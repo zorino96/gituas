@@ -76,8 +76,13 @@ export interface EngagementData {
 const EMPTY_FB: FacebookEngagement = { connected: false, insights: [], posts: [], conversations: [] };
 const EMPTY_YT: YouTubeEngagement = { connected: false, stats: [], videos: [] };
 
-/** Load YouTube channel counters + recent uploads (3 quota units total). */
-async function loadYouTube(tenantId: string, errors: string[]): Promise<YouTubeEngagement> {
+/** Load YouTube channel counters + recent uploads (3 quota units total).
+ *
+ *  Best-effort, like Facebook Page insights: a stats hiccup (quota, an expired
+ *  refresh, a channel with nothing uploaded) isn't actionable for the operator
+ *  and shouldn't paint an error banner across a page whose primary surfaces —
+ *  Instagram and Facebook — are fine. The panel shows its empty state instead. */
+async function loadYouTube(tenantId: string): Promise<YouTubeEngagement> {
   const cred = await db.oAuthCredential.findFirst({
     where: { tenantId, provider: "YOUTUBE" },
     orderBy: { updatedAt: "desc" },
@@ -86,10 +91,7 @@ async function loadYouTube(tenantId: string, errors: string[]): Promise<YouTubeE
   if (!cred) return EMPTY_YT;
 
   const statsRes = await fetchChannelStats(tenantId);
-  if (!statsRes.ok) errors.push(`yt: ${statsRes.error ?? "stats failed"}`);
-
   const videosRes = await fetchRecentVideos(tenantId, 6);
-  if (!videosRes.ok) errors.push(`yt: ${videosRes.error ?? "videos failed"}`);
 
   return {
     connected: true,
@@ -153,7 +155,7 @@ export async function loadEngagement(): Promise<EngagementData> {
 
   const errors: string[] = [];
   const facebook = await loadFacebook(tenantId, errors);
-  const youtube = await loadYouTube(tenantId, errors);
+  const youtube = await loadYouTube(tenantId);
 
   const cred = await db.oAuthCredential.findFirst({
     where: { tenantId, provider: "META_INSTAGRAM" },
