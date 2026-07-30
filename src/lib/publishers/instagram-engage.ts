@@ -230,25 +230,96 @@ export interface IgMetric {
   value: number;
 }
 
-const DEFAULT_USER_METRICS = ["reach", "follower_count", "profile_views"];
+// Account-level numbers come from two different places, and mixing them up is
+// how you end up reporting "0 followers" for an account with 834 of them:
+//
+//   • TOTALS live on the user node as plain fields — followers_count, media_count.
+//   • INSIGHTS are windowed. `reach` needs a period (day gives ~1 for a small
+//     account, days_28 gives a number worth showing). `follower_count` is a
+//     *daily delta* (new followers that day), NOT the total — never label it
+//     "followers". And metrics like profile_views / accounts_engaged /
+//     total_interactions / views return an EMPTY data[] unless you pass
+//     metric_type=total_value.
+//
+// Verified live against @rwbn2026 (2026-07-29): profile fields → 834 followers /
+// 195 media; reach day=1, week=6, days_28=64; follower_count day=0.
 
-/** Account-level insights for a moving window (default: last day). */
-export async function fetchUserInsights(
-  tenantId: string,
-  metrics: string[] = DEFAULT_USER_METRICS,
-  period = "day",
-): Promise<IgResult<IgMetric[]>> {
+interface InsightGroup {
+  metrics: string[];
+  period: string;
+  /** Newer metrics only return data with metric_type=total_value. */
+  totalValue?: boolean;
+  /** Rename the API metric so the label can't be misread (e.g. reach → reach_28d). */
+  label?: (metric: string) => string;
+}
+
+const USER_INSIGHT_GROUPS: InsightGroup[] = [
+  { metrics: ["reach"], period: "days_28", label: () => "reach_28d" },
+  { metrics: ["reach"], period: "week", label: () => "reach_7d" },
+];
+
+// Deliberately NOT in the panel: accounts_engaged, total_interactions,
+// profile_views and views. With metric_type=total_value they return HTTP 200 but
+// a flat 0 on every window (day / week / days_28) even for an account with 834
+// followers, 195 posts and 64 reach — so Meta isn't populating them for this
+// account rather than measuring a real zero. Rendering three "0" tiles next to
+// live numbers reads as a broken integration, to an operator and to an App
+// Review reviewer alike. Re-test on an account with recent engagement before
+// putting them back.
+
+/** Account-level insights: lifetime totals from the profile, plus windowed
+ *  insight metrics. Best-effort per group — a metric Meta withholds or renames
+ *  can't take the whole panel down with it. */
+export async function fetchUserInsights(tenantId: string): Promise<IgResult<IgMetric[]>> {
   return withCred(tenantId, async (cred) => {
-    const r = await fetch(
-      `${V}/${cred.igUserId}/insights?metric=${metrics.join(",")}&period=${period}&access_token=${encodeURIComponent(cred.token)}`,
-    );
-    const j = await r.json();
-    if (!r.ok) return fail("IG user insights", r.status, j);
-    const data: IgMetric[] = (j?.data ?? []).map((m: { name: string; values?: { value: number }[] }) => ({
-      name: m.name,
-      value: m.values?.[0]?.value ?? 0,
-    }));
-    return { ok: true, data };
+    const token = encodeURIComponent(cred.token);
+    const out: IgMetric[] = [];
+    let anyOk = false;
+    let lastErr: string | undefined;
+
+    // 1. Lifetime totals — the numbers a business owner actually recognises.
+    try {
+      const r = await fetch(
+        `${V}/${cred.igUserId}?fields=followers_count,media_count&access_token=${token}`,
+      );
+      const j = await r.json();
+      if (r.ok) {
+        anyOk = true;
+        if (typeof j?.followers_count === "number") out.push({ name: "followers", value: j.followers_count });
+        if (typeof j?.media_count === "number") out.push({ name: "posts", value: j.media_count });
+      } else {
+        lastErr = fail("IG profile", r.status, j).error;
+      }
+    } catch {
+      /* fall through to the insight groups */
+    }
+
+    // 2. Windowed insights, group by group.
+    for (const g of USER_INSIGHT_GROUPS) {
+      try {
+        const q = `metric=${g.metrics.join(",")}&period=${g.period}${g.totalValue ? "&metric_type=total_value" : ""}`;
+        const r = await fetch(`${V}/${cred.igUserId}/insights?${q}&access_token=${token}`);
+        const j = await r.json();
+        if (!r.ok) {
+          lastErr = fail("IG user insights", r.status, j).error;
+          continue;
+        }
+        anyOk = true;
+        for (const m of (j?.data ?? []) as Array<{
+          name: string;
+          values?: { value: number }[];
+          total_value?: { value?: number };
+        }>) {
+          const value = g.totalValue ? m.total_value?.value : m.values?.[0]?.value;
+          out.push({ name: g.label ? g.label(m.name) : m.name, value: value ?? 0 });
+        }
+      } catch {
+        /* keep whatever the other groups returned */
+      }
+    }
+
+    if (!anyOk) return { ok: false, error: lastErr ?? "insights unavailable" };
+    return { ok: true, data: out };
   });
 }
 
