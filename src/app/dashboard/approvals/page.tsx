@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { ApprovalShortcuts } from "./approval-shortcuts";
@@ -25,6 +27,25 @@ export default async function ApprovalsPage() {
     orderBy: { createdAt: "desc" },
     include: { project: { select: { id: true, name: true } } },
   });
+
+  // TikTok cannot be published straight from the queue — the creator has to set
+  // visibility and interaction settings on a screen of its own first. Work out
+  // which pending posts are TikTok ones so the card can link there instead of
+  // pretending approve is enough.
+  const contentPostIds = requests
+    .filter((r) => r.kind === "CONTENT_POST")
+    .map((r) => (r.payload as { contentPostId?: string }).contentPostId)
+    .filter((v): v is string => !!v);
+  const tiktokPostIds = new Set(
+    contentPostIds.length === 0
+      ? []
+      : (
+          await db.platformPost.findMany({
+            where: { contentPostId: { in: contentPostIds }, platform: "TIKTOK" },
+            select: { contentPostId: true },
+          })
+        ).map((p) => p.contentPostId),
+  );
 
   const weeklyStats = await db.approvalRequest.groupBy({
     by: ["status"],
@@ -66,8 +87,18 @@ export default async function ApprovalsPage() {
             </div>
           ) : (
             requests.map((r) => {
-              const payload = r.payload as { preview?: string; platform?: string; name?: string; budget?: number };
+              const payload = r.payload as {
+                preview?: string;
+                platform?: string;
+                name?: string;
+                budget?: number;
+                contentPostId?: string;
+              };
               const mark = (r.project.name[0] ?? "?").toUpperCase();
+              const tiktokId =
+                payload.contentPostId && tiktokPostIds.has(payload.contentPostId)
+                  ? payload.contentPostId
+                  : null;
               return (
                 <div key={r.id} className="rounded-xl border border-line bg-panel p-5">
                   <div className="flex items-center justify-between font-mono text-xs">
@@ -96,7 +127,21 @@ export default async function ApprovalsPage() {
                   {payload.name && !payload.preview && (
                     <p className="mt-3 text-sm font-medium">{payload.name}</p>
                   )}
-                  <ApprovalActions approvalId={r.id} />
+                  {tiktokId ? (
+                    <div className="mt-4 flex items-center gap-3">
+                      <Link
+                        href={`/dashboard/post/tiktok/${tiktokId}`}
+                        className="font-mono text-xs px-3 py-2 rounded border border-money/40 text-money hover:border-money"
+                      >
+                        review &amp; post to tiktok →
+                      </Link>
+                      <span className="font-mono text-[10px] text-fg-dim">
+                        tiktok needs you to set visibility yourself
+                      </span>
+                    </div>
+                  ) : (
+                    <ApprovalActions approvalId={r.id} />
+                  )}
                 </div>
               );
             })

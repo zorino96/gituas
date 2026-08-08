@@ -73,9 +73,37 @@ export async function getTikTokCreator(
   };
 }
 
+/** Everything the post screen must render before it may show a Post button.
+ *  TikTok's content-sharing guidelines require the creator to see which account
+ *  they are posting to and to pick the privacy level and the interaction
+ *  settings themselves, so the UI cannot be built from anything less. */
+export type TikTokPostContext = CreatorInfo;
+
+export async function getTikTokPostContext(
+  tenantId: string,
+): Promise<TikTokPostContext | { error: string }> {
+  const token = await tiktokToken(tenantId);
+  if (!token) return { error: "TikTok is not connected, or the token has expired — reconnect it on Integrations." };
+  return await queryCreatorInfo(token);
+}
+
+/** The creator's choices. Every field is a decision TikTok requires a human to
+ *  make: none of it may be defaulted or inferred by us. */
+export interface TikTokPostOptions {
+  privacyLevel: string;
+  disableComment: boolean;
+  disableDuet: boolean;
+  disableStitch: boolean;
+  /** "Your brand" — promotes the creator's own business. */
+  brandOrganicToggle: boolean;
+  /** "Branded content" — a paid partnership with a third party. */
+  brandContentToggle: boolean;
+}
+
 export async function publishToTikTok(
   tenantId: string,
   content: { title: string; videoUrl: string },
+  options: TikTokPostOptions,
 ): Promise<PublishResult> {
   const token = await tiktokToken(tenantId);
   if (!token) return { ok: false, error: "TikTok not connected (or token expired)" };
@@ -84,15 +112,32 @@ export async function publishToTikTok(
     return { ok: false, error: "TikTok needs an https video URL hosted on a verified domain" };
   }
 
-  // 1. Creator info — required before a Direct Post; tells us the allowed
-  //    privacy levels (un-audited apps may only post SELF_ONLY).
+  // 1. Creator info — required before a Direct Post, and re-queried here rather
+  //    than trusted from the page: the creator may have changed their privacy or
+  //    interaction settings in the TikTok app since the screen was rendered, and
+  //    posting against a stale option is exactly what the guidelines forbid.
   const info = await queryCreatorInfo(token);
   if ("error" in info) return { ok: false, error: info.error };
 
-  const privacy =
-    info.privacy_level_options?.find((p) => p === "SELF_ONLY") ??
-    info.privacy_level_options?.[0] ??
-    "SELF_ONLY";
+  if (!info.privacy_level_options?.includes(options.privacyLevel)) {
+    return {
+      ok: false,
+      error: `"${options.privacyLevel}" is not a privacy level this account may use right now — reopen the post screen.`,
+    };
+  }
+  if (info.comment_disabled && !options.disableComment) {
+    return { ok: false, error: "This creator has comments turned off in TikTok." };
+  }
+  if (info.duet_disabled && !options.disableDuet) {
+    return { ok: false, error: "This creator has duet turned off in TikTok." };
+  }
+  if (info.stitch_disabled && !options.disableStitch) {
+    return { ok: false, error: "This creator has stitch turned off in TikTok." };
+  }
+  // TikTok's own rule: branded content cannot be posted privately.
+  if (options.brandContentToggle && options.privacyLevel === "SELF_ONLY") {
+    return { ok: false, error: "Branded content cannot be posted with visibility set to Only me." };
+  }
 
   // 2. Initialise the Direct Post (pull the video from our verified domain).
   const r = await fetch(`${BASE}/post/publish/video/init/`, {
@@ -104,14 +149,12 @@ export async function publishToTikTok(
     body: JSON.stringify({
       post_info: {
         title: content.title.slice(0, 2200),
-        privacy_level: privacy,
-        disable_comment: false,
-        disable_duet: false,
-        disable_stitch: false,
-        // Spec-required commercial-content disclosures; Gituas posts organic
-        // brand-owned content, so both default off.
-        brand_content_toggle: false,
-        brand_organic_toggle: false,
+        privacy_level: options.privacyLevel,
+        disable_comment: options.disableComment,
+        disable_duet: options.disableDuet,
+        disable_stitch: options.disableStitch,
+        brand_content_toggle: options.brandContentToggle,
+        brand_organic_toggle: options.brandOrganicToggle,
       },
       source_info: {
         source: "PULL_FROM_URL",
