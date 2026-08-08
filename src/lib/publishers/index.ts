@@ -8,7 +8,6 @@
 
 import { db } from "@/lib/db";
 import { vaultDecrypt } from "@/lib/vault";
-import { publishToTikTok } from "./tiktok";
 import { publishToInstagram } from "./instagram";
 import { publishToFacebookPage } from "./facebook";
 import { publishToYouTube } from "./youtube";
@@ -164,6 +163,16 @@ export async function publishPlatformPost(platformPostId: string): Promise<Publi
   });
   if (!pp) return { ok: false, error: "Platform post not found" };
 
+  // TikTok is deliberately not published from here — see the TIKTOK case below.
+  // Returning before the PUBLISHING flip matters: the post is waiting for the
+  // creator, not failing, so it must keep its SCHEDULED status.
+  if (pp.platform === "TIKTOK") {
+    return {
+      ok: false,
+      error: "TikTok posts are sent from the Post to TikTok screen, where the creator sets visibility and interaction settings.",
+    };
+  }
+
   await db.platformPost.update({ where: { id: pp.id }, data: { status: "PUBLISHING" } });
 
   const tenantId = pp.contentPost.project.tenantId;
@@ -179,16 +188,8 @@ export async function publishPlatformPost(platformPostId: string): Promise<Publi
     case "REDDIT": result = await publishToReddit(tenantId, content); break;
     case "X_TWITTER": result = await publishToX(tenantId, content); break;
     case "LINKEDIN": result = await publishToLinkedIn(tenantId, content); break;
-    case "TIKTOK": {
-      const tags = (pp.contentPost.hashtags ?? [])
-        .map((h) => (h.startsWith("#") ? h : `#${h}`))
-        .join(" ");
-      result = await publishToTikTok(tenantId, {
-        title: [pp.contentPost.description, tags].filter(Boolean).join(" "),
-        videoUrl: pp.contentPost.sourceAssetUrl,
-      });
-      break;
-    }
+    // TIKTOK is handled by the early return above and so is absent here on
+    // purpose — TypeScript has already narrowed it out of this switch.
     case "YOUTUBE": {
       const tags = (pp.contentPost.hashtags ?? [])
         .map((h) => (h.startsWith("#") ? h : `#${h}`))
