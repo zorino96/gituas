@@ -61,6 +61,11 @@ export async function buildAuthorizeUrl(provider: OAuthProvider, tenantId: strin
     ...(provider === "REDDIT" ? { duration: "permanent" } : {}),
     // Google only returns a refresh_token with offline access + a forced consent.
     ...(provider === "YOUTUBE" ? { access_type: "offline", prompt: "consent" } : {}),
+    // Once a creator has authorised us, TikTok silently re-issues the code and
+    // skips the consent screen — so a reconnect gives no chance to see, or
+    // withdraw from, the scopes being granted. This forces the screen every
+    // time. (TikTok for Business sets the same flag on its own authorize URL.)
+    ...(isTikTok ? { disable_auto_auth: "1" } : {}),
   });
 
   return `${cfg.authorizationUrl}?${params.toString()}`;
