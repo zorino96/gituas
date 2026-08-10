@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { publishToTikTok, type TikTokPostOptions } from "@/lib/publishers/tiktok";
+import {
+  fetchTikTokPostStatus,
+  publishToTikTok,
+  type TikTokPostOptions,
+} from "@/lib/publishers/tiktok";
 
 // NB: a "use server" module may only export async functions, so the serverless
 // time limit for this action lives on the page (see page.tsx `maxDuration`).
@@ -12,7 +16,12 @@ import { publishToTikTok, type TikTokPostOptions } from "@/lib/publishers/tiktok
 export async function postToTikTok(
   contentPostId: string,
   options: TikTokPostOptions,
-): Promise<{ ok: boolean; error?: string }> {
+  /** The caption as the creator left it, and the duration the browser measured
+   *  off the actual video file. Both come from the screen rather than the stored
+   *  draft, because the creator is allowed to change the caption and because the
+   *  duration limit has to be checked against the real file. */
+  edited: { title: string; durationSec?: number },
+): Promise<{ ok: boolean; error?: string; publishId?: string }> {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: "Unauthorized" };
 
@@ -30,12 +39,7 @@ export async function postToTikTok(
     return { ok: false, error: "This video has already been posted to TikTok." };
   }
 
-  const caption = [
-    post.description,
-    (post.hashtags ?? []).map((h) => (h.startsWith("#") ? h : `#${h}`)).join(" "),
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const caption = edited.title.slice(0, 2200);
 
   if (platformPost) {
     await db.platformPost.update({
@@ -46,7 +50,7 @@ export async function postToTikTok(
 
   const result = await publishToTikTok(
     post.project.tenantId,
-    { title: caption, videoUrl: post.sourceAssetUrl },
+    { title: caption, videoUrl: post.sourceAssetUrl, durationSec: edited.durationSec },
     options,
   );
 
@@ -103,5 +107,27 @@ export async function postToTikTok(
 
   revalidatePath(`/dashboard/post/tiktok/${post.id}`);
   revalidatePath("/dashboard/approvals");
-  return result.ok ? { ok: true } : { ok: false, error: result.error };
+  return result.ok
+    ? { ok: true, publishId: result.externalId }
+    : { ok: false, error: result.error };
+}
+
+/** Follow a Direct Post after it was accepted. Publishing is asynchronous, so
+ *  "sent" is not "published" — the creator needs to see which one it is. */
+export async function checkTikTokPostStatus(
+  contentPostId: string,
+  publishId: string,
+): Promise<{ status?: string; failReason?: string; error?: string }> {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
+  const post = await db.contentPost.findFirst({
+    where: { id: contentPostId, project: { tenant: { ownerId: session.user.id } } },
+    select: { project: { select: { tenantId: true } } },
+  });
+  if (!post) return { error: "Not found" };
+
+  const r = await fetchTikTokPostStatus(post.project.tenantId, publishId);
+  if ("error" in r) return { error: r.error };
+  return { status: r.status, failReason: r.failReason };
 }
