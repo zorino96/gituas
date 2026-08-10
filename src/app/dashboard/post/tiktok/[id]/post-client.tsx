@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-import { postToTikTok } from "./actions";
+import { checkTikTokPostStatus, postToTikTok } from "./actions";
 
 // TikTok returns these as raw enum values; these are the labels TikTok's own
 // app uses, so the creator recognises what they are choosing.
@@ -37,6 +37,15 @@ export function TikTokPostForm({
   stitchDisabled,
   maxDurationSec,
 }: Props) {
+  // The caption Gituas drafted is only a starting point — the guidelines
+  // require preset text and hashtags to be editable before publishing, so this
+  // is the value that actually gets posted.
+  const [title, setTitle] = useState(caption);
+  // Measured off the real file once the browser has the metadata, so the
+  // creator's max_video_post_duration_sec can be enforced before we call TikTok.
+  const [durationSec, setDurationSec] = useState<number | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+
   // Deliberately empty: TikTok requires the privacy level to start unselected,
   // so the creator makes an actual choice rather than accepting our default.
   const [privacy, setPrivacy] = useState("");
@@ -57,24 +66,47 @@ export function TikTokPostForm({
   // may not be posted privately.
   const brandedPrivateClash = brandedContent && privacy === "SELF_ONLY";
   const commercialUnchosen = isCommercial && !yourBrand && !brandedContent;
-  const canPost = !!privacy && !brandedPrivateClash && !commercialUnchosen && !pending && !done;
+  const tooLong =
+    maxDurationSec != null && durationSec != null && durationSec > maxDurationSec;
+  const canPost =
+    !!privacy &&
+    !!title.trim() &&
+    !brandedPrivateClash &&
+    !commercialUnchosen &&
+    !tooLong &&
+    !pending &&
+    !done;
 
   function submit() {
     setError(null);
     start(async () => {
-      const r = await postToTikTok(contentPostId, {
-        privacyLevel: privacy,
-        disableComment: !allowComment,
-        disableDuet: !allowDuet,
-        disableStitch: !allowStitch,
-        brandOrganicToggle: isCommercial && yourBrand,
-        brandContentToggle: isCommercial && brandedContent,
-      });
-      if (r.ok) {
-        setDone(true);
-        router.refresh();
-      } else {
+      const r = await postToTikTok(
+        contentPostId,
+        {
+          privacyLevel: privacy,
+          disableComment: !allowComment,
+          disableDuet: !allowDuet,
+          disableStitch: !allowStitch,
+          brandOrganicToggle: isCommercial && yourBrand,
+          brandContentToggle: isCommercial && brandedContent,
+        },
+        { title, durationSec: durationSec ?? undefined },
+      );
+      if (!r.ok) {
         setError(r.error ?? "Posting failed.");
+        return;
+      }
+      setDone(true);
+      router.refresh();
+      // Publishing is asynchronous — keep asking TikTok until it settles, so
+      // the creator sees whether it actually went up rather than just "sent".
+      if (r.publishId) {
+        for (let i = 0; i < 10; i++) {
+          await new Promise((res) => setTimeout(res, 3000));
+          const s = await checkTikTokPostStatus(contentPostId, r.publishId);
+          if (s.status) setStatus(s.failReason ? `${s.status} — ${s.failReason}` : s.status);
+          if (s.error || (s.status && s.status !== "PROCESSING_UPLOAD" && s.status !== "PROCESSING_DOWNLOAD")) break;
+        }
       }
     });
   }
@@ -108,19 +140,44 @@ export function TikTokPostForm({
         </div>
       </section>
 
-      {/* Preview — so the creator knows exactly what is going out. */}
+      {/* Preview — so the creator knows exactly what is going out.
+          preload="metadata" matters: without it the player renders an empty box
+          until someone presses play, which is not a preview of anything. */}
       <section className="rounded-xl border border-line bg-panel p-5 space-y-4">
         <div className="font-mono text-[10px] uppercase tracking-wider text-fg-dim">preview</div>
         <video
-          src={videoUrl}
+          src={`${videoUrl}#t=0.1`}
           controls
           playsInline
+          muted
+          preload="metadata"
+          onLoadedMetadata={(e) => setDurationSec(e.currentTarget.duration)}
           className="w-full max-w-[240px] rounded-lg border border-line bg-black"
         />
-        <p className="text-sm leading-relaxed whitespace-pre-wrap">{caption}</p>
+        <div className="space-y-2">
+          <label className="block font-mono text-[10px] uppercase tracking-wider text-fg-dim">
+            caption
+          </label>
+          {/* Gituas drafts this, but the creator has the last word on it. */}
+          <textarea
+            value={title}
+            onChange={(e) => setTitle(e.target.value.slice(0, 2200))}
+            rows={4}
+            className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm leading-relaxed resize-y focus:outline-none focus:border-money"
+          />
+          <div className="flex items-center justify-between font-mono text-xs text-fg-dim">
+            <span>edit the caption and hashtags before posting</span>
+            <span>{title.length}/2200</span>
+          </div>
+          {!title.trim() && (
+            <p className="font-mono text-xs text-red-400">a caption is required</p>
+          )}
+        </div>
         {maxDurationSec ? (
-          <p className="font-mono text-xs text-fg-dim">
-            this account may post videos up to {maxDurationSec}s
+          <p className={`font-mono text-xs ${tooLong ? "text-red-400" : "text-fg-dim"}`}>
+            {durationSec != null
+              ? `video is ${Math.round(durationSec)}s · this account may post up to ${maxDurationSec}s`
+              : `this account may post videos up to ${maxDurationSec}s`}
           </p>
         ) : null}
       </section>
@@ -226,8 +283,9 @@ export function TikTokPostForm({
               </span>
             </label>
             {commercialUnchosen && (
+              // TikTok's own wording for this prompt.
               <p className="font-mono text-xs text-red-400">
-                pick at least one: your brand, or branded content
+                You need to indicate if your content promotes yourself, a third party, or both.
               </p>
             )}
             {brandedPrivateClash && (
@@ -271,9 +329,15 @@ export function TikTokPostForm({
         <p className="font-mono text-xs text-red-400 leading-relaxed">{error}</p>
       )}
       {done && (
-        <p className="font-mono text-xs text-money">
-          sent to tiktok — it appears in the account once tiktok finishes processing.
-        </p>
+        <div className="space-y-1">
+          <p className="font-mono text-xs text-money">
+            Sent to TikTok. It may take a few minutes for TikTok to process the video before it
+            appears on the account.
+          </p>
+          <p className="font-mono text-xs text-fg-dim">
+            {status ? `tiktok status: ${status}` : "checking status with tiktok…"}
+          </p>
+        </div>
       )}
 
       <button

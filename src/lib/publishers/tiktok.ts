@@ -73,6 +73,40 @@ export async function getTikTokCreator(
   };
 }
 
+/** Ask TikTok what became of a Direct Post.
+ *
+ *  The guidelines require the creator to be able to follow their post after they
+ *  press the button — publishing is asynchronous and can take minutes, and a
+ *  post can still fail after init returned ok (an unreachable video URL, a
+ *  duration over the creator's limit, a copyright block). Storing publish_id and
+ *  never asking again would leave the creator staring at "sent" forever. */
+export async function fetchTikTokPostStatus(
+  tenantId: string,
+  publishId: string,
+): Promise<{ status: string; failReason?: string; publiclyAvailablePostId?: string } | { error: string }> {
+  const token = await tiktokToken(tenantId);
+  if (!token) return { error: "TikTok is not connected." };
+
+  const r = await fetch(`${BASE}/post/publish/status/fetch/`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json; charset=UTF-8",
+    },
+    body: JSON.stringify({ publish_id: publishId }),
+  });
+  const j = await r.json();
+  if (!r.ok || j?.error?.code !== "ok") {
+    return { error: `status/fetch ${r.status}: ${JSON.stringify(j?.error ?? j).slice(0, 200)}` };
+  }
+  const ids: unknown = j?.data?.publicaly_available_post_id ?? j?.data?.publicly_available_post_id;
+  return {
+    status: j?.data?.status ?? "UNKNOWN",
+    failReason: j?.data?.fail_reason || undefined,
+    publiclyAvailablePostId: Array.isArray(ids) ? String(ids[0]) : undefined,
+  };
+}
+
 /** Everything the post screen must render before it may show a Post button.
  *  TikTok's content-sharing guidelines require the creator to see which account
  *  they are posting to and to pick the privacy level and the interaction
@@ -102,7 +136,10 @@ export interface TikTokPostOptions {
 
 export async function publishToTikTok(
   tenantId: string,
-  content: { title: string; videoUrl: string },
+  /** `title` is whatever the creator left in the caption box, not what we
+   *  drafted — the guidelines require the preset text to be editable, so the
+   *  screen is the source of truth here, never the stored draft. */
+  content: { title: string; videoUrl: string; durationSec?: number },
   options: TikTokPostOptions,
 ): Promise<PublishResult> {
   const token = await tiktokToken(tenantId);
@@ -137,6 +174,21 @@ export async function publishToTikTok(
   // TikTok's own rule: branded content cannot be posted privately.
   if (options.brandContentToggle && options.privacyLevel === "SELF_ONLY") {
     return { ok: false, error: "Branded content cannot be posted with visibility set to Only me." };
+  }
+  // The duration limit is per-creator and comes back from creator_info, so it
+  // has to be checked against a freshly measured video rather than assumed.
+  if (
+    content.durationSec != null &&
+    info.max_video_post_duration_sec != null &&
+    content.durationSec > info.max_video_post_duration_sec
+  ) {
+    return {
+      ok: false,
+      error: `This video is ${Math.round(content.durationSec)}s, and this account may post at most ${info.max_video_post_duration_sec}s.`,
+    };
+  }
+  if (!content.title.trim()) {
+    return { ok: false, error: "Add a caption before posting." };
   }
 
   // 2. Initialise the Direct Post (pull the video from our verified domain).
