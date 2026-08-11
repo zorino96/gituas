@@ -66,6 +66,10 @@ export async function buildAuthorizeUrl(provider: OAuthProvider, tenantId: strin
     // withdraw from, the scopes being granted. This forces the screen every
     // time. (TikTok for Business sets the same flag on its own authorize URL.)
     ...(isTikTok ? { disable_auto_auth: "1" } : {}),
+    // Instagram Business Login skips its consent screen for an account that has
+    // authorised us before — same problem, same fix as TikTok above: the person
+    // reconnecting never sees which of the five scopes they are handing over.
+    ...(provider === "META_INSTAGRAM" ? { force_reauth: "true" } : {}),
   });
 
   return `${cfg.authorizationUrl}?${params.toString()}`;
