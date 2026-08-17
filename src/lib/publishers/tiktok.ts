@@ -30,12 +30,21 @@ interface CreatorInfo {
 }
 
 async function tiktokToken(tenantId: string): Promise<string | null> {
+  // Skip expired credentials in the query, not after picking one. Ordering by
+  // lastUsedAt put a freshly reconnected account LAST (its lastUsedAt is null),
+  // so an old expired credential won and the screen said "reconnect it on
+  // Integrations" to someone who had just done exactly that. TikTok has no
+  // refresh path here, so an expired row is dead weight — take the newest live
+  // one instead.
   const cred = await db.oAuthCredential.findFirst({
-    where: { tenantId, provider: "TIKTOK" },
-    orderBy: { lastUsedAt: { sort: "desc", nulls: "last" } },
+    where: {
+      tenantId,
+      provider: "TIKTOK",
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+    },
+    orderBy: { updatedAt: "desc" },
   });
   if (!cred) return null;
-  if (cred.expiresAt && cred.expiresAt < new Date()) return null; // expired — needs refresh
   try {
     return vaultDecrypt(cred.tokenEncrypted);
   } catch {
