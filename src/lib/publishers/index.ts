@@ -8,6 +8,7 @@
 
 import { db } from "@/lib/db";
 import { vaultDecrypt } from "@/lib/vault";
+import { newestFirst, unexpired } from "@/lib/oauth/pick";
 import { publishToInstagram } from "./instagram";
 import { publishToFacebookPage } from "./facebook";
 import { publishToYouTube } from "./youtube";
@@ -35,11 +36,10 @@ function platformToProvider(p: Platform): OAuthProvider | null {
 
 async function loadToken(tenantId: string, provider: OAuthProvider): Promise<{ token: string; account: string } | null> {
   const cred = await db.oAuthCredential.findFirst({
-    where: { tenantId, provider },
-    orderBy: { lastUsedAt: { sort: "desc", nulls: "last" } },
+    where: { tenantId, provider, ...unexpired() },
+    orderBy: newestFirst,
   });
   if (!cred) return null;
-  if (cred.expiresAt && cred.expiresAt < new Date()) return null;
   try {
     return { token: vaultDecrypt(cred.tokenEncrypted), account: cred.providerAccountName ?? cred.providerAccountId };
   } catch {

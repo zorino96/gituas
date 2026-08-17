@@ -16,6 +16,7 @@ import { createHmac } from "node:crypto";
 
 import { db } from "@/lib/db";
 import { vaultDecrypt } from "@/lib/vault";
+import { newestFirst, unexpired } from "@/lib/oauth/pick";
 import { FB_V, loadFbCred } from "@/lib/publishers/facebook";
 
 export interface AdLaunchResult {
@@ -34,11 +35,15 @@ interface AdsCred {
 /** The System-User (or user) token authorised for the tenant's ad account. */
 async function loadAdsCred(tenantId: string): Promise<AdsCred | null> {
   const cred = await db.oAuthCredential.findFirst({
-    where: { tenantId, provider: "META_FACEBOOK", providerAccountId: { startsWith: "act_" } },
-    orderBy: { lastUsedAt: { sort: "desc", nulls: "last" } },
+    where: {
+      tenantId,
+      provider: "META_FACEBOOK",
+      providerAccountId: { startsWith: "act_" },
+      ...unexpired(),
+    },
+    orderBy: newestFirst,
   });
   if (!cred) return null;
-  if (cred.expiresAt && cred.expiresAt < new Date()) return null;
   try {
     return { id: cred.id, adAccountId: cred.providerAccountId, token: vaultDecrypt(cred.tokenEncrypted) };
   } catch {

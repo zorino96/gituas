@@ -18,6 +18,7 @@
 
 import { db } from "@/lib/db";
 import { vaultDecrypt, vaultEncrypt } from "@/lib/vault";
+import { newestFirst, unexpired } from "@/lib/oauth/pick";
 import type { PublishResult } from "./index";
 
 export const HOST = "https://graph.instagram.com";
@@ -31,12 +32,14 @@ export interface IgCred {
 }
 
 export async function loadCred(tenantId: string): Promise<IgCred | null> {
+  // An expired Instagram token is unrecoverable — lazyRefresh below needs a
+  // live one to trade in — so skip those rows rather than picking one and
+  // rejecting it.
   const cred = await db.oAuthCredential.findFirst({
-    where: { tenantId, provider: "META_INSTAGRAM" },
-    orderBy: { lastUsedAt: { sort: "desc", nulls: "last" } },
+    where: { tenantId, provider: "META_INSTAGRAM", ...unexpired() },
+    orderBy: newestFirst,
   });
   if (!cred) return null;
-  if (cred.expiresAt && cred.expiresAt < new Date()) return null; // expired — reconnect required
   try {
     return {
       id: cred.id,

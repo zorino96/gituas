@@ -12,6 +12,7 @@
 
 import { db } from "@/lib/db";
 import { vaultDecrypt, vaultEncrypt } from "@/lib/vault";
+import { newestFirst, usableOrRefreshable } from "@/lib/oauth/pick";
 import type { PublishResult } from "./index";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -22,9 +23,11 @@ const UPLOAD_URL =
  *  the stored one is (near) expired. Persists the refreshed token.
  *  Shared with the integrations probe (lib/integrations/probe.ts). */
 export async function validYouTubeToken(tenantId: string): Promise<string | null> {
+  // Expired rows stay eligible here — the refresh below trades them for a live
+  // token — but a row with neither a live token nor a refresh token is dead.
   const cred = await db.oAuthCredential.findFirst({
-    where: { tenantId, provider: "YOUTUBE" },
-    orderBy: { lastUsedAt: { sort: "desc", nulls: "last" } },
+    where: { tenantId, provider: "YOUTUBE", ...usableOrRefreshable() },
+    orderBy: newestFirst,
   });
   if (!cred) return null;
 

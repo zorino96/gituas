@@ -17,6 +17,7 @@
 
 import { db } from "@/lib/db";
 import { vaultDecrypt } from "@/lib/vault";
+import { newestFirst, unexpired } from "@/lib/oauth/pick";
 import type { PublishResult } from "./index";
 
 export const FB_V = "https://graph.facebook.com/v25.0";
@@ -37,11 +38,11 @@ export async function loadFbCred(tenantId: string): Promise<FbCred | null> {
       tenantId,
       provider: "META_FACEBOOK",
       NOT: { providerAccountId: { startsWith: "act_" } },
+      ...unexpired(), // page tokens don't refresh — an expired row means reconnect
     },
-    orderBy: { lastUsedAt: { sort: "desc", nulls: "last" } },
+    orderBy: newestFirst,
   });
   if (!cred) return null;
-  if (cred.expiresAt && cred.expiresAt < new Date()) return null; // reconnect required
   try {
     return { id: cred.id, pageId: cred.providerAccountId, token: vaultDecrypt(cred.tokenEncrypted) };
   } catch {
