@@ -64,7 +64,8 @@ Cloudflare routes are confirmed.
 | 2 | Role addresses `privacy@` / `support@` | S | DEFERRED | Needs Cloudflare route confirmation first |
 | 3 | Move Meta + TikTok URLs to `gituas.com` | M | DEFERRED | Would contradict the demo video now in review |
 | 4 | `www.gituas.com` DNS (currently does not resolve) | XS | DEFERRED | Needs Cloudflare dashboard; not reviewer-facing |
-| 5 | Friendly error for `unaudited_client_can_only_post_to_private_accounts` | S | DEFERRED | Owner currently sees raw JSON |
+| 5 | Friendly error for `unaudited_client_can_only_post_to_private_accounts` | S | **ACCEPTED** — shipped `57ae951` | Owner saw raw JSON |
+| 7 | Data-deletion callback deleted nothing for Facebook Page users | M | **ACCEPTED** — shipped `57ae951` | Silent success on a required Meta callback |
 | 6 | Delete leftover TikTok campaign draft `1872702199031857` | XS | DEFERRED | Housekeeping |
 
 ## Accepted scope (shipped)
@@ -79,6 +80,21 @@ Cloudflare routes are confirmed.
 - Replace the raw TikTok JSON error with "TikTok only allows Only me until the
   Direct Post audit passes."
 - Delete TikTok campaign draft `1872702199031857`.
+
+## Open compliance gap (needs a decision)
+
+A tenant with ONLY a Facebook Page connected cannot be identified from Meta's
+`signed_request` at all: it carries an app-scoped USER id, and for META_FACEBOOK
+we store the PAGE id in `providerAccountId` (because `/me` on a page token
+resolves to the page). Meta requires a 200 with a confirmation code regardless,
+so such a request still *looks* successful.
+
+It is no longer silent -- `console.error` records the user_id and code in Vercel
+logs -- but it is not closed. Closing it needs the granting user's id captured at
+connect time (`/me?fields=id` with the user token, before the page token is
+minted), stored in a new nullable column. That is a schema change against the
+production database, which is deliberately NOT being done while an App Review is
+open. Decision required after the verdicts land.
 
 ## Reviewer Concerns
 - The `hello@gituas.com` route is inherited from an earlier session's Cloudflare
