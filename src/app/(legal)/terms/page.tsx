@@ -104,7 +104,7 @@ export default function TermsPage() {
 
       <H2>12. Contact</H2>
       <P>
-        Questions about these Terms: <ExtLink href="mailto:support@gituas.app">support@gituas.app</ExtLink>.
+        Questions about these Terms: <ExtLink href="mailto:hello@gituas.com">hello@gituas.com</ExtLink>.
         See also our <InLink href="/privacy">Privacy Policy</InLink>.
       </P>
     </article>

@@ -35,8 +35,8 @@ export default function DataDeletionPage() {
       <H2>Request deletion by email</H2>
       <P>
         Prefer email, or can&rsquo;t sign in? Send a request to{" "}
-        <ExtLink href="mailto:privacy@gituas.app?subject=Data%20Deletion%20Request">
-          privacy@gituas.app
+        <ExtLink href="mailto:hello@gituas.com?subject=Data%20Deletion%20Request">
+          hello@gituas.com
         </ExtLink>{" "}
         from the email address on your account, with the subject &ldquo;Data Deletion Request.&rdquo;
         We will verify your identity and complete the deletion within 30 days.
@@ -69,7 +69,7 @@ export default function DataDeletionPage() {
       <H2>Confirmation</H2>
       <P>
         When deletion is complete, we will confirm by email. If you have any questions, contact{" "}
-        <ExtLink href="mailto:privacy@gituas.app">privacy@gituas.app</ExtLink>. See also our{" "}
+        <ExtLink href="mailto:hello@gituas.com">hello@gituas.com</ExtLink>. See also our{" "}
         <InLink href="/privacy">Privacy Policy</InLink>.
       </P>
     </article>

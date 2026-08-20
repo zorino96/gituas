@@ -23,7 +23,7 @@ export default function PrivacyPage() {
         Gituas connects to a maker&rsquo;s code repository and their social and payment accounts,
         then uses AI to plan, create, and publish marketing content on their behalf. We are the
         data controller for the information described below. For any privacy question, contact us
-        at <ExtLink href="mailto:privacy@gituas.app">privacy@gituas.app</ExtLink>.
+        at <ExtLink href="mailto:hello@gituas.com">hello@gituas.com</ExtLink>.
       </P>
 
       <H2>2. Information we collect</H2>
@@ -188,7 +188,7 @@ export default function PrivacyPage() {
       </UL>
       <P>
         Depending on where you live, you may have additional rights under the GDPR or CCPA. To
-        exercise any right, email <ExtLink href="mailto:privacy@gituas.app">privacy@gituas.app</ExtLink>.
+        exercise any right, email <ExtLink href="mailto:hello@gituas.com">hello@gituas.com</ExtLink>.
       </P>
 
       <H2>9. Cookies</H2>
@@ -211,7 +211,7 @@ export default function PrivacyPage() {
 
       <H2>12. Contact</H2>
       <P>
-        Questions or requests: <ExtLink href="mailto:privacy@gituas.app">privacy@gituas.app</ExtLink>.
+        Questions or requests: <ExtLink href="mailto:hello@gituas.com">hello@gituas.com</ExtLink>.
         See also our <InLink href="/terms">Terms of Service</InLink> and{" "}
         <InLink href="/data-deletion">Data Deletion</InLink> instructions.
       </P>
