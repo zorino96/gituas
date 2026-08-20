@@ -135,6 +135,37 @@ export interface TikTokPostOptions {
   brandContentToggle: boolean;
 }
 
+/** Turn TikTok's init failure into something the account owner can act on.
+ *  The raw body is a JSON blob with a snake_case code and a link to the
+ *  developer guidelines — fine in a log, useless on a screen someone is
+ *  trying to post from. The codes below are the ones this app can actually
+ *  provoke; anything else falls through with the code intact so we are never
+ *  hiding a failure we did not anticipate. */
+function explainInitError(status: number, err: unknown): string {
+  const code = (err as { code?: string } | null | undefined)?.code ?? "";
+  switch (code) {
+    case "unaudited_client_can_only_post_to_private_accounts":
+      return 'While the Direct Post audit is pending, TikTok only accepts posts set to "Only me". Choose that, or wait for the audit to pass.';
+    case "spam_risk_too_many_posts":
+      return "TikTok says this account has posted too many times today. Try again tomorrow.";
+    case "spam_risk_user_banned_from_posting":
+      return "TikTok has blocked this account from posting.";
+    case "reached_active_user_cap":
+      return "This app has reached the number of creators TikTok allows it to publish for today.";
+    case "url_ownership_unverified":
+      return "TikTok will not pull the video: the domain hosting it is not verified in the developer portal.";
+    case "privacy_level_option_mismatch":
+      return "That visibility option is not one this account may use — reopen the post screen to refresh the list.";
+    case "access_token_invalid":
+    case "scope_not_authorized":
+      return "TikTok rejected the stored token — reconnect the account on Integrations.";
+    default:
+      return code
+        ? `TikTok refused the post (${code}). See developers.tiktok.com/doc/content-sharing-guidelines.`
+        : `TikTok refused the post (HTTP ${status}).`;
+  }
+}
+
 export async function publishToTikTok(
   tenantId: string,
   /** `title` is whatever the creator left in the caption box, not what we
@@ -217,7 +248,7 @@ export async function publishToTikTok(
   });
   const j = await r.json();
   if (!r.ok || j?.error?.code !== "ok") {
-    return { ok: false, error: `TikTok init ${r.status}: ${JSON.stringify(j?.error ?? j).slice(0, 250)}` };
+    return { ok: false, error: explainInitError(r.status, j?.error) };
   }
 
   // The post is created asynchronously; publish_id can be polled via
