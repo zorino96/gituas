@@ -13,8 +13,8 @@
 //  "URL properties" (we verified https://gituas.vercel.app/).
 
 import { db } from "@/lib/db";
-import { vaultDecrypt } from "@/lib/vault";
-import { newestFirst, unexpired } from "@/lib/oauth/pick";
+import { vaultDecrypt, vaultEncrypt } from "@/lib/vault";
+import { newestFirst, usableOrRefreshable } from "@/lib/oauth/pick";
 import type { PublishResult } from "./index";
 
 const BASE = "https://open.tiktokapis.com/v2";
@@ -30,13 +30,93 @@ interface CreatorInfo {
   creator_avatar_url?: string;
 }
 
+/** Trade the stored refresh_token for a fresh access token, and persist both.
+ *
+ *  TikTok access tokens live 24 hours. Without this, a creator who connected
+ *  yesterday opens the Post to TikTok screen today and is told to reconnect --
+ *  every day, forever. That is fine for a demo account and unusable for a
+ *  customer.
+ *
+ *  Two details the docs are quiet about and that make this easy to get wrong:
+ *  TikTok ROTATES the refresh token on every call, so the response's
+ *  refresh_token must be written back or the next refresh fails; and a failure
+ *  here must NOT delete the credential -- a network blip would log the creator
+ *  out of an account they never disconnected. On failure we leave the row alone
+ *  and return null, which surfaces as "reconnect on Integrations". */
+async function refreshTikTokToken(cred: {
+  id: string;
+  refreshTokenEncrypted: string | null;
+}): Promise<string | null> {
+  if (!cred.refreshTokenEncrypted) return null;
+  const clientKey = process.env.TIKTOK_CLIENT_KEY;
+  const clientSecret = process.env.TIKTOK_CLIENT_SECRET;
+  if (!clientKey || !clientSecret) return null;
+
+  let refreshToken: string;
+  try {
+    refreshToken = vaultDecrypt(cred.refreshTokenEncrypted);
+  } catch {
+    return null;
+  }
+
+  let j: {
+    access_token?: string;
+    refresh_token?: string;
+    expires_in?: number;
+    error?: string;
+    error_description?: string;
+  } | null = null;
+  try {
+    const r = await fetch("https://open.tiktokapis.com/v2/oauth/token/", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_key: clientKey,
+        client_secret: clientSecret,
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+      }).toString(),
+    });
+    j = await r.json().catch(() => null);
+    if (!r.ok || !j?.access_token) {
+      console.error(
+        `[tiktok] refresh failed for credential ${cred.id}: ` +
+          `${j?.error ?? r.status} ${j?.error_description ?? ""}`.trim(),
+      );
+      return null;
+    }
+  } catch (err) {
+    console.error(`[tiktok] refresh threw for credential ${cred.id}:`, err);
+    return null;
+  }
+
+  const accessToken = j.access_token;
+  await db.oAuthCredential.update({
+    where: { id: cred.id },
+    data: {
+      tokenEncrypted: vaultEncrypt(accessToken),
+      // Rotated on every refresh — keep the old one only if TikTok omitted it.
+      ...(j.refresh_token ? { refreshTokenEncrypted: vaultEncrypt(j.refresh_token) } : {}),
+      expiresAt: j.expires_in ? new Date(Date.now() + j.expires_in * 1000) : null,
+    },
+  });
+  return accessToken;
+}
+
 async function tiktokToken(tenantId: string): Promise<string | null> {
-  // TikTok has no refresh path here, so an expired row is dead weight.
+  // Expired rows stay eligible: a refresh_token can trade them for a live
+  // token. Only a row with neither is dead weight.
   const cred = await db.oAuthCredential.findFirst({
-    where: { tenantId, provider: "TIKTOK", ...unexpired() },
+    where: { tenantId, provider: "TIKTOK", ...usableOrRefreshable() },
     orderBy: newestFirst,
   });
   if (!cred) return null;
+
+  // Refresh a minute early rather than on the exact boundary — a token that
+  // expires mid-request fails the call, not the check.
+  const stale = cred.expiresAt != null && cred.expiresAt.getTime() - Date.now() < 60_000;
+  if (stale) return await refreshTikTokToken(cred);
+
   try {
     return vaultDecrypt(cred.tokenEncrypted);
   } catch {
