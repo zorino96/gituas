@@ -90,10 +90,21 @@ export default async function ApprovalsPage() {
               const payload = r.payload as {
                 preview?: string;
                 platform?: string;
+                platforms?: string[];
                 name?: string;
                 budget?: number;
                 contentPostId?: string;
               };
+              // A cross-posted draft carries `platforms`; rows written before
+              // the fan-out existed carry only `platform`. Showing one name for
+              // a post going to four places would understate what approving it
+              // actually does.
+              const destinations = (payload.platforms?.length
+                ? payload.platforms
+                : payload.platform
+                  ? [payload.platform]
+                  : []
+              ).map((p) => p.toLowerCase().replace(/_/g, " "));
               const mark = (r.project.name[0] ?? "?").toUpperCase();
               const tiktokId =
                 payload.contentPostId && tiktokPostIds.has(payload.contentPostId)
@@ -107,10 +118,10 @@ export default async function ApprovalsPage() {
                       <span className="text-fg lowercase">{actorFor(r.kind)}</span>
                       <span className="text-fg-dim">·</span>
                       <span className="text-fg-dim lowercase">{r.project.name}</span>
-                      {payload.platform && (
+                      {destinations.length > 0 && (
                         <>
                           <span className="text-fg-dim">·</span>
-                          <span className="text-fg-dim lowercase">{payload.platform.toLowerCase().replace(/_/g, " ")}</span>
+                          <span className="text-fg-dim lowercase">{destinations.join(" + ")}</span>
                         </>
                       )}
                     </div>

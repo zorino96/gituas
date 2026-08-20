@@ -21,7 +21,7 @@ export interface PublishResult {
   error?: string;
 }
 
-function platformToProvider(p: Platform): OAuthProvider | null {
+export function platformToProvider(p: Platform): OAuthProvider | null {
   switch (p) {
     case "X_TWITTER": return "X_TWITTER";
     case "LINKEDIN": return "LINKEDIN";
