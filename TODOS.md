@@ -23,8 +23,12 @@ Deferred work, with the context needed to pick it up cold.
 
 ## Meta compliance
 
-- **Data Use Checkup unresolved** (Action ID 1741202236995542), outstanding
-  across all three App Review submissions.
+- **MyApp (1504338996606998) has a past-due Data Use Checkup** -- deadline
+  Jun 2, 2024, and its API access is restricted as a result. This is NOT the
+  Gituas app; Gituas has no required actions. Earlier notes wrongly placed this
+  checkup on Gituas, misreading the account-wide "Required actions" counter as
+  a per-app flag. Certifying data use for MyApp needs someone who knows what
+  MyApp does.
 - **A Facebook-only tenant cannot be resolved from Meta's data-deletion
   `signed_request`.** The callback matches on the Instagram credential's
   `providerAccountId`; a tenant with only a Page connected has no such row.

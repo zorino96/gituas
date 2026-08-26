@@ -159,7 +159,7 @@ least one post. If it does not, recording does not start.
 | Pending TikTok post | ready |
 | Fresh visitor comment on the Page for `pages_manage_engagement` | **needed** |
 | App removed from the FB/IG account so consent renders in full | **needed, per take** |
-| Data Use Checkup | **unresolved** |
+| Data Use Checkup | not applicable -- it is on MyApp, not Gituas (checked 2026-08-27) |
 
 ## CEO REVIEW REPORT
 
@@ -189,6 +189,21 @@ screen that showed none of what the permission grants. Fix the surface, verify
 `21` renders, then record.
 
 **UNRESOLVED DECISIONS:**
-- Whether to resolve the Data Use Checkup before or alongside the next submission
 - Whether to run the outside voice (requires spawning a subagent)
 - Whether to demonstrate on the current Page or a differently-named one
+
+## Correction, 2026-08-27
+
+The report above listed the Data Use Checkup as a recording prerequisite and as
+an open decision. Both were wrong, and so was the line in the Aug 25 plan that
+put it on this app.
+
+Gituas' dashboard has no required actions. The checkup belongs to MyApp
+(1504338996606998), past due since Jun 2, 2024, restricting *that* app's API
+access. The "Required actions 1" badge is an account-wide counter shown on
+every app's chrome; it was read as a per-app flag.
+
+Two consequences: the last blocker before recording is gone, and MyApp has been
+sitting with restricted API access for over two years -- worth telling the owner
+about, though it is a separate app and its data-use certification is not
+something to answer on their behalf.

@@ -93,13 +93,18 @@ at anything specific to one permission.
 
 ## Also found
 
-**An unresolved required action: `Submit Data Use Checkup`** (Action ID
-   1741202236995542), sitting on the app through all three submissions.
-   > "You must resolve the issues below to retain access to Meta APIs. If you do
-   > not respond, access will be restricted."
+~~**An unresolved required action: `Submit Data Use Checkup`** (Action ID
+   1741202236995542), sitting on the app through all three submissions.~~
 
-   Unknown whether it influences review outcomes; known to be a standing
-   compliance flag on the account while reviewers look at it.
+   **RETRACTED 2026-08-27.** The Data Use Checkup is not on Gituas. Gituas'
+   own dashboard reads "You don't have any required action items to display."
+   The checkup belongs to **MyApp** (App ID 1504338996606998), a separate app
+   under the same Bangasha portfolio, past due since Jun 2, 2024, and MyApp's
+   API access is restricted because of it.
+
+   The "Required actions 1" counter in the top navigation is account-wide, not
+   per-app. Reading it as a flag on the app under review was the error. There
+   was never a compliance flag on Gituas while reviewers looked at it.
 
 ## Reviewer's own words
 
