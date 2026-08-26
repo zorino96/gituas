@@ -116,10 +116,13 @@ Stop making one video for many permissions. Make one short, self-contained video
 per permission: consent -> the single action -> the result on the platform, in
 one unbroken take, 60-90 seconds. That is the shape of the three that passed.
 
-And fix `pages_read_engagement` first, because `pages_manage_posts` is blocked
-behind it -- which means demonstrating it on a Page that actually returns data,
-or demonstrating the parts of it that do work (reading the Page's own posts)
-rather than an empty insights panel.
+And fix `pages_read_engagement`'s demo surface -- demonstrate it on a Page that
+actually returns data, or demonstrate the parts of it that do work (reading the
+Page's own posts) rather than an empty insights panel.
+
+*(Corrected 2026-08-26: this paragraph originally opened "fix
+`pages_read_engagement` first, because `pages_manage_posts` is blocked behind
+it" -- the dependency claim retracted above. There is no ordering constraint.)*
 
 ## The open question, now answered
 
