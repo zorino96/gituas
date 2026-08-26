@@ -24,6 +24,7 @@ import {
   fetchPageConversations,
   sendMessengerMessage,
   fetchPageInsights,
+  fetchPageProfile,
   type FbPost,
   type FbComment,
   type FbConversation,
@@ -50,6 +51,9 @@ export interface FacebookEngagement {
   connected: boolean;
   account?: { name: string; avatarUrl: string | null; scopes: string[] };
   insights: FbMetric[];
+  /** Set when the insights call failed. Shown as a quiet inline note under the
+   *  panel rather than in the page-wide error banner — see loadFacebook. */
+  insightsNote?: string;
   posts: (FbPost & { comments: FbComment[] })[];
   conversations: FbConversation[];
 }
@@ -114,10 +118,32 @@ async function loadFacebook(tenantId: string, errors: string[]): Promise<Faceboo
   });
   if (!cred) return EMPTY_FB;
 
-  // Insights are best-effort: Meta withholds Page insights for small/new pages,
-  // so a failure here isn't actionable for the user — the panel just shows its
-  // empty state. Don't surface it in the error banner.
+  // Insights stay off the page-wide error banner: a red bar over a working
+  // page is worse than a quiet panel. But they are NOT swallowed. A previous
+  // version of this code silently discarded the failure with a comment
+  // blaming Meta for withholding data from small Pages; the real cause was
+  // that we were requesting metrics Meta had deleted, and hiding the error
+  // kept that invisible through three App Review submissions. Log it loudly,
+  // note it inline, keep it out of the banner.
   const insightsRes = await fetchPageInsights(tenantId);
+  let insightsNote: string | undefined;
+  if (!insightsRes.ok) {
+    console.error(
+      `[engagement] Facebook Page insights failed for tenant=${tenantId}. ` +
+        `Meta prunes the Page metric catalogue between API versions — if this says ` +
+        `"(#100) The value must be a valid insights metric", the metric list in ` +
+        `facebook-engage.ts PAGE_METRIC_GROUPS needs re-verifying against a live Page. ` +
+        `error=${insightsRes.error}`,
+    );
+    insightsNote = insightsRes.error;
+  }
+
+  // The follower count comes from the Page node, not from insights, so it
+  // survives the metric deprecations that empty the panel.
+  const profileRes = await fetchPageProfile(tenantId);
+  if (!profileRes.ok) {
+    console.error(`[engagement] Facebook Page profile failed for tenant=${tenantId}. error=${profileRes.error}`);
+  }
 
   const postsRes = await fetchPagePosts(tenantId, 6);
   if (!postsRes.ok) errors.push(`fb: ${postsRes.error ?? "posts failed"}`);
@@ -142,10 +168,31 @@ async function loadFacebook(tenantId: string, errors: string[]): Promise<Faceboo
       avatarUrl: cred.avatarUrl,
       scopes: cred.scopes,
     },
-    insights: insightsRes.data ?? [],
+    insights: buildFbInsights(profileRes.data?.followers, insightsRes.data ?? []),
+    insightsNote,
     posts,
     conversations: convRes.data ?? [],
   };
+}
+
+/**
+ * Assemble the Page insight tiles.
+ *
+ *  followers  ← the Page node field, else the page_follows metric
+ *  the rest   ← whatever metrics resolved, minus the zeros
+ *
+ *  Zeros are dropped because a grid of them reads as a broken integration
+ *  rather than a quiet Page. Followers is exempt: 0 followers is a real
+ *  answer, and keeping one tile guarantees the panel is never empty while
+ *  the Page is connected.
+ */
+function buildFbInsights(fieldFollowers: number | undefined, metrics: FbMetric[]): FbMetric[] {
+  const followers = fieldFollowers ?? metrics.find((m) => m.name === "page_follows")?.value;
+  const rest = metrics.filter((m) => m.name !== "page_follows" && m.value > 0);
+  return [
+    ...(followers === undefined ? [] : [{ name: "followers", value: followers }]),
+    ...rest,
+  ];
 }
 
 export async function loadEngagement(): Promise<EngagementData> {

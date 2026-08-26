@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { RefreshCw, Sparkles, Send, EyeOff, Eye, MessageCircle, BarChart3, Mail, Youtube, ThumbsUp } from "lucide-react";
+import { RefreshCw, Sparkles, Send, EyeOff, Eye, MessageCircle, BarChart3, Mail, Youtube, ThumbsUp, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -57,6 +57,13 @@ export function EngagementClient() {
           platform="META_INSTAGRAM"
           account={data.account}
           insights={data.insights}
+          published={data.media.map((m) => ({
+            id: m.id,
+            title: m.caption?.slice(0, 120) || m.media_type || "post",
+            permalink: m.permalink,
+            postedAt: m.timestamp,
+            comments: m.comments.length,
+          }))}
           postGroups={data.media
             .filter((m) => m.comments.length > 0)
             .map((m) => ({
@@ -81,6 +88,15 @@ export function EngagementClient() {
           platform="META_FACEBOOK"
           account={data.facebook.account}
           insights={data.facebook.insights}
+          insightsNote={data.facebook.insightsNote}
+          published={data.facebook.posts.map((p) => ({
+            id: p.id,
+            title: p.message?.slice(0, 120) || "post",
+            permalink: p.permalink_url,
+            postedAt: p.created_time,
+            likes: p.likes_count,
+            comments: p.comments_count,
+          }))}
           postGroups={data.facebook.posts
             .filter((p) => p.comments.length > 0)
             .map((p) => ({
@@ -204,11 +220,16 @@ function YouTubePanel({ account, stats, videos }: {
 
 interface SurfacePost { id: string; title: string; permalink?: string; comments: { id: string; username?: string; text: string }[] }
 interface SurfaceConv { id: string; participant: string; recipientId: string; withinWindow: boolean; messages: { id: string; text?: string; fromBusiness: boolean }[] }
+/** Everything the account has published, with its engagement counts — as
+ *  opposed to postGroups, which is only the subset that drew comments. */
+interface SurfacePublished { id: string; title: string; permalink?: string; postedAt?: string; likes?: number; comments?: number }
 
-function Surface({ platform, account, insights, postGroups, conversations, onDone }: {
+function Surface({ platform, account, insights, insightsNote, published, postGroups, conversations, onDone }: {
   platform: Platform;
   account?: { name: string; avatarUrl: string | null; scopes: string[] };
   insights: { name: string; value: number }[];
+  insightsNote?: string;
+  published: SurfacePublished[];
   postGroups: SurfacePost[];
   conversations: SurfaceConv[];
   onDone: () => void;
@@ -244,6 +265,38 @@ function Surface({ platform, account, insights, postGroups, conversations, onDon
               </div>
             ))}
           </div>
+        )}
+        {insightsNote && (
+          <div className="mt-2 text-[10px] font-mono text-fg-dim truncate" title={insightsNote}>
+            ↳ some metrics unavailable: {insightsNote}
+          </div>
+        )}
+      </Section>
+
+      {/* published posts — the account's own content, comments or not */}
+      <Section icon={<FileText className="h-3.5 w-3.5" />} title={fb ? "page posts" : "posts"}>
+        {published.length === 0 ? (
+          <Empty>nothing published yet — approved posts show up here</Empty>
+        ) : (
+          <ul className="space-y-2">
+            {published.map((p) => (
+              <li key={p.id} className="rounded-lg border border-line bg-panel-2 p-3">
+                <div className="flex items-start gap-2">
+                  <span className="text-[12px] text-fg min-w-0 flex-1 break-words">{p.title}</span>
+                  {p.permalink && (
+                    <a href={p.permalink} target="_blank" rel="noreferrer" className="text-[11px] text-money underline shrink-0 font-mono">
+                      view
+                    </a>
+                  )}
+                </div>
+                <div className="mt-2 flex items-center gap-3 text-[10px] font-mono text-fg-dim">
+                  <span className="inline-flex items-center gap-1"><ThumbsUp className="h-3 w-3" />{p.likes ?? 0}</span>
+                  <span className="inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{p.comments ?? 0}</span>
+                  {p.postedAt && <span className="ml-auto">{new Date(p.postedAt).toLocaleDateString()}</span>}
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </Section>
 

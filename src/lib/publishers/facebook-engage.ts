@@ -49,22 +49,35 @@ export interface FbPost {
   permalink_url?: string;
   created_time?: string;
   comments_count?: number;
+  likes_count?: number;
 }
 
-/** Recent posts on the Page (used to surface comments). */
+/** Recent posts on the Page, with their engagement counts. This is the content
+ *  pages_read_engagement is defined by — "content posted by the Page" — so the
+ *  full list is returned and rendered, not just the posts that drew comments. */
 export async function fetchPagePosts(tenantId: string, limit = 6): Promise<FbResult<FbPost[]>> {
   return withCred(tenantId, async (cred) => {
+    const fields = [
+      "id",
+      "message",
+      "permalink_url",
+      "created_time",
+      "comments.summary(true).limit(0)",
+      "likes.summary(true).limit(0)",
+    ].join(",");
     const r = await fetch(
-      `${FB_V}/${cred.pageId}/feed?fields=id,message,permalink_url,created_time,comments.summary(true).limit(0)&limit=${limit}&access_token=${encodeURIComponent(cred.token)}`,
+      `${FB_V}/${cred.pageId}/feed?fields=${fields}&limit=${limit}&access_token=${encodeURIComponent(cred.token)}`,
     );
     const j = await r.json();
     if (!r.ok) return fail("FB posts", r.status, j);
+    const total = (v: unknown) => (v as { summary?: { total_count?: number } })?.summary?.total_count;
     const posts = ((j?.data ?? []) as Array<Record<string, unknown>>).map((p) => ({
       id: String(p.id),
       message: p.message as string | undefined,
       permalink_url: p.permalink_url as string | undefined,
       created_time: p.created_time as string | undefined,
-      comments_count: (p.comments as { summary?: { total_count?: number } })?.summary?.total_count,
+      comments_count: total(p.comments),
+      likes_count: total(p.likes),
     }));
     return { ok: true, data: posts };
   });
@@ -212,13 +225,17 @@ export interface FbMetric {
 }
 
 // The Graph API rejects the WHOLE request if any single metric is invalid for
-// the version/period, and Meta deprecated many legacy Page metrics (e.g.
-// page_post_engagements) — plus some metrics only accept one period
-// (page_fans is lifetime-only). So we query small, known-good groups by their
-// required period and keep whatever succeeds instead of failing the panel.
+// the version/period, and Meta prunes the Page metric catalogue between
+// versions without notice. As of v25.0 the entire page_impressions family and
+// page_fans are gone — they return "(#100) The value must be a valid insights
+// metric". The list below was verified against a live Page on 2026-08-26.
+//
+// This list WILL rot again. What must not rot with it is the follower count:
+// fetchPageProfile() reads that from the Page node itself, so the panel keeps
+// its headline number even when every metric here dies. Metrics are decoration.
 const PAGE_METRIC_GROUPS: { metrics: string[]; period: string }[] = [
-  { metrics: ["page_impressions", "page_impressions_unique"], period: "day" },
-  { metrics: ["page_fans"], period: "lifetime" },
+  { metrics: ["page_post_engagements", "page_follows"], period: "day" },
+  { metrics: ["page_views_total", "page_total_actions"], period: "day" },
 ];
 
 function readMetricValue(last: unknown): number {
@@ -227,6 +244,41 @@ function readMetricValue(last: unknown): number {
     return Object.values(last as Record<string, number>).reduce((a, b) => a + (typeof b === "number" ? b : 0), 0);
   }
   return 0;
+}
+
+export interface FbProfile {
+  name?: string;
+  followers?: number;
+  category?: string;
+  link?: string;
+}
+
+/** Page node fields. The follower count lives here as a plain field, which is
+ *  why it survives the metric deprecations that empty the insights panel. */
+export async function fetchPageProfile(tenantId: string): Promise<FbResult<FbProfile>> {
+  return withCred(tenantId, async (cred) => {
+    const r = await fetch(
+      `${FB_V}/${cred.pageId}?fields=name,fan_count,followers_count,category,link&access_token=${encodeURIComponent(cred.token)}`,
+    );
+    const j = await r.json();
+    if (!r.ok) return fail("FB page profile", r.status, j);
+    // followers_count is the current field; fan_count is the older one and is
+    // still populated. Either is a real number — prefer whichever is present.
+    const followers = typeof j?.followers_count === "number"
+      ? j.followers_count
+      : typeof j?.fan_count === "number"
+        ? j.fan_count
+        : undefined;
+    return {
+      ok: true,
+      data: {
+        name: j?.name as string | undefined,
+        followers,
+        category: j?.category as string | undefined,
+        link: j?.link as string | undefined,
+      },
+    };
+  });
 }
 
 /** Page-level insights. Best-effort: returns whatever metric groups resolve;
