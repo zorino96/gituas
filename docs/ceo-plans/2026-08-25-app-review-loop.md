@@ -56,21 +56,44 @@ at 2:02. Rejected.
 accepts a different screencast per permission; we gave every reviewer the same
 video and asked each of them to find their permission inside it.
 
-## Two hard facts found in the dashboard today
+## CORRECTED after reading all four reviewer notes
 
-1. **A dependency we never satisfied.** The `pages_manage_posts` dialog states:
-   > "Your submission must include pages_show_list **and pages_read_engagement**
-   > to use pages_manage_posts"
+Two claims in the first draft of this document were wrong. Both are struck here
+rather than deleted, because the mistake is instructive.
 
-   `pages_read_engagement` is itself rejected, so `pages_manage_posts` cannot be
-   granted until it passes. They must be fixed together, in that order.
+**WRONG: "pages_manage_posts is blocked behind pages_read_engagement."** That
+dependency line appears only while `pages_manage_posts` sits alone in the draft.
+With all four added, every dependency is already satisfied:
 
-2. **`pages_read_engagement` was demonstrated on an empty screen.** Meta returns
-   no insights for a Page this small, so the engagement card in the video reads
-   "no insights available yet". We asked for a permission to read Page content
-   and insights, and showed a panel with no data in it.
+| Permission | Requires | Status |
+|---|---|---|
+| pages_manage_posts | pages_show_list | approved |
+| pages_read_engagement | pages_show_list | approved |
+| pages_manage_engagement | pages_show_list + pages_read_user_content | both approved |
+| instagram_business_content_publish | instagram_business_basic | approved |
 
-3. **An unresolved required action: `Submit Data Use Checkup`** (Action ID
+`pages_read_user_content` passing this round actually cleared the last
+outstanding dependency. There is no blocker.
+
+**UNSUPPORTED: "pages_read_engagement failed because the insights panel was
+empty."** Plausible, but all four rejected permissions carry the *identical*
+reviewer note and the identical Policy 1.6 text. There is no evidence
+distinguishing them. The empty panel is still worth fixing; it is not
+established as the cause.
+
+## What survives
+
+Every one of the four says only:
+> "SC failed to demonstrate its requested use case"
+
+and Meta states explicitly "We have determined that your apps' use case is
+allowed". It is the screencast, not the written case, and the failure is the
+same across all four -- which points at how the video was packaged rather than
+at anything specific to one permission.
+
+## Also found
+
+**An unresolved required action: `Submit Data Use Checkup`** (Action ID
    1741202236995542), sitting on the app through all three submissions.
    > "You must resolve the issues below to retain access to Meta APIs. If you do
    > not respond, access will be restricted."
@@ -98,12 +121,11 @@ behind it -- which means demonstrating it on a Page that actually returns data,
 or demonstrating the parts of it that do work (reading the Page's own posts)
 rather than an empty insights panel.
 
-## Open question this review did NOT answer
+## The open question, now answered
 
-The reviewer notes for `pages_manage_engagement`, `pages_read_engagement` and
-`instagram_business_content_publish` were not read -- the dashboard reset each
-time they were added to the draft. They may say something different from
-`pages_manage_posts`. Worth reading before committing to the plan above.
+All four reviewer notes were read. They are identical. The hypothesis that
+different permissions failed for different reasons is dead; one cause is acting
+on all four.
 
 ## State left behind
 
@@ -119,17 +141,18 @@ built on.
 | App mode check | PASS | App IS Live -- ruled out a candidate cause cheaply |
 | Premise challenge | **FAIL -> corrected** | Framed as "fix the video again"; the real question is why some pass |
 | Hypothesis test | **1 FALSIFIED** | "Write permissions get rejected" -- instagram_business_manage_comments is a write permission and passed |
-| Dependency scan | **1 BLOCKER found** | pages_manage_posts requires pages_read_engagement, which is itself rejected |
-| Demo-quality scan | **1 CRITICAL found** | pages_read_engagement demonstrated on a panel showing "no insights available yet" |
+| Dependency scan | **RETRACTED** | The "blocker" was an artifact of one permission sitting alone in the draft; all dependencies are satisfied |
+| Demo-quality scan | **DOWNGRADED** | Empty insights panel is real but unsupported as the cause -- all four notes are identical |
 | Compliance scan | **1 HIGH found** | Data Use Checkup unresolved across all three submissions |
-| Feedback read | PARTIAL | Only pages_manage_posts' reviewer note retrieved; three others not read |
+| Feedback read | PASS | All four reviewer notes retrieved; all identical |
 
-VERDICT: **Do NOT shoot a fourth combined video.** The evidence points at one
-video per permission, each a single unbroken chain, and at fixing
-`pages_read_engagement` before `pages_manage_posts` because the latter is
-blocked behind it. Read the three remaining reviewer notes before committing.
+VERDICT: **Do NOT shoot a fourth combined video.** Four permissions, one video,
+each permission's proof scattered through it -- and one identical "SC failed to
+demonstrate its requested use case" on all four. Ship four separate 60-90s
+videos, each a single unbroken chain from consent to result on the platform.
+That is the shape of the three that passed. No ordering constraint exists; the
+dependency blocker was retracted.
 
 **UNRESOLVED DECISIONS:**
 - Whether to resolve the Data Use Checkup before or alongside the next submission
 - Whether to demonstrate on the current Page or a differently-named one
-- Whether to read the three remaining reviewer notes first
