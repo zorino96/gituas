@@ -131,7 +131,13 @@ export const PROVIDERS: ProviderConfig[] = [
     provider: "TIKTOK",
     label: "tiktok",
     mode: "oauth2_pkce", // TikTok requires PKCE for web apps
-    scopes: ["user.info.basic", "video.upload", "video.publish"],
+    // Only the scopes the product actually exercises. video.upload — sending a
+    // video to TikTok as a draft via post/publish/inbox/video/init — has never
+    // been built, and TikTok's audit guidelines require every requested scope
+    // to be demonstrated in the demo video or removed before review. Asking
+    // for it while the app only Direct Posts is what a reviewer sees as an
+    // over-broad request. Add it back the same day the draft path ships.
+    scopes: ["user.info.basic", "video.publish"],
     authorizationUrl: "https://www.tiktok.com/v2/auth/authorize/",
     tokenUrl: "https://open.tiktokapis.com/v2/oauth/token/",
     envClientIdKey: "TIKTOK_CLIENT_KEY", // TikTok calls it client_key, not client_id

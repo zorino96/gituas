@@ -90,8 +90,7 @@ export default function PrivacyPage() {
           TikTok Developer Terms of Service
         </ExtLink>{" "}
         and applicable platform policies. We request only the scopes required for these features
-        (such as <code className="text-fg">user.info.basic</code>,{" "}
-        <code className="text-fg">video.upload</code>, and{" "}
+        (<code className="text-fg">user.info.basic</code> and{" "}
         <code className="text-fg">video.publish</code>). The same principles apply to every other
         connected platform: least-privilege scopes, used only for the features you turn on.
       </P>
