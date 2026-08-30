@@ -40,3 +40,23 @@ Deferred work, with the context needed to pick it up cold.
 - Meta and TikTok redirect/callback URLs still point at `gituas.vercel.app`.
   Move to `gituas.com` once both verdicts land — changing them mid-review
   invalidates the URLs the reviewers were given.
+
+## In flight — check, don't redo
+
+- **Meta App Review, submitted 2026-08-27.** Four permissions
+  (`pages_read_engagement`, `pages_manage_engagement`, `pages_manage_posts`,
+  `instagram_business_content_publish`), one 46-57s screencast each, plus eight
+  previously-granted permissions up for renewal. Verdict due within ~20 days at
+  developers.facebook.com/apps/1679071989875234/app-review/requests/
+  Videos and the submission text live in `Desktop/tiktok-audit/`.
+
+- **TikTok Content Posting API - Direct Post, submitted 2026-08-27.** Fourth
+  attempt. The first three failed with an identical generic line and an empty
+  "Review comments" tab. The cause found this round: the app requested
+  `video.upload` while only ever calling `post/publish/video/init`, and TikTok's
+  guidelines require every requested scope to be demonstrated or removed. Scope
+  dropped in `64c4265`. Verdict due in 2-4 weeks.
+  - **Known mismatch to watch for:** the submitted demo video still shows the
+    old three-toggle consent screen; the app now requests two. The submission
+    text explains why. If the reviewer objects, re-record only the consent
+    segment (~15 min) rather than the whole video.
