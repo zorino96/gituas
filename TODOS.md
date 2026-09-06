@@ -71,3 +71,33 @@ Deferred work, with the context needed to pick it up cold.
     old three-toggle consent screen; the app now requests two. The submission
     text explains why. If the reviewer objects, re-record only the consent
     segment (~15 min) rather than the whole video.
+
+## Multi-tenant readiness
+
+The twelve Meta permissions approved 2026-09-06 are what let Gituas serve
+someone other than the owner. That path had never been walked. Mapping it
+turned up one dead end, now fixed, and one latent fault left alone on purpose.
+
+- ~~No code path created a Project.~~ **Fixed 2026-09-06.** A new account got a
+  Tenant from the signIn callback and then hit a dashboard whose every surface
+  hangs off a project it could not make: `/dashboard/projects` rendered
+  "No projects yet." with no control, and the dashboard's "+ adopt project"
+  link pointed there. Invisible until now because this workspace's only project
+  was inserted by hand. Form + server action in
+  `src/app/dashboard/projects/{actions.ts,new-project.tsx}`; verified live by
+  creating and then deleting a test project.
+
+- **`Tenant.ownerId` has no unique constraint** (`prisma/schema.prisma:339`).
+  All fifteen session-based lookups use `findFirst({ where: { ownerId } })`, so
+  if the signIn callback ever ran twice concurrently for one user, that user
+  would own two tenants and different screens could resolve different ones.
+  Harmless today with a single user. Fixing it means a DB migration, deliberately
+  deferred while the TikTok Direct Post audit is open — the app should not change
+  shape under a reviewer. Do it once TikTok's verdict lands.
+  - When picked up: add `@@unique([ownerId])`, backfill/merge any duplicate
+    tenants first, then switch the fifteen `findFirst` calls to `findUnique`.
+
+- **Still untested end to end:** nobody but the owner has ever signed in,
+  created a project, connected their own Page or Instagram account, and pushed
+  a post through. That is the real proof the approval bought, and it needs a
+  second GitHub account and a second Facebook Page.
