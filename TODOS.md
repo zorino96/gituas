@@ -38,17 +38,28 @@ Deferred work, with the context needed to pick it up cold.
 ## Domains
 
 - Meta and TikTok redirect/callback URLs still point at `gituas.vercel.app`.
-  Move to `gituas.com` once both verdicts land — changing them mid-review
-  invalidates the URLs the reviewers were given.
+  Meta's verdict has landed, so its URLs are free to move. TikTok's Direct Post
+  audit is still open — leave the TikTok redirect URI alone until that verdict
+  arrives, since the reviewer was given that URL.
 
 ## In flight — check, don't redo
 
-- **Meta App Review, submitted 2026-08-27.** Four permissions
-  (`pages_read_engagement`, `pages_manage_engagement`, `pages_manage_posts`,
-  `instagram_business_content_publish`), one 46-57s screencast each, plus eight
-  previously-granted permissions up for renewal. Verdict due within ~20 days at
-  developers.facebook.com/apps/1679071989875234/app-review/requests/
-  Videos and the submission text live in `Desktop/tiktok-audit/`.
+- ~~Meta App Review, submitted 2026-08-27.~~ **APPROVED IN FULL, 2026-09-06
+  09:32 GMT+3.** All four permissions granted -- `pages_read_engagement`,
+  `pages_manage_engagement`, `pages_manage_posts`,
+  `instagram_business_content_publish` -- and all eight renewals renewed.
+  "Our review is complete and your requests and app settings were approved."
+
+  Four rounds; ten days on the last one. What changed on the winning round:
+  one 46-57s screencast per permission instead of one four-minute video for all
+  four, each a single unbroken take of consent -> the one action -> the result
+  on facebook.com or instagram.com. The three permissions that passed in
+  earlier rounds all had that shape; the four that failed did not.
+  `pages_read_engagement` also needed the panel fix in `d4ba2b4` -- until then
+  its demo screen read "no insights available yet", because the code was asking
+  for metrics Meta had deleted.
+
+  Videos and submission text: `Desktop/tiktok-audit/`.
 
 - **TikTok Content Posting API - Direct Post, submitted 2026-08-27.** Fourth
   attempt. The first three failed with an identical generic line and an empty
