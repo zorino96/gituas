@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { NewProject } from "./new-project";
 
 export default async function ProjectsPage() {
   const session = await auth();
@@ -23,14 +24,11 @@ export default async function ProjectsPage() {
           <h1 className="text-3xl font-semibold tracking-tight">Projects</h1>
           <p className="mt-1 text-muted-foreground">Each project is one product Gituas markets.</p>
         </div>
+        {projects.length > 0 && <NewProject />}
       </div>
 
       {projects.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            No projects yet.
-          </CardContent>
-        </Card>
+        <NewProject emptyState />
       ) : (
         <div className="grid gap-4">
           {projects.map((p) => (
