@@ -88,6 +88,14 @@ Deferred work, with the context needed to pick it up cold.
   is the only route left, since the comments tab has been empty every time) or
   a change that is defensible without knowing the reason.
 
+  **Support ticket raised 2026-09-08, case `0933be8a90c8304b`** (Category:
+  Support, Topic: Content Posting API, App: Gituas). It asks for the specific
+  reason `20260830225508` was rejected, whether the objection was to the video,
+  the description, or the integration, and how a scope that cannot be removed
+  from the portal should be handled if every listed scope must be demonstrated.
+  TikTok says 1-3 days. **Do not submit a fifth audit application until this
+  answer arrives** — a blind fifth attempt spends a round for nothing.
+
   Keep in the code anyway: the registry now asks for only what it exercises,
   which is correct regardless of the portal.
 
