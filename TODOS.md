@@ -61,16 +61,51 @@ Deferred work, with the context needed to pick it up cold.
 
   Videos and submission text: `Desktop/tiktok-audit/`.
 
-- **TikTok Content Posting API - Direct Post, submitted 2026-08-27.** Fourth
-  attempt. The first three failed with an identical generic line and an empty
-  "Review comments" tab. The cause found this round: the app requested
-  `video.upload` while only ever calling `post/publish/video/init`, and TikTok's
-  guidelines require every requested scope to be demonstrated or removed. Scope
-  dropped in `64c4265`. Verdict due in 2-4 weeks.
-  - **Known mismatch to watch for:** the submitted demo video still shows the
-    old three-toggle consent screen; the app now requests two. The submission
-    text explains why. If the reviewer objects, re-record only the consent
-    segment (~15 min) rather than the whole video.
+- **TikTok Content Posting API - Direct Post: REJECTED a fourth time**
+  2026-09-08 06:45 (ref `20260830225508`). Same generic line, "Review comments"
+  still empty. Four rejections, zero reviewer text.
+
+  **The `video.upload` hypothesis is dead.** It was the reason given for the
+  fourth attempt: the app asked for a scope it never called, and TikTok's
+  guidelines say every requested scope must be demonstrated or removed. Two
+  things were wrong with it.
+
+  1. The scope was dropped from `src/lib/oauth/registry.ts` in `64c4265` and
+     deployed, but **never from the portal** — so the reviewer saw an app still
+     requesting all three, and the submission text's claim that the scope "has
+     been removed" was true of the code and false of what was under review.
+  2. Checking the portal to fix that showed it **cannot be removed at all.**
+     The Scopes list is derived from the products, not chosen: each row is
+     labelled `Included in Login Kit` or `Included in Content Posting API`, and
+     none has a remove control. The Content Posting API panel states it
+     outright — *"By default, Upload to TikTok is enabled, allowing you to
+     upload content to TikTok as a draft"* — with Direct Post as the optional
+     add-on on top. Every Content Posting API app carries `video.upload`.
+     It cannot be what distinguishes a rejected app from an approved one.
+
+  So four attempts have produced no evidence about the actual cause. The next
+  one must not be another guess: it needs either reviewer text (Contact Support
+  is the only route left, since the comments tab has been empty every time) or
+  a change that is defensible without knowing the reason.
+
+  Keep in the code anyway: the registry now asks for only what it exercises,
+  which is correct regardless of the portal.
+
+  - **Mismatch introduced by that change:** the deployed consent screen shows
+    two toggles; the submitted demo video shows three. Harmless while the code
+    is the narrower of the two, but re-record the consent segment (~15 min)
+    before the next submission so video and app agree.
+
+- **A Draft revision exists in the TikTok portal** (created 2026-09-08 to
+  inspect the scope fields; `/app/7648797513306310664/pending`). It is not
+  submitted and the Live app is untouched — "live since Sep 8, 2026 6:45 AM".
+
+  **Do not submit it without deciding deliberately.** Submitting a revision puts
+  the app into `Under review`, and per TikTok's own portal no further changes
+  can be made while it is there — which would block `Reapply`, the separate
+  button that requests the Direct Post audit. The two flows are different:
+  `Submit for review` reviews the app configuration; `Reapply` asks for the
+  audit that lifts SELF_ONLY. Only the second one is what Gituas needs.
 
 ## Multi-tenant readiness
 
