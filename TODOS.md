@@ -61,9 +61,33 @@ Deferred work, with the context needed to pick it up cold.
 
   Videos and submission text: `Desktop/tiktok-audit/`.
 
-- **TikTok Content Posting API - Direct Post: REJECTED a fourth time**
-  2026-09-08 06:45 (ref `20260830225508`). Same generic line, "Review comments"
-  still empty. Four rejections, zero reviewer text.
+- **TikTok Content Posting API - Direct Post: cause found 2026-09-11.** Four
+  rejections (Aug 10, Aug 17, Aug 24, and Sep 8 — ref `20260830225508`), each
+  with the same generic line and an empty "Review comments" tab. Support case
+  `0933be8a90c8304b` finally answered:
+
+  > demo videos submitted for review should not be recorded using AI agents or
+  > automated tools. You should manually click, navigate, and walk through the
+  > entire demo yourself
+
+  Every TikTok demo video was produced the same way: Claude driving Chrome over
+  CDP, then cut and sped up 1.5-2.5x. What a reviewer sees — a cursor that never
+  moves while buttons get pressed, text appearing in a single frame, jump cuts —
+  says automation. That explains four identical rejections better than anything
+  guessed before, and it is TikTok's own words rather than an inference.
+
+  **Next:** the owner records the demo by hand, following
+  `Desktop/tiktok-audit/tiktok-manual-recording.md` (prep checklist, 14-step
+  shot list, and the Reapply text at 981 characters). Claude does not touch the
+  browser during the take. Post-processing is limited to a privacy check,
+  cutting the processing wait, and compression if over 50 MB — no speed-up, no
+  captions. The owner presses Reapply.
+
+  The state on 2026-09-11: one TikTok post waits in Approvals; TikTok shows
+  two connections, which the owner disconnects before recording so the take
+  starts with the connect flow.
+
+  What follows is the earlier investigation, kept because it rules things out.
 
   **The `video.upload` hypothesis is dead.** It was the reason given for the
   fourth attempt: the app asked for a scope it never called, and TikTok's
@@ -93,27 +117,19 @@ Deferred work, with the context needed to pick it up cold.
   reason `20260830225508` was rejected, whether the objection was to the video,
   the description, or the integration, and how a scope that cannot be removed
   from the portal should be handled if every listed scope must be demonstrated.
-  TikTok says 1-3 days. **Do not submit a fifth audit application until this
-  answer arrives** — a blind fifth attempt spends a round for nothing.
+  TikTok says 1-3 days. Answered 2026-09-11 — see the top of this entry.
 
   Keep in the code anyway: the registry now asks for only what it exercises,
-  which is correct regardless of the portal.
+  which is correct regardless of the portal. The consent-screen mismatch it
+  created (two toggles in the app, three in the old video) resolves itself: the
+  hand-recorded take shows the current screen.
 
-  - **Mismatch introduced by that change:** the deployed consent screen shows
-    two toggles; the submitted demo video shows three. Harmless while the code
-    is the narrower of the two, but re-record the consent segment (~15 min)
-    before the next submission so video and app agree.
-
-- **A Draft revision exists in the TikTok portal** (created 2026-09-08 to
-  inspect the scope fields; `/app/7648797513306310664/pending`). It is not
-  submitted and the Live app is untouched — "live since Sep 8, 2026 6:45 AM".
-
-  **Do not submit it without deciding deliberately.** Submitting a revision puts
-  the app into `Under review`, and per TikTok's own portal no further changes
-  can be made while it is there — which would block `Reapply`, the separate
-  button that requests the Direct Post audit. The two flows are different:
-  `Submit for review` reviews the app configuration; `Reapply` asks for the
-  audit that lifts SELF_ONLY. Only the second one is what Gituas needs.
+- The Draft revision created 2026-09-08 to inspect the scope fields no longer
+  exists; the app page showed `Create Revision` again on 2026-09-09, so nothing
+  is pending in the portal. The distinction it taught still matters:
+  `Submit for review` reviews the app configuration and freezes the app while
+  it is under review, which would block `Reapply`; `Reapply` requests the Direct
+  Post audit that lifts SELF_ONLY. Only `Reapply` is what Gituas needs.
 
 ## Multi-tenant readiness
 
