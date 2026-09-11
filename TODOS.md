@@ -93,8 +93,17 @@ Deferred work, with the context needed to pick it up cold.
     Windows clipboard panel is open for 1.5 s at 1:07 while the owner pastes
     `#gituas`; its contents are harmless.
 
-  **Next:** the owner presses Reapply, uploads take 2, and pastes the text from
-  `tiktok-manual-recording.md`.
+  **Submitted 2026-09-11 15:33, ref `20260911123331`** — Direct Post now shows
+  "Under review"; TikTok says 2-4 weeks. Filled and submitted by Claude at the
+  owner's request: TikTok's rule covers recording the demo, not filling the form.
+  - Uploaded `gituas-tiktok-manual-take2.mp4` (9.3 MB): take 2 re-encoded only
+    to fit the browser tool's 10 MB upload cap — same frames, same 2:21, no
+    cuts. The unedited original stays beside it as `...-take2-raw.mp4`.
+  - The form is the Aug 27 answers reused, checked against the code (vault
+    AES-256-GCM in `src/lib/vault.ts`; disconnect deletes the credential,
+    `integrations/actions.ts:143`). One paragraph changed: the reason for
+    reapplying now cites support case `0933be8a90c8304b` and says the earlier
+    screencasts were agent-recorded and this one was recorded by hand.
 
   Lesson for any future take: disconnecting in Gituas does not revoke the grant
   on TikTok's side. Remove the app from the TikTok account first, or the
