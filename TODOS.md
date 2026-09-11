@@ -76,16 +76,29 @@ Deferred work, with the context needed to pick it up cold.
   says automation. That explains four identical rejections better than anything
   guessed before, and it is TikTok's own words rather than an inference.
 
-  **Next:** the owner records the demo by hand, following
-  `Desktop/tiktok-audit/tiktok-manual-recording.md` (prep checklist, 14-step
-  shot list, and the Reapply text at 981 characters). Claude does not touch the
-  browser during the take. Post-processing is limited to a privacy check,
-  cutting the processing wait, and compression if over 50 MB — no speed-up, no
-  captions. The owner presses Reapply.
+  **Recorded 2026-09-11 by the owner**, following
+  `Desktop/tiktok-audit/tiktok-manual-recording.md`. Two takes, both kept in
+  `Desktop/tiktok-audit/`:
 
-  The state on 2026-09-11: one TikTok post waits in Approvals; TikTok shows
-  two connections, which the owner disconnects before recording so the take
-  starts with the connect flow.
+  - `gituas-tiktok-manual-raw.mp4` (take 1, 2:10) — failed our own check.
+    TikTok still held the old grant, so the consent screen said "Gituas
+    already has some access" and never listed the scopes; and a Chrome
+    "delete group?" dialog showed the owner's email at 1:50. A copy with the
+    email blurred is `gituas-tiktok-manual-take1-blurred.mp4`.
+  - `gituas-tiktok-manual-take2-raw.mp4` (take 2, 2:21, 42.3 MB) — **the one to
+    submit, unedited.** Access was revoked on TikTok's side first, so the
+    consent screen lists both scopes ("Access your profile info", "Post
+    content to TikTok"). Every step of the shot list is on screen, the tab
+    strip holds only Gituas and TikTok, no notifications, silent audio. A
+    Windows clipboard panel is open for 1.5 s at 1:07 while the owner pastes
+    `#gituas`; its contents are harmless.
+
+  **Next:** the owner presses Reapply, uploads take 2, and pastes the text from
+  `tiktok-manual-recording.md`.
+
+  Lesson for any future take: disconnecting in Gituas does not revoke the grant
+  on TikTok's side. Remove the app from the TikTok account first, or the
+  consent screen hides the scopes behind "already has some access".
 
   What follows is the earlier investigation, kept because it rules things out.
 
