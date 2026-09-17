@@ -38,9 +38,9 @@ Deferred work, with the context needed to pick it up cold.
 ## Domains
 
 - Meta and TikTok redirect/callback URLs still point at `gituas.vercel.app`.
-  Meta's verdict has landed, so its URLs are free to move. TikTok's Direct Post
-  audit is still open — leave the TikTok redirect URI alone until that verdict
-  arrives, since the reviewer was given that URL.
+  Both verdicts have landed (Meta 2026-09-06, TikTok 2026-09-17), so both are
+  free to move to `gituas.com`. Changing a redirect URI in the TikTok portal
+  goes through `Create Revision` and its own review; do it deliberately.
 
 ## In flight — check, don't redo
 
@@ -61,7 +61,30 @@ Deferred work, with the context needed to pick it up cold.
 
   Videos and submission text: `Desktop/tiktok-audit/`.
 
-- **TikTok Content Posting API - Direct Post: cause found 2026-09-11.** Four
+- ~~TikTok Content Posting API - Direct Post.~~ **APPROVED 2026-09-17 06:47**
+  (ref `20260911123331`), six days after the hand-recorded resubmission:
+  "The audit is completed and you can now launch your integrations." The portal
+  now reads "Provisioned access for your users" and the SELF_ONLY restriction
+  is gone. Confirms the support answer: the agent-recorded videos were the
+  cause. Nothing in the code needed to change — the Post to TikTok screen
+  already offers exactly what `creator_info` returns.
+
+  **Visibility on @rwbn26 is capped by the account itself, not by us.** The
+  take-2 video shows `creator_info` offering Followers / Friends / Only me and
+  no "Everyone", and tiktok.com titled the profile "This account is private".
+  TikTok omits `PUBLIC_TO_EVERYONE` for private accounts. Switch the account to
+  public in the TikTok app if Gituas posts from it should reach everyone.
+
+  Not covered by this approval, and not built: paid promotion (Spark Ads,
+  boosting). That is the TikTok for Business Marketing API — a separate
+  developer registration and review. The commercial-content disclosure
+  (`brand_organic_toggle` / `brand_content_toggle`, `src/lib/publishers/tiktok.ts:320`)
+  is part of Direct Post and now usable, since branded content cannot be
+  Only me.
+
+  History, kept because it records what did and did not cause the rejections:
+
+  **Cause found 2026-09-11.** Four
   rejections (Aug 10, Aug 17, Aug 24, and Sep 8 — ref `20260830225508`), each
   with the same generic line and an empty "Review comments" tab. Support case
   `0933be8a90c8304b` finally answered:
