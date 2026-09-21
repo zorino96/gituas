@@ -38,3 +38,6 @@ next-env.d.ts
 
 # prisma generated client
 src/generated
+
+# brainstorming visual companion mockups
+.superpowers/

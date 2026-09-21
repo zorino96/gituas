@@ -205,3 +205,36 @@ turned up one dead end, now fixed, and one latent fault left alone on purpose.
   created a project, connected their own Page or Instagram account, and pushed
   a post through. That is the real proof the approval bought, and it needs a
   second GitHub account and a second Facebook Page.
+
+## Deferred by the 2026-09-21 CEO review (merchant pivot)
+
+Recorded when the product pivoted from indie-software marketing to reply
+automation for Iraqi/Kurdish merchants. Full design: see the pivot spec.
+
+- **WhatsApp Business API — P1, effort L (AI: M).** Iraqi deals close on
+  WhatsApp, not in Instagram DMs; our own market research says so and every
+  competitor (ManyChat, Chatfuel, RABT Labs) has it. v1 ships a `wa.me`
+  handoff link carrying product and price, and counts handoffs — that also
+  measures demand before we pay for the API. Doing it properly needs Meta
+  business verification, a dedicated number, approved message templates and
+  per-conversation billing. Blocked by: the merchant's own number and a
+  business entity that can be verified.
+
+- **Page/IG token refresh — P1, effort S.** The v1 failure handler is "token
+  invalid -> pause the store and notify the merchant", with no renewal path.
+  Merchants will not re-authorise on their own, and a paused store looks
+  exactly like a quiet one. Needs scheduled refresh before expiry plus a
+  reconnect prompt that survives the merchant ignoring it.
+
+- **Human Agent tag — P2, effort M.** Replying outside Meta's 24-hour window
+  (up to 7 days) requires this tag, which is a separate Meta feature review.
+  v1 limits merchant takeover to inside 24 hours and says so in the UI. Worth
+  applying for once there are live merchants to describe in the request.
+
+- **App-level integrity protection — P2, effort M.** Every store shares one
+  Meta app. Near-identical template replies fired at many recipients is the
+  canonical spam signature, and one abusive merchant can get the app
+  restricted — which would stop every other store and put the 12 approved
+  permissions at risk. Needs template variation, an app-wide rate ceiling on
+  top of the per-store cap, and a review step before a new store's auto-send
+  is enabled.
