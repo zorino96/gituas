@@ -211,14 +211,27 @@ turned up one dead end, now fixed, and one latent fault left alone on purpose.
 Recorded when the product pivoted from indie-software marketing to reply
 automation for Iraqi/Kurdish merchants. Full design: see the pivot spec.
 
-- **WhatsApp Business API — P1, effort L (AI: M).** Iraqi deals close on
-  WhatsApp, not in Instagram DMs; our own market research says so and every
-  competitor (ManyChat, Chatfuel, RABT Labs) has it. v1 ships a `wa.me`
-  handoff link carrying product and price, and counts handoffs — that also
-  measures demand before we pay for the API. Doing it properly needs Meta
-  business verification, a dedicated number, approved message templates and
-  per-conversation billing. Blocked by: the merchant's own number and a
-  business entity that can be verified.
+- **WhatsApp Business API — P1, effort L (AI: M), deliberately not now.**
+  Iraqi deals close on WhatsApp, not in Instagram DMs; our own market research
+  says so and every competitor (ManyChat, Chatfuel, RABT Labs) has it. v1 ships
+  a counted handoff link instead, which needs no permission at all.
+
+  **The trigger for applying is revenue, not appetite.** Apply once the product
+  is earning and the handoff counter shows buyers actually use it. Until then
+  the link is strictly better: it costs nothing and it produces the evidence the
+  application would need.
+
+  What applying costs, so the decision is made with open eyes: serving merchants'
+  own numbers needs `whatsapp_business_messaging` and `whatsapp_business_management`
+  at **Advanced access**, which means an App Review submission with a separate
+  demo video per permission. Meta bundles currently-held permissions into any
+  submission as "Existing access for renewal" and they cannot be removed — in the
+  2026-08-27 round, 8 existing permissions rode along with the 4 new ones. So a
+  WhatsApp application puts all 12 approved permissions back in front of a
+  reviewer, against an app whose product has since changed. When we go, go once:
+  updated app description, WhatsApp permissions, and hand-recorded videos, with
+  live merchants to point at. Also unconfirmed and worth checking first: whether
+  Tech Provider status is additionally required.
 
 - **Page/IG token refresh — P1, effort S.** The v1 failure handler is "token
   invalid -> pause the store and notify the merchant", with no renewal path.

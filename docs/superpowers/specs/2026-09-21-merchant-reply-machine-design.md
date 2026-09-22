@@ -177,6 +177,37 @@ Merchant takeover pauses automation on that thread. Outside Meta's 24-hour
 window the merchant cannot reply at all — that needs the Human Agent tag, which
 is a separate Meta review (TODOS). The UI says so rather than failing silently.
 
+## The WhatsApp handoff
+
+The only WhatsApp in v1 is a link. No API, no review, nothing to apply for.
+
+**Merchant setting.** Each store has one WhatsApp number, entered during setup
+and editable in settings. Stored normalised to international digits: strip
+spaces, `+` and punctuation, turn a leading `0` into `964`, reject anything that
+is not 10-13 digits. The settings screen shows the number back as the buyer will
+reach it, plus a "send yourself a test message" button, because a wrong digit
+here silently sends every buyer nowhere.
+
+**What the buyer gets.** When the intent is `order`, the reply ends with a link.
+The link points at our own short redirect, not straight at `wa.me`:
+
+```
+https://<our domain>/w/<token>   ──302──▶   https://wa.me/964XXXXXXXXX?text=<prefilled>
+```
+
+The prefilled text names the product and the price the buyer was just quoted, so
+the merchant opens WhatsApp already knowing what the conversation is about.
+
+**Why our own redirect.** A raw `wa.me` link cannot be counted. The redirect is
+what produces the handoff number, and that number is the evidence for whether
+the WhatsApp Business API is ever worth applying for. Each token records store,
+conversation, product and price, and one row per tap.
+
+**What it does not do.** We do not host the WhatsApp conversation, cannot read
+it, and cannot tell whether the sale closed. The merchant answers from their own
+phone as they do today. v1 measures how many buyers we hand over, not what
+happens after.
+
 ## Errors
 
 Meta error codes are preserved through a single shared client, because each
