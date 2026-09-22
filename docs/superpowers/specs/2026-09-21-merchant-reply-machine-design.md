@@ -26,13 +26,24 @@ hands the buyer to WhatsApp to close.
 3. Event-driven replies to comments and DMs across Facebook Pages and Instagram.
 4. A WhatsApp handoff link carrying product and price, and a count of handoffs.
 5. A mobile, right-to-left merchant app in Sorani and Arabic.
+6. Publish once to Facebook, Instagram and TikTok from one composer.
+7. Insights: followers, reach, which post drew the most questions, handoffs.
+8. Hide or delete abusive and spam comments.
+
+Items 6-8 were added on 2026-09-22, after the owner pointed out that the
+first cut used 8 of the 13 permissions we hold and left the five hardest-won
+idle — including the TikTok Direct Post approval that took five attempts. The
+distinction that matters: **publishing is not content creation.** The merchant
+already films the video; what they cannot do is upload it three times, in three
+apps, with the right caption each time. The publishing code and the Post to
+TikTok screen already exist.
 
 ## Not in scope
 
 | Deferred | Why |
 |---|---|
 | WhatsApp Business API | Needs a new Meta application; v1 measures demand with plain `wa.me` links instead. See TODOS. |
-| Publishing and AI content | Merchants already film their own videos; not their bottleneck. |
+| AI content generation (scripts, generated images) | Merchants film their own product; the composer suggests a caption, it does not invent the post. |
 | Orders, courier, COD | Deals close on WhatsApp; an order table fed from DMs would sit empty. |
 | Ad targeting | No ads permissions, and merchants cannot pay Meta without an international card. |
 | Self-serve onboarding | v1 onboarding is operator-assisted (see Onboarding). |
@@ -41,7 +52,7 @@ hands the buyer to WhatsApp to close.
 
 ## Access boundary — v1 requests nothing new
 
-**Rule for v1: build only on access already granted.** Nothing in this design
+**Rule for v1: build only on access already granted — and use all of it.** Nothing in this design
 asks Meta, TikTok or anyone else for a new permission, feature or review. Four
 rounds of Meta review and five of TikTok are enough; the next thing we ship
 should not depend on a queue we do not control.
@@ -55,7 +66,11 @@ Every capability v1 uses, and the grant it rides on:
 | **Private reply to a commenter** | `pages_messaging` (Pages); `instagram_business_basic` + `instagram_business_manage_messages` (Instagram) | held, Advanced |
 | Read and send DMs | `pages_messaging`, `instagram_business_manage_messages` | held |
 | Account name and avatar | `pages_show_list`, `instagram_business_basic` | held |
-| Per-store counters from platform data | `read_insights`, `instagram_business_manage_insights` | held |
+| Per-store counters and reach | `read_insights`, `instagram_business_manage_insights` | held |
+| Publish a post to a Page | `pages_manage_posts` | held |
+| Publish to Instagram | `instagram_business_content_publish` | held |
+| Publish to TikTok | TikTok `video.publish`, Direct Post audit | held, approved 2026-09-17 |
+| Hide or delete a comment | `pages_manage_engagement`, `instagram_business_manage_comments` | held |
 | WhatsApp handoff | none — `wa.me/<number>?text=…` is a plain link, not an API | no access needed |
 | Operator alerts | own email sender or a Telegram bot token, both self-serve | no review |
 
