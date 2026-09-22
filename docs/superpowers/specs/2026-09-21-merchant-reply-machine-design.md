@@ -31,13 +31,43 @@ hands the buyer to WhatsApp to close.
 
 | Deferred | Why |
 |---|---|
-| WhatsApp Business API | v1 measures handoff demand with `wa.me` links first. See TODOS. |
+| WhatsApp Business API | Needs a new Meta application; v1 measures demand with plain `wa.me` links instead. See TODOS. |
 | Publishing and AI content | Merchants already film their own videos; not their bottleneck. |
 | Orders, courier, COD | Deals close on WhatsApp; an order table fed from DMs would sit empty. |
 | Ad targeting | No ads permissions, and merchants cannot pay Meta without an international card. |
 | Self-serve onboarding | v1 onboarding is operator-assisted (see Onboarding). |
 | Approval queue UI | Replaced by auto-send-or-stay-silent (see Policy). |
 | Meta app rename | The app's approved use case should not move while permissions are fresh. |
+
+## Access boundary — v1 requests nothing new
+
+**Rule for v1: build only on access already granted.** Nothing in this design
+asks Meta, TikTok or anyone else for a new permission, feature or review. Four
+rounds of Meta review and five of TikTok are enough; the next thing we ship
+should not depend on a queue we do not control.
+
+Every capability v1 uses, and the grant it rides on:
+
+| Capability | Granted permission | Status |
+|---|---|---|
+| Read comments on Page posts and Instagram media | `pages_read_engagement`, `instagram_business_manage_comments` | held |
+| Public reply under a comment | `pages_manage_engagement`, `instagram_business_manage_comments` | held |
+| **Private reply to a commenter** | `pages_messaging` (Pages); `instagram_business_basic` + `instagram_business_manage_messages` (Instagram) | held, Advanced |
+| Read and send DMs | `pages_messaging`, `instagram_business_manage_messages` | held |
+| Account name and avatar | `pages_show_list`, `instagram_business_basic` | held |
+| Per-store counters from platform data | `read_insights`, `instagram_business_manage_insights` | held |
+| WhatsApp handoff | none — `wa.me/<number>?text=…` is a plain link, not an API | no access needed |
+| Operator alerts | own email sender or a Telegram bot token, both self-serve | no review |
+
+Explicitly outside the boundary, and therefore outside v1: the WhatsApp
+Business API, Meta's Human Agent tag, and any ads permission. Each needs a new
+application. They are in TODOS with what they would cost, so the decision to
+apply is a deliberate one taken later — not something the build quietly assumes.
+
+The practical consequences: replies to a commenter who never messaged us go out
+as a private reply (one per comment, inside Meta's window), merchant takeover
+works inside the 24-hour window only and the UI says so, and the WhatsApp step
+is a link the buyer taps rather than a conversation we host.
 
 ## What already exists
 
