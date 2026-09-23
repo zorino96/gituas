@@ -50,6 +50,8 @@ export interface FbPost {
   created_time?: string;
   comments_count?: number;
   likes_count?: number;
+  /** The post's image, when it has one. */
+  full_picture?: string;
 }
 
 /** Recent posts on the Page, with their engagement counts. This is the content
@@ -62,6 +64,7 @@ export async function fetchPagePosts(tenantId: string, limit = 6): Promise<FbRes
       "message",
       "permalink_url",
       "created_time",
+      "full_picture",
       "comments.summary(true).limit(0)",
       "likes.summary(true).limit(0)",
     ].join(",");
@@ -76,6 +79,7 @@ export async function fetchPagePosts(tenantId: string, limit = 6): Promise<FbRes
       message: p.message as string | undefined,
       permalink_url: p.permalink_url as string | undefined,
       created_time: p.created_time as string | undefined,
+      full_picture: p.full_picture as string | undefined,
       comments_count: total(p.comments),
       likes_count: total(p.likes),
     }));
@@ -102,6 +106,57 @@ export async function fetchPageComments(tenantId: string, postId: string): Promi
     const rows = ((j?.data ?? []) as Array<{ id: string; message?: string; from?: { name?: string }; created_time?: string }>)
       .map((c) => ({ id: c.id, message: c.message, username: c.from?.name, timestamp: c.created_time }));
     return { ok: true, data: rows };
+  });
+}
+
+export interface FbCommentThread {
+  id: string;
+  message?: string;
+  username?: string;
+  timestamp?: string;
+  hidden: boolean;
+  replies: { id: string; message?: string; authorId?: string; authorName?: string; created_time?: string }[];
+}
+
+/**
+ * Top-level comments with their replies nested and the hidden flag — what the
+ * merchant app needs to tell answered from unanswered. Kept separate from
+ * fetchPageComments, whose flat `filter=stream` listing the dashboard relies on.
+ */
+export async function fetchPageCommentThreads(tenantId: string, postId: string): Promise<FbResult<FbCommentThread[]>> {
+  return withCred(tenantId, async (cred) => {
+    const fields = "id,message,from{id,name},created_time,is_hidden,comments.limit(25){id,message,from{id,name},created_time}";
+    const r = await fetch(
+      `${FB_V}/${postId}/comments?fields=${fields}&filter=toplevel&order=reverse_chronological&limit=50&access_token=${encodeURIComponent(cred.token)}`,
+    );
+    const j = await r.json();
+    if (!r.ok) return fail("FB comments", r.status, j);
+    type From = { id?: string; name?: string };
+    type Raw = {
+      id: string; message?: string; from?: From; created_time?: string; is_hidden?: boolean;
+      comments?: { data?: { id: string; message?: string; from?: From; created_time?: string }[] };
+    };
+    const rows = ((j?.data ?? []) as Raw[]).map((c) => ({
+      id: c.id,
+      message: c.message,
+      username: c.from?.name,
+      timestamp: c.created_time,
+      hidden: !!c.is_hidden,
+      replies: (c.comments?.data ?? []).map((r) => ({
+        id: r.id, message: r.message, authorId: r.from?.id, authorName: r.from?.name, created_time: r.created_time,
+      })),
+    }));
+    return { ok: true, data: rows };
+  });
+}
+
+/** Delete a comment on the Page's posts. Permanent — the caller confirms first. */
+export async function deletePageComment(tenantId: string, commentId: string): Promise<FbResult<true>> {
+  return withCred(tenantId, async (cred) => {
+    const r = await fetch(`${FB_V}/${commentId}?access_token=${encodeURIComponent(cred.token)}`, { method: "DELETE" });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j?.success === false) return fail("FB comment delete", r.status, j);
+    return { ok: true, data: true };
   });
 }
 

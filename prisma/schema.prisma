@@ -348,6 +348,8 @@ model Tenant {
   discordWebhookUrl     String?
   telegramBotToken      String?
   telegramChatId        String?
+  /// International digits for wa.me (e.g. 9647501234567), set in the merchant app.
+  whatsappNumber        String?
   anthropicKeyEncrypted String?
   googleAiKeyEncrypted  String?
   openaiKeyEncrypted    String?

@@ -75,17 +75,23 @@ export interface IgComment {
   text?: string;
   username?: string;
   timestamp?: string;
+  /** Hidden by the account owner. Only the owner's token can read this. */
+  hidden?: boolean;
+  /** Threaded replies, including the account's own — used to tell answered from unanswered. */
+  replies?: { id: string; text?: string; username?: string; timestamp?: string }[];
 }
 
 /** Read the comments on one of the account's own media items. */
 export async function fetchComments(tenantId: string, mediaId: string): Promise<IgResult<IgComment[]>> {
   return withCred(tenantId, async (cred) => {
     const r = await fetch(
-      `${V}/${mediaId}/comments?fields=id,text,username,timestamp&access_token=${encodeURIComponent(cred.token)}`,
+      `${V}/${mediaId}/comments?fields=id,text,username,timestamp,hidden,replies{id,text,username,timestamp}&access_token=${encodeURIComponent(cred.token)}`,
     );
     const j = await r.json();
     if (!r.ok) return fail("IG comments", r.status, j);
-    return { ok: true, data: (j?.data ?? []) as IgComment[] };
+    type Raw = Omit<IgComment, "replies"> & { replies?: { data?: IgComment["replies"] } };
+    const data = ((j?.data ?? []) as Raw[]).map((c) => ({ ...c, replies: c.replies?.data ?? [] }));
+    return { ok: true, data };
   });
 }
 
@@ -100,6 +106,16 @@ export async function replyToComment(tenantId: string, commentId: string, messag
     const j = await r.json();
     if (!r.ok || !j?.id) return fail("IG comment reply", r.status, j);
     return { ok: true, data: { id: String(j.id) } };
+  });
+}
+
+/** Delete a comment on the account's media. Permanent — the caller confirms first. */
+export async function deleteIgComment(tenantId: string, commentId: string): Promise<IgResult<true>> {
+  return withCred(tenantId, async (cred) => {
+    const r = await fetch(`${V}/${commentId}?access_token=${encodeURIComponent(cred.token)}`, { method: "DELETE" });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j?.success === false) return fail("IG comment delete", r.status, j);
+    return { ok: true, data: true };
   });
 }
 
