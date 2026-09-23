@@ -44,6 +44,27 @@ Deferred work, with the context needed to pick it up cold.
 
 ## In flight — check, don't redo
 
+- **Merchant app Phase 1 — shipped to production 2026-09-23 at `/app`.**
+  Plan: `docs/superpowers/plans/2026-09-23-merchant-app-phase1.md`. Comments
+  (reply / hide / delete, both platforms), one inbox for Instagram and
+  Messenger, publish to Facebook + Instagram + TikTok with TikTok's audited
+  controls, insights, WhatsApp number and counted `/w/<slug>` link.
+  - Before FB features show anything, the owner must connect a Facebook Page:
+    prod held no `META_FACEBOOK` credential on 2026-09-23.
+  - Instagram DMs only arrive when "Allow access to messages" is on in the
+    Instagram app; there is no API for it and no error when it is off.
+  - Read paths verified on the owner's real accounts after deploy
+    (2026-09-23): Today, Comments, Messages, Publish, Insights, Settings.
+    That check found and fixed four real defects — see `cbca3f1`, `e4cbf0d`.
+    Most instructive: graph.instagram.com returns comment replies with only
+    id/text/timestamp and lists the shop's own replies again at the top level
+    with their author; the two are joined by id in `normalize.ts`.
+  - Writes (reply, hide, delete, send DM, publish) are left for the owner to
+    test on their own accounts — they act on real customers and real pages.
+  - Phase 2 (automatic replies: catalog, post tagging, outbox, classifier,
+    templates, private replies) is written as a plan once Phase 1 is confirmed.
+
+
 - ~~Meta App Review, submitted 2026-08-27.~~ **APPROVED IN FULL, 2026-09-06
   09:32 GMT+3.** All four permissions granted -- `pages_read_engagement`,
   `pages_manage_engagement`, `pages_manage_posts`,
