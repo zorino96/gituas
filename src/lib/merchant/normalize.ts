@@ -62,32 +62,47 @@ export function fromIg(media: IgMediaIn[], comments: Record<string, IgCommentIn[
     const name = (x.username ?? x.from?.username)?.toLowerCase();
     return !!selfName && name === selfName;
   };
-  return media.map((m) => ({
-    platform: "IG",
-    id: m.id,
-    caption: m.caption ?? "",
-    thumbUrl: m.media_type === "VIDEO" ? m.thumbnail_url : m.media_url,
-    permalink: m.permalink,
-    createdAt: m.timestamp,
-    commentCount: m.comments_count ?? 0,
-    comments: (comments[m.id] ?? []).map((c) => ({
+  return media.map((m) => {
+    const all = comments[m.id] ?? [];
+    // graph.instagram.com returns replies with only id/text/timestamp — no
+    // author — and lists each reply a second time at the top level, where it
+    // does carry `from`. Join the two by id: the top-level twin supplies the
+    // reply's author, and is then dropped so the reply is not shown twice.
+    const byId = new Map(all.map((c) => [c.id, c]));
+    const replyIds = new Set(all.flatMap((c) => (c.replies ?? []).map((r) => r.id)));
+    return {
       platform: "IG",
-      id: c.id,
-      postId: m.id,
-      author: c.username ?? c.from?.username ?? "",
-      text: c.text ?? "",
-      createdAt: c.timestamp,
-      hidden: !!c.hidden,
-      fromUs: isSelf(c),
-      replies: (c.replies ?? []).map((r) => ({
-        id: r.id,
-        author: r.username ?? r.from?.username ?? "",
-        text: r.text ?? "",
-        createdAt: r.timestamp,
-        fromUs: isSelf(r),
-      })),
-    })),
-  }));
+      id: m.id,
+      caption: m.caption ?? "",
+      thumbUrl: m.media_type === "VIDEO" ? m.thumbnail_url : m.media_url,
+      permalink: m.permalink,
+      createdAt: m.timestamp,
+      commentCount: m.comments_count ?? 0,
+      comments: all
+        .filter((c) => !replyIds.has(c.id))
+        .map((c) => ({
+          platform: "IG",
+          id: c.id,
+          postId: m.id,
+          author: c.username ?? c.from?.username ?? "",
+          text: c.text ?? "",
+          createdAt: c.timestamp,
+          hidden: !!c.hidden,
+          fromUs: isSelf(c),
+          replies: (c.replies ?? []).map((r) => {
+            const twin = byId.get(r.id);
+            const who = { username: r.username ?? twin?.username, from: r.from ?? twin?.from };
+            return {
+              id: r.id,
+              author: who.username ?? who.from?.username ?? "",
+              text: r.text ?? "",
+              createdAt: r.timestamp,
+              fromUs: isSelf(who),
+            };
+          }),
+        })),
+    };
+  });
 }
 
 /** Facebook replies are ours only when their author id is the Page id — a

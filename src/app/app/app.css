@@ -57,6 +57,10 @@
 .gm-tab .dot { position: absolute; top: 6px; margin-inline-start: 18px; min-width: 16px; height: 16px; padding: 0 4px;
   border-radius: 999px; background: var(--alert); color: #fff; font-size: 10px; line-height: 16px; text-align: center; }
 
+.gm-pending { position: absolute; top: 0; left: 22%; right: 22%; height: 2px; overflow: hidden; background: var(--accent-soft); }
+.gm-pending::after { content: ""; position: absolute; inset: 0; width: 40%; background: var(--accent); animation: gm-slide 0.9s ease-in-out infinite; }
+@keyframes gm-slide { from { transform: translateX(160%); } to { transform: translateX(-160%); } }
+
 /* type */
 .gm-title { font-size: 20px; font-weight: 700; margin: 4px 0 2px; }
 .gm-sub { color: var(--muted); font-size: 13px; margin: 0 0 14px; }

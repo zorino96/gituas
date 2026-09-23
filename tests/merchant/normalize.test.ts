@@ -88,3 +88,32 @@ describe("recognising our own account", () => {
     expect(p[0].comments[0].fromUs).toBe(true);
   });
 });
+
+// The exact shape graph.instagram.com returned on 2026-09-23: replies carry only
+// id/text/timestamp, and each of our replies is ALSO listed top-level with `from`.
+describe("Instagram replies without an author", () => {
+  const posts = fromIg(
+    [{ id: "m1", comments_count: 4 }],
+    {
+      m1: [
+        { id: "R1", text: "Yes! We deliver", username: "rwbn2026", from: { id: "IG1", username: "rwbn2026" } },
+        { id: "Q1", text: "Do you deliver?", from: { id: "U1", username: "zrngvz" }, replies: [{ id: "R1", text: "Yes! We deliver" }] },
+        { id: "R2", text: "Send us a DM", username: "rwbn2026", from: { id: "IG1", username: "rwbn2026" } },
+        { id: "Q2", text: "How do I order?", from: { id: "U1", username: "zrngvz" }, replies: [{ id: "R2", text: "Send us a DM" }] },
+      ],
+    },
+    { id: "IG1", username: "@rwbn2026" },
+  );
+  const comments = posts[0].comments;
+
+  it("lists a reply once, under its question, not again as a comment", () => {
+    expect(comments.map((c) => c.id)).toEqual(["Q1", "Q2"]);
+  });
+  it("takes the reply's author from its top-level twin", () => {
+    expect(comments[0].replies[0].fromUs).toBe(true);
+    expect(comments[0].replies[0].author).toBe("rwbn2026");
+  });
+  it("therefore counts both questions as answered", () => {
+    expect(countStates(posts)).toEqual({ unanswered: 0, answered: 2, hidden: 0 });
+  });
+});

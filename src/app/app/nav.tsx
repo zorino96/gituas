@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { BarChart3, Home, MessageCircle, MessagesSquare, SquarePlus } from "lucide-react";
 
@@ -23,10 +23,21 @@ export function Tabs() {
             <Link key={href} href={href} className="gm-tab" aria-current={active ? "page" : undefined}>
               <Icon aria-hidden="true" strokeWidth={active ? 2.2 : 1.8} />
               {label}
+              <Pending />
             </Link>
           );
         })}
       </nav>
     </div>
   );
+}
+
+/**
+ * Screens load live data from Facebook and Instagram, which takes a few
+ * seconds. Instead of a streamed loading screen — which left a hidden second
+ * copy of every page in the document — the tapped tab shows it is working.
+ */
+function Pending() {
+  const { pending } = useLinkStatus();
+  return pending ? <span className="gm-pending" role="status" aria-label="چاوەڕێ بکە" /> : null;
 }
