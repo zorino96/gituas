@@ -21,12 +21,18 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
   });
   if (!tenant) return NextResponse.json({ error: "No tenant" }, { status: 400 });
 
+  // Where to land after the provider sends the user back. Only our own
+  // surfaces are allowed, so this can never become an open redirect.
+  const next = new URL(req.url).searchParams.get("next");
+  const returnTo =
+    next && !next.includes("..") && /^\/(app|dashboard)(\/|$)/.test(next) ? next : "/dashboard/integrations";
+
   try {
-    const url = await buildAuthorizeUrl(upper, tenant.id, "/dashboard/integrations");
+    const url = await buildAuthorizeUrl(upper, tenant.id, returnTo);
     return NextResponse.redirect(url);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed";
-    const back = new URL("/dashboard/integrations", req.url);
+    const back = new URL(returnTo, req.url);
     back.searchParams.set("error", msg);
     return NextResponse.redirect(back);
   }

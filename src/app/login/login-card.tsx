@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { GithubIcon } from "@/components/icons/github";
 
-export function LoginCard() {
+export function LoginCard({ callbackUrl = "/dashboard" }: { callbackUrl?: string }) {
   const [busy, setBusy] = useState(false);
 
   return (
@@ -44,7 +44,7 @@ export function LoginCard() {
           disabled={busy}
           onClick={() => {
             setBusy(true);
-            void signIn("github", { callbackUrl: "/dashboard" });
+            void signIn("github", { callbackUrl });
           }}
           className="group mt-8 w-full rounded-full bg-money text-bg px-4 py-3 font-medium inline-flex items-center justify-center gap-2 disabled:opacity-50 shadow-money hover:shadow-money-lg transition-all"
         >

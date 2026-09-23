@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { db } from "@/lib/db";
 import { completeOAuth } from "@/lib/oauth/flow";
 import type { OAuthProvider } from "@/generated/prisma/client";
 
@@ -14,17 +15,25 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
   const state = url.searchParams.get("state");
   const oauthError = url.searchParams.get("error");
 
+  // Failures return the user to the surface they started from, when the state
+  // row still says where that was.
+  const errorHome = async () => {
+    const row = state ? await db.oAuthState.findUnique({ where: { state }, select: { redirectTo: true } }).catch(() => null) : null;
+    return row?.redirectTo ?? "/dashboard/integrations";
+  };
+
   if (oauthError) {
-    const back = new URL("/dashboard/integrations", req.url);
+    const back = new URL(await errorHome(), req.url);
     back.searchParams.set("error", oauthError);
     return NextResponse.redirect(back);
   }
   if (!code || !state) {
-    const back = new URL("/dashboard/integrations", req.url);
+    const back = new URL(await errorHome(), req.url);
     back.searchParams.set("error", "missing code or state");
     return NextResponse.redirect(back);
   }
 
+  const home = await errorHome();
   try {
     const { redirectTo } = await completeOAuth(upper, code, state);
     const back = new URL(redirectTo, req.url);
@@ -43,7 +52,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
         : /mismatch/i.test(msg)
           ? "provider_mismatch"
           : "oauth_failed";
-    const back = new URL("/dashboard/integrations", req.url);
+    const back = new URL(home, req.url);
     back.searchParams.set("error", code);
     return NextResponse.redirect(back);
   }
