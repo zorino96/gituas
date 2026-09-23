@@ -3,6 +3,7 @@ import type { CommentState, MComment, MPost } from "./types";
 /** Hidden wins over answered: a hidden comment needs no reply, whatever its thread holds. */
 export function commentState(c: MComment): CommentState {
   if (c.hidden) return "hidden";
+  if (c.fromUs) return "answered";
   return c.replies.some((r) => r.fromUs) ? "answered" : "unanswered";
 }
 

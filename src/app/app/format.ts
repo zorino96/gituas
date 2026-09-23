@@ -19,8 +19,15 @@ export function ago(iso?: string, now: number = Date.now()): string {
   if (h < 24) return `${num(h)} کاتژمێر`;
   const d = Math.round(h / 24);
   if (d < 30) return `${num(d)} ڕۆژ`;
-  return new Date(t).toLocaleDateString("ar-IQ", { day: "numeric", month: "short" });
+  const date = new Date(t);
+  return `${num(date.getDate())}ی ${KU_MONTHS[date.getMonth()]}`;
 }
+
+/** The month names used in Iraqi Kurdistan. */
+const KU_MONTHS = [
+  "کانوونی دووەم", "شوبات", "ئازار", "نیسان", "ئایار", "حوزەیران",
+  "تەممووز", "ئاب", "ئەیلوول", "تشرینی یەکەم", "تشرینی دووەم", "کانوونی یەکەم",
+];
 
 export const PLATFORM_NAME = { FB: "فەیسبووک", IG: "ئینستاگرام", TT: "تیکتۆک" } as const;
 

@@ -12,13 +12,18 @@ export interface IgMediaIn {
   timestamp?: string;
   comments_count?: number;
 }
+interface IgAuthor {
+  id?: string;
+  username?: string;
+}
 export interface IgCommentIn {
   id: string;
   text?: string;
   username?: string;
+  from?: IgAuthor;
   timestamp?: string;
   hidden?: boolean;
-  replies?: { id: string; text?: string; username?: string; timestamp?: string }[];
+  replies?: { id: string; text?: string; username?: string; from?: IgAuthor; timestamp?: string }[];
 }
 export interface FbPostIn {
   id: string;
@@ -33,16 +38,30 @@ export interface FbCommentIn {
   message?: string;
   username?: string;
   timestamp?: string;
+  authorId?: string;
   hidden?: boolean;
   replies?: { id: string; message?: string; authorId?: string; authorName?: string; created_time?: string }[];
 }
 
+/** The connected Instagram account. The id is authoritative; the username is
+ *  a fallback, compared without the leading @ that stored names carry. */
+export interface IgSelf {
+  id?: string;
+  username?: string;
+}
+
 /**
- * `selfUsername` identifies the merchant's own replies. Without it nothing is
- * marked as ours, which errs toward showing a comment as unanswered — the safe
- * direction, since the opposite would hide a buyer's question.
+ * Without a self identity nothing is marked as ours, which errs toward showing
+ * a comment as unanswered — the safe direction, since the opposite would hide
+ * a buyer's question.
  */
-export function fromIg(media: IgMediaIn[], comments: Record<string, IgCommentIn[]>, selfUsername?: string): MPost[] {
+export function fromIg(media: IgMediaIn[], comments: Record<string, IgCommentIn[]>, self: IgSelf = {}): MPost[] {
+  const selfName = self.username?.replace(/^@/, "").toLowerCase();
+  const isSelf = (x: { username?: string; from?: IgAuthor }) => {
+    if (self.id && x.from?.id) return x.from.id === self.id;
+    const name = (x.username ?? x.from?.username)?.toLowerCase();
+    return !!selfName && name === selfName;
+  };
   return media.map((m) => ({
     platform: "IG",
     id: m.id,
@@ -55,16 +74,17 @@ export function fromIg(media: IgMediaIn[], comments: Record<string, IgCommentIn[
       platform: "IG",
       id: c.id,
       postId: m.id,
-      author: c.username ?? "",
+      author: c.username ?? c.from?.username ?? "",
       text: c.text ?? "",
       createdAt: c.timestamp,
       hidden: !!c.hidden,
+      fromUs: isSelf(c),
       replies: (c.replies ?? []).map((r) => ({
         id: r.id,
-        author: r.username ?? "",
+        author: r.username ?? r.from?.username ?? "",
         text: r.text ?? "",
         createdAt: r.timestamp,
-        fromUs: !!selfUsername && r.username === selfUsername,
+        fromUs: isSelf(r),
       })),
     })),
   }));
@@ -89,6 +109,7 @@ export function fromFb(posts: FbPostIn[], comments: Record<string, FbCommentIn[]
       text: c.message ?? "",
       createdAt: c.timestamp,
       hidden: !!c.hidden,
+      fromUs: !!pageId && c.authorId === pageId,
       replies: (c.replies ?? []).map((r) => ({
         id: r.id,
         author: r.authorName ?? "",

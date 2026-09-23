@@ -12,11 +12,13 @@ import { PLATFORM_NAME, ago, friendlyError, num } from "../format";
 
 export function MessagesClient({
   initial,
+  unreadable,
   errors,
   whatsappPath,
   connected,
 }: {
   initial: MConversation[];
+  unreadable: number;
   errors: { platform: Platform; message: string }[];
   whatsappPath: string | null;
   connected: Record<Platform, boolean>;
@@ -112,6 +114,11 @@ export function MessagesClient({
         </p>
       ))}
 
+      {unreadable > 0 && (
+        <p className="gm-hint" style={{ marginBottom: 10 }}>
+          {num(unreadable)} گفتوگۆی کۆن هەیە کە ئینستاگرام ڕێگە نادات لێرەوە بخوێنرێنەوە — لە ئەپی ئینستاگرام دەبینرێن.
+        </p>
+      )}
       {convs.length === 0 ? (
         <div className="gm-empty">
           <b className="kufi">هیچ نامەیەک نییە</b>

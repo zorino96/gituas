@@ -113,6 +113,7 @@ export interface FbCommentThread {
   id: string;
   message?: string;
   username?: string;
+  authorId?: string;
   timestamp?: string;
   hidden: boolean;
   replies: { id: string; message?: string; authorId?: string; authorName?: string; created_time?: string }[];
@@ -140,6 +141,7 @@ export async function fetchPageCommentThreads(tenantId: string, postId: string):
       id: c.id,
       message: c.message,
       username: c.from?.name,
+      authorId: c.from?.id,
       timestamp: c.created_time,
       hidden: !!c.is_hidden,
       replies: (c.comments?.data ?? []).map((r) => ({

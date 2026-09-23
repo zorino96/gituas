@@ -94,7 +94,7 @@ export async function loadPosts(tenantId: string, conns: Connections, perPlatfor
         return [m.id, c.ok ? (c.data ?? []) : []] as const;
       }),
     );
-    return fromIg(items, Object.fromEntries(threads), conns.META_INSTAGRAM.name);
+    return fromIg(items, Object.fromEntries(threads), { id: conns.META_INSTAGRAM.accountId, username: conns.META_INSTAGRAM.name });
   };
 
   const fb = async (): Promise<MPost[]> => {
@@ -122,6 +122,8 @@ export async function loadPosts(tenantId: string, conns: Connections, perPlatfor
 
 export interface ConversationsResult {
   conversations: MConversation[];
+  /** Threads the platform listed but would not return messages for — usually old ones. */
+  unreadable: number;
   errors: { platform: "FB" | "IG"; message: string }[];
 }
 
@@ -157,7 +159,8 @@ export async function loadConversations(tenantId: string, conns: Connections): P
     });
   }
   out.sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
-  return { conversations: out, errors };
+  const readable = out.filter((c) => c.messages.length > 0 || c.participantId);
+  return { conversations: readable, unreadable: out.length - readable.length, errors };
 }
 
 export interface InsightsResult {

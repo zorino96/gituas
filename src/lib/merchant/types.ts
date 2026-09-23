@@ -20,6 +20,8 @@ export interface MComment {
   text: string;
   createdAt?: string;
   hidden: boolean;
+  /** Written by the merchant's own account — never a customer waiting for a reply. */
+  fromUs: boolean;
   replies: MReply[];
 }
 

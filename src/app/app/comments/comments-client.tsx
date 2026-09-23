@@ -183,6 +183,7 @@ function CommentItem({
   onDeleted: () => void;
 }) {
   const state = commentState(c);
+  const badge = c.fromUs ? { cls: "ghost", label: "کۆمێنتی تۆ" } : STATE_BADGE[state];
   const [replying, setReplying] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -212,9 +213,9 @@ function CommentItem({
   return (
     <div className={`gm-comment ${state === "unanswered" ? "unanswered" : ""}`}>
       <div className="gm-between">
-        <span className="gm-who" dir="auto">{c.author || "بەکارهێنەر"}</span>
+        <span className="gm-who" dir="auto">{c.fromUs ? "تۆ" : c.author || "بەکارهێنەر"}</span>
         <span className="gm-row" style={{ gap: 8 }}>
-          <span className={`gm-badge ${STATE_BADGE[state].cls}`}>{STATE_BADGE[state].label}</span>
+          <span className={`gm-badge ${badge.cls}`}>{badge.label}</span>
           <span className="gm-time">{ago(c.createdAt)}</span>
         </span>
       </div>
@@ -240,7 +241,7 @@ function CommentItem({
         </div>
       ) : (
         <div className="gm-actions">
-          {!replying && (
+          {!replying && !c.fromUs && (
             <button type="button" className="gm-btn small" onClick={() => setReplying(true)} disabled={pending}>
               <Reply size={14} aria-hidden="true" /> وەڵام
             </button>

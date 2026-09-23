@@ -77,15 +77,17 @@ export interface IgComment {
   timestamp?: string;
   /** Hidden by the account owner. Only the owner's token can read this. */
   hidden?: boolean;
+  /** Who wrote it. The id is what identifies the account's own comments reliably. */
+  from?: { id?: string; username?: string };
   /** Threaded replies, including the account's own — used to tell answered from unanswered. */
-  replies?: { id: string; text?: string; username?: string; timestamp?: string }[];
+  replies?: { id: string; text?: string; username?: string; from?: { id?: string; username?: string }; timestamp?: string }[];
 }
 
 /** Read the comments on one of the account's own media items. */
 export async function fetchComments(tenantId: string, mediaId: string): Promise<IgResult<IgComment[]>> {
   return withCred(tenantId, async (cred) => {
     const r = await fetch(
-      `${V}/${mediaId}/comments?fields=id,text,username,timestamp,hidden,replies{id,text,username,timestamp}&access_token=${encodeURIComponent(cred.token)}`,
+      `${V}/${mediaId}/comments?fields=id,text,username,from{id,username},timestamp,hidden,replies{id,text,username,from{id,username},timestamp}&access_token=${encodeURIComponent(cred.token)}`,
     );
     const j = await r.json();
     if (!r.ok) return fail("IG comments", r.status, j);
@@ -173,36 +175,41 @@ export async function fetchConversations(tenantId: string, limit = 10): Promise<
     if (!listRes.ok) return fail("IG conversations", listRes.status, list);
 
     const convos: IgConversation[] = [];
-    for (const c of (list?.data ?? []) as { id: string; updated_time?: string }[]) {
-      let messages: IgConversation["messages"] = [];
-      let participantId: string | undefined;
-      let participantName: string | undefined;
-      try {
-        const mRes = await fetch(
-          `${V}/${c.id}/messages?fields=id,message,from{id,username},created_time&limit=8&access_token=${t}`,
-        );
-        const m = await mRes.json();
-        if (mRes.ok) {
-          const rows = (m?.data ?? []) as { id: string; message?: string; from?: { id: string; username?: string }; created_time?: string }[];
-          messages = rows
-            .map((x) => ({ id: x.id, text: x.message, fromBusiness: x.from?.id === cred.igUserId, createdTime: x.created_time }))
-            .reverse(); // newest-first → oldest-first
-          const other = rows.find((x) => x.from?.id && x.from.id !== cred.igUserId)?.from;
-          participantId = other?.id;
-          participantName = other?.username;
+    // One messages call per thread, all at once — sequentially this was the
+    // slowest part of every inbox load.
+    const built = await Promise.all(
+      ((list?.data ?? []) as { id: string; updated_time?: string }[]).map(async (c): Promise<IgConversation> => {
+        let messages: IgConversation["messages"] = [];
+        let participantId: string | undefined;
+        let participantName: string | undefined;
+        try {
+          const mRes = await fetch(
+            `${V}/${c.id}/messages?fields=id,message,from{id,username},created_time&limit=8&access_token=${t}`,
+          );
+          const m = await mRes.json();
+          if (mRes.ok) {
+            const rows = (m?.data ?? []) as { id: string; message?: string; from?: { id: string; username?: string }; created_time?: string }[];
+            messages = rows
+              .map((x) => ({ id: x.id, text: x.message, fromBusiness: x.from?.id === cred.igUserId, createdTime: x.created_time }))
+              .reverse(); // newest-first → oldest-first
+            const other = rows.find((x) => x.from?.id && x.from.id !== cred.igUserId)?.from;
+            participantId = other?.id;
+            participantName = other?.username;
+          }
+        } catch {
+          /* leave thread without messages/participant */
         }
-      } catch {
-        /* leave thread without messages/participant */
-      }
-      // The reply window is measured from the person's most recent inbound
-      // message; a business reply older than 24h is rejected by Meta.
-      const lastInbound = [...messages].reverse().find((m) => !m.fromBusiness);
-      const lastInboundAt = lastInbound?.createdTime;
-      const withinWindow = lastInboundAt
-        ? Date.now() - new Date(lastInboundAt).getTime() < REPLY_WINDOW_MS
-        : false;
-      convos.push({ id: c.id, updatedTime: c.updated_time, participantId, participantName, messages, withinWindow, lastInboundAt });
-    }
+        // The reply window is measured from the person's most recent inbound
+        // message; a business reply older than 24h is rejected by Meta.
+        const lastInbound = [...messages].reverse().find((m) => !m.fromBusiness);
+        const lastInboundAt = lastInbound?.createdTime;
+        const withinWindow = lastInboundAt
+          ? Date.now() - new Date(lastInboundAt).getTime() < REPLY_WINDOW_MS
+          : false;
+        return { id: c.id, updatedTime: c.updated_time, participantId, participantName, messages, withinWindow, lastInboundAt };
+      }),
+    );
+    convos.push(...built);
     // Newest threads first so the operator sees (and can reply to) live ones.
     convos.sort((a, b) => new Date(b.updatedTime ?? 0).getTime() - new Date(a.updatedTime ?? 0).getTime());
     return { ok: true, data: convos };

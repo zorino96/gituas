@@ -13,7 +13,7 @@ const ig = fromIg(
       { id: "c2", text: "spam", username: "bot", hidden: true, replies: [] },
     ],
   },
-  "zarashop",
+  { username: "zarashop" },
 );
 const fb = fromFb(
   [{ id: "p1", message: "پۆست", comments_count: 1, created_time: "2026-09-21T09:00:00Z" }],
@@ -50,5 +50,41 @@ describe("state", () => {
   });
   it("ranks posts by comments, then recency", () => {
     expect(rankPosts([...fb, ...ig], 2).map((p) => p.id)).toEqual(["m1", "p1"]);
+  });
+});
+
+describe("recognising our own account", () => {
+  const posts = fromIg(
+    [{ id: "m9", caption: "x", comments_count: 3 }],
+    {
+      m9: [
+        // our own top-level comment — the account wrote on its own post
+        { id: "a", text: "We deliver same day", username: "rwbn2026", from: { id: "IG1", username: "rwbn2026" } },
+        // a customer, answered by us — matched by id even though the stored name has an @
+        { id: "b", text: "Do you deliver?", from: { id: "U7", username: "zrng" },
+          replies: [{ id: "b1", text: "Yes", from: { id: "IG1", username: "rwbn2026" } }] },
+        // a customer with the username only under `from`
+        { id: "c", text: "How much?", from: { id: "U8", username: "dilan" } },
+      ],
+    },
+    { id: "IG1", username: "@rwbn2026" },
+  );
+  const [ours, answered, open] = posts[0].comments;
+
+  it("does not count our own comments as waiting for a reply", () => {
+    expect(ours.fromUs).toBe(true);
+    expect(commentState(ours)).toBe("answered");
+  });
+  it("matches our replies by account id", () => {
+    expect(answered.replies[0].fromUs).toBe(true);
+    expect(commentState(answered)).toBe("answered");
+  });
+  it("reads the commenter name from `from` when the flat field is missing", () => {
+    expect(open.author).toBe("dilan");
+    expect(commentState(open)).toBe("unanswered");
+  });
+  it("tolerates a stored name with a leading @", () => {
+    const p = fromIg([{ id: "m1" }], { m1: [{ id: "z", text: "hi", username: "rwbn2026" }] }, { username: "@rwbn2026" });
+    expect(p[0].comments[0].fromUs).toBe(true);
   });
 });
