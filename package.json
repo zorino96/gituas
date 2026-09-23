@@ -7,7 +7,8 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test": "vitest run"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",
@@ -15,6 +16,7 @@
     "@octokit/rest": "^21.0.2",
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
+    "@vercel/blob": "^2.8.0",
     "lucide-react": "^0.460.0",
     "next": "^16.0.0",
     "next-auth": "5.0.0-beta.25",
@@ -34,6 +36,7 @@
     "@types/react-dom": "^19.0.0",
     "prisma": "^7.0.0",
     "tailwindcss": "^4.0.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.7"
   }
 }
