@@ -68,7 +68,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   // JWT sessions: Auth.js only supports email-and-password sign-in with JWT
   // sessions. Accounts and users still live in the database through the adapter.
   session: { strategy: "jwt" },
-  pages: { signIn: "/login" },
+  // Failed sign-ins (an expired check cookie, a provider error) come back to
+  // the sign-in page with ?error= instead of Auth.js's bare English error page.
+  pages: { signIn: "/login", error: "/login" },
   callbacks: {
     async jwt({ token, user }) {
       if (user?.id) token.sub = user.id;

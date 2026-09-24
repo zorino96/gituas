@@ -7,9 +7,9 @@ import { LoginCard } from "./login-card";
 import { MerchantLogin } from "./merchant-login";
 
 /** Only same-site paths may be a post-login destination — never `//host` or a URL. */
-function safeNext(next: string | string[] | undefined): string {
+function safeNext(next: string | string[] | undefined, fallback: string): string {
   const n = Array.isArray(next) ? next[0] : next;
-  return n && n.startsWith("/") && !n.startsWith("//") && !n.includes("..") ? n : "/dashboard";
+  return n && n.startsWith("/") && !n.startsWith("//") && !n.includes("..") ? n : fallback;
 }
 
 export default async function LoginPage({
@@ -18,8 +18,13 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string | string[]; callbackUrl?: string | string[]; error?: string }>;
 }) {
   const sp = await searchParams;
-  // Auth.js sends failed OAuth attempts back here with ?callbackUrl= and ?error=.
-  const next = safeNext(sp.next ?? (typeof sp.callbackUrl === "string" ? new URL(sp.callbackUrl, "https://x").pathname : undefined));
+  // Auth.js sends failed OAuth attempts back here with ?error= and, not always,
+  // ?callbackUrl=. Without a destination they are merchants (Google sign-in is
+  // only offered in the merchant app), so they get the merchant sign-in.
+  const next = safeNext(
+    sp.next ?? (typeof sp.callbackUrl === "string" ? new URL(sp.callbackUrl, "https://x").pathname : undefined),
+    sp.error ? "/app" : "/dashboard",
+  );
   const session = await auth();
   if (session) redirect(next);
 
