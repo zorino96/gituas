@@ -2,7 +2,7 @@
 // reads live from the platforms — nothing here is cached, so what the merchant
 // sees is what their customers see.
 
-import { auth } from "@/auth";
+import { auth, ensureWorkspace } from "@/auth";
 import { db } from "@/lib/db";
 import { newestFirst, unexpired, usableOrRefreshable } from "@/lib/oauth/pick";
 import { fetchComments, fetchConversations, fetchMedia, fetchUserInsights } from "@/lib/publishers/instagram-engage";
@@ -26,10 +26,12 @@ export interface Workspace {
 export async function currentWorkspace(): Promise<Workspace | null> {
   const session = await auth();
   if (!session?.user?.id) return null;
-  return db.tenant.findFirst({
-    where: { ownerId: session.user.id },
-    select: { id: true, slug: true, name: true, whatsappNumber: true },
-  });
+  const select = { id: true, slug: true, name: true, whatsappNumber: true } as const;
+  const found = await db.tenant.findFirst({ where: { ownerId: session.user.id }, select });
+  if (found) return found;
+  // Every signed-in person gets a workspace, however they signed up.
+  const { id } = await ensureWorkspace(session.user.id, session.user.name);
+  return db.tenant.findUnique({ where: { id }, select });
 }
 
 export type Provider = "META_FACEBOOK" | "META_INSTAGRAM" | "TIKTOK";

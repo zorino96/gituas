@@ -61,6 +61,16 @@
 .gm-pending::after { content: ""; position: absolute; inset: 0; width: 40%; background: var(--accent); animation: gm-slide 0.9s ease-in-out infinite; }
 @keyframes gm-slide { from { transform: translateX(160%); } to { transform: translateX(-160%); } }
 
+/* sign-in and sign-up */
+.gm-auth { max-width: 420px; margin: 0 auto; padding: calc(env(safe-area-inset-top, 0px) + 48px) 16px 48px; }
+.gm-brand { font-size: 26px; font-weight: 700; margin: 0; }
+.gm-auth form { display: flex; flex-direction: column; gap: 12px; }
+.gm-or { display: flex; align-items: center; gap: 10px; color: var(--faint); font-size: 12px; margin: 16px 0; }
+.gm-or::before, .gm-or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.gm-google { background: var(--surface); color: var(--ink); border-color: var(--line); }
+.gm-g { font-weight: 700; font-size: 15px; background: conic-gradient(#ea4335 0 25%, #fbbc05 0 50%, #34a853 0 75%, #4285f4 0);
+  -webkit-background-clip: text; background-clip: text; color: transparent; }
+
 /* type */
 .gm-title { font-size: 20px; font-weight: 700; margin: 4px 0 2px; }
 .gm-sub { color: var(--muted); font-size: 13px; margin: 0 0 14px; }

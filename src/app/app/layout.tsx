@@ -1,20 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { IBM_Plex_Sans_Arabic, Noto_Kufi_Arabic } from "next/font/google";
 import { Settings } from "lucide-react";
 
 import "./app.css";
 import { currentWorkspace } from "./data";
+import { gmFontVars } from "./fonts";
 import { Tabs } from "./nav";
-
-const sans = IBM_Plex_Sans_Arabic({
-  subsets: ["arabic"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--gm-sans",
-  display: "swap",
-});
-const kufi = Noto_Kufi_Arabic({ subsets: ["arabic"], weight: ["500", "700"], variable: "--gm-kufi", display: "swap" });
 
 export const metadata: Metadata = { title: "گیتواس", description: "وەڵامدانەوە و بڵاوکردنەوە بۆ دووکانەکەت" };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
@@ -25,7 +17,7 @@ export default async function MerchantLayout({ children }: { children: React.Rea
   if (!ws) redirect("/login?next=/app");
 
   return (
-    <div className={`gm ${sans.variable} ${kufi.variable}`} dir="rtl" lang="ckb">
+    <div className={`gm ${gmFontVars}`} dir="rtl" lang="ckb">
       <div className="gm-shell">
         <header className="gm-head">
           <div>

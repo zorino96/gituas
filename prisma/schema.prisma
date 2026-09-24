@@ -370,6 +370,8 @@ model User {
   email         String?      @unique
   emailVerified DateTime?
   image         String?
+  /// scrypt hash for email-and-password sign-in; null for GitHub/Google-only users.
+  passwordHash  String?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   accounts      Account[]
@@ -570,4 +572,14 @@ enum TransactionType {
   EARNINGS
   PLATFORM_FEE
   REFUND
+}
+
+/// Failed email-and-password sign-ins, for throttling guessing. Rows older than
+/// the throttle window are ignored and may be pruned.
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
 }
