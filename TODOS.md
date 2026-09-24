@@ -61,6 +61,14 @@ Deferred work, with the context needed to pick it up cold.
     with their author; the two are joined by id in `normalize.ts`.
   - Writes (reply, hide, delete, send DM, publish) are left for the owner to
     test on their own accounts — they act on real customers and real pages.
+  - **Sign-in (2026-09-24):** email + password and sign-up are live; Google
+    sign-in is built and switches on when `AUTH_GOOGLE_ID` and
+    `AUTH_GOOGLE_SECRET` are set in Vercel (redirect URI
+    `https://gituas.vercel.app/api/auth/callback/google`). Use a Google Cloud
+    project with only openid/email/profile so it can be published without
+    verification — the YouTube project is still gated to test users.
+    Test account `tester@gituas.app`, own empty workspace. Not built yet:
+    password reset (needs an email sender) and changing a password.
   - Phase 2 (automatic replies: catalog, post tagging, outbox, classifier,
     templates, private replies) is written as a plan once Phase 1 is confirmed.
 
