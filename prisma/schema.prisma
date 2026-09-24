@@ -583,3 +583,25 @@ model LoginAttempt {
 
   @@index([email, createdAt])
 }
+
+/// A one-time code emailed to prove an address. A sign-up code carries the
+/// pending account (name and password hash), so no user exists until the
+/// address is proven and nobody can squat an address they don't own.
+model EmailCode {
+  id           String    @id @default(cuid())
+  email        String
+  /// "signup"
+  purpose      String
+  /// HMAC of the code, keyed with AUTH_SECRET — never the code itself.
+  codeHash     String
+  name         String?
+  passwordHash String?
+  attempts     Int       @default(0)
+  ip           String?
+  expiresAt    DateTime
+  usedAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([email, purpose, createdAt])
+  @@index([ip, createdAt])
+}

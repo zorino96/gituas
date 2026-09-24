@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { Eye, EyeOff } from "lucide-react";
 
-import { signupAction } from "./actions";
+import { resendSignupCodeAction, signupAction, verifySignupAction } from "./actions";
+
+const RESEND_WAIT_S = 60;
 
 export function SignupForm({ next, googleEnabled }: { next: string; googleEnabled: boolean }) {
   const [name, setName] = useState("");
@@ -14,6 +16,25 @@ export function SignupForm({ next, googleEnabled }: { next: string; googleEnable
   const [show, setShow] = useState(false);
   const [error, setError] = useState<{ field?: string; text: string } | null>(null);
   const [pending, start] = useTransition();
+  // Set once a code has been emailed: the form turns into the code step.
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const [wait, setWait] = useState(0);
+
+  useEffect(() => {
+    if (wait <= 0) return;
+    const t = setTimeout(() => setWait((w) => w - 1), 1000);
+    return () => clearTimeout(t);
+  }, [wait]);
+
+  async function signInAndGo(address: string) {
+    const s = await signIn("credentials", { email: address, password, redirect: false });
+    if (s?.error) {
+      setError({ text: "هەژمارەکە دروست کرا، بەڵام چوونەژوورەوە سەرکەوتوو نەبوو. لە پەڕەی چوونەژوورەوە هەوڵ بدەرەوە." });
+      return;
+    }
+    window.location.href = next;
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,13 +45,96 @@ export function SignupForm({ next, googleEnabled }: { next: string; googleEnable
         setError({ field: r.field, text: r.error });
         return;
       }
-      const s = await signIn("credentials", { email: r.email, password, redirect: false });
-      if (s?.error) {
-        setError({ text: "هەژمارەکە دروست کرا، بەڵام چوونەژوورەوە سەرکەوتوو نەبوو. لە پەڕەی چوونەژوورەوە هەوڵ بدەرەوە." });
+      if (r.verify) {
+        setSentTo(r.email);
+        setCode("");
+        setWait(RESEND_WAIT_S);
         return;
       }
-      window.location.href = next;
+      await signInAndGo(r.email);
     });
+  }
+
+  function verify(e: React.FormEvent) {
+    e.preventDefault();
+    if (!sentTo) return;
+    setError(null);
+    start(async () => {
+      const r = await verifySignupAction({ email: sentTo, code });
+      if (!r.ok) {
+        setError({ field: r.field, text: r.error });
+        return;
+      }
+      await signInAndGo(r.email);
+    });
+  }
+
+  function resend() {
+    if (!sentTo) return;
+    setError(null);
+    start(async () => {
+      const r = await resendSignupCodeAction({ email: sentTo });
+      if (!r.ok) {
+        setError({ field: r.field, text: r.error });
+        return;
+      }
+      setCode("");
+      setWait(RESEND_WAIT_S);
+    });
+  }
+
+  if (sentTo) {
+    return (
+      <div className="gm-auth">
+        <p className="gm-brand kufi">گیتواس</p>
+        <p className="gm-sub" style={{ marginTop: 4 }}>
+          کۆدێکی ٦ ژمارەییمان نارد بۆ <bdi className="gm-ltr" dir="ltr">{sentTo}</bdi>. بینووسە بۆ تەواوکردنی تۆمارکردن.
+        </p>
+
+        <div className="gm-card" style={{ marginTop: 18 }}>
+          <form onSubmit={verify} noValidate>
+            <div className="gm-field">
+              <label htmlFor="su-code">کۆدی ئیمەیڵ</label>
+              <input
+                id="su-code"
+                className="gm-input gm-ltr gm-code"
+                dir="ltr"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={12}
+                autoFocus
+                required
+              />
+            </div>
+            {error && <p className="gm-err" role="alert" style={{ margin: 0 }}>{error.text}</p>}
+            <button type="submit" className="gm-btn block" disabled={pending || !code.trim()}>
+              {pending ? "دەپشکنرێت…" : "دڵنیاکردنەوە"}
+            </button>
+          </form>
+          <p className="gm-sub" style={{ marginTop: 12, marginBottom: 0 }}>
+            ئیمەیڵەکە نەگەیشت؟ فۆڵدەری Spam بپشکنە، یان{" "}
+            <button type="button" className="gm-link gm-linkbtn" onClick={resend} disabled={pending || wait > 0}>
+              {wait > 0 ? `دوای ${new Intl.NumberFormat("ar-IQ").format(wait)} چرکە کۆدێکی تر بنێرە` : "کۆدێکی تر بنێرە"}
+            </button>
+          </p>
+        </div>
+
+        <p className="gm-sub" style={{ textAlign: "center", marginTop: 16 }}>
+          <button
+            type="button"
+            className="gm-link gm-linkbtn"
+            onClick={() => {
+              setSentTo(null);
+              setError(null);
+            }}
+          >
+            ئیمەیڵەکە بگۆڕە
+          </button>
+        </p>
+      </div>
+    );
   }
 
   return (

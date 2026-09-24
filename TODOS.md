@@ -69,6 +69,15 @@ Deferred work, with the context needed to pick it up cold.
     `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` in Vercel (Production). The
     secret can't be viewed again — rotate it in the client page if lost.
     Adding a logo or a sensitive scope would force Google verification.
+    Email sign-up code (built 2026-09-25): a 6-digit code, 10 minutes, 5
+    guesses, resend after 60s, 5 codes/hour per address and 10 per IP; the
+    account is only created once the code matches (`EmailCode` holds the
+    pending name and password hash). It switches on when `RESEND_API_KEY` is
+    set in Vercel; sender `no-reply@gituas.com` (override with `EMAIL_FROM`),
+    so gituas.com must be verified in Resend (DNS is on Cloudflare). Locally,
+    `EMAIL_DEV_LOG=1` in `.env.local` prints codes to the server log.
+    Checked end to end against the database by script; the code screen has
+    not been looked at in a browser yet.
     Test account `tester@gituas.app`, own empty workspace. Not built yet:
     password reset (needs an email sender) and changing a password.
   - Phase 2 (automatic replies: catalog, post tagging, outbox, classifier,

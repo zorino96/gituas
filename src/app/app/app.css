@@ -68,6 +68,9 @@
 .gm-or { display: flex; align-items: center; gap: 10px; color: var(--faint); font-size: 12px; margin: 16px 0; }
 .gm-or::before, .gm-or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .gm-google { background: var(--surface); color: var(--ink); border-color: var(--line); }
+.gm-code { text-align: center; font-size: 24px; font-weight: 700; letter-spacing: 8px; }
+.gm-linkbtn { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; }
+.gm-linkbtn:disabled { color: var(--faint); cursor: default; }
 .gm-g { font-weight: 700; font-size: 15px; background: conic-gradient(#ea4335 0 25%, #fbbc05 0 50%, #34a853 0 75%, #4285f4 0);
   -webkit-background-clip: text; background-clip: text; color: transparent; }
 
