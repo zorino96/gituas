@@ -9,8 +9,8 @@ import { db } from "@/lib/db";
 import { normalizeEmail, verifyPassword } from "@/lib/password";
 
 /** Guessing throttle: this many failed passwords per address per window. */
-const MAX_FAILURES = 10;
-const WINDOW_MS = 15 * 60 * 1000;
+export const MAX_FAILURES = 10;
+export const WINDOW_MS = 15 * 60 * 1000;
 
 /** Google sign-in switches on when its credentials exist in the environment. */
 export const googleEnabled = !!(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);

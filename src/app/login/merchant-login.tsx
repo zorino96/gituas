@@ -6,7 +6,17 @@ import { signIn } from "next-auth/react";
 import { Eye, EyeOff } from "lucide-react";
 
 /** Sign-in for the merchant app: email and password, Google when configured, GitHub for the owner. */
-export function MerchantLogin({ next, googleEnabled, oauthError }: { next: string; googleEnabled: boolean; oauthError?: string }) {
+export function MerchantLogin({
+  next,
+  googleEnabled,
+  resetEnabled,
+  oauthError,
+}: {
+  next: string;
+  googleEnabled: boolean;
+  resetEnabled: boolean;
+  oauthError?: string;
+}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
@@ -71,6 +81,11 @@ export function MerchantLogin({ next, googleEnabled, oauthError }: { next: strin
                 {show ? <EyeOff size={15} aria-hidden="true" /> : <Eye size={15} aria-hidden="true" />}
               </button>
             </div>
+            {resetEnabled && (
+              <Link href={`/forgot?next=${encodeURIComponent(next)}`} className="gm-link" style={{ display: "inline-block", fontSize: 12, marginTop: 6 }}>
+                وشەی نهێنیت لەبیرچووە؟
+              </Link>
+            )}
           </div>
           {error && <p className="gm-err" role="alert" style={{ margin: 0 }}>{error}</p>}
           <button type="submit" className="gm-btn block" disabled={pending || !email || !password}>

@@ -5,6 +5,7 @@ import { signOut } from "next-auth/react";
 
 import { normalizePhone } from "@/lib/merchant/phone";
 import { saveWhatsAppAction } from "../actions";
+import { PasswordCard } from "./password-card";
 
 interface Conn {
   provider: "META_FACEBOOK" | "META_INSTAGRAM" | "TIKTOK";
@@ -36,7 +37,9 @@ export function SettingsClient({
   connections,
   connected,
   connectError,
+  account,
 }: {
+  account: { email: string | null; hasPassword: boolean };
   slug: string;
   whatsappNumber: string | null;
   connections: Conn[];
@@ -132,7 +135,19 @@ export function SettingsClient({
         )}
       </div>
 
+      {account.email && (
+        <>
+          <p className="gm-sec">وشەی نهێنی</p>
+          <PasswordCard hasPassword={account.hasPassword} />
+        </>
+      )}
+
       <p className="gm-sec">هەژمار</p>
+      {account.email && (
+        <p className="gm-hint" style={{ marginTop: 0, marginBottom: 10 }}>
+          چوویتە ژوورەوە وەک <bdi className="gm-ltr" dir="ltr">{account.email}</bdi>
+        </p>
+      )}
       <button type="button" className="gm-btn quiet" onClick={() => signOut({ callbackUrl: "/login?next=/app" })}>
         چوونەدەرەوە
       </button>

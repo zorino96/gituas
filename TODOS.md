@@ -83,8 +83,16 @@ Deferred work, with the context needed to pick it up cold.
     (override with `EMAIL_FROM`). Locally, `EMAIL_DEV_LOG=1` in `.env.local`
     prints codes to the server log. A signed-in browser skips /signup, so
     test in a private window.
-    Test account `tester@gituas.app`, own empty workspace. Not built yet:
-    password reset (needs an email sender) and changing a password.
+    Test account `tester@gituas.app`, own empty workspace.
+    Password reset (/forgot, linked from the merchant sign-in) and password
+    change (Settings) built 2026-09-25 on the same `EmailCode` store, purpose
+    "reset". Reset answers the same for unknown addresses and only emails
+    real accounts; it also lets a Google/GitHub account add a password, and
+    Settings offers that directly. Reset checked end to end against the
+    database by script; the Settings card has not been clicked through yet.
+    Known gap: sessions are JWTs, so changing or resetting a password does
+    not sign out other devices until their token expires (30 days). Fixing
+    it needs a per-user session version checked in the jwt callback.
   - Phase 2 (automatic replies: catalog, post tagging, outbox, classifier,
     templates, private replies) is written as a plan once Phase 1 is confirmed.
 

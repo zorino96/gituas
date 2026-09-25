@@ -31,18 +31,30 @@ export async function sendEmail(msg: { to: string; subject: string; text: string
   }
 }
 
-/** The sign-up code email: Kurdish, right to left, the code large enough to read at a glance. */
-export function signupCodeEmail(code: string): { subject: string; text: string; html: string } {
+const CODE_COPY = {
+  signup: {
+    lead: "کۆدی دڵنیاکردنەوەی هەژمارەکەت",
+    ignore: "ئەگەر تۆ خۆت تۆمار نەکردووە، ئەم ئیمەیڵە پشتگوێ بخە.",
+  },
+  reset: {
+    lead: "کۆدی دانانی وشەی نهێنیی نوێ",
+    ignore: "ئەگەر تۆ داوای ئەمەت نەکردووە، ئەم ئیمەیڵە پشتگوێ بخە — وشەی نهێنییەکەت ناگۆڕدرێت.",
+  },
+} as const;
+
+/** A code email: Kurdish, right to left, the code large enough to read at a glance. */
+export function codeEmail(code: string, purpose: keyof typeof CODE_COPY): { subject: string; text: string; html: string } {
   const minutes = "١٠";
+  const { lead, ignore } = CODE_COPY[purpose];
   return {
     subject: `کۆدی گیتواس: ${code}`,
-    text: `کۆدی دڵنیاکردنەوەی هەژمارەکەت لە گیتواس: ${code}\n\nئەم کۆدە بۆ ${minutes} خولەک کار دەکات. ئەگەر تۆ خۆت تۆمار نەکردووە، ئەم ئیمەیڵە پشتگوێ بخە.`,
+    text: `${lead} لە گیتواس: ${code}\n\nئەم کۆدە بۆ ${minutes} خولەک کار دەکات. ${ignore}`,
     html: `<!doctype html><html lang="ckb" dir="rtl"><body style="margin:0;padding:24px;background:#f6f5f2;font-family:Tahoma,Arial,sans-serif;color:#1c1b19">
 <div style="max-width:420px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;text-align:right">
 <p style="margin:0 0 6px;font-size:20px;font-weight:700">گیتواس</p>
-<p style="margin:0 0 20px;font-size:15px;line-height:1.7">کۆدی دڵنیاکردنەوەی هەژمارەکەت:</p>
+<p style="margin:0 0 20px;font-size:15px;line-height:1.7">${lead}:</p>
 <p dir="ltr" style="margin:0 0 20px;font-size:34px;font-weight:700;letter-spacing:8px;text-align:center;font-family:Consolas,monospace">${code}</p>
-<p style="margin:0;font-size:13px;line-height:1.7;color:#6b6760">ئەم کۆدە بۆ ${minutes} خولەک کار دەکات. ئەگەر تۆ خۆت تۆمار نەکردووە، ئەم ئیمەیڵە پشتگوێ بخە.</p>
+<p style="margin:0;font-size:13px;line-height:1.7;color:#6b6760">ئەم کۆدە بۆ ${minutes} خولەک کار دەکات. ${ignore}</p>
 </div></body></html>`,
   };
 }

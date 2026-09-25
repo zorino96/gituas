@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import "@/app/app/app.css";
 import { auth, googleEnabled } from "@/auth";
 import { gmFontVars } from "@/app/app/fonts";
+import { emailEnabled } from "@/lib/mailer";
 import { LoginCard } from "./login-card";
 import { MerchantLogin } from "./merchant-login";
 
@@ -33,7 +34,7 @@ export default async function LoginPage({
   if (next.startsWith("/app")) {
     return (
       <div className={`gm ${gmFontVars}`} dir="rtl" lang="ckb">
-        <MerchantLogin next={next} googleEnabled={googleEnabled} oauthError={sp.error} />
+        <MerchantLogin next={next} googleEnabled={googleEnabled} resetEnabled={emailEnabled} oauthError={sp.error} />
       </div>
     );
   }

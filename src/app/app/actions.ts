@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 
+import { auth, MAX_FAILURES, WINDOW_MS } from "@/auth";
 import { db } from "@/lib/db";
+import { hashPassword, passwordProblem, verifyPassword } from "@/lib/password";
 import type { Prisma } from "@/generated/prisma/client";
 import { getGemini } from "@/lib/gemini";
 import { currentWorkspace } from "./data";
@@ -147,6 +149,37 @@ Rules:
 }
 
 // ---------- settings -------------------------------------------------------
+
+/**
+ * Change the password, or add one to an account made with Google or GitHub.
+ * When there is a current password it must be given, and wrong ones count
+ * toward the same guessing limit as the sign-in form.
+ */
+export async function changePasswordAction(current: string, next: string): Promise<Result> {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: "دووبارە بچۆ ژوورەوە." };
+  const user = await db.user.findUnique({ where: { id: session.user.id }, select: { id: true, email: true, passwordHash: true } });
+  if (!user?.email) return { ok: false, error: "ئەم هەژمارە ئیمەیڵی نییە." };
+
+  const problem = passwordProblem(next);
+  if (problem === "too-short") return { ok: false, error: "وشەی نهێنیی نوێ دەبێت لانیکەم ٨ پیت بێت." };
+  if (problem === "too-long") return { ok: false, error: "وشەی نهێنیی نوێ زۆر درێژە." };
+
+  if (user.passwordHash) {
+    const failures = await db.loginAttempt.count({ where: { email: user.email, createdAt: { gte: new Date(Date.now() - WINDOW_MS) } } });
+    if (failures >= MAX_FAILURES) return { ok: false, error: "زۆر جار هەڵە کرا. ١٥ خولەک چاوەڕێ بکە." };
+    if (!(await verifyPassword(current, user.passwordHash))) {
+      await db.loginAttempt.create({ data: { email: user.email } });
+      return { ok: false, error: "وشەی نهێنیی ئێستا هەڵەیە." };
+    }
+  }
+
+  await db.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(next) } });
+  await db.loginAttempt.deleteMany({ where: { email: user.email } });
+  const ws = await currentWorkspace();
+  if (ws) await audit(ws.id, "app.password_change", user.passwordHash ? "Changed the account password." : "Added a password to the account.");
+  return { ok: true };
+}
 
 export async function saveWhatsAppAction(raw: string): Promise<{ ok: true; digits: string | null } | { ok: false; error: string }> {
   const ws = await currentWorkspace();
