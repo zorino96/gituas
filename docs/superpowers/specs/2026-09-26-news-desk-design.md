@@ -187,6 +187,35 @@ design service is billed separately.
   (Arabic, English, Kurdish sources). If quality is poor, stop and decide.
 - Cards checked in the browser at phone and desktop widths.
 
+## DeepSeek Sorani check (2026-09-26)
+
+Ten live items (4 BBC Arabic, 3 BBC English, 3 Kurdistan24 Sorani), title and
+snippet only, same prompt, both models:
+
+| | `deepseek-flash` | `deepseek-v4-pro` |
+|---|---|---|
+| Time per item | ~2 s | ~8 s (reasoning model) |
+| Tokens per item (in/out) | 472 / 214 | 548 / 1,922 |
+| Cost per 1,000 items (peak price) | ≈ $0.40 | ≈ $8 |
+| Sorani | fluent, standard orthography, Eastern Arabic digits | same, slightly more idiomatic |
+| Errors seen | one idiom mistranslated (ورقة مساومة → «پارچەی چاوەڕوانی»); one fact added that was not in the input (a job title) | neither of those |
+| Card kind | sensible (STAT for $2.45bn, QUOTE for named statements) | same |
+
+Both models return a Kurdish-source item almost verbatim when its snippet is a
+single line. Consequences for the design:
+
+- Drafts use `deepseek-flash` by default (fast, cheap). The editor has an
+  "improve" action that re-drafts with `deepseek-v4-pro`; it counts as its own
+  metric in the quotas. Model names are explicit: `deepseek-chat` is no longer
+  listed.
+- The editor always shows the source title and snippet beside the draft, so
+  meaning errors are caught before approval.
+- The overlap rule matters most for Kurdish sources; a near-copy is blocked
+  with a message asking the editor to restate it.
+- GDELT answered 429 to a first request from this machine: its API allows one
+  request every few seconds, so GDELT queries are spaced and cached across
+  tenants rather than made per page view.
+
 ## To verify while planning phase 1
 
 - Whether TikTok's Content Posting API accepts photo posts under
