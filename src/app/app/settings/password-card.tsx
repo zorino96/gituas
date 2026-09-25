@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { signIn } from "next-auth/react";
 import { Eye, EyeOff } from "lucide-react";
 
 import { changePasswordAction } from "../actions";
@@ -9,7 +10,7 @@ import { changePasswordAction } from "../actions";
  * Change the password — or, for an account made with Google or GitHub, add
  * one, so the same person can also sign in with their email.
  */
-export function PasswordCard({ hasPassword: initial }: { hasPassword: boolean }) {
+export function PasswordCard({ email, hasPassword: initial }: { email: string; hasPassword: boolean }) {
   const [hasPassword, setHasPassword] = useState(initial);
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -26,7 +27,19 @@ export function PasswordCard({ hasPassword: initial }: { hasPassword: boolean })
         setMessage({ ok: false, text: r.error });
         return;
       }
-      setMessage({ ok: true, text: hasPassword ? "وشەی نهێنی گۆڕدرا." : "وشەی نهێنی زیاد کرا. ئێستا بە ئیمەیڵیش دەتوانیت بچیتە ژوورەوە." });
+      // The change signed out every session, this one included; sign this
+      // browser back in with the new password so only the others are logged out.
+      const s = await signIn("credentials", { email, password: next, redirect: false });
+      if (s?.error) {
+        window.location.href = "/login?next=/app/settings";
+        return;
+      }
+      setMessage({
+        ok: true,
+        text: hasPassword
+          ? "وشەی نهێنی گۆڕدرا. ئامێرەکانی تر لە هەژمارەکەت دەرکران."
+          : "وشەی نهێنی زیاد کرا. ئێستا بە ئیمەیڵیش دەتوانیت بچیتە ژوورەوە.",
+      });
       setHasPassword(true);
       setCurrent("");
       setNext("");

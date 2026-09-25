@@ -90,9 +90,12 @@ Deferred work, with the context needed to pick it up cold.
     real accounts; it also lets a Google/GitHub account add a password, and
     Settings offers that directly. Reset checked end to end against the
     database by script; the Settings card has not been clicked through yet.
-    Known gap: sessions are JWTs, so changing or resetting a password does
-    not sign out other devices until their token expires (30 days). Fixing
-    it needs a per-user session version checked in the jwt callback.
+    Changing or resetting a password signs out every other device:
+    `User.sessionVersion` is raised, each JWT carries the version it was
+    issued under, and `checkSessionToken` (the jwt callback) refuses older
+    ones. Versions are cached per instance for 30s, so other devices drop
+    within about half a minute; the browser that made the change signs
+    straight back in. Checked by script against the database.
   - Phase 2 (automatic replies: catalog, post tagging, outbox, classifier,
     templates, private replies) is written as a plan once Phase 1 is confirmed.
 

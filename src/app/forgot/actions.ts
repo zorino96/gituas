@@ -48,7 +48,13 @@ export async function resetPasswordAction(input: { email: string; code: string; 
 
   await db.user.update({
     where: { id: user.id },
-    data: { passwordHash: await hashPassword(input.password), emailVerified: user.emailVerified ?? new Date() },
+    // A new session version signs out every device, which is the point of a
+    // reset when someone else may know the old password.
+    data: {
+      passwordHash: await hashPassword(input.password),
+      emailVerified: user.emailVerified ?? new Date(),
+      sessionVersion: { increment: 1 },
+    },
   });
   await Promise.all([db.loginAttempt.deleteMany({ where: { email } }), clearEmailCodes(email, "reset")]);
   return { ok: true, email };

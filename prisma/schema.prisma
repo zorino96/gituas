@@ -372,6 +372,9 @@ model User {
   image         String?
   /// scrypt hash for email-and-password sign-in; null for GitHub/Google-only users.
   passwordHash  String?
+  /// Raised when the password changes. Sessions are JWTs that can't be deleted,
+  /// so a token issued under an older version stops being accepted instead.
+  sessionVersion Int         @default(0)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   accounts      Account[]

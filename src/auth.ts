@@ -1,4 +1,5 @@
 import NextAuth from "next-auth";
+import type { JWT } from "next-auth/jwt";
 import type { Provider } from "next-auth/providers";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
@@ -11,6 +12,46 @@ import { normalizeEmail, verifyPassword } from "@/lib/password";
 /** Guessing throttle: this many failed passwords per address per window. */
 export const MAX_FAILURES = 10;
 export const WINDOW_MS = 15 * 60 * 1000;
+
+/**
+ * Session versions, cached briefly so every auth() call isn't a database
+ * read. A stale entry is always older than the truth, and only a token older
+ * than the cached version is refused — so the cache can delay signing out
+ * other devices by up to VERSION_TTL_MS, but never signs out a fresh token.
+ */
+const versionCache = new Map<string, { v: number; at: number }>();
+const VERSION_TTL_MS = 30_000;
+
+async function sessionVersion(userId: string, fresh = false): Promise<number | null> {
+  const hit = versionCache.get(userId);
+  if (!fresh && hit && Date.now() - hit.at < VERSION_TTL_MS) return hit.v;
+  const row = await db.user.findUnique({ where: { id: userId }, select: { sessionVersion: true } });
+  if (!row) {
+    versionCache.delete(userId);
+    return null;
+  }
+  versionCache.set(userId, { v: row.sessionVersion, at: Date.now() });
+  return row.sessionVersion;
+}
+
+/**
+ * The jwt callback. At sign-in the token records the account's session
+ * version; afterwards a token from before the latest password change, or for
+ * an account that no longer exists, is refused (null signs the device out).
+ * Tokens issued before versions existed carry none and count as version 0.
+ */
+export async function checkSessionToken({ token, user }: { token: JWT; user?: { id?: string } | null }): Promise<JWT | null> {
+  if (user?.id) {
+    token.sub = user.id;
+    token.sv = (await sessionVersion(user.id, true)) ?? 0;
+    return token;
+  }
+  if (token.sub) {
+    const current = await sessionVersion(token.sub);
+    if (current === null || Number(token.sv ?? 0) < current) return null;
+  }
+  return token;
+}
 
 /** Google sign-in switches on when its credentials exist in the environment. */
 export const googleEnabled = !!(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
@@ -72,10 +113,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   // the sign-in page with ?error= instead of Auth.js's bare English error page.
   pages: { signIn: "/login", error: "/login" },
   callbacks: {
-    async jwt({ token, user }) {
-      if (user?.id) token.sub = user.id;
-      return token;
-    },
+    jwt: checkSessionToken,
     async session({ session, token }) {
       if (session.user && token.sub) session.user.id = token.sub;
       return session;

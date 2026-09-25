@@ -174,7 +174,9 @@ export async function changePasswordAction(current: string, next: string): Promi
     }
   }
 
-  await db.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(next) } });
+  // Signs out every other device; the browser that made the change signs
+  // straight back in with the new password.
+  await db.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(next), sessionVersion: { increment: 1 } } });
   await db.loginAttempt.deleteMany({ where: { email: user.email } });
   const ws = await currentWorkspace();
   if (ws) await audit(ws.id, "app.password_change", user.passwordHash ? "Changed the account password." : "Added a password to the account.");

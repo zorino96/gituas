@@ -138,7 +138,7 @@ export function SettingsClient({
       {account.email && (
         <>
           <p className="gm-sec">وشەی نهێنی</p>
-          <PasswordCard hasPassword={account.hasPassword} />
+          <PasswordCard email={account.email} hasPassword={account.hasPassword} />
         </>
       )}
 
