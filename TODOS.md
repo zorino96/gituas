@@ -72,12 +72,17 @@ Deferred work, with the context needed to pick it up cold.
     Email sign-up code (built 2026-09-25): a 6-digit code, 10 minutes, 5
     guesses, resend after 60s, 5 codes/hour per address and 10 per IP; the
     account is only created once the code matches (`EmailCode` holds the
-    pending name and password hash). It switches on when `RESEND_API_KEY` is
-    set in Vercel; sender `no-reply@gituas.com` (override with `EMAIL_FROM`),
-    so gituas.com must be verified in Resend (DNS is on Cloudflare). Locally,
-    `EMAIL_DEV_LOG=1` in `.env.local` prints codes to the server log.
-    Checked end to end against the database by script; the code screen has
-    not been looked at in a browser yet.
+    pending name and password hash). Live since 2026-09-25 and tested by the
+    owner in production: code arrived, account created with emailVerified.
+    Resend team "zorinonsd" (shared with moozlo.com), domain gituas.com
+    verified (region Tokyo), API key "Gituas sign-up codes" = sending access,
+    gituas.com only, in Vercel as `RESEND_API_KEY`. Cloudflare DNS for it:
+    TXT `resend._domainkey`, CNAME `send` and `rsend` (DNS only). Resend's
+    "Enable Receiving" MX was deliberately not added — it would fight
+    Cloudflare Email Routing on the root. Sender `no-reply@gituas.com`
+    (override with `EMAIL_FROM`). Locally, `EMAIL_DEV_LOG=1` in `.env.local`
+    prints codes to the server log. A signed-in browser skips /signup, so
+    test in a private window.
     Test account `tester@gituas.app`, own empty workspace. Not built yet:
     password reset (needs an email sender) and changing a password.
   - Phase 2 (automatic replies: catalog, post tagging, outbox, classifier,
