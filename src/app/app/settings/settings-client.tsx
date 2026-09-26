@@ -6,6 +6,8 @@ import { signOut } from "next-auth/react";
 import { normalizePhone } from "@/lib/merchant/phone";
 import { saveWhatsAppAction } from "../actions";
 import { PasswordCard } from "./password-card";
+import { NewsSettings, type NewsSettingsProps } from "./news-settings";
+import { setTenantKindAction } from "../actions";
 
 interface Conn {
   provider: "META_FACEBOOK" | "META_INSTAGRAM" | "TIKTOK";
@@ -38,6 +40,8 @@ export function SettingsClient({
   connected,
   connectError,
   account,
+  kind,
+  news,
 }: {
   account: { email: string | null; hasPassword: boolean };
   slug: string;
@@ -45,6 +49,8 @@ export function SettingsClient({
   connections: Conn[];
   connected?: string;
   connectError?: string;
+  kind: "MERCHANT" | "NEWS";
+  news: NewsSettingsProps | null;
 }) {
   const [raw, setRaw] = useState(whatsappNumber ? localForm(whatsappNumber) : "");
   const [saved, setSaved] = useState<string | null>(whatsappNumber);
@@ -73,6 +79,8 @@ export function SettingsClient({
 
       {connected && <p className="gm-ok">پەیوەست کرا.</p>}
       {connectError && <p className="gm-err">{CONNECT_ERRORS[connectError] ?? "پەیوەستکردن سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە."}</p>}
+
+      {news && <NewsSettings {...news} />}
 
       <p className="gm-sec">ئەکاونتەکان</p>
       <div className="gm-card">
@@ -141,6 +149,21 @@ export function SettingsClient({
           <PasswordCard email={account.email} hasPassword={account.hasPassword} />
         </>
       )}
+
+      <p className="gm-sec">جۆری هەژمار</p>
+      <div className="gm-card gm-row" style={{ justifyContent: "space-between" }}>
+        <span>{kind === "NEWS" ? "پەیجی هەواڵ" : "دووکان"}</span>
+        <button
+          type="button"
+          className="gm-btn quiet small"
+          onClick={async () => {
+            const r = await setTenantKindAction(kind === "NEWS" ? "MERCHANT" : "NEWS");
+            if (r.ok) window.location.href = kind === "NEWS" ? "/app" : "/app/news";
+          }}
+        >
+          {kind === "NEWS" ? "بیکە بە دووکان" : "بیکە بە پەیجی هەواڵ"}
+        </button>
+      </div>
 
       <p className="gm-sec">هەژمار</p>
       {account.email && (
