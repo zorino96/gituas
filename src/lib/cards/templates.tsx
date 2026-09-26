@@ -21,21 +21,35 @@ export interface CardContent {
 /**
  * Shrinks the element's font from `max` px until its text fits its box, down
  * to `min`. Marks `data-overflow="1"` when even `min` does not fit, so the
- * editor can ask for a shorter headline.
+ * editor can ask for a shorter headline. Fits again once the real font has
+ * loaded (`document.fonts.ready`, and any later `loadingdone`), so a
+ * late-loading font can't leave a clipped headline still marked as fitting.
  */
-function useFit(text: string, max: number, min: number) {
+function useFit(text: string, max: number, min: number, font: string) {
   const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    let size = max;
-    el.style.fontSize = `${size}px`;
-    while (size > min && el.scrollHeight > el.clientHeight) {
-      size -= 2;
+    const fit = () => {
+      let size = max;
       el.style.fontSize = `${size}px`;
-    }
-    el.dataset.overflow = el.scrollHeight > el.clientHeight ? "1" : "0";
-  }, [text, max, min]);
+      while (size > min && el.scrollHeight > el.clientHeight) {
+        size -= 2;
+        el.style.fontSize = `${size}px`;
+      }
+      el.dataset.overflow = el.scrollHeight > el.clientHeight ? "1" : "0";
+    };
+    fit();
+    let cancelled = false;
+    document.fonts.ready.then(() => {
+      if (!cancelled) fit();
+    });
+    document.fonts.addEventListener("loadingdone", fit);
+    return () => {
+      cancelled = true;
+      document.fonts.removeEventListener("loadingdone", fit);
+    };
+  }, [text, max, min, font]);
   return ref;
 }
 
@@ -60,7 +74,7 @@ function Header({ brand, dark }: { brand: Brand; dark: boolean }) {
 
 function Footer({ brand, content, dark }: { brand: Brand; content: CardContent; dark: boolean }) {
   return (
-    <div style={abs({ bottom: 44, right: 56, left: 56, display: "flex", justifyContent: "space-between", font: `500 26px ${BODY_FONT}`, color: dark ? brand.primary : brand.text, opacity: 0.85 })}>
+    <div style={abs({ bottom: 44, right: 56, left: 56, display: "flex", justifyContent: "space-between", font: `500 32px ${BODY_FONT}`, color: dark ? brand.primary : brand.text, opacity: 0.85 })}>
       <span>سەرچاوە: {content.sourceName}</span>
       <span>{content.stamp}</span>
     </div>
@@ -68,7 +82,8 @@ function Footer({ brand, content, dark }: { brand: Brand; content: CardContent; 
 }
 
 function Standard({ brand, content }: { brand: Brand; content: CardContent }) {
-  const head = useFit(content.headline, 64, 36);
+  const font = `700 64px/1.55 ${HEADING_FONT[brand.headingFont]}`;
+  const head = useFit(content.headline, 64, 36, font);
   return (
     <>
       <div style={abs({ top: 0, right: 0, left: 0, height: 780, background: `linear-gradient(135deg, ${brand.primary}, ${brand.accent})` })}>
@@ -80,7 +95,7 @@ function Standard({ brand, content }: { brand: Brand; content: CardContent }) {
       <div style={abs({ top: 0, right: 0, left: 0, height: 180, background: "linear-gradient(rgba(0,0,0,.55), transparent)" })} />
       <Header brand={brand} dark={false} />
       <div style={abs({ top: 780, right: 0, left: 0, bottom: 0, background: brand.primary, borderTop: `12px solid ${brand.accent}` })} />
-      <div ref={head} style={abs({ top: 840, right: 56, left: 56, height: 360, overflow: "hidden", color: brand.text, font: `700 64px/1.55 ${HEADING_FONT[brand.headingFont]}` })}>
+      <div ref={head} style={abs({ top: 840, right: 56, left: 56, height: 360, overflow: "hidden", overflowWrap: "anywhere", color: brand.text, font })}>
         {content.headline}
       </div>
       <Footer brand={brand} content={content} dark={false} />
@@ -89,12 +104,13 @@ function Standard({ brand, content }: { brand: Brand; content: CardContent }) {
 }
 
 function Breaking({ brand, content }: { brand: Brand; content: CardContent }) {
-  const head = useFit(content.headline, 84, 44);
+  const font = `700 84px/1.55 ${HEADING_FONT[brand.headingFont]}`;
+  const head = useFit(content.headline, 84, 44, font);
   return (
     <>
       <Header brand={brand} dark={false} />
       <div style={abs({ top: 220, right: 0, background: "#C8102E", color: "#fff", padding: "18px 56px", font: `700 56px ${HEADING_FONT[brand.headingFont]}` })}>بەپەلە</div>
-      <div ref={head} style={abs({ top: 400, right: 56, left: 56, height: 620, overflow: "hidden", color: brand.text, font: `700 84px/1.55 ${HEADING_FONT[brand.headingFont]}` })}>
+      <div ref={head} style={abs({ top: 400, right: 56, left: 56, height: 620, overflow: "hidden", overflowWrap: "anywhere", color: brand.text, font })}>
         {content.headline}
       </div>
       <div style={abs({ top: 1060, right: 56, width: 180, height: 12, background: brand.accent })} />
@@ -104,7 +120,8 @@ function Breaking({ brand, content }: { brand: Brand; content: CardContent }) {
 }
 
 function Stat({ brand, content }: { brand: Brand; content: CardContent }) {
-  const head = useFit(content.headline, 60, 34);
+  const font = `700 60px/1.6 ${HEADING_FONT[brand.headingFont]}`;
+  const head = useFit(content.headline, 60, 34, font);
   return (
     <>
       <div style={abs({ inset: 0, background: brand.accent })} />
@@ -112,7 +129,7 @@ function Stat({ brand, content }: { brand: Brand; content: CardContent }) {
       <div style={abs({ top: 250, right: 56, left: 56, color: brand.primary, font: `700 220px/1.1 ${HEADING_FONT[brand.headingFont]}`, whiteSpace: "nowrap", overflow: "hidden" })}>
         {content.stat}
       </div>
-      <div ref={head} style={abs({ top: 600, right: 56, left: 56, height: 520, overflow: "hidden", color: brand.primary, font: `700 60px/1.6 ${HEADING_FONT[brand.headingFont]}` })}>
+      <div ref={head} style={abs({ top: 600, right: 56, left: 56, height: 520, overflow: "hidden", overflowWrap: "anywhere", color: brand.primary, font })}>
         {content.headline}
       </div>
       <Footer brand={brand} content={content} dark />
@@ -122,15 +139,18 @@ function Stat({ brand, content }: { brand: Brand; content: CardContent }) {
 
 function Quote({ brand, content }: { brand: Brand; content: CardContent }) {
   const text = content.quote ?? content.headline;
-  const q = useFit(text, 64, 36);
+  const font = `700 64px/1.6 ${HEADING_FONT[brand.headingFont]}`;
+  const q = useFit(text, 64, 36, font);
   return (
     <>
       <Header brand={brand} dark={false} />
       <div style={abs({ top: 200, right: 48, color: brand.accent, font: `700 260px/1 ${HEADING_FONT[brand.headingFont]}` })}>«</div>
-      <div ref={q} style={abs({ top: 470, right: 64, left: 64, height: 540, overflow: "hidden", color: brand.text, font: `700 64px/1.6 ${HEADING_FONT[brand.headingFont]}` })}>
+      <div ref={q} style={abs({ top: 470, right: 64, left: 64, height: 540, overflow: "hidden", overflowWrap: "anywhere", color: brand.text, font })}>
         {text}
       </div>
-      <div style={abs({ top: 1060, right: 64, left: 64, color: brand.accent, font: `600 40px ${BODY_FONT}` })}>— {content.speaker}</div>
+      {content.speaker && (
+        <div style={abs({ top: 1060, right: 64, left: 64, color: brand.accent, font: `600 40px ${BODY_FONT}` })}>— {content.speaker}</div>
+      )}
       <Footer brand={brand} content={content} dark={false} />
     </>
   );

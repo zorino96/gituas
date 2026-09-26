@@ -1,5 +1,10 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { fetchFeed, parseFeed } from "@/lib/news/sources/rss";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { lookup } from "node:dns/promises";
+import { fetchFeed, isPrivateAddress, parseFeed } from "@/lib/news/sources/rss";
+
+vi.mock("node:dns/promises", () => ({ lookup: vi.fn() }));
+
+const mockLookup = lookup as unknown as ReturnType<typeof vi.fn>;
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -53,8 +58,44 @@ describe("parseFeed", () => {
   });
 });
 
+describe("isPrivateAddress", () => {
+  it("flags private and reserved IPv4 ranges", () => {
+    for (const ip of [
+      "0.1.2.3",
+      "10.0.0.1",
+      "127.0.0.1",
+      "169.254.1.1",
+      "172.16.0.1",
+      "172.31.255.255",
+      "192.168.1.1",
+      "100.64.0.1",
+      "100.127.255.255",
+    ]) {
+      expect(isPrivateAddress(ip)).toBe(true);
+    }
+  });
+  it("does not flag a normal public IPv4 address", () => {
+    expect(isPrivateAddress("8.8.8.8")).toBe(false);
+    expect(isPrivateAddress("172.32.0.1")).toBe(false);
+    expect(isPrivateAddress("100.63.255.255")).toBe(false);
+  });
+  it("flags private and reserved IPv6 ranges", () => {
+    for (const ip of ["::1", "::", "fc00::1", "fd12::1", "fe80::1"]) expect(isPrivateAddress(ip)).toBe(true);
+  });
+  it("does not flag a normal public IPv6 address", () => {
+    expect(isPrivateAddress("2001:4860:4860::8888")).toBe(false);
+  });
+  it("flags an IPv4-mapped IPv6 address only when the mapped address is private", () => {
+    expect(isPrivateAddress("::ffff:10.0.0.1")).toBe(true);
+    expect(isPrivateAddress("::ffff:8.8.8.8")).toBe(false);
+  });
+});
+
 describe("fetchFeed", () => {
+  beforeEach(() => mockLookup.mockReset());
+
   it("decodes a windows-1256 body using the charset from the Content-Type header", async () => {
+    mockLookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
     const head = new TextEncoder().encode('<rss><channel><item><title>');
     // "عراق" (Iraq) encoded as windows-1256 bytes.
     const word = new Uint8Array([0xda, 0xd1, 0xc7, 0xde]);
@@ -72,5 +113,41 @@ describe("fetchFeed", () => {
     const items = await fetchFeed("https://example.com/feed", "Test");
     expect(items).toHaveLength(1);
     expect(items[0].title).toBe("عراق");
+  });
+
+  it("refuses a feed whose host resolves to a private address, without ever fetching it", async () => {
+    mockLookup.mockResolvedValue([{ address: "10.0.0.5", family: 4 }]);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(fetchFeed("https://internal.example/feed", "X")).rejects.toThrow();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses localhost outright, without a DNS lookup", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(fetchFeed("http://localhost/feed", "X")).rejects.toThrow();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses a redirect to a private host, without following it", async () => {
+    mockLookup.mockImplementation(async (hostname: string) =>
+      hostname === "public.example" ? [{ address: "93.184.216.34", family: 4 }] : [{ address: "127.0.0.1", family: 4 }],
+    );
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 302, headers: { location: "http://internal.local/feed" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(fetchFeed("https://public.example/feed", "X")).rejects.toThrow();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("still fetches and parses a normal public feed", async () => {
+    mockLookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    const xml = `<rss><channel><item><title>Only one</title><link>https://example.com/1</link></item></channel></rss>`;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(xml, { status: 200, headers: { "content-type": "application/rss+xml" } })),
+    );
+    const items = await fetchFeed("https://public.example/feed", "X");
+    expect(items.map((i) => i.title)).toEqual(["Only one"]);
   });
 });

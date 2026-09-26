@@ -36,6 +36,11 @@ async function newsWorkspace(): Promise<Workspace | null> {
 
 const NOT_NEWS = { ok: false as const, error: "ئەم بەشە تەنها بۆ پەیجی هەواڵە." };
 
+/** A path must sit under this workspace's own folder and never contain a `..` segment. */
+function isOwnPath(path: string, tenantId: string): boolean {
+  return path.startsWith(`merchant/${tenantId}/`) && !path.includes("..");
+}
+
 function view(d: {
   id: string;
   headline: string;
@@ -65,22 +70,28 @@ function view(d: {
 export async function refreshNewsAction(): Promise<Result<{ added: number; failed: string[] }>> {
   const ws = await newsWorkspace();
   if (!ws) return NOT_NEWS;
-  const r = await ingest(ws.id, { force: true });
-  revalidatePath("/app/news");
-  return { ok: true, added: r.added, failed: r.failed };
+  try {
+    const r = await ingest(ws.id, { force: true });
+    revalidatePath("/app/news");
+    return { ok: true, added: r.added, failed: r.failed };
+  } catch {
+    return { ok: false, error: "نوێکردنەوە سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە." };
+  }
 }
 
 /** Write (or rewrite) the draft for an item. `strong` is the editor's "improve". */
 export async function draftNewsAction(itemId: string, strength: Strength): Promise<Result<{ draft: DraftView }>> {
   const ws = await newsWorkspace();
   if (!ws) return NOT_NEWS;
+  if (strength !== "fast" && strength !== "strong") return { ok: false, error: "جۆری داواکراو دروست نییە." };
   const item = await db.newsItem.findFirst({ where: { id: itemId, tenantId: ws.id } });
   if (!item) return { ok: false, error: "هەواڵەکە نەدۆزرایەوە." };
   const metric = strength === "strong" ? "improve" : "draft";
   try {
     await assertWithin(ws.id, metric);
     const { draft, model } = await draftFor(item, strength);
-    const data = { ...draft, model, tenantId: ws.id };
+    // A stale card must never go out with new text.
+    const data = { ...draft, model, tenantId: ws.id, cardUrl: null, cardPath: null };
     const saved = await db.newsDraft.upsert({ where: { itemId }, create: { itemId, ...data }, update: data });
     await countUsage(ws.id, metric);
     if (item.status === "NEW") await db.newsItem.update({ where: { id: itemId }, data: { status: "DRAFTED" } });
@@ -109,7 +120,7 @@ export async function saveNewsDraftAction(itemId: string, f: DraftFields): Promi
   const item = await db.newsItem.findFirst({ where: { id: itemId, tenantId: ws.id } });
   if (!item) return { ok: false, error: "هەواڵەکە نەدۆزرایەوە." };
   if (!CARD_KINDS.includes(f.cardKind)) return { ok: false, error: "جۆری کارت دروست نییە." };
-  if (f.photoPath && !f.photoPath.startsWith(`merchant/${ws.id}/`)) return { ok: false, error: "وێنەکە ناناسرێتەوە." };
+  if (f.photoPath && !isOwnPath(f.photoPath, ws.id)) return { ok: false, error: "وێنەکە ناناسرێتەوە." };
   const clip = (s: string | null, max: number) => (s ? [...s.trim()].slice(0, max).join("") || null : null);
   const data = {
     headline: [...f.headline.trim()].slice(0, LIMITS.headline + 40).join(""),
@@ -119,6 +130,9 @@ export async function saveNewsDraftAction(itemId: string, f: DraftFields): Promi
     quote: clip(f.quote, 200),
     speaker: clip(f.speaker, 60),
     photoPath: f.photoPath,
+    // A stale card must never go out with new text.
+    cardUrl: null,
+    cardPath: null,
   };
   const saved = await db.newsDraft.upsert({
     where: { itemId },
@@ -137,7 +151,7 @@ export async function attachCardAction(itemId: string, card: { url: string; path
   if (!draft) return { ok: false, error: "سەرەتا دەقەکە پاشەکەوت بکە." };
   const problems = checkDraft(draft, draft.item);
   if (problems.length) return { ok: false, error: problems[0].message };
-  if (!card.pathname.startsWith(`merchant/${ws.id}/`) || !/^https:\/\//.test(card.url)) return { ok: false, error: "کارتەکە ناناسرێتەوە." };
+  if (!isOwnPath(card.pathname, ws.id) || !/^https:\/\//.test(card.url)) return { ok: false, error: "کارتەکە ناناسرێتەوە." };
   await db.newsDraft.update({ where: { id: draft.id }, data: { cardUrl: card.url, cardPath: card.pathname } });
   return { ok: true, draftId: draft.id };
 }
@@ -155,7 +169,10 @@ export async function dismissNewsAction(itemId: string): Promise<Result> {
 export async function saveKeywordsAction(raw: string): Promise<Result<{ keywords: string[] }>> {
   const ws = await newsWorkspace();
   if (!ws) return NOT_NEWS;
-  const keywords = [...new Set(raw.split(/[,،\n]/).map((k) => k.trim()).filter((k) => k.length >= 2))].slice(0, 20);
+  const keywords = [...new Set(raw.split(/[,،\n]/).map((k) => k.trim()).filter((k) => k.length >= 2 && k.length <= 40 && !k.includes("|")))].slice(
+    0,
+    20,
+  );
   await db.newsSettings.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, keywords }, update: { keywords, lastFetchedAt: null } });
   return { ok: true, keywords };
 }
@@ -226,7 +243,7 @@ export async function saveBrandKitAction(kit: {
   if (!ws) return NOT_NEWS;
   if (![kit.primary, kit.accent, kit.text].every((c) => HEX.test(c))) return { ok: false, error: "ڕەنگەکان دروست نین." };
   if (kit.headingFont !== "kufi" && kit.headingFont !== "sans") return { ok: false, error: "فۆنتەکە دروست نییە." };
-  if (kit.logoPath && !kit.logoPath.startsWith(`merchant/${ws.id}/`)) return { ok: false, error: "لۆگۆکە ناناسرێتەوە." };
+  if (kit.logoPath && !isOwnPath(kit.logoPath, ws.id)) return { ok: false, error: "لۆگۆکە ناناسرێتەوە." };
   const data = { logoPath: kit.logoPath, primary: kit.primary, accent: kit.accent, text: kit.text, headingFont: kit.headingFont };
   await db.brandKit.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, ...data }, update: data });
   return { ok: true };

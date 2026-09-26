@@ -345,22 +345,27 @@ export async function tiktokStatusAction(publishId: string): Promise<{ ok: true;
 
 /**
  * Shop or news page. Becoming a news page also gives it desk settings and
- * GDELT as a first source, so the desk is never empty on the first visit.
+ * GDELT as a first source — GDELT only returns stories once keywords are
+ * set, so the desk stays empty until then.
  */
 export async function setTenantKindAction(kind: "MERCHANT" | "NEWS"): Promise<Result> {
   const ws = await currentWorkspace();
   if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
   if (kind !== "MERCHANT" && kind !== "NEWS") return { ok: false, error: "هەڵبژاردنەکە دروست نییە." };
-  await db.tenant.update({ where: { id: ws.id }, data: { kind, kindChosen: true } });
-  if (kind === "NEWS") {
-    await db.newsSettings.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, keywords: [] }, update: {} });
-    await db.newsSource.upsert({
-      where: { tenantId_catalogId: { tenantId: ws.id, catalogId: "gdelt" } },
-      create: { tenantId: ws.id, catalogId: "gdelt", name: "GDELT" },
-      update: {},
-    });
+  try {
+    await db.tenant.update({ where: { id: ws.id }, data: { kind, kindChosen: true } });
+    if (kind === "NEWS") {
+      await db.newsSettings.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, keywords: [] }, update: {} });
+      await db.newsSource.upsert({
+        where: { tenantId_catalogId: { tenantId: ws.id, catalogId: "gdelt" } },
+        create: { tenantId: ws.id, catalogId: "gdelt", name: "GDELT" },
+        update: {},
+      });
+    }
+    await audit(ws.id, "app.kind_set", `Set the workspace kind to ${kind}.`, { kind });
+  } catch {
+    return { ok: false, error: "پاشەکەوت نەکرا. دووبارە هەوڵ بدەرەوە." };
   }
-  await audit(ws.id, "app.kind_set", `Set the workspace kind to ${kind}.`, { kind });
   revalidatePath("/app", "layout");
   return { ok: true };
 }
