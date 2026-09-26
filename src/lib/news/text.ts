@@ -39,7 +39,7 @@ export function stripHtml(s: string): string {
 }
 
 // Harakat, superscript alef, tatweel.
-const DIACRITICS = /[ً-ٰٟـ]/g;
+const DIACRITICS = /[\u064B-\u065F\u0670\u0640]/g;
 // One spelling per letter, so Kurdish and Arabic spellings of a name meet.
 const LETTERS: Record<string, string> = {
   "ي": "ی", // ي → ی
