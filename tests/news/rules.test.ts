@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { captionFor, checkDraft, overlapRatio } from "@/lib/news/rules";
+import { captionFor, checkDraft, overlapRatio, sequenceRatio } from "@/lib/news/rules";
 
 const SRC = {
   title: "بەغدا و کوەیت لاپەڕەیەکی نوێ",
@@ -10,6 +10,22 @@ describe("overlapRatio", () => {
   it("is 1 for a copy and 0 for unrelated text", () => {
     expect(overlapRatio(SRC.snippet, SRC.snippet)).toBe(1);
     expect(overlapRatio("Gold prices rose in Erbil markets this week", SRC.snippet)).toBe(0);
+  });
+  it("compares whole words in the short-text branch, not a substring", () => {
+    // "ئاو" is a substring of "ئاوارەکان" but is not the same word.
+    expect(overlapRatio("ئاو", "کەمپی ئاوارەکان")).toBe(0);
+    expect(overlapRatio("ئاوارەکان", "کەمپی ئاوارەکان")).toBe(1);
+  });
+});
+
+describe("sequenceRatio", () => {
+  it("is the longest common subsequence over the text's word count", () => {
+    expect(sequenceRatio(SRC.title, SRC.title)).toBe(1);
+    expect(sequenceRatio("Gold prices rose", SRC.snippet)).toBe(0);
+  });
+  it("is 0 when either side is empty", () => {
+    expect(sequenceRatio("", SRC.title)).toBe(0);
+    expect(sequenceRatio(SRC.title, "")).toBe(0);
   });
 });
 
@@ -27,6 +43,32 @@ describe("checkDraft", () => {
     expect(checkDraft({ headline: "", body: "x" }, SRC).map((p) => p.code)).toContain("EMPTY");
     expect(checkDraft({ headline: "ا".repeat(121), body: "x" }, SRC).map((p) => p.code)).toContain("HEADLINE_LONG");
     expect(checkDraft({ headline: "x", body: "ب".repeat(601) }, SRC).map((p) => p.code)).toContain("BODY_LONG");
+  });
+  it("blocks a headline copied verbatim from the source title, even with an own body", () => {
+    const d = {
+      headline: SRC.title,
+      body: "هەولێر شارێکی زۆر کۆن و مێژووییە کە هەزاران گەشتیار ساڵانە سەردانی ئەم شارە بەناوبانگە دەکەن",
+    };
+    expect(checkDraft(d, SRC).map((p) => p.code)).toContain("COPY");
+  });
+  it("blocks a near-copy body that only changes a few words", () => {
+    const d = {
+      headline: "هەواڵێکی گرنگ لە هەرێم",
+      body: "عێراق و کوەیت لەبارەی پێکهێنانی لیژنەیەکی هاوبەش بۆ چارەسەرکردنی دۆسیە هەڵپەسێردراوەکان ڕێککەوتوون",
+    };
+    expect(checkDraft(d, SRC).map((p) => p.code)).toContain("COPY");
+  });
+  it("passes a genuinely restated Kurdish draft of the same story", () => {
+    const d = {
+      headline: "عێراق و کوەیت لەسەر دۆسیەی ئاوارەکان ڕێککەوتن",
+      body: "وەزارەتی دەرەوەی عێراق ڕایگەیاند کە لەگەڵ کوەیت لیژنەیەکی هاوبەشیان پێکهێناوە بۆ چارەسەرکردنی کێشە کۆنەکانی نێوان هەردوو وڵات",
+    };
+    expect(checkDraft(d, SRC).map((p) => p.code)).not.toContain("COPY");
+  });
+  it("does not flag a short draft as COPY from a partial-word match in the source", () => {
+    const d = { headline: "هەولێر ئاو", body: "هەولێر ئاو" };
+    const src = { title: "دۆزینەوەی کەمپی ئاوارەکان", snippet: "" };
+    expect(checkDraft(d, src).map((p) => p.code)).not.toContain("COPY");
   });
 });
 

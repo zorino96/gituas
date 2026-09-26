@@ -1,13 +1,30 @@
 // Text helpers shared by sources, clustering and the legal rules. Pure
 // functions only: the editor imports the rules in the browser too.
 
-const NAMED: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+const NAMED: Record<string, string> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+  nbsp: " ",
+  hellip: "…", // …
+  rsquo: "’", // ’
+  lsquo: "‘", // ‘
+  ldquo: "“", // “
+  rdquo: "”", // ”
+  laquo: "«", // «
+  raquo: "»", // »
+  ndash: "–", // –
+  mdash: "—", // —
+  zwnj: "‌", // zero-width non-joiner
+};
 
 function decodeEntity(name: string): string | null {
   if (name[0] === "#") {
     const hex = name[1] === "x" || name[1] === "X";
     const code = parseInt(name.slice(hex ? 2 : 1), hex ? 16 : 10);
-    return Number.isFinite(code) ? String.fromCodePoint(code) : null;
+    return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : null;
   }
   return NAMED[name.toLowerCase()] ?? null;
 }
@@ -16,7 +33,7 @@ function decodeEntity(name: string): string | null {
 export function stripHtml(s: string): string {
   return s
     .replace(/<[^>]*>/g, " ")
-    .replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (m, name: string) => decodeEntity(name) ?? m)
+    .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, name: string) => decodeEntity(name) ?? m)
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -42,6 +59,7 @@ const LETTER_RE = new RegExp(`[${Object.keys(LETTERS).join("")}]`, "g");
 /** For matching only: lower case, no diacritics, one spelling per letter, ASCII digits, no punctuation. */
 export function normalizeForMatch(s: string): string {
   return s
+    .replace(/[‌‍]/g, "")
     .toLowerCase()
     .replace(DIACRITICS, "")
     .replace(LETTER_RE, (c) => LETTERS[c])
@@ -81,10 +99,14 @@ export function guessLang(s: string): string {
   return "en";
 }
 
-/** True when the text contains any keyword; no keywords lets everything through. */
+const ASCII_WORD = /^[a-z0-9 ]+$/;
+
+/** True when the text contains any keyword; no keywords lets everything through.
+ * An all-ASCII keyword must start a word (so "us" doesn't match inside "business");
+ * a keyword with other script (e.g. Kurdish suffixes) keeps plain substring matching. */
 export function matchesKeywords(text: string, keywords: string[]): boolean {
   const ks = keywords.map(normalizeForMatch).filter(Boolean);
   if (!ks.length) return true;
   const t = normalizeForMatch(text);
-  return ks.some((k) => t.includes(k));
+  return ks.some((k) => (ASCII_WORD.test(k) ? (" " + t).includes(" " + k) : t.includes(k)));
 }

@@ -11,6 +11,7 @@ export class LimitReached extends Error {
     readonly limit: number,
   ) {
     super(`${metric} limit of ${limit} reached`);
+    this.name = "LimitReached";
   }
 }
 
@@ -20,13 +21,14 @@ export function limitMessage(e: LimitReached): string {
   return `سنووری ${LABEL[e.metric]}ی ئەم مانگە (${new Intl.NumberFormat("ar-IQ").format(e.limit)}) تەواو بوو. بۆ زیاتر، پاکێجەکەت بەرز بکەرەوە.`;
 }
 
-/** Throws LimitReached when this month's count has reached the plan's quota. */
+/** Throws LimitReached when this month's count has reached the plan's quota, or when the tenant does not exist. */
 export async function assertWithin(tenantId: string, metric: Metric): Promise<void> {
   const [tenant, row] = await Promise.all([
     db.tenant.findUnique({ where: { id: tenantId }, select: { plan: true } }),
     db.usage.findUnique({ where: { tenantId_month_metric: { tenantId, month: monthKey(), metric } }, select: { count: true } }),
   ]);
-  const limit = NEWS_LIMITS[tenant?.plan ?? "MANUAL"][metric];
+  if (!tenant) throw new LimitReached(metric, 0);
+  const limit = NEWS_LIMITS[tenant.plan][metric];
   if ((row?.count ?? 0) >= limit) throw new LimitReached(metric, limit);
 }
 

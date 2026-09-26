@@ -1,5 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { parseFeed } from "@/lib/news/sources/rss";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { fetchFeed, parseFeed } from "@/lib/news/sources/rss";
+
+afterEach(() => vi.unstubAllGlobals());
 
 const NOW = new Date("2026-09-26T12:00:00Z");
 
@@ -44,5 +46,31 @@ describe("parseFeed", () => {
   it("returns nothing for something that is not a feed", () => {
     expect(parseFeed("<html><body>hi</body></html>", "X", NOW)).toEqual([]);
     expect(parseFeed("not xml <<<", "X", NOW)).toEqual([]);
+  });
+  it("keeps a numeric-looking title as a string instead of a number", () => {
+    const xml = `<rss><channel><item><title>0.10</title><link>https://example.com/n</link></item></channel></rss>`;
+    expect(parseFeed(xml, "X", NOW).map((i) => i.title)).toEqual(["0.10"]);
+  });
+});
+
+describe("fetchFeed", () => {
+  it("decodes a windows-1256 body using the charset from the Content-Type header", async () => {
+    const head = new TextEncoder().encode('<rss><channel><item><title>');
+    // "عراق" (Iraq) encoded as windows-1256 bytes.
+    const word = new Uint8Array([0xda, 0xd1, 0xc7, 0xde]);
+    const tail = new TextEncoder().encode("</title><link>https://example.com/1</link></item></channel></rss>");
+    const body = new Uint8Array(head.length + word.length + tail.length);
+    body.set(head, 0);
+    body.set(word, head.length);
+    body.set(tail, head.length + word.length);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(body, { status: 200, headers: { "content-type": "application/rss+xml; charset=windows-1256" } }),
+      ),
+    );
+    const items = await fetchFeed("https://example.com/feed", "Test");
+    expect(items).toHaveLength(1);
+    expect(items[0].title).toBe("عراق");
   });
 });

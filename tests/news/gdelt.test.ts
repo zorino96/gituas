@@ -1,5 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { gdeltUrl, parseGdelt } from "@/lib/news/sources/gdelt";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { RateLimited, fetchGdelt, gdeltUrl, parseGdelt } from "@/lib/news/sources/gdelt";
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("gdeltUrl", () => {
   it("ORs the keywords and quotes phrases", () => {
@@ -37,5 +39,29 @@ describe("parseGdelt", () => {
   it("returns nothing for an empty answer", () => {
     expect(parseGdelt({})).toEqual([]);
     expect(parseGdelt(null)).toEqual([]);
+  });
+  it("drops an item whose URL is not http(s), without throwing", () => {
+    expect(() => parseGdelt({ articles: [{ url: "javascript:alert(1)", title: "bad" }] })).not.toThrow();
+    expect(parseGdelt({ articles: [{ url: "javascript:alert(1)", title: "bad" }] })).toEqual([]);
+  });
+  it("never throws deriving a hostname from a URL that passes the prefix check but fails to parse", () => {
+    const items = parseGdelt({ articles: [{ url: "https://", title: "weird", domain: "" }] });
+    expect(items).toHaveLength(1);
+    expect(items[0].sourceName).toBe("");
+  });
+});
+
+describe("fetchGdelt", () => {
+  it("gives RateLimited the name RateLimited", () => {
+    expect(new RateLimited("slow down").name).toBe("RateLimited");
+  });
+  it("throws the body snippet when the reply is not JSON", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("Invalid query syntax", { status: 200 })));
+    await expect(fetchGdelt(["x"])).rejects.toThrow("Invalid query syntax");
+  });
+  it("lets a parseGdelt error propagate as itself, instead of being swallowed as a JSON.parse failure", async () => {
+    // Valid JSON, but a shape parseGdelt cannot handle: articles.filter throws a TypeError.
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ articles: "oops" }), { status: 200 })));
+    await expect(fetchGdelt(["x"])).rejects.toThrow(/is not a function/);
   });
 });

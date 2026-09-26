@@ -9,6 +9,7 @@ const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@",
   isArray: (name) => name === "item" || name === "entry" || name === "link",
+  parseTagValue: false,
 });
 
 function text(v: unknown): string {
@@ -58,6 +59,27 @@ export function parseFeed(xml: string, sourceName: string, now = new Date()): Ra
   return out;
 }
 
+function charsetFromContentType(contentType: string | null): string | null {
+  const m = contentType?.match(/charset=([^;]+)/i);
+  return m ? m[1].trim().replace(/^["']|["']$/g, "") : null;
+}
+
+/** The XML prolog is always ASCII-safe even when the document body isn't, so a byte-preserving decode is safe to sniff it. */
+function charsetFromXmlProlog(buf: ArrayBuffer): string | null {
+  const head = new TextDecoder("iso-8859-1").decode(buf.slice(0, 200));
+  const m = head.match(/<\?xml[^>]*\sencoding=["']([^"']+)["']/i);
+  return m ? m[1] : null;
+}
+
+/** Falls back to utf-8 when the label is missing or not one TextDecoder knows. */
+function decodeBody(buf: ArrayBuffer, label: string | null): string {
+  try {
+    return new TextDecoder(label || "utf-8").decode(buf);
+  } catch {
+    return new TextDecoder("utf-8").decode(buf);
+  }
+}
+
 /** Fetch and parse one feed. Throws when the URL does not answer with a feed. */
 export async function fetchFeed(url: string, sourceName: string): Promise<RawItem[]> {
   const res = await fetch(url, {
@@ -69,7 +91,9 @@ export async function fetchFeed(url: string, sourceName: string): Promise<RawIte
     signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const body = await res.text();
+  const buf = await res.arrayBuffer();
+  const charset = charsetFromContentType(res.headers.get("content-type")) ?? charsetFromXmlProlog(buf);
+  const body = decodeBody(buf, charset);
   if (!/<(rss|feed|rdf:RDF)[\s>]/i.test(body)) throw new Error("not an RSS or Atom feed");
   return parseFeed(body, sourceName);
 }

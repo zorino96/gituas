@@ -1,7 +1,7 @@
 // The legal rules of the news desk, enforced in code (spec: "Legal rules").
 // Pure: the editor runs checkDraft live in the browser, and the server runs it
 // again before a card is accepted.
-import { normalizeForMatch, shingles, words } from "./text";
+import { shingles, words } from "./text";
 
 export const LIMITS = { headline: 120, body: 600 } as const;
 
@@ -22,13 +22,34 @@ export function overlapRatio(text: string, source: string): number {
   const tw = words(text);
   const sw = words(source);
   if (!tw.length || !sw.length) return 0;
-  if (tw.length < N) return normalizeForMatch(source).includes(tw.join(" ")) ? 1 : 0;
+  if (tw.length < N) return (" " + sw.join(" ") + " ").includes(" " + tw.join(" ") + " ") ? 1 : 0;
   const a = shingles(tw, N);
   const b = shingles(sw, N);
   let shared = 0;
   for (const s of a) if (b.has(s)) shared++;
   return shared / a.size;
 }
+
+function lcsLength(a: string[], b: string[]): number {
+  const dp: number[][] = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+/** Longest common subsequence of the two word lists, as a share of the text's word count. 0 when either is empty. */
+export function sequenceRatio(text: string, source: string): number {
+  const tw = words(text);
+  const sw = words(source);
+  if (!tw.length || !sw.length) return 0;
+  return lcsLength(tw, sw) / tw.length;
+}
+
+const HEADLINE_SEQ_RATIO = 0.8;
+const BODY_SEQ_RATIO = 0.6;
 
 /** Every problem blocks publishing until the editor fixes it. */
 export function checkDraft(d: { headline: string; body: string }, src: { title: string; snippet: string }): Problem[] {
@@ -38,7 +59,12 @@ export function checkDraft(d: { headline: string; body: string }, src: { title: 
   if (!headline || !body) out.push({ code: "EMPTY", message: "سەردێڕ و دەق هەردووکیان پێویستن." });
   if ([...headline].length > LIMITS.headline) out.push({ code: "HEADLINE_LONG", message: `سەردێڕ لە ${ku(LIMITS.headline)} پیت درێژترە.` });
   if ([...body].length > LIMITS.body) out.push({ code: "BODY_LONG", message: `دەق لە ${ku(LIMITS.body)} پیت درێژترە.` });
-  if (overlapRatio(`${headline} ${body}`, `${src.title} ${src.snippet}`) >= COPY_RATIO) {
+  const sourceText = `${src.title} ${src.snippet}`;
+  const isCopy =
+    overlapRatio(`${headline} ${body}`, sourceText) >= COPY_RATIO ||
+    (words(headline).length >= 3 && sequenceRatio(headline, src.title) >= HEADLINE_SEQ_RATIO) ||
+    (words(body).length >= 4 && sequenceRatio(body, sourceText) >= BODY_SEQ_RATIO);
+  if (isCopy) {
     out.push({ code: "COPY", message: "ئەم دەقە زۆر لە دەقی سەرچاوەکە دەچێت. بە وشەی خۆت بینووسەوە." });
   }
   return out;

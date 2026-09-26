@@ -22,6 +22,14 @@ describe("clusterKeyFor", () => {
     const item = { url: "https://c.example/new", title: "Something else entirely", lang: "en", publishedAt: t0 };
     expect(clusterKeyFor(item, recent)).toBe(clusterKeyFor(item, []));
   });
+  it("joins the recent item with the best score, not just the first match at or above the threshold", () => {
+    const item = { url: "https://b.example/w", title: "Earthquake of 4.2 hits Duhok border area today", lang: "en", publishedAt: t0 };
+    const candidates = [
+      { title: "Duhok border area hits today", lang: "en", publishedAt: t0, clusterKey: "cLow" },
+      { title: "Earthquake of 4.2 hits Duhok border area", lang: "en", publishedAt: t0, clusterKey: "cHigh" },
+    ];
+    expect(clusterKeyFor(item, candidates)).toBe("cHigh");
+  });
 });
 
 describe("groupByCluster", () => {

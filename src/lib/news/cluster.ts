@@ -30,12 +30,18 @@ function titleWords(title: string): string[] {
  */
 export function clusterKeyFor(item: Titled & { url: string }, recent: Array<Titled & { clusterKey: string }>): string {
   const mine = titleWords(item.title);
+  let bestKey: string | null = null;
+  let bestScore = 0;
   for (const r of recent) {
     if (r.lang !== item.lang) continue;
     if (Math.abs(r.publishedAt.getTime() - item.publishedAt.getTime()) > WINDOW_MS) continue;
-    if (jaccard(mine, titleWords(r.title)) >= THRESHOLD) return r.clusterKey;
+    const score = jaccard(mine, titleWords(r.title));
+    if (score >= THRESHOLD && score > bestScore) {
+      bestScore = score;
+      bestKey = r.clusterKey;
+    }
   }
-  return `c${fnv1a(item.url)}`;
+  return bestKey ?? `c${fnv1a(item.url)}`;
 }
 
 /** One row per story, in input order: the first item seen is the lead. */

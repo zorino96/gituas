@@ -6,7 +6,12 @@ import { guessLang, stripHtml } from "../text";
 
 const BASE = "https://api.gdeltproject.org/api/v2/doc/doc";
 
-export class RateLimited extends Error {}
+export class RateLimited extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RateLimited";
+  }
+}
 
 interface GdeltArticle {
   url?: string;
@@ -40,8 +45,21 @@ function parseSeen(s?: string): Date {
   return m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6])) : new Date();
 }
 
+const URL_RE = /^https?:\/\//i;
+
+/** Never throws on a malformed URL; falls back to "". */
+function hostnameOf(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+}
+
 export function parseGdelt(json: unknown): RawItem[] {
-  const articles = ((json as { articles?: GdeltArticle[] } | null)?.articles ?? []).filter((a) => a.url && a.title);
+  const articles = ((json as { articles?: GdeltArticle[] } | null)?.articles ?? []).filter(
+    (a) => a.url && a.title && URL_RE.test(a.url),
+  );
   return articles.map((a) => {
     const title = stripHtml(a.title!);
     return {
@@ -50,7 +68,7 @@ export function parseGdelt(json: unknown): RawItem[] {
       snippet: "",
       publishedAt: parseSeen(a.seendate),
       lang: LANG[(a.language ?? "").toLowerCase()] ?? guessLang(title),
-      sourceName: a.domain || new URL(a.url!).hostname,
+      sourceName: a.domain || hostnameOf(a.url!),
     };
   });
 }
@@ -62,9 +80,11 @@ export async function fetchGdelt(keywords: string[]): Promise<RawItem[]> {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const body = await res.text();
   // A bad query comes back as a plain-text sentence, not JSON.
+  let json: unknown;
   try {
-    return parseGdelt(JSON.parse(body));
+    json = JSON.parse(body);
   } catch {
     throw new Error(body.slice(0, 160) || "empty answer");
   }
+  return parseGdelt(json);
 }

@@ -8,6 +8,19 @@ describe("stripHtml", () => {
   it("decodes numeric entities", () => {
     expect(stripHtml("A&#39;s &#x41;")).toBe("A's A");
   });
+  it("does not throw on an out-of-range numeric entity, and leaves it alone", () => {
+    expect(() => stripHtml("x &#99999999; y")).not.toThrow();
+    expect(stripHtml("x &#99999999; y")).toBe("x &#99999999; y");
+  });
+  it("does not let a decimal entity absorb a stray hex letter", () => {
+    // "&#3f;" is only valid as hex with an x-prefix; it must not be parsed as decimal "3".
+    expect(stripHtml("value &#3f; end")).toBe("value &#3f; end");
+  });
+  it("decodes the additional named entities", () => {
+    expect(stripHtml("&lsquo;hi&rsquo; &ldquo;yo&rdquo; &laquo;x&raquo; A&ndash;B A&mdash;B&hellip;")).toBe(
+      "‘hi’ “yo” «x» A–B A—B…",
+    );
+  });
 });
 
 describe("normalizeForMatch", () => {
@@ -17,6 +30,10 @@ describe("normalizeForMatch", () => {
   });
   it("turns Eastern Arabic digits into ASCII and drops punctuation", () => {
     expect(normalizeForMatch("٢٠٢٦، هەولێر!")).toBe(normalizeForMatch("2026 هەولێر"));
+  });
+  it("removes zero-width joiners so a suffixed word stays one word", () => {
+    expect(normalizeForMatch("کوردستان‌ی")).toBe(normalizeForMatch("کوردستانی"));
+    expect(normalizeForMatch("کورد‍ستان")).toBe(normalizeForMatch("کوردستان"));
   });
 });
 
@@ -44,5 +61,9 @@ describe("matchesKeywords", () => {
     expect(matchesKeywords("نرخی ئاڵتوون لە هەولێری پایتەخت", ["هەولێر"])).toBe(true);
     expect(matchesKeywords("نرخی ئاڵتوون", ["دهۆک"])).toBe(false);
     expect(matchesKeywords("anything", [])).toBe(true);
+  });
+  it("requires an all-ASCII keyword to match at a word start", () => {
+    expect(matchesKeywords("this is our business plan", ["us"])).toBe(false);
+    expect(matchesKeywords("the US embassy said", ["us"])).toBe(true);
   });
 });

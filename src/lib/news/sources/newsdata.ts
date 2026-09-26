@@ -15,17 +15,36 @@ interface NdResult {
 
 const LANG: Record<string, string> = { arabic: "ar", english: "en", kurdish: "ku", ar: "ar", en: "en", ku: "ku" };
 
+const URL_RE = /^https?:\/\//i;
+
+/** Never throws on a malformed URL; falls back to "". */
+function hostnameOf(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+}
+
 export function newsdataConfigured(): boolean {
   return !!process.env.NEWSDATA_API_KEY;
 }
 
+/** Builds q from whole keywords only, never cutting one, and never leaves a trailing " OR". */
 export function newsdataUrl(key: string, keywords: string[]): string {
-  const q = keywords.map((k) => k.trim()).filter(Boolean).join(" OR ").slice(0, 100);
+  const terms = keywords.map((k) => k.trim()).filter(Boolean).map((k) => (/\s/.test(k) ? `"${k}"` : k));
+  let q = "";
+  for (const t of terms) {
+    const candidate = q ? `${q} OR ${t}` : t;
+    if (candidate.length <= 100) q = candidate;
+  }
   return `https://newsdata.io/api/1/latest?${new URLSearchParams({ apikey: key, q, language: "ar,en" })}`;
 }
 
 export function parseNewsdata(json: unknown): RawItem[] {
-  const results = ((json as { results?: NdResult[] } | null)?.results ?? []).filter((r) => r.title && r.link);
+  const results = ((json as { results?: NdResult[] } | null)?.results ?? []).filter(
+    (r) => r.title && r.link && URL_RE.test(r.link),
+  );
   return results.map((r) => {
     const title = stripHtml(r.title!);
     const snippet = stripHtml(r.description ?? "").slice(0, 500);
@@ -36,7 +55,7 @@ export function parseNewsdata(json: unknown): RawItem[] {
       snippet,
       publishedAt: Number.isFinite(t) ? new Date(t) : new Date(),
       lang: LANG[(r.language ?? "").toLowerCase()] ?? guessLang(title),
-      sourceName: r.source_name || r.source_id || new URL(r.link!).hostname,
+      sourceName: r.source_name || r.source_id || hostnameOf(r.link!),
     };
   });
 }

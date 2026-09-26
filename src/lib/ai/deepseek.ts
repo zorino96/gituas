@@ -9,7 +9,8 @@ export function deepseekConfigured(): boolean {
   return !!process.env.DEEPSEEK_API_KEY;
 }
 
-export async function deepseekJson({ system, user, strength }: JsonCall): Promise<JsonResult> {
+/** timeoutMs is the caller's to choose: completeJson budgets it against the overall deadline. */
+export async function deepseekJson({ system, user, strength }: JsonCall, timeoutMs: number): Promise<JsonResult> {
   const model = DEEPSEEK_MODELS[strength];
   const res = await fetch(ENDPOINT, {
     method: "POST",
@@ -23,11 +24,14 @@ export async function deepseekJson({ system, user, strength }: JsonCall): Promis
         { role: "user", content: user },
       ],
     }),
-    // The strong model reasons first (~8 s); both stay inside Vercel's 60 s.
-    signal: AbortSignal.timeout(strength === "strong" ? 50_000 : 25_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const body = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(`HTTP ${res.status} ${JSON.stringify(body?.error ?? body ?? "").slice(0, 200)}`);
+  if (!res.ok) {
+    // Never echo the provider's free-text message: it can quote back part of the request, including the key.
+    const code = body?.error?.type ?? body?.error?.code ?? "unknown";
+    throw new Error(`HTTP ${res.status} ${code}`);
+  }
   const content = body?.choices?.[0]?.message?.content;
   if (typeof content !== "string") throw new Error("empty reply");
   return { data: JSON.parse(content), model: body.model ?? model };
