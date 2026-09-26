@@ -16,24 +16,64 @@ import {
 import { fromFb, fromIg } from "@/lib/merchant/normalize";
 import type { MConversation, MPost } from "@/lib/merchant/types";
 
+export type Kind = "MERCHANT" | "NEWS";
+
 export interface Workspace {
   id: string;
   slug: string;
   name: string;
   whatsappNumber: string | null;
-  kind: "MERCHANT" | "NEWS";
+  kind: Kind;
   kindChosen: boolean;
 }
+
+const WORKSPACE_SELECT = { id: true, slug: true, name: true, whatsappNumber: true, kind: true, kindChosen: true } as const;
 
 export async function currentWorkspace(): Promise<Workspace | null> {
   const session = await auth();
   if (!session?.user?.id) return null;
-  const select = { id: true, slug: true, name: true, whatsappNumber: true, kind: true, kindChosen: true } as const;
-  const found = await db.tenant.findFirst({ where: { ownerId: session.user.id }, select });
+  const found = await db.tenant.findFirst({ where: { ownerId: session.user.id }, select: WORKSPACE_SELECT });
   if (found) return found;
   // Every signed-in person gets a workspace, however they signed up.
   const { id } = await ensureWorkspace(session.user.id, session.user.name);
-  return db.tenant.findUnique({ where: { id }, select });
+  return db.tenant.findUnique({ where: { id }, select: WORKSPACE_SELECT });
+}
+
+/** `/app` for a shop, `/newsroom` for a channel — the base every shared link hangs off. */
+export function baseFor(kind: Kind): "/app" | "/newsroom" {
+  return kind === "NEWS" ? "/newsroom" : "/app";
+}
+
+const DEFAULT_SHOP_NAME = "دووکانەکەم";
+const DEFAULT_NEWS_NAME = "کەناڵەکەم";
+
+/**
+ * Claim a still-unclaimed workspace as a shop or a channel — the first
+ * surface a new account opens decides it. Claiming NEWS also creates the
+ * desk settings and the GDELT source, and renames the workspace if it still
+ * has the generic shop name. Already-claimed workspaces are returned as-is.
+ */
+export async function claimKind(ws: Workspace, kind: Kind): Promise<Workspace> {
+  if (ws.kindChosen) return ws;
+  try {
+    const rename = kind === "NEWS" && ws.name === DEFAULT_SHOP_NAME;
+    const updated = await db.tenant.update({
+      where: { id: ws.id },
+      data: { kind, kindChosen: true, ...(rename ? { name: DEFAULT_NEWS_NAME } : {}) },
+      select: WORKSPACE_SELECT,
+    });
+    if (kind === "NEWS") {
+      await db.newsSettings.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, keywords: [] }, update: {} });
+      await db.newsSource.upsert({
+        where: { tenantId_catalogId: { tenantId: ws.id, catalogId: "gdelt" } },
+        create: { tenantId: ws.id, catalogId: "gdelt", name: "GDELT" },
+        update: {},
+      });
+    }
+    return updated;
+  } catch {
+    return ws;
+  }
 }
 
 export type Provider = "META_FACEBOOK" | "META_INSTAGRAM" | "TIKTOK";
