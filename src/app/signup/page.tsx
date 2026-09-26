@@ -18,7 +18,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
   if (await auth()) redirect(next);
   return (
     <div className={`gm ${gmFontVars}`} dir="rtl" lang="ckb">
-      <SignupForm next={next} googleEnabled={googleEnabled} />
+      <SignupForm next={next} googleEnabled={googleEnabled} product={next.startsWith("/newsroom") ? "newsroom" : "shop"} />
     </div>
   );
 }

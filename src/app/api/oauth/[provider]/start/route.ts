@@ -25,7 +25,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
   // surfaces are allowed, so this can never become an open redirect.
   const next = new URL(req.url).searchParams.get("next");
   const returnTo =
-    next && !next.includes("..") && /^\/(app|dashboard)(\/|$)/.test(next) ? next : "/dashboard/integrations";
+    next && !next.includes("..") && /^\/(app|newsroom|dashboard)(\/|$)/.test(next) ? next : "/dashboard/integrations";
 
   try {
     const url = await buildAuthorizeUrl(upper, tenant.id, returnTo);

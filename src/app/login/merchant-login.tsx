@@ -5,18 +5,22 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { Eye, EyeOff } from "lucide-react";
 
-/** Sign-in for the merchant app: email and password, Google when configured, GitHub for the owner. */
+/** Sign-in for the merchant app or the newsroom: email and password, Google when configured, GitHub for the owner. */
 export function MerchantLogin({
   next,
   googleEnabled,
   resetEnabled,
   oauthError,
+  product = "shop",
 }: {
   next: string;
   googleEnabled: boolean;
   resetEnabled: boolean;
   oauthError?: string;
+  product?: "shop" | "newsroom";
 }) {
+  const brand = product === "newsroom" ? "گیتواس نیوزڕووم" : "گیتواس";
+  const subtitle = product === "newsroom" ? "بچۆ ژوورەوە بۆ ژووری هەواڵی کەناڵەکەت." : "بچۆ ژوورەوە بۆ کۆمێنت، نامە و بڵاوکردنەوەی دووکانەکەت.";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
@@ -46,8 +50,8 @@ export function MerchantLogin({
 
   return (
     <div className="gm-auth">
-      <p className="gm-brand kufi">گیتواس</p>
-      <p className="gm-sub" style={{ marginTop: 4 }}>بچۆ ژوورەوە بۆ کۆمێنت، نامە و بڵاوکردنەوەی دووکانەکەت.</p>
+      <p className="gm-brand kufi">{brand}</p>
+      <p className="gm-sub" style={{ marginTop: 4 }}>{subtitle}</p>
 
       <div className="gm-card" style={{ marginTop: 18 }}>
         {googleEnabled && (

@@ -29,12 +29,19 @@ export default async function LoginPage({
   const session = await auth();
   if (session) redirect(next);
 
-  // Merchants (and anyone heading into the app) get the Kurdish sign-in with
-  // email, Google and sign-up. The operator dashboard keeps its GitHub card.
-  if (next.startsWith("/app")) {
+  // Merchants and channels (anyone heading into the app or the newsroom) get
+  // the Kurdish sign-in with email, Google and sign-up. The operator
+  // dashboard keeps its GitHub card.
+  if (next.startsWith("/app") || next.startsWith("/newsroom")) {
     return (
       <div className={`gm ${gmFontVars}`} dir="rtl" lang="ckb">
-        <MerchantLogin next={next} googleEnabled={googleEnabled} resetEnabled={emailEnabled} oauthError={sp.error} />
+        <MerchantLogin
+          next={next}
+          googleEnabled={googleEnabled}
+          resetEnabled={emailEnabled}
+          oauthError={sp.error}
+          product={next.startsWith("/newsroom") ? "newsroom" : "shop"}
+        />
       </div>
     );
   }

@@ -16,7 +16,7 @@ export default async function ForgotPage({ searchParams }: { searchParams: Promi
   const next = safeNext((await searchParams).next);
   return (
     <div className={`gm ${gmFontVars}`} dir="rtl" lang="ckb">
-      <ForgotForm next={next} enabled={emailEnabled} />
+      <ForgotForm next={next} enabled={emailEnabled} product={next.startsWith("/newsroom") ? "newsroom" : "shop"} />
     </div>
   );
 }

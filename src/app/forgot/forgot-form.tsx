@@ -9,7 +9,16 @@ import { requestResetAction, resetPasswordAction } from "./actions";
 
 const RESEND_WAIT_S = 60;
 
-export function ForgotForm({ next, enabled }: { next: string; enabled: boolean }) {
+export function ForgotForm({
+  next,
+  enabled,
+  product = "shop",
+}: {
+  next: string;
+  enabled: boolean;
+  product?: "shop" | "newsroom";
+}) {
+  const brand = product === "newsroom" ? "گیتواس نیوزڕووم" : "گیتواس";
   const [email, setEmail] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [code, setCode] = useState("");
@@ -71,7 +80,7 @@ export function ForgotForm({ next, enabled }: { next: string; enabled: boolean }
   if (!enabled) {
     return (
       <div className="gm-auth">
-        <p className="gm-brand kufi">گیتواس</p>
+        <p className="gm-brand kufi">{brand}</p>
         <div className="gm-card" style={{ marginTop: 18 }}>
           <p style={{ margin: 0 }}>ئەم خزمەتگوزارییە ئێستا بەردەست نییە.</p>
         </div>
@@ -83,7 +92,7 @@ export function ForgotForm({ next, enabled }: { next: string; enabled: boolean }
   if (!sentTo) {
     return (
       <div className="gm-auth">
-        <p className="gm-brand kufi">گیتواس</p>
+        <p className="gm-brand kufi">{brand}</p>
         <p className="gm-sub" style={{ marginTop: 4 }}>ئیمەیڵی هەژمارەکەت بنووسە، کۆدێکت بۆ دەنێرین بۆ دانانی وشەی نهێنیی نوێ.</p>
         <div className="gm-card" style={{ marginTop: 18 }}>
           <form
@@ -110,7 +119,7 @@ export function ForgotForm({ next, enabled }: { next: string; enabled: boolean }
 
   return (
     <div className="gm-auth">
-      <p className="gm-brand kufi">گیتواس</p>
+      <p className="gm-brand kufi">{brand}</p>
       <p className="gm-sub" style={{ marginTop: 4 }}>
         ئەگەر هەژمارێک بە <bdi className="gm-ltr" dir="ltr">{sentTo}</bdi> هەبێت، کۆدێکی ٦ ژمارەییمان بۆ ناردووە.
       </p>

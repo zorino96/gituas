@@ -9,7 +9,20 @@ import { resendSignupCodeAction, signupAction, verifySignupAction } from "./acti
 
 const RESEND_WAIT_S = 60;
 
-export function SignupForm({ next, googleEnabled }: { next: string; googleEnabled: boolean }) {
+export function SignupForm({
+  next,
+  googleEnabled,
+  product = "shop",
+}: {
+  next: string;
+  googleEnabled: boolean;
+  product?: "shop" | "newsroom";
+}) {
+  const brand = product === "newsroom" ? "گیتواس نیوزڕووم" : "گیتواس";
+  const subtitle =
+    product === "newsroom"
+      ? "هەژمارێک بۆ کەناڵەکەت دروست بکە — هەواڵ، کارت و بڵاوکردنەوە لە یەک شوێن."
+      : "هەژمارێکی نوێ دروست بکە — کۆمێنت، نامە و بڵاوکردنەوە لە یەک شوێن.";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -86,7 +99,7 @@ export function SignupForm({ next, googleEnabled }: { next: string; googleEnable
   if (sentTo) {
     return (
       <div className="gm-auth">
-        <p className="gm-brand kufi">گیتواس</p>
+        <p className="gm-brand kufi">{brand}</p>
         <p className="gm-sub" style={{ marginTop: 4 }}>
           کۆدێکی ٦ ژمارەییمان نارد بۆ <bdi className="gm-ltr" dir="ltr">{sentTo}</bdi>. بینووسە بۆ تەواوکردنی تۆمارکردن.
         </p>
@@ -139,8 +152,8 @@ export function SignupForm({ next, googleEnabled }: { next: string; googleEnable
 
   return (
     <div className="gm-auth">
-      <p className="gm-brand kufi">گیتواس</p>
-      <p className="gm-sub" style={{ marginTop: 4 }}>هەژمارێکی نوێ دروست بکە — کۆمێنت، نامە و بڵاوکردنەوە لە یەک شوێن.</p>
+      <p className="gm-brand kufi">{brand}</p>
+      <p className="gm-sub" style={{ marginTop: 4 }}>{subtitle}</p>
 
       <div className="gm-card" style={{ marginTop: 18 }}>
         {googleEnabled && (
