@@ -56,7 +56,7 @@ export default async function SettingsPage({
       connections={[
         { provider: "META_FACEBOOK", label: "فەیسبووک", note: "کۆمێنت، مەسنجەر، بڵاوکردنەوە و ئامار", ...conns.META_FACEBOOK },
         { provider: "META_INSTAGRAM", label: "ئینستاگرام", note: "کۆمێنت، دایرێکت، بڵاوکردنەوە و ئامار", ...conns.META_INSTAGRAM },
-        { provider: "TIKTOK", label: "تیکتۆک", note: "بڵاوکردنەوەی ڤیدیۆ", ...conns.TIKTOK },
+        { provider: "TIKTOK", label: "تیکتۆک", note: "بڵاوکردنەوەی ڤیدیۆ و وێنە", ...conns.TIKTOK },
       ]}
     />
   );
