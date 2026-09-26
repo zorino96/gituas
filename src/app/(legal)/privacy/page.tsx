@@ -10,7 +10,7 @@ export default function PrivacyPage() {
   return (
     <article>
       <h1 className="font-display text-4xl md:text-5xl leading-tight">Privacy Policy</h1>
-      <Updated date="June 11, 2026" />
+      <Updated date="September 27, 2026" />
 
       <Lead>
         Gituas (&ldquo;Gituas,&rdquo; &ldquo;we,&rdquo; &ldquo;us&rdquo;) is an autonomous

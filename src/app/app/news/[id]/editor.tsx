@@ -6,7 +6,7 @@ import { upload } from "@vercel/blob/client";
 import { ExternalLink, ImagePlus, Sparkles, Trash2 } from "lucide-react";
 
 import { NewsCard, CARD_H, CARD_W } from "@/lib/cards/templates";
-import { renderCardPng } from "@/lib/cards/render";
+import { renderCardJpeg } from "@/lib/cards/render";
 import { mediaSrc, type Brand } from "@/lib/cards/brand";
 import { checkDraft } from "@/lib/news/rules";
 import { CARD_KINDS, type CardKind } from "@/lib/news/types";
@@ -121,13 +121,17 @@ export function NewsEditor({ workspaceId, source, initial, brand }: { workspaceI
           photoPath: d.photoPath,
         });
         if (!saved.ok) throw new Error(saved.error);
+        await document.fonts.ready;
+        if (cardRef.current?.querySelector('[data-overflow="1"]')) {
+          throw new Error("دەقەکە بۆ کارتەکە درێژە. کورتی بکەرەوە.");
+        }
         setStage("کارت دروست دەکرێت…");
-        const png = await renderCardPng(cardRef.current!);
+        const jpeg = await renderCardJpeg(cardRef.current!);
         setStage("کارت بار دەکرێت…");
-        const blob = await upload(`merchant/${workspaceId}/news-card-${Date.now()}.png`, png, {
+        const blob = await upload(`merchant/${workspaceId}/news-card-${Date.now()}.jpg`, jpeg, {
           access: "public",
           handleUploadUrl: "/api/app/upload",
-          contentType: "image/png",
+          contentType: "image/jpeg",
         });
         const r = await attachCardAction(source.itemId, { url: blob.url, pathname: blob.pathname });
         if (!r.ok) throw new Error(r.error);
@@ -248,7 +252,7 @@ export function NewsEditor({ workspaceId, source, initial, brand }: { workspaceI
           </div>
 
           {error && <p className="gm-err" role="alert">{error}</p>}
-          <button type="button" className="gm-btn block" disabled={busy || !!problems.length || overflow} onClick={prepare}>
+          <button type="button" className="gm-btn block" disabled={busy || !!problems.length || overflow || photoProgress !== null} onClick={prepare}>
             {stage ?? "ئامادەکردن بۆ بڵاوکردنەوە"}
           </button>
           <p className="gm-hint">دوای ئەمە پەڕەی بڵاوکردنەوە دەکرێتەوە: شوێنەکان هەڵدەبژێریت و پەسەندی دەکەیت. هیچ شتێک بێ کلیکی تۆ بڵاو نابێتەوە.</p>

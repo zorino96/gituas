@@ -34,6 +34,7 @@ export function NewsSettings(p: NewsSettingsProps) {
   const [feedUrl, setFeedUrl] = useState("");
   const [feedName, setFeedName] = useState("");
   const [kit, setKit] = useState(p.kit);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, okText: string) =>
     start(async () => {
@@ -44,12 +45,21 @@ export function NewsSettings(p: NewsSettingsProps) {
 
   async function pickLogo(file: File) {
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) return setMsg({ ok: false, text: "تەنها PNG/JPG/WEBP." });
-    const blob = await upload(`merchant/${p.workspaceId}/logo-${Date.now()}.${file.type.split("/")[1]}`, file, {
-      access: "public",
-      handleUploadUrl: "/api/app/upload",
-      contentType: file.type,
-    });
-    setKit((k) => ({ ...k, logoPath: blob.pathname }));
+    setMsg(null);
+    setUploadingLogo(true);
+    try {
+      const blob = await upload(`merchant/${p.workspaceId}/logo-${Date.now()}.${file.type.split("/")[1]}`, file, {
+        access: "public",
+        handleUploadUrl: "/api/app/upload",
+        contentType: file.type,
+      });
+      setKit((k) => ({ ...k, logoPath: blob.pathname }));
+      setMsg({ ok: true, text: "لۆگۆ بارکرا. پاشەکەوتی براند بکە تا پاشەکەوت بێت." });
+    } catch (e) {
+      setMsg({ ok: false, text: `بارکردنی لۆگۆ سەرکەوتوو نەبوو: ${e instanceof Error ? e.message : "هەڵە"}` });
+    } finally {
+      setUploadingLogo(false);
+    }
   }
 
   return (
@@ -73,10 +83,13 @@ export function NewsSettings(p: NewsSettingsProps) {
               type="button"
               role="switch"
               aria-checked={c.enabled}
+              aria-label={c.name}
               className="gm-knob"
               disabled={pending}
               onClick={() => run(() => toggleCatalogSourceAction(c.id, !c.enabled), "گۆڕدرا.")}
-            />
+            >
+              <i />
+            </button>
           </div>
         ))}
         {p.feeds.map((f) => (
@@ -124,9 +137,15 @@ export function NewsSettings(p: NewsSettingsProps) {
             </button>
           ))}
         </div>
-        <label className="gm-btn quiet small" style={{ alignSelf: "flex-start" }}>
-          {kit.logoPath ? "گۆڕینی لۆگۆ" : "لۆگۆ"}
-          <input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => e.target.files?.[0] && pickLogo(e.target.files[0])} />
+        <label className="gm-btn quiet small" style={{ alignSelf: "flex-start", opacity: uploadingLogo ? 0.6 : 1, pointerEvents: uploadingLogo ? "none" : "auto" }}>
+          {uploadingLogo ? "بارکردن…" : kit.logoPath ? "گۆڕینی لۆگۆ" : "لۆگۆ"}
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            hidden
+            disabled={uploadingLogo}
+            onChange={(e) => e.target.files?.[0] && pickLogo(e.target.files[0])}
+          />
         </label>
         <div dir="ltr" style={{ width: PREVIEW_W, height: (CARD_H * PREVIEW_W) / CARD_W, overflow: "hidden", borderRadius: 10 }}>
           <div style={{ transform: `scale(${PREVIEW_W / CARD_W})`, transformOrigin: "top left", width: CARD_W, height: CARD_H }}>

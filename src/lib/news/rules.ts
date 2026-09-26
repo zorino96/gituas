@@ -70,7 +70,17 @@ export function checkDraft(d: { headline: string; body: string }, src: { title: 
   return out;
 }
 
+/** The "source: name\nurl" line every news post ends with. */
+export function attributionFor(source: { name: string; url: string }): string {
+  return `سەرچاوە: ${source.name}\n${source.url}`;
+}
+
 /** The post text for every platform: headline, body, then the source and its link. */
 export function captionFor(d: { headline: string; body: string }, source: { name: string; url: string }): string {
-  return `${d.headline.trim()}\n\n${d.body.trim()}\n\nسەرچاوە: ${source.name}\n${source.url}`;
+  return `${d.headline.trim()}\n\n${d.body.trim()}\n\n${attributionFor(source)}`;
+}
+
+/** The caption as typed, plus the source attribution — exactly what gets posted. */
+export function captionWithAttribution(caption: string, source: { name: string; url: string }): string {
+  return `${caption.trim()}\n\n${attributionFor(source)}`;
 }

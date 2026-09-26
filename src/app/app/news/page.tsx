@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { usageOf } from "@/lib/billing/limits";
 import { NEWS_LIMITS } from "@/lib/billing/plans";
+import { CATALOG } from "@/lib/news/catalog";
 import { groupByCluster } from "@/lib/news/cluster";
 import { ingest } from "@/lib/news/ingest";
 import { currentWorkspace } from "../data";
@@ -28,7 +29,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
 
   // Fetching is throttled to once per five minutes, so opening the desk is cheap.
   const ingestResult = await ingest(ws.id).catch(() => null);
-  const [items, sources, settings, tenant, drafts] = await Promise.all([
+  const [items, sources, settings, tenant, drafts, catalogSources] = await Promise.all([
     db.newsItem.findMany({
       where: { tenantId: ws.id, status: { in: [...tab.statuses] } },
       orderBy: { publishedAt: "desc" },
@@ -38,9 +39,11 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
     db.newsSettings.findUnique({ where: { tenantId: ws.id } }),
     db.tenant.findUnique({ where: { id: ws.id }, select: { plan: true } }),
     usageOf(ws.id, "draft"),
+    db.newsSource.findMany({ where: { tenantId: ws.id, enabled: true, catalogId: { not: null } }, select: { catalogId: true } }),
   ]);
   const groups = groupByCluster(items);
   const limit = NEWS_LIMITS[tenant?.plan ?? "MANUAL"].draft;
+  const attributions = CATALOG.filter((c) => catalogSources.some((s) => s.catalogId === c.id));
 
   return (
     <div className="gm-stack">
@@ -87,8 +90,19 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
       )}
 
       <p className="gm-hint">
-        ئامادەکراوی ئەم مانگە: {num(drafts)} / {num(limit)} · هەندێک هەواڵ لە ڕێگەی{" "}
-        <a href="https://www.gdeltproject.org/" className="gm-link" target="_blank" rel="noreferrer">GDELT Project</a>ەوە دێن.
+        ئامادەکراوی ئەم مانگە: {num(drafts)} / {num(limit)}
+        {attributions.length > 0 && (
+          <>
+            {" "}· هەندێک هەواڵ لە ڕێگەی{" "}
+            {attributions.map((a, i) => (
+              <span key={a.id}>
+                {i > 0 ? " و " : ""}
+                <a href={a.attribution.url} className="gm-link" target="_blank" rel="noreferrer">{a.attribution.label}</a>
+              </span>
+            ))}
+            ەوە دێن.
+          </>
+        )}
       </p>
     </div>
   );

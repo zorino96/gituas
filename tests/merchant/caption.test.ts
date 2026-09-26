@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { captionProblems, mergeHashtags, CITY_TAGS } from "@/lib/merchant/caption";
+import { captionProblems, isJpegPath, mergeHashtags, CITY_TAGS } from "@/lib/merchant/caption";
 
 describe("captionProblems", () => {
   it("passes a normal caption everywhere", () => {
@@ -12,6 +12,20 @@ describe("captionProblems", () => {
   it("flags more than 30 hashtags on Instagram", () => {
     const tags = Array.from({ length: 31 }, (_, i) => `#t${i}`).join(" ");
     expect(captionProblems(tags, ["IG"])).toEqual([{ target: "IG", problem: "hashtags" }]);
+  });
+});
+
+describe("isJpegPath", () => {
+  it("accepts .jpg and .jpeg, any case", () => {
+    expect(isJpegPath("merchant/x/card.jpg")).toBe(true);
+    expect(isJpegPath("merchant/x/card.jpeg")).toBe(true);
+    expect(isJpegPath("merchant/x/card.JPG")).toBe(true);
+    expect(isJpegPath("merchant/x/card.JPEG")).toBe(true);
+  });
+  it("rejects PNG, WebP and extension-less paths", () => {
+    expect(isJpegPath("merchant/x/card.png")).toBe(false);
+    expect(isJpegPath("merchant/x/card.webp")).toBe(false);
+    expect(isJpegPath("merchant/x/card")).toBe(false);
   });
 });
 

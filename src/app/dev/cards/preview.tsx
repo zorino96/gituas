@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 
 import { NewsCard, CARD_H, CARD_W } from "@/lib/cards/templates";
 import { brandFrom } from "@/lib/cards/brand";
-import { renderCardPng } from "@/lib/cards/render";
+import { renderCardJpeg } from "@/lib/cards/render";
 import type { CardKind } from "@/lib/news/types";
 
 const W = 260;
@@ -18,7 +18,7 @@ const SAMPLES: Array<{ kind: CardKind; headline: string; stat?: string; quote?: 
 
 export function CardsPreview() {
   const first = useRef<HTMLDivElement>(null);
-  const [png, setPng] = useState<string | null>(null);
+  const [jpeg, setJpeg] = useState<string | null>(null);
   return (
     <div dir="rtl">
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -35,12 +35,12 @@ export function CardsPreview() {
           </div>
         ))}
       </div>
-      <button type="button" style={{ marginTop: 12 }} onClick={async () => setPng(URL.createObjectURL(await renderCardPng(first.current!)))}>
-        PNG of the breaking card
+      <button type="button" style={{ marginTop: 12 }} onClick={async () => setJpeg(URL.createObjectURL(await renderCardJpeg(first.current!)))}>
+        JPEG of the breaking card
       </button>
-      {png && (
+      {jpeg && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={png} alt="rendered card" style={{ display: "block", width: W, marginTop: 12 }} />
+        <img src={jpeg} alt="rendered card" style={{ display: "block", width: W, marginTop: 12 }} />
       )}
     </div>
   );

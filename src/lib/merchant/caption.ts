@@ -23,6 +23,11 @@ export function captionProblems(caption: string, targets: readonly Target[]): { 
   return out;
 }
 
+/** TikTok and Instagram photo posts accept only JPEG (WebP works for TikTok, but not Instagram). */
+export function isJpegPath(pathname: string): boolean {
+  return /\.jpe?g$/i.test(pathname);
+}
+
 export function mergeHashtags(caption: string, tags: readonly string[]): string {
   const present = new Set(caption.match(HASHTAG) ?? []);
   const missing = tags.filter((t) => !present.has(t));

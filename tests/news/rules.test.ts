@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { captionFor, checkDraft, overlapRatio, sequenceRatio } from "@/lib/news/rules";
+import { attributionFor, captionFor, captionWithAttribution, checkDraft, overlapRatio, sequenceRatio } from "@/lib/news/rules";
 
 const SRC = {
   title: "بەغدا و کوەیت لاپەڕەیەکی نوێ",
@@ -76,6 +76,26 @@ describe("captionFor", () => {
   it("ends every caption with the source and its link", () => {
     expect(captionFor({ headline: " سەردێڕ ", body: "دەق " }, { name: "ڕووداو", url: "https://example.com/a" })).toBe(
       "سەردێڕ\n\nدەق\n\nسەرچاوە: ڕووداو\nhttps://example.com/a",
+    );
+  });
+});
+
+describe("attributionFor", () => {
+  it("is the source name and its link, on their own lines", () => {
+    expect(attributionFor({ name: "ڕووداو", url: "https://example.com/a" })).toBe("سەرچاوە: ڕووداو\nhttps://example.com/a");
+  });
+});
+
+describe("captionWithAttribution", () => {
+  it("appends the attribution to the typed caption, trimmed", () => {
+    expect(captionWithAttribution("  دەقێکی نوێ  ", { name: "ڕووداو", url: "https://example.com/a" })).toBe(
+      "دەقێکی نوێ\n\nسەرچاوە: ڕووداو\nhttps://example.com/a",
+    );
+  });
+  it("ignores whatever the client typed as its own suffix — it only ever appends the server's own line", () => {
+    const withFakeSuffix = "دەقێک\n\nسەرچاوە: هەڵە\nhttps://evil.example";
+    expect(captionWithAttribution(withFakeSuffix, { name: "ڕاستەقینە", url: "https://example.com/real" })).toBe(
+      `${withFakeSuffix}\n\nسەرچاوە: ڕاستەقینە\nhttps://example.com/real`,
     );
   });
 });

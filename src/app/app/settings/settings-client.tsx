@@ -4,10 +4,9 @@ import { useEffect, useState, useTransition } from "react";
 import { signOut } from "next-auth/react";
 
 import { normalizePhone } from "@/lib/merchant/phone";
-import { saveWhatsAppAction } from "../actions";
+import { saveWhatsAppAction, setTenantKindAction } from "../actions";
 import { PasswordCard } from "./password-card";
 import { NewsSettings, type NewsSettingsProps } from "./news-settings";
-import { setTenantKindAction } from "../actions";
 
 interface Conn {
   provider: "META_FACEBOOK" | "META_INSTAGRAM" | "TIKTOK";
@@ -56,6 +55,8 @@ export function SettingsClient({
   const [saved, setSaved] = useState<string | null>(whatsappNumber);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
+  const [kindPending, startKind] = useTransition();
+  const [kindError, setKindError] = useState<string | null>(null);
   const [origin, setOrigin] = useState("");
   useEffect(() => setOrigin(window.location.origin), []);
 
@@ -70,6 +71,16 @@ export function SettingsClient({
         setSaved(r.digits);
         setMessage({ ok: true, text: r.digits ? "پاشەکەوت کرا." : "ژمارەکە لابرا." });
       } else setMessage({ ok: false, text: r.error });
+    });
+  }
+
+  function toggleKind() {
+    if (!window.confirm("دڵنیایت؟ بەشەکانی ئەپەکە دەگۆڕێن.")) return;
+    setKindError(null);
+    startKind(async () => {
+      const r = await setTenantKindAction(kind === "NEWS" ? "MERCHANT" : "NEWS");
+      if (r.ok) window.location.href = kind === "NEWS" ? "/app" : "/app/news";
+      else setKindError(r.error);
     });
   }
 
@@ -153,17 +164,11 @@ export function SettingsClient({
       <p className="gm-sec">جۆری هەژمار</p>
       <div className="gm-card gm-row" style={{ justifyContent: "space-between" }}>
         <span>{kind === "NEWS" ? "پەیجی هەواڵ" : "دووکان"}</span>
-        <button
-          type="button"
-          className="gm-btn quiet small"
-          onClick={async () => {
-            const r = await setTenantKindAction(kind === "NEWS" ? "MERCHANT" : "NEWS");
-            if (r.ok) window.location.href = kind === "NEWS" ? "/app" : "/app/news";
-          }}
-        >
-          {kind === "NEWS" ? "بیکە بە دووکان" : "بیکە بە پەیجی هەواڵ"}
+        <button type="button" className="gm-btn quiet small" disabled={kindPending} onClick={toggleKind}>
+          {kindPending ? "…" : kind === "NEWS" ? "بیکە بە دووکان" : "بیکە بە پەیجی هەواڵ"}
         </button>
       </div>
+      {kindError && <p className="gm-err">{kindError}</p>}
 
       <p className="gm-sec">هەژمار</p>
       {account.email && (

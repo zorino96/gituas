@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import { ImagePlus, Sparkles, X } from "lucide-react";
 
@@ -16,6 +17,7 @@ import {
   type TikTokContext,
 } from "../actions";
 import { PLATFORM_NAME, PRIVACY_LABEL, friendlyError, num } from "../format";
+import { imageToJpeg } from "./to-jpeg";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,video/mp4,video/quicktime";
 const MAX_BYTES = 250 * 1024 * 1024;
@@ -48,8 +50,10 @@ export function PublishClient({
 }: {
   workspaceId: string;
   accounts: Record<Target, string | null>;
-  initial?: { newsDraftId: string; caption: string; media: Media };
+  initial?: { newsDraftId: string; caption: string; media: Media; attribution: string };
 }) {
+  const router = useRouter();
+
   // media
   const fileInput = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<{ src: string; type: "IMAGE" | "VIDEO" } | null>(
@@ -58,6 +62,10 @@ export function PublishClient({
   const [media, setMedia] = useState<Media | null>(initial?.media ?? null);
   const [progress, setProgress] = useState<number | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
+
+  // news draft — dropped the moment the post stops being that draft's post
+  const [newsDraftId, setNewsDraftId] = useState<string | null>(initial?.newsDraftId ?? null);
+  const [attribution, setAttribution] = useState<string | null>(initial?.attribution ?? null);
 
   // caption
   const [caption, setCaption] = useState(initial?.caption ?? "");
@@ -88,7 +96,7 @@ export function PublishClient({
   const isVideo = media?.type === "VIDEO";
   const uploading = progress !== null && !media;
 
-  // Instagram and TikTok need media; TikTok needs video. Switch them off when that stops being true.
+  // Instagram and TikTok need media (photo or video). Switch them off when that stops being true.
   useEffect(() => {
     setOn((o) => ({ ...o, IG: o.IG && !!media, TT: o.TT && !!media }));
   }, [media, isVideo]);
@@ -109,6 +117,15 @@ export function PublishClient({
     };
   }, [on.TT, tt]);
 
+  // The composer stops being "this news draft's post" the moment its media
+  // changes — its card and its attribution belonged to that exact image.
+  function dropNewsDraft() {
+    if (!newsDraftId) return;
+    setNewsDraftId(null);
+    setAttribution(null);
+    router.replace("/app/publish");
+  }
+
   async function pickFile(file: File) {
     setMediaError(null);
     setResults(null);
@@ -120,6 +137,7 @@ export function PublishClient({
       setMediaError("فایلەکە لە ٢٥٠ مێگابایت گەورەترە.");
       return;
     }
+    dropNewsDraft();
     const type = file.type.startsWith("video/") ? "VIDEO" : "IMAGE";
     if (preview) URL.revokeObjectURL(preview.src);
     setPreview({ src: URL.createObjectURL(file), type });
@@ -127,11 +145,13 @@ export function PublishClient({
     setProgress(0);
     try {
       const durationSec = type === "VIDEO" ? await readDuration(file) : undefined;
-      const ext = (file.name.split(".").pop() || (type === "VIDEO" ? "mp4" : "jpg")).toLowerCase().replace(/[^a-z0-9]/g, "");
-      const blob = await upload(`merchant/${workspaceId}/${Date.now()}.${ext}`, file, {
+      // Instagram accepts only JPEG, and TikTok's photo posts accept JPEG/WebP — convert everything else.
+      const upFile = type === "IMAGE" && file.type !== "image/jpeg" ? await imageToJpeg(file) : file;
+      const ext = type === "IMAGE" ? "jpg" : (file.name.split(".").pop() || "mp4").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const blob = await upload(`merchant/${workspaceId}/${Date.now()}.${ext}`, upFile, {
         access: "public",
         handleUploadUrl: "/api/app/upload",
-        contentType: file.type,
+        contentType: upFile.type,
         onUploadProgress: ({ percentage }) => setProgress(Math.round(percentage)),
       });
       setMedia({ url: blob.url, pathname: blob.pathname, type, durationSec });
@@ -150,6 +170,7 @@ export function PublishClient({
     setMedia(null);
     setProgress(null);
     if (fileInput.current) fileInput.current.value = "";
+    dropNewsDraft();
   }
 
   function suggest() {
@@ -161,8 +182,11 @@ export function PublishClient({
     });
   }
 
+  // The attribution line is fixed and non-editable, but it is posted with the
+  // caption, so its length counts toward the same limits.
+  const fullCaption = attribution ? `${caption}\n\n${attribution}` : caption;
   const limit = targets.length ? Math.min(...targets.map((t) => CAPTION_LIMITS[t])) : CAPTION_LIMITS.IG;
-  const captionIssues = captionProblems(caption, targets);
+  const captionIssues = captionProblems(fullCaption, targets);
   const ttIssues = useMemo(
     () =>
       on.TT && tt
@@ -180,7 +204,8 @@ export function PublishClient({
   if (uploading) blockers.push("چاوەڕێ بکە تا بارکردن تەواو دەبێت.");
   if (captionIssues.length) blockers.push("دەقەکە بۆ یەکێک لە شوێنەکان درێژە.");
   if (on.TT && !tt) blockers.push("زانیاری تیکتۆک هێشتا نەهاتووە.");
-  if (on.TT && ttIssues.includes("privacy")) blockers.push("لە تیکتۆک دیاری بکە کێ ڤیدیۆکە ببینێت.");
+  if (on.TT && ttIssues.includes("privacy"))
+    blockers.push(isVideo ? "لە تیکتۆک دیاری بکە کێ ڤیدیۆکە ببینێت." : "لە تیکتۆک دیاری بکە کێ پۆستەکە ببینێت.");
   if (on.TT && ttIssues.includes("commercial")) blockers.push("جۆری ناوەڕۆکی بازرگانی هەڵبژێرە.");
   if (on.TT && ttIssues.includes("branded-private")) blockers.push("ناوەڕۆکی براند ناتوانێت «تەنیا خۆم» بێت.");
   if (on.TT && ttIssues.includes("duration")) blockers.push("ڤیدیۆکە لە سنووری تیکتۆکی ئەم ئەکاونتە درێژترە.");
@@ -195,7 +220,7 @@ export function PublishClient({
         targets,
         media: media ?? undefined,
         tiktok: on.TT ? { privacy, allowComment, allowDuet, allowStitch, commercial, yourBrand, branded } : undefined,
-        newsDraftId: initial?.newsDraftId,
+        newsDraftId: newsDraftId ?? undefined,
       });
       if (!r.ok) {
         setPublishError(r.error);
@@ -249,8 +274,12 @@ export function PublishClient({
                         : ttStatus?.startsWith("ERROR:")
                           ? `تیکتۆک ڕەتی کردەوە: ${friendlyError(ttStatus.slice(6))}`
                           : ttStatus === "SLOW"
-                            ? "تیکتۆک هێشتا ڤیدیۆکە پرۆسێس دەکات — چەند خولەکێکی تر لە پرۆفایلەکەت دەردەکەوێت."
-                            : "تیکتۆک ڤیدیۆکە وەردەگرێت و پرۆسێسی دەکات…"
+                            ? isVideo
+                              ? "تیکتۆک هێشتا ڤیدیۆکە پرۆسێس دەکات — چەند خولەکێکی تر لە پرۆفایلەکەت دەردەکەوێت."
+                              : "تیکتۆک هێشتا پۆستەکە پرۆسێس دەکات — چەند خولەکێکی تر لە پرۆفایلەکەت دەردەکەوێت."
+                            : isVideo
+                              ? "تیکتۆک ڤیدیۆکە وەردەگرێت و پرۆسێسی دەکات…"
+                              : "تیکتۆک پۆستەکە وەردەگرێت و پرۆسێسی دەکات…"
                       : "بڵاو کرایەوە."}
                   </small>
                 ) : (
@@ -334,19 +363,31 @@ export function PublishClient({
       />
       <div className="gm-between" style={{ marginTop: 8, flexWrap: "wrap" }}>
         <div className="gm-row" style={{ gap: 6, flexWrap: "wrap" }}>
-          <button type="button" className="gm-btn quiet small" onClick={suggest} disabled={suggesting}>
-            <Sparkles size={14} aria-hidden="true" />
-            {suggesting ? "دەنووسێت…" : "دەقێکم بۆ بنووسە"}
-          </button>
+          {!newsDraftId && (
+            <button type="button" className="gm-btn quiet small" onClick={suggest} disabled={suggesting}>
+              <Sparkles size={14} aria-hidden="true" />
+              {suggesting ? "دەنووسێت…" : "دەقێکم بۆ بنووسە"}
+            </button>
+          )}
           <button type="button" className="gm-btn quiet small" onClick={() => setCaption((c) => mergeHashtags(c, CITY_TAGS))}>
             + هاشتاگی شارەکان
           </button>
         </div>
         <span className={`gm-time ${captionIssues.length ? "gm-err" : ""}`} style={{ margin: 0 }}>
-          {num([...caption].length)} / {num(limit)}
+          {num([...fullCaption].length)} / {num(limit)}
         </span>
       </div>
       {captionError && <p className="gm-err">{captionError}</p>}
+      {attribution && (
+        <div className="gm-card" style={{ marginTop: 8 }}>
+          <small className="gm-hint" style={{ margin: 0 }}>ئەم دێڕە خۆکار زیاد دەکرێت</small>
+          {attribution.split("\n").map((line, i) => (
+            <p key={i} dir={/^https?:\/\//i.test(line) ? "ltr" : "auto"} style={{ margin: "4px 0 0" }}>
+              {line}
+            </p>
+          ))}
+        </div>
+      )}
 
       {/* targets */}
       <p className="gm-sec">بۆ کوێ</p>
@@ -403,8 +444,8 @@ export function PublishClient({
                 </div>
               </div>
 
-              <p className="gm-sec">کێ ڤیدیۆکە ببینێت</p>
-              <div role="radiogroup" aria-label="کێ ڤیدیۆکە ببینێت">
+              <p className="gm-sec">{isVideo ? "کێ ڤیدیۆکە ببینێت" : "کێ پۆستەکە ببینێت"}</p>
+              <div role="radiogroup" aria-label={isVideo ? "کێ ڤیدیۆکە ببینێت" : "کێ پۆستەکە ببینێت"}>
                 {tt.privacyOptions.map((opt) => (
                   <label key={opt} className="gm-radio">
                     <input type="radio" name="tt-privacy" value={opt} checked={privacy === opt} onChange={() => setPrivacy(opt)} />
@@ -447,7 +488,7 @@ export function PublishClient({
               <p className="gm-sec">ناوەڕۆکی بازرگانی</p>
               <div className="gm-target">
                 <div>
-                  <p>ئەم ڤیدیۆیە ڕیکلامە</p>
+                  <p>{isVideo ? "ئەم ڤیدیۆیە ڕیکلامە" : "ئەم پۆستە ڕیکلامە"}</p>
                   <small>ئەگەر ڕیکلام بۆ خۆت، براندێک، بەرهەمێک یان خزمەتگوزارییەک دەکات.</small>
                 </div>
                 <button

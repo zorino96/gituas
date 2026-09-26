@@ -1,5 +1,7 @@
+import Link from "next/link";
+
 import { db } from "@/lib/db";
-import { captionFor } from "@/lib/news/rules";
+import { attributionFor } from "@/lib/news/rules";
 import { currentWorkspace, loadConnections } from "../data";
 import { PublishClient } from "./publish-client";
 
@@ -13,23 +15,32 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
     loadConnections(ws.id),
     draftId ? db.newsDraft.findFirst({ where: { id: draftId, tenantId: ws.id }, include: { item: true } }) : null,
   ]);
-  const initial =
-    draft?.cardUrl && draft.cardPath
-      ? {
-          newsDraftId: draft.id,
-          caption: captionFor(draft, { name: draft.item.sourceName, url: draft.item.url }),
-          media: { url: draft.cardUrl, pathname: draft.cardPath, type: "IMAGE" as const },
-        }
-      : undefined;
+  const hasCard = !!(draft?.cardUrl && draft?.cardPath);
+  const initial = draft && hasCard
+    ? {
+        newsDraftId: draft.id,
+        caption: `${draft.headline.trim()}\n\n${draft.body.trim()}`,
+        media: { url: draft.cardUrl!, pathname: draft.cardPath!, type: "IMAGE" as const },
+        attribution: attributionFor({ name: draft.item.sourceName, url: draft.item.url }),
+      }
+    : undefined;
   return (
-    <PublishClient
-      workspaceId={ws.id}
-      initial={initial}
-      accounts={{
-        FB: conns.META_FACEBOOK.connected ? (conns.META_FACEBOOK.name ?? "پەیجی فەیسبووک") : null,
-        IG: conns.META_INSTAGRAM.connected ? (conns.META_INSTAGRAM.name ?? "ئینستاگرام") : null,
-        TT: conns.TIKTOK.connected ? (conns.TIKTOK.name ?? "تیکتۆک") : null,
-      }}
-    />
+    <>
+      {draft && !hasCard && (
+        <p className="gm-note warn" style={{ marginBottom: 12 }}>
+          کارتی ئەم هەواڵە کۆن بووە. لە مێزی هەواڵ دووبارە ئامادەی بکەوە.{" "}
+          <Link href={`/app/news/${draft.itemId}`} className="gm-link">کردنەوە</Link>
+        </p>
+      )}
+      <PublishClient
+        workspaceId={ws.id}
+        initial={initial}
+        accounts={{
+          FB: conns.META_FACEBOOK.connected ? (conns.META_FACEBOOK.name ?? "پەیجی فەیسبووک") : null,
+          IG: conns.META_INSTAGRAM.connected ? (conns.META_INSTAGRAM.name ?? "ئینستاگرام") : null,
+          TT: conns.TIKTOK.connected ? (conns.TIKTOK.name ?? "تیکتۆک") : null,
+        }}
+      />
+    </>
   );
 }

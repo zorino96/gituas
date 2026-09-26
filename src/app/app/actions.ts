@@ -24,11 +24,12 @@ import { publishToFacebookPage } from "@/lib/publishers/facebook";
 import { publishToInstagram } from "@/lib/publishers/instagram";
 import { fetchTikTokPostStatus, getTikTokPostContext, publishPhotoToTikTok, publishToTikTok } from "@/lib/publishers/tiktok";
 import { normalizePhone } from "@/lib/merchant/phone";
-import { captionProblems, type Target } from "@/lib/merchant/caption";
+import { captionProblems, isJpegPath, type Target } from "@/lib/merchant/caption";
 import { tiktokProblems } from "@/lib/merchant/tiktok-rules";
 import type { Platform } from "@/lib/merchant/types";
 import { assertWithin, LimitReached, limitMessage } from "@/lib/billing/limits";
 import { recordNewsPublish } from "@/lib/news/publish-record";
+import { captionWithAttribution, checkDraft } from "@/lib/news/rules";
 
 export type Result = { ok: true } | { ok: false; error: string };
 
@@ -277,9 +278,8 @@ export async function publishAction(input: PublishInput): Promise<{ ok: true; re
     }
   }
 
-  const caption = input.caption.trim();
-  if (captionProblems(caption, targets).length) return { ok: false, error: "دەقەکە بۆ یەکێک لە شوێنەکان درێژە." };
-  if (!caption && !input.media) return { ok: false, error: "دەق یان وێنە/ڤیدیۆیەک زیاد بکە." };
+  const typedCaption = input.caption.trim();
+  if (!typedCaption && !input.media) return { ok: false, error: "دەق یان وێنە/ڤیدیۆیەک زیاد بکە." };
   if ((targets.includes("IG") || targets.includes("TT")) && !input.media) {
     return { ok: false, error: "ئینستاگرام و تیکتۆک وێنە یان ڤیدیۆیان دەوێت." };
   }
@@ -288,7 +288,27 @@ export async function publishAction(input: PublishInput): Promise<{ ok: true; re
     if (!input.media.pathname.startsWith(expected) || !/^https:\/\//.test(input.media.url)) {
       return { ok: false, error: "فایلەکە ناناسرێتەوە. دووبارە بارکردنی بکە." };
     }
+    if (input.media.type === "IMAGE" && (targets.includes("IG") || targets.includes("TT")) && !isJpegPath(input.media.pathname)) {
+      return { ok: false, error: "ئینستاگرام و تیکتۆک تەنها وێنەی JPG وەردەگرن." };
+    }
   }
+
+  // A news post's caption is built here, from the server's own copy of the
+  // draft's source — never from whatever suffix the client sent.
+  let caption = typedCaption;
+  if (input.newsDraftId) {
+    const draft = await db.newsDraft.findFirst({ where: { id: input.newsDraftId, tenantId: ws.id }, include: { item: true } });
+    if (!draft) return { ok: false, error: "هەواڵەکە نەدۆزرایەوە." };
+    if (!draft.cardPath || draft.cardPath !== input.media?.pathname) {
+      return { ok: false, error: "کارتەکە گۆڕاوە. لە مێزی هەواڵ دووبارە ئامادەی بکەوە." };
+    }
+    const copyProblem = checkDraft({ headline: "", body: typedCaption }, { title: draft.item.title, snippet: draft.item.snippet }).find(
+      (p) => p.code === "COPY",
+    );
+    if (copyProblem) return { ok: false, error: copyProblem.message };
+    caption = captionWithAttribution(typedCaption, { name: draft.item.sourceName, url: draft.item.url });
+  }
+  if (captionProblems(caption, targets).length) return { ok: false, error: "دەقەکە بۆ یەکێک لە شوێنەکان درێژە." };
 
   const run = async (target: Target): Promise<PublishOutcome> => {
     if (target === "FB") {
@@ -355,7 +375,14 @@ export async function publishAction(input: PublishInput): Promise<{ ok: true; re
     };
     await audit(ws.id, r.ok ? "app.publish" : "app.publish_failed", `${r.ok ? "Published" : "Failed to publish"} to ${r.target}.`, meta);
   }
-  if (input.newsDraftId) await recordNewsPublish(ws.id, input.newsDraftId, results);
+  if (input.newsDraftId) {
+    try {
+      await recordNewsPublish(ws.id, input.newsDraftId, results);
+    } catch (e) {
+      // The post already went out; a bookkeeping failure must not turn that into a reported failure.
+      console.error("recordNewsPublish failed:", e instanceof Error ? e.message : "unknown error");
+    }
+  }
   return { ok: true, results };
 }
 
