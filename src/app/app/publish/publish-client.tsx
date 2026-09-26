@@ -44,24 +44,28 @@ function readDuration(file: File): Promise<number | undefined> {
 export function PublishClient({
   workspaceId,
   accounts,
+  initial,
 }: {
   workspaceId: string;
   accounts: Record<Target, string | null>;
+  initial?: { newsDraftId: string; caption: string; media: Media };
 }) {
   // media
   const fileInput = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<{ src: string; type: "IMAGE" | "VIDEO" } | null>(null);
-  const [media, setMedia] = useState<Media | null>(null);
+  const [preview, setPreview] = useState<{ src: string; type: "IMAGE" | "VIDEO" } | null>(
+    initial ? { src: initial.media.url, type: "IMAGE" } : null,
+  );
+  const [media, setMedia] = useState<Media | null>(initial?.media ?? null);
   const [progress, setProgress] = useState<number | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
 
   // caption
-  const [caption, setCaption] = useState("");
+  const [caption, setCaption] = useState(initial?.caption ?? "");
   const [suggesting, startSuggest] = useTransition();
   const [captionError, setCaptionError] = useState<string | null>(null);
 
   // targets
-  const [on, setOn] = useState<Record<Target, boolean>>({ FB: !!accounts.FB, IG: false, TT: false });
+  const [on, setOn] = useState<Record<Target, boolean>>({ FB: !!accounts.FB, IG: !!initial && !!accounts.IG, TT: false });
 
   // tiktok
   const [tt, setTt] = useState<TikTokContext | null>(null);
@@ -86,7 +90,7 @@ export function PublishClient({
 
   // Instagram and TikTok need media; TikTok needs video. Switch them off when that stops being true.
   useEffect(() => {
-    setOn((o) => ({ ...o, IG: o.IG && !!media, TT: o.TT && !!media && isVideo }));
+    setOn((o) => ({ ...o, IG: o.IG && !!media, TT: o.TT && !!media }));
   }, [media, isVideo]);
 
   // Load TikTok's creator_info the moment TikTok is switched on — its privacy
@@ -132,7 +136,7 @@ export function PublishClient({
       });
       setMedia({ url: blob.url, pathname: blob.pathname, type, durationSec });
       setProgress(100);
-      setOn((o) => ({ ...o, IG: !!accounts.IG, TT: type === "VIDEO" && !!accounts.TT }));
+      setOn((o) => ({ ...o, IG: !!accounts.IG, TT: !!accounts.TT }));
     } catch (e) {
       setProgress(null);
       setPreview(null);
@@ -191,6 +195,7 @@ export function PublishClient({
         targets,
         media: media ?? undefined,
         tiktok: on.TT ? { privacy, allowComment, allowDuet, allowStitch, commercial, yourBrand, branded } : undefined,
+        newsDraftId: initial?.newsDraftId,
       });
       if (!r.ok) {
         setPublishError(r.error);
@@ -349,8 +354,7 @@ export function PublishClient({
         {(["FB", "IG", "TT"] as Target[]).map((t) => {
           const account = accounts[t];
           const needsMedia = (t === "IG" || t === "TT") && !media;
-          const needsVideo = t === "TT" && !!media && !isVideo;
-          const disabled = !account || needsMedia || needsVideo;
+          const disabled = !account || needsMedia;
           return (
             <div key={t} className="gm-target">
               <div>
@@ -360,8 +364,6 @@ export function PublishClient({
                     <Link href="/app/settings" className="gm-link">پەیوەست نەکراوە — پەیوەستی بکە</Link>
                   ) : needsMedia ? (
                     "وێنە یان ڤیدیۆی دەوێت"
-                  ) : needsVideo ? (
-                    "تیکتۆک تەنیا ڤیدیۆ وەردەگرێت"
                   ) : (
                     account
                   )}
@@ -419,7 +421,10 @@ export function PublishClient({
                   ["Duet", allowDuet, setAllowDuet, tt.duetDisabled],
                   ["Stitch", allowStitch, setAllowStitch, tt.stitchDisabled],
                 ] as const
-              ).map(([label, value, set, lockedOff]) => (
+              )
+                // Duet and Stitch exist only for videos; a photo post offers comments alone.
+                .filter(([label]) => isVideo || label === "کۆمێنت")
+                .map(([label, value, set, lockedOff]) => (
                 <div key={label} className="gm-target">
                   <div>
                     <p>{label}</p>

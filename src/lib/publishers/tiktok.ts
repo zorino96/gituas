@@ -336,3 +336,55 @@ export async function publishToTikTok(
   const publishId: string | undefined = j?.data?.publish_id;
   return { ok: true, externalId: publishId };
 }
+
+/**
+ * Direct Post of one photo, pulled from our verified domain. Same scope
+ * (video.publish) and the same creator_info checks as a video; duet and
+ * stitch do not exist for photos. The caption's first line is the title
+ * (TikTok allows 90 characters); the whole caption is the description.
+ */
+export async function publishPhotoToTikTok(
+  tenantId: string,
+  content: { caption: string; imageUrl: string },
+  options: Pick<TikTokPostOptions, "privacyLevel" | "disableComment" | "brandOrganicToggle" | "brandContentToggle">,
+): Promise<PublishResult> {
+  const token = await tiktokToken(tenantId);
+  if (!token) return { ok: false, error: "TikTok not connected (or token expired)" };
+  if (!/^https:\/\//i.test(content.imageUrl)) {
+    return { ok: false, error: "TikTok needs an https image URL hosted on a verified domain" };
+  }
+  const info = await queryCreatorInfo(token);
+  if ("error" in info) return { ok: false, error: info.error };
+  if (!info.privacy_level_options?.includes(options.privacyLevel)) {
+    return { ok: false, error: `"${options.privacyLevel}" is not a privacy level this account may use right now — reopen the post screen.` };
+  }
+  if (info.comment_disabled && !options.disableComment) {
+    return { ok: false, error: "This creator has comments turned off in TikTok." };
+  }
+  if (options.brandContentToggle && options.privacyLevel === "SELF_ONLY") {
+    return { ok: false, error: "Branded content cannot be posted with visibility set to Only me." };
+  }
+  const caption = content.caption.trim();
+  if (!caption) return { ok: false, error: "Add a caption before posting." };
+
+  const r = await fetch(`${BASE}/post/publish/content/init/`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=UTF-8" },
+    body: JSON.stringify({
+      post_info: {
+        title: [...caption.split("\n")[0]].slice(0, 90).join(""),
+        description: caption.slice(0, 4000),
+        privacy_level: options.privacyLevel,
+        disable_comment: options.disableComment,
+        brand_content_toggle: options.brandContentToggle,
+        brand_organic_toggle: options.brandOrganicToggle,
+      },
+      source_info: { source: "PULL_FROM_URL", photo_cover_index: 0, photo_images: [content.imageUrl] },
+      post_mode: "DIRECT_POST",
+      media_type: "PHOTO",
+    }),
+  });
+  const j = await r.json();
+  if (!r.ok || j?.error?.code !== "ok") return { ok: false, error: explainInitError(r.status, j?.error) };
+  return { ok: true, externalId: j?.data?.publish_id };
+}

@@ -22,11 +22,13 @@ import {
 } from "@/lib/publishers/facebook-engage";
 import { publishToFacebookPage } from "@/lib/publishers/facebook";
 import { publishToInstagram } from "@/lib/publishers/instagram";
-import { fetchTikTokPostStatus, getTikTokPostContext, publishToTikTok } from "@/lib/publishers/tiktok";
+import { fetchTikTokPostStatus, getTikTokPostContext, publishPhotoToTikTok, publishToTikTok } from "@/lib/publishers/tiktok";
 import { normalizePhone } from "@/lib/merchant/phone";
 import { captionProblems, type Target } from "@/lib/merchant/caption";
 import { tiktokProblems } from "@/lib/merchant/tiktok-rules";
 import type { Platform } from "@/lib/merchant/types";
+import { assertWithin, LimitReached, limitMessage } from "@/lib/billing/limits";
+import { recordNewsPublish } from "@/lib/news/publish-record";
 
 export type Result = { ok: true } | { ok: false; error: string };
 
@@ -234,6 +236,8 @@ export interface PublishInput {
   caption: string;
   targets: Target[];
   media?: { url: string; pathname: string; type: "IMAGE" | "VIDEO"; durationSec?: number };
+  /** Set when the post comes from the news desk; its result is recorded on the draft. */
+  newsDraftId?: string;
   tiktok?: {
     privacy: string | null;
     allowComment: boolean;
@@ -264,6 +268,14 @@ export async function publishAction(input: PublishInput): Promise<{ ok: true; re
   if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
   const targets = [...new Set(input.targets)];
   if (!targets.length) return { ok: false, error: "لانیکەم یەک شوێن هەڵبژێرە." };
+  if (input.newsDraftId) {
+    try {
+      await assertWithin(ws.id, "publish");
+    } catch (e) {
+      if (e instanceof LimitReached) return { ok: false, error: limitMessage(e) };
+      throw e;
+    }
+  }
 
   const caption = input.caption.trim();
   if (captionProblems(caption, targets).length) return { ok: false, error: "دەقەکە بۆ یەکێک لە شوێنەکان درێژە." };
@@ -271,7 +283,6 @@ export async function publishAction(input: PublishInput): Promise<{ ok: true; re
   if ((targets.includes("IG") || targets.includes("TT")) && !input.media) {
     return { ok: false, error: "ئینستاگرام و تیکتۆک وێنە یان ڤیدیۆیان دەوێت." };
   }
-  if (targets.includes("TT") && input.media?.type !== "VIDEO") return { ok: false, error: "تیکتۆک تەنیا ڤیدیۆ وەردەگرێت." };
   if (input.media) {
     const expected = `merchant/${ws.id}/`;
     if (!input.media.pathname.startsWith(expected) || !/^https:\/\//.test(input.media.url)) {
@@ -302,9 +313,23 @@ export async function publishAction(input: PublishInput): Promise<{ ok: true; re
       { privacyOptions: info.privacy_level_options ?? [], maxDurationSec: info.max_video_post_duration_sec },
     );
     if (problems.length) return { target, ok: false, error: `ڕێکخستنی تیکتۆک تەواو نییە (${problems.join(", ")}).` };
+    const mediaUrl = `${APP_ORIGIN}/m/${input.media!.pathname}`;
+    if (input.media!.type === "IMAGE") {
+      const r = await publishPhotoToTikTok(
+        ws.id,
+        { caption, imageUrl: mediaUrl },
+        {
+          privacyLevel: tt.privacy!,
+          disableComment: !tt.allowComment,
+          brandOrganicToggle: tt.commercial && tt.yourBrand,
+          brandContentToggle: tt.commercial && tt.branded,
+        },
+      );
+      return { target, ok: r.ok, publishId: r.externalId, error: r.error };
+    }
     const r = await publishToTikTok(
       ws.id,
-      { title: caption, videoUrl: `${APP_ORIGIN}/m/${input.media!.pathname}`, durationSec: input.media!.durationSec },
+      { title: caption, videoUrl: mediaUrl, durationSec: input.media!.durationSec },
       {
         privacyLevel: tt.privacy!,
         disableComment: !tt.allowComment,
@@ -330,6 +355,7 @@ export async function publishAction(input: PublishInput): Promise<{ ok: true; re
     };
     await audit(ws.id, r.ok ? "app.publish" : "app.publish_failed", `${r.ok ? "Published" : "Failed to publish"} to ${r.target}.`, meta);
   }
+  if (input.newsDraftId) await recordNewsPublish(ws.id, input.newsDraftId, results);
   return { ok: true, results };
 }
 
