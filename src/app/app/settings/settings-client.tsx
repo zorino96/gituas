@@ -40,7 +40,6 @@ export function SettingsClient({
   connected,
   connectError,
   account,
-  kind,
   news,
 }: {
   account: { email: string | null; hasPassword: boolean };
@@ -49,7 +48,6 @@ export function SettingsClient({
   connections: Conn[];
   connected?: string;
   connectError?: string;
-  kind: "MERCHANT" | "NEWS";
   news: NewsSettingsProps | null;
 }) {
   const base = useBase();

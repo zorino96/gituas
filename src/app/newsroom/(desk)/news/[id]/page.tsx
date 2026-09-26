@@ -11,7 +11,7 @@ export const maxDuration = 60;
 
 export default async function NewsItemPage({ params }: { params: Promise<{ id: string }> }) {
   const ws = (await currentWorkspace())!;
-  if (ws.kind !== "NEWS") redirect("/newsroom");
+  if (ws.kindChosen && ws.kind !== "NEWS") redirect("/newsroom");
   const { id } = await params;
   const [item, kit] = await Promise.all([
     db.newsItem.findFirst({ where: { id, tenantId: ws.id }, include: { draft: true } }),

@@ -18,6 +18,22 @@ export default async function NewsroomDeskLayout({ children }: { children: React
   if (!ws) redirect("/login?next=/newsroom/news");
   if (!ws.kindChosen) ws = await claimKind(ws, "NEWS");
 
+  if (!ws.kindChosen) {
+    return (
+      <div className={`gm ${gmFontVars}`} dir="rtl" lang="ckb">
+        <div className="gm-auth">
+          <p className="gm-brand kufi">گیتواس نیوزڕووم</p>
+          <div className="gm-card" style={{ marginTop: 18 }}>
+            <p style={{ margin: 0 }}>هەژمارەکەت ئامادە نەکرا. پەڕەکە نوێ بکەرەوە.</p>
+          </div>
+          <Link href="/newsroom/news" className="gm-btn block" style={{ marginTop: 12 }}>
+            دووبارە هەوڵ بدەرەوە
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (ws.kind !== "NEWS") {
     return (
       <div className={`gm ${gmFontVars}`} dir="rtl" lang="ckb">

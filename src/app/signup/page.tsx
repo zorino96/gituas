@@ -6,11 +6,18 @@ import { auth, googleEnabled } from "@/auth";
 import { gmFontVars } from "@/app/app/fonts";
 import { SignupForm } from "./signup-form";
 
-export const metadata: Metadata = { title: "خۆتۆمارکردن — گیتواس" };
-
 function safeNext(next: string | string[] | undefined): string {
   const n = Array.isArray(next) ? next[0] : next;
   return n && n.startsWith("/") && !n.startsWith("//") && !n.includes("..") ? n : "/app";
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string | string[] }>;
+}): Promise<Metadata> {
+  const next = safeNext((await searchParams).next);
+  return { title: next.startsWith("/newsroom") ? "خۆتۆمارکردن — گیتواس نیوزڕووم" : "خۆتۆمارکردن — گیتواس" };
 }
 
 export default async function SignupPage({ searchParams }: { searchParams: Promise<{ next?: string | string[] }> }) {

@@ -350,7 +350,9 @@ model Tenant {
   telegramChatId        String?
   /// International digits for wa.me (e.g. 9647501234567), set in the merchant app.
   whatsappNumber        String?
-  /// A shop (comments, messages) or a news page (news desk). Asked once after sign-in.
+  /// A shop (comments, messages) or a news page (news desk). Claimed once, by
+  /// whichever surface the account first opens — `/newsroom` claims NEWS,
+  /// `/app` claims MERCHANT.
   kind                  TenantKind        @default(MERCHANT)
   kindChosen            Boolean           @default(false)
   anthropicKeyEncrypted String?

@@ -26,7 +26,7 @@ const LANG_LABEL: Record<string, string> = { ku: "کوردی", ar: "عەرەبی
 
 export default async function NewsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const ws = (await currentWorkspace())!;
-  if (ws.kind !== "NEWS") redirect("/newsroom");
+  if (ws.kindChosen && ws.kind !== "NEWS") redirect("/newsroom");
   const { tab: tabKey } = await searchParams;
   const tab = TABS.find((t) => t.key === tabKey) ?? TABS[0];
 

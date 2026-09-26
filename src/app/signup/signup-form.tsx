@@ -167,7 +167,7 @@ export function SignupForm({
 
         <form onSubmit={submit} noValidate>
           <div className="gm-field">
-            <label htmlFor="su-name">ناوی دووکان یان ناوی خۆت</label>
+            <label htmlFor="su-name">{product === "newsroom" ? "ناوی کەناڵ" : "ناوی دووکان یان ناوی خۆت"}</label>
             <input id="su-name" className="gm-input" value={name} onChange={(e) => setName(e.target.value)} autoComplete="organization" maxLength={60} required />
           </div>
           <div className="gm-field">

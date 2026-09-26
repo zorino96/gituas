@@ -49,29 +49,43 @@ const DEFAULT_NEWS_NAME = "کەناڵەکەم";
 
 /**
  * Claim a still-unclaimed workspace as a shop or a channel — the first
- * surface a new account opens decides it. Claiming NEWS also creates the
- * desk settings and the GDELT source, and renames the workspace if it still
- * has the generic shop name. Already-claimed workspaces are returned as-is.
+ * surface a new account opens decides it. The claim, the rename and (for
+ * NEWS) the desk settings and GDELT source all happen in one transaction, so
+ * a workspace never ends up claimed with its setup half-finished. If another
+ * tab claimed first, this re-reads the tenant and returns it as it now is; on
+ * any error the workspace is returned unchanged, still unclaimed. Already
+ * claimed workspaces are returned as-is.
  */
 export async function claimKind(ws: Workspace, kind: Kind): Promise<Workspace> {
   if (ws.kindChosen) return ws;
   try {
     const rename = kind === "NEWS" && ws.name === DEFAULT_SHOP_NAME;
-    const updated = await db.tenant.update({
-      where: { id: ws.id },
-      data: { kind, kindChosen: true, ...(rename ? { name: DEFAULT_NEWS_NAME } : {}) },
-      select: WORKSPACE_SELECT,
-    });
-    if (kind === "NEWS") {
-      await db.newsSettings.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, keywords: [] }, update: {} });
-      await db.newsSource.upsert({
-        where: { tenantId_catalogId: { tenantId: ws.id, catalogId: "gdelt" } },
-        create: { tenantId: ws.id, catalogId: "gdelt", name: "GDELT" },
-        update: {},
+    const claimed = await db.$transaction(async (tx) => {
+      const { count } = await tx.tenant.updateMany({
+        where: { id: ws.id, kindChosen: false },
+        data: { kind, kindChosen: true, ...(rename ? { name: DEFAULT_NEWS_NAME } : {}) },
       });
+      if (count === 0) return false;
+      if (kind === "NEWS") {
+        await tx.newsSettings.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, keywords: [] }, update: {} });
+        await tx.newsSource.upsert({
+          where: { tenantId_catalogId: { tenantId: ws.id, catalogId: "gdelt" } },
+          create: { tenantId: ws.id, catalogId: "gdelt", name: "GDELT" },
+          update: {},
+        });
+      }
+      await tx.auditLog.create({
+        data: { tenantId: ws.id, actor: "USER", action: "app.kind_set", reasoning: `Claimed the workspace as ${kind}.`, metadata: { kind } },
+      });
+      return true;
+    });
+    if (!claimed) {
+      const found = await db.tenant.findUnique({ where: { id: ws.id }, select: WORKSPACE_SELECT });
+      return found ?? ws;
     }
-    return updated;
-  } catch {
+    return { ...ws, kind, kindChosen: true, ...(rename ? { name: DEFAULT_NEWS_NAME } : {}) };
+  } catch (e) {
+    console.error("claimKind failed:", e instanceof Error ? e.message : "unknown error");
     return ws;
   }
 }

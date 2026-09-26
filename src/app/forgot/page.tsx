@@ -5,11 +5,18 @@ import { gmFontVars } from "@/app/app/fonts";
 import { emailEnabled } from "@/lib/mailer";
 import { ForgotForm } from "./forgot-form";
 
-export const metadata: Metadata = { title: "وشەی نهێنیی نوێ — گیتواس" };
-
 function safeNext(next: string | string[] | undefined): string {
   const n = Array.isArray(next) ? next[0] : next;
   return n && n.startsWith("/") && !n.startsWith("//") && !n.includes("..") ? n : "/app";
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string | string[] }>;
+}): Promise<Metadata> {
+  const next = safeNext((await searchParams).next);
+  return { title: next.startsWith("/newsroom") ? "وشەی نهێنیی نوێ — گیتواس نیوزڕووم" : "وشەی نهێنیی نوێ — گیتواس" };
 }
 
 export default async function ForgotPage({ searchParams }: { searchParams: Promise<{ next?: string | string[] }> }) {

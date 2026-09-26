@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import "@/app/app/app.css";
@@ -13,19 +14,37 @@ function safeNext(next: string | string[] | undefined, fallback: string): string
   return n && n.startsWith("/") && !n.startsWith("//") && !n.includes("..") ? n : fallback;
 }
 
+/**
+ * Auth.js sets this cookie when a sign-in attempt starts and does not always
+ * echo it back as `?callbackUrl=` on failure. Reading it is the only way to
+ * recover which product (`/app` or `/newsroom`) a failed attempt started from.
+ */
+async function callbackCookiePath(): Promise<string | undefined> {
+  const jar = await cookies();
+  const value = jar.get("__Secure-authjs.callback-url")?.value ?? jar.get("authjs.callback-url")?.value;
+  if (!value) return undefined;
+  try {
+    return new URL(value, "https://x").pathname;
+  } catch {
+    return undefined;
+  }
+}
+
 export default async function LoginPage({
   searchParams,
 }: {
   searchParams: Promise<{ next?: string | string[]; callbackUrl?: string | string[]; error?: string }>;
 }) {
   const sp = await searchParams;
-  // Auth.js sends failed OAuth attempts back here with ?error= and, not always,
-  // ?callbackUrl=. Without a destination they are merchants (Google sign-in is
-  // only offered in the merchant app), so they get the merchant sign-in.
-  const next = safeNext(
-    sp.next ?? (typeof sp.callbackUrl === "string" ? new URL(sp.callbackUrl, "https://x").pathname : undefined),
-    sp.error ? "/app" : "/dashboard",
-  );
+  const callbackUrlPath = typeof sp.callbackUrl === "string" ? new URL(sp.callbackUrl, "https://x").pathname : undefined;
+  // Auth.js sends failed sign-in attempts back here with ?error= and, not
+  // always, ?callbackUrl=. When neither ?next= nor ?callbackUrl= says where the
+  // attempt started, fall back to the callback-url cookie Auth.js set when it
+  // began, so a channel's failed Google sign-in returns to the newsroom
+  // sign-in — not the shop's — and a second attempt doesn't create the
+  // account under the wrong product.
+  const cookieNext = sp.error && !sp.next && !callbackUrlPath ? await callbackCookiePath() : undefined;
+  const next = safeNext(sp.next ?? callbackUrlPath ?? cookieNext, sp.error ? "/app" : "/dashboard");
   const session = await auth();
   if (session) redirect(next);
 

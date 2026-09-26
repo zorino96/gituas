@@ -45,17 +45,23 @@ Deferred work, with the context needed to pick it up cold.
 ## In flight — check, don't redo
 
 - **News desk phase 1 — built 2026-09-27** (plan `docs/superpowers/plans/2026-09-26-news-desk-phase1.md`).
-  Pages choose shop or news once on `/app`; news pages get `/app/news` (list, editor), keywords,
-  sources (GDELT, NewsData when `NEWSDATA_API_KEY` is set, their own RSS) and a brand kit in
-  Settings. Cards render in the browser and go out through `/app/publish?draft=<id>`; TikTok now
-  takes photo posts there too. `DEEPSEEK_API_KEY` must be set in Vercel for drafts (Gemini is the
-  fallback). JPEG cards (TikTok photo posts take JPEG/WebP, Instagram JPEG); the publish screen
-  converts PNG/WebP uploads to JPEG in the browser; the source line is appended on the server and
-  cannot be removed; `/dev/cards` previews the templates in development. Open: outlet RSS feeds
-  join the catalog only after each outlet's terms are read (BBC's terms page could not be fetched
-  while planning); the COPY rule's 0.5 threshold needs tuning on real Kurdish-source drafts; the
-  first TikTok photo post should be tried by the owner as "Only me". Phases 2–4 (page frames, page
-  video, motion video) follow the same spec.
+  News pages (list, editor), keywords, sources (GDELT, NewsData when `NEWSDATA_API_KEY` is set,
+  their own RSS) and a brand kit in Settings. Cards render in the browser and go out through
+  publish; TikTok now takes photo posts there too. `DEEPSEEK_API_KEY` must be set in Vercel for
+  drafts (Gemini is the fallback). JPEG cards (TikTok photo posts take JPEG/WebP, Instagram JPEG);
+  the publish screen converts PNG/WebP uploads to JPEG in the browser; the source line is appended
+  on the server and cannot be removed; `/dev/cards` previews the templates in development. Open:
+  outlet RSS feeds join the catalog only after each outlet's terms are read (BBC's terms page could
+  not be fetched while planning); the COPY rule's 0.5 threshold needs tuning on real Kurdish-source
+  drafts; the first TikTok photo post should be tried by the owner as "Only me". Phases 2–4 (page
+  frames, page video, motion video) follow the same spec.
+
+  **Split into its own product at `/newsroom` — 2026-09-27** (plan
+  `docs/superpowers/plans/2026-09-27-newsroom.md`). The news desk now has its own landing page,
+  sign-in/sign-up copy and tab bar at `/newsroom` instead of sharing `/app`. The shop app no longer
+  has the shop/news chooser, the news tab or the kind switch — one account is one kind, claimed by
+  whichever surface it first opens (`/newsroom` claims NEWS, `/app` claims MERCHANT), via
+  `claimKind` in `src/app/app/data.ts`.
 
 - **Merchant app Phase 1 — shipped to production 2026-09-23 at `/app`.**
   Plan: `docs/superpowers/plans/2026-09-23-merchant-app-phase1.md`. Comments

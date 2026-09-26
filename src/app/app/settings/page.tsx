@@ -51,7 +51,6 @@ export default async function SettingsPage({
       connected={sp.connected}
       connectError={sp.error}
       account={{ email: me?.email ?? null, hasPassword: !!me?.passwordHash }}
-      kind={ws.kind}
       news={news}
       connections={[
         { provider: "META_FACEBOOK", label: "فەیسبووک", note: "کۆمێنت، مەسنجەر، بڵاوکردنەوە و ئامار", ...conns.META_FACEBOOK },
