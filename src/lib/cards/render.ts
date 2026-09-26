@@ -16,7 +16,10 @@ export async function renderCardJpeg(node: HTMLElement): Promise<Blob> {
     pixelRatio: 1,
     cacheBust: true,
     quality: 0.92,
-    backgroundColor: "#ffffff",
+    // html-to-image paints this onto the card's own root, replacing its
+    // background — a fixed white here turned every card white. JPEG has no
+    // transparency, so use the card's own colour.
+    backgroundColor: getComputedStyle(node).backgroundColor,
   });
   return await (await fetch(dataUrl)).blob();
 }
