@@ -350,6 +350,9 @@ model Tenant {
   telegramChatId        String?
   /// International digits for wa.me (e.g. 9647501234567), set in the merchant app.
   whatsappNumber        String?
+  /// A shop (comments, messages) or a news page (news desk). Asked once after sign-in.
+  kind                  TenantKind        @default(MERCHANT)
+  kindChosen            Boolean           @default(false)
   anthropicKeyEncrypted String?
   googleAiKeyEncrypted  String?
   openaiKeyEncrypted    String?
@@ -607,4 +610,112 @@ model EmailCode {
 
   @@index([email, purpose, createdAt])
   @@index([ip, createdAt])
+}
+
+enum TenantKind {
+  MERCHANT
+  NEWS
+}
+
+/// A news page's desk settings.
+model NewsSettings {
+  tenantId      String    @id
+  /// Words a story must contain to be shown (any of them); empty = everything.
+  keywords      String[]
+  lastFetchedAt DateTime?
+  updatedAt     DateTime  @updatedAt
+}
+
+/// One source a news page reads: a catalog entry or the page's own RSS feed.
+model NewsSource {
+  id        String   @id @default(cuid())
+  tenantId  String
+  catalogId String?
+  rssUrl    String?
+  name      String
+  enabled   Boolean  @default(true)
+  lastError String?
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, catalogId])
+  @@unique([tenantId, rssUrl])
+  @@index([tenantId])
+}
+
+/// A story fetched for a news page: headline and snippet only, never article text.
+model NewsItem {
+  id          String     @id @default(cuid())
+  tenantId    String
+  sourceName  String
+  url         String
+  title       String
+  snippet     String
+  lang        String?
+  publishedAt DateTime
+  clusterKey  String
+  /// NEW | DRAFTED | PUBLISHED | DISMISSED
+  status      String     @default("NEW")
+  createdAt   DateTime   @default(now())
+  draft       NewsDraft?
+
+  @@unique([tenantId, url])
+  @@index([tenantId, status, publishedAt])
+}
+
+/// The Sorani post written from one item, and where it went.
+model NewsDraft {
+  id          String    @id @default(cuid())
+  itemId      String    @unique
+  item        NewsItem  @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tenantId    String
+  headline    String
+  body        String
+  category    String
+  /// STANDARD | BREAKING | STAT | QUOTE
+  cardKind    String
+  stat        String?
+  quote       String?
+  speaker     String?
+  model       String
+  photoPath   String?
+  cardUrl     String?
+  cardPath    String?
+  results     Json?
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([tenantId])
+}
+
+/// A news page's look: logo, three colours, heading font.
+model BrandKit {
+  tenantId    String   @id
+  logoPath    String?
+  primary     String   @default("#0B2545")
+  accent      String   @default("#E0A526")
+  text        String   @default("#FFFFFF")
+  /// kufi | sans — the two fonts the app ships
+  headingFont String   @default("kufi")
+  updatedAt   DateTime @updatedAt
+}
+
+/// Monthly counter per tenant and metric, checked against the plan's quota.
+model Usage {
+  tenantId String
+  /// YYYY-MM (UTC)
+  month    String
+  metric   String
+  count    Int    @default(0)
+
+  @@id([tenantId, month, metric])
+}
+
+/// A source's last result, shared across tenants so each feed or query is
+/// fetched at most once per window whatever the number of pages reading it.
+model SourceCache {
+  /// rss:<url> | gdelt:<keywords> | newsdata:<keywords>
+  key       String   @id
+  items     Json
+  fetchedAt DateTime
 }
