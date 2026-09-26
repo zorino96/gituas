@@ -31,7 +31,7 @@ export default async function MerchantLayout({ children }: { children: React.Rea
         </header>
         <main className="gm-main">{children}</main>
       </div>
-      <Tabs />
+      <Tabs kind={ws.kind} />
     </div>
   );
 }

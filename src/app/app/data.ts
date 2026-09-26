@@ -21,12 +21,14 @@ export interface Workspace {
   slug: string;
   name: string;
   whatsappNumber: string | null;
+  kind: "MERCHANT" | "NEWS";
+  kindChosen: boolean;
 }
 
 export async function currentWorkspace(): Promise<Workspace | null> {
   const session = await auth();
   if (!session?.user?.id) return null;
-  const select = { id: true, slug: true, name: true, whatsappNumber: true } as const;
+  const select = { id: true, slug: true, name: true, whatsappNumber: true, kind: true, kindChosen: true } as const;
   const found = await db.tenant.findFirst({ where: { ownerId: session.user.id }, select });
   if (found) return found;
   // Every signed-in person gets a workspace, however they signed up.

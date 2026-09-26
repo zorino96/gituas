@@ -2,22 +2,26 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Home, MessageCircle, MessagesSquare, SquarePlus } from "lucide-react";
+import { BarChart3, Home, MessageCircle, MessagesSquare, Newspaper, SquarePlus } from "lucide-react";
 
-const TABS = [
-  { href: "/app", label: "ئەمڕۆ", Icon: Home },
+const SHARED = [
   { href: "/app/comments", label: "کۆمێنت", Icon: MessagesSquare },
   { href: "/app/messages", label: "نامە", Icon: MessageCircle },
   { href: "/app/publish", label: "بڵاوکردنەوە", Icon: SquarePlus },
   { href: "/app/insights", label: "ئامار", Icon: BarChart3 },
 ] as const;
 
-export function Tabs() {
+const TABS = {
+  MERCHANT: [{ href: "/app", label: "ئەمڕۆ", Icon: Home }, ...SHARED],
+  NEWS: [{ href: "/app/news", label: "هەواڵ", Icon: Newspaper }, ...SHARED],
+} as const;
+
+export function Tabs({ kind }: { kind: "MERCHANT" | "NEWS" }) {
   const path = usePathname();
   return (
     <div className="gm-tabs">
       <nav aria-label="بەشەکان">
-        {TABS.map(({ href, label, Icon }) => {
+        {TABS[kind].map(({ href, label, Icon }) => {
           const active = href === "/app" ? path === "/app" : path.startsWith(href);
           return (
             <Link key={href} href={href} className="gm-tab" aria-current={active ? "page" : undefined}>
