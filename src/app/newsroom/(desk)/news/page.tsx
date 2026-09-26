@@ -8,8 +8,8 @@ import { NEWS_LIMITS } from "@/lib/billing/plans";
 import { CATALOG } from "@/lib/news/catalog";
 import { groupByCluster } from "@/lib/news/cluster";
 import { ingest } from "@/lib/news/ingest";
-import { currentWorkspace } from "../data";
-import { ago, num } from "../format";
+import { currentWorkspace } from "@/app/app/data";
+import { ago, num } from "@/app/app/format";
 import { RefreshButton } from "./refresh-button";
 
 export const maxDuration = 60;
@@ -26,7 +26,7 @@ const LANG_LABEL: Record<string, string> = { ku: "کوردی", ar: "عەرەبی
 
 export default async function NewsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const ws = (await currentWorkspace())!;
-  if (ws.kind !== "NEWS") redirect("/app");
+  if (ws.kind !== "NEWS") redirect("/newsroom");
   const { tab: tabKey } = await searchParams;
   const tab = TABS.find((t) => t.key === tabKey) ?? TABS[0];
 
@@ -62,7 +62,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
 
       <div className="gm-chips" role="tablist">
         {TABS.map((t) => (
-          <Link key={t.key} href={`/app/news?tab=${t.key}`} className="gm-chip" aria-pressed={t.key === tab.key}>
+          <Link key={t.key} href={`/newsroom/news?tab=${t.key}`} className="gm-chip" aria-pressed={t.key === tab.key}>
             {t.label}
           </Link>
         ))}
@@ -70,12 +70,12 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
 
       {!sources && (
         <p className="gm-note">
-          هیچ سەرچاوەیەکت چالاک نییە. <Link href="/app/settings" className="gm-link">لە ڕێکخستن سەرچاوە زیاد بکە</Link>.
+          هیچ سەرچاوەیەکت چالاک نییە. <Link href="/newsroom/settings" className="gm-link">لە ڕێکخستن سەرچاوە زیاد بکە</Link>.
         </p>
       )}
       {!!sources && !settings?.keywords.length && (
         <p className="gm-note">
-          GDELT و NewsData وشەی سەرەکییان دەوێت. <Link href="/app/settings" className="gm-link">وشە سەرەکییەکانت دابنێ</Link>.
+          GDELT و NewsData وشەی سەرەکییان دەوێت. <Link href="/newsroom/settings" className="gm-link">وشە سەرەکییەکانت دابنێ</Link>.
         </p>
       )}
       {ingestResult?.failed.length ? <p className="gm-hint">وەڵامی نەدایەوە: {ingestResult.failed.join("، ")}</p> : null}
@@ -85,7 +85,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
       ) : (
         <div className="gm-stack" style={{ gap: 8 }}>
           {groups.map(({ lead, count }) => (
-            <Link key={lead.id} href={`/app/news/${lead.id}`} className="gm-card" style={{ display: "block", textDecoration: "none", color: "inherit" }}>
+            <Link key={lead.id} href={`/newsroom/news/${lead.id}`} className="gm-card" style={{ display: "block", textDecoration: "none", color: "inherit" }}>
               <b dir="auto" style={{ display: "block", lineHeight: 1.7 }}>{lead.title}</b>
               <small className="gm-sub">
                 {lead.sourceName}

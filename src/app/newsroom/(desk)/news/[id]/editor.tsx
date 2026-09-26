@@ -11,7 +11,7 @@ import { mediaSrc, type Brand } from "@/lib/cards/brand";
 import { checkDraft } from "@/lib/news/rules";
 import { CARD_KINDS, type CardKind } from "@/lib/news/types";
 import { attachCardAction, dismissNewsAction, draftNewsAction, saveNewsDraftAction, type DraftView } from "../actions";
-import { ago } from "../../format";
+import { ago } from "@/app/app/format";
 
 const KIND_LABEL: Record<CardKind, string> = { STANDARD: "ئاسایی", BREAKING: "بەپەلە", STAT: "ژمارە", QUOTE: "وتە" };
 const PREVIEW_W = 320;
@@ -135,7 +135,7 @@ export function NewsEditor({ workspaceId, source, initial, brand }: { workspaceI
         });
         const r = await attachCardAction(source.itemId, { url: blob.url, pathname: blob.pathname });
         if (!r.ok) throw new Error(r.error);
-        router.push(`/app/publish?draft=${r.draftId}`);
+        router.push(`/newsroom/publish?draft=${r.draftId}`);
       } catch (e) {
         setError(e instanceof Error ? e.message : "هەڵە");
         setStage(null);
@@ -146,7 +146,7 @@ export function NewsEditor({ workspaceId, source, initial, brand }: { workspaceI
   function dismiss() {
     start(async () => {
       await dismissNewsAction(source.itemId);
-      router.push("/app/news");
+      router.push("/newsroom/news");
     });
   }
 

@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
 import { brandFrom } from "@/lib/cards/brand";
-import { currentWorkspace } from "../../data";
+import { currentWorkspace } from "@/app/app/data";
 import { NewsEditor } from "./editor";
 import type { DraftView } from "../actions";
 import { CARD_KINDS, type CardKind } from "@/lib/news/types";
@@ -11,7 +11,7 @@ export const maxDuration = 60;
 
 export default async function NewsItemPage({ params }: { params: Promise<{ id: string }> }) {
   const ws = (await currentWorkspace())!;
-  if (ws.kind !== "NEWS") redirect("/app");
+  if (ws.kind !== "NEWS") redirect("/newsroom");
   const { id } = await params;
   const [item, kit] = await Promise.all([
     db.newsItem.findFirst({ where: { id, tenantId: ws.id }, include: { draft: true } }),

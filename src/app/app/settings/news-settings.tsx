@@ -13,7 +13,7 @@ import {
   saveBrandKitAction,
   saveKeywordsAction,
   toggleCatalogSourceAction,
-} from "../news/actions";
+} from "@/app/newsroom/(desk)/news/actions";
 
 export interface NewsSettingsProps {
   workspaceId: string;

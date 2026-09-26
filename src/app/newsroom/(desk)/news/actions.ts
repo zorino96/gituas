@@ -12,7 +12,7 @@ import { ingest } from "@/lib/news/ingest";
 import { checkDraft, LIMITS } from "@/lib/news/rules";
 import { fetchFeed } from "@/lib/news/sources/rss";
 import { CARD_KINDS, type CardKind } from "@/lib/news/types";
-import { currentWorkspace, type Workspace } from "../data";
+import { currentWorkspace, type Workspace } from "@/app/app/data";
 
 export type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -72,7 +72,7 @@ export async function refreshNewsAction(): Promise<Result<{ added: number; faile
   if (!ws) return NOT_NEWS;
   try {
     const r = await ingest(ws.id, { force: true });
-    revalidatePath("/app/news");
+    revalidatePath("/newsroom/news");
     return { ok: true, added: r.added, failed: r.failed };
   } catch {
     return { ok: false, error: "نوێکردنەوە سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە." };
@@ -160,7 +160,7 @@ export async function dismissNewsAction(itemId: string): Promise<Result> {
   const ws = await newsWorkspace();
   if (!ws) return NOT_NEWS;
   await db.newsItem.updateMany({ where: { id: itemId, tenantId: ws.id }, data: { status: "DISMISSED" } });
-  revalidatePath("/app/news");
+  revalidatePath("/newsroom/news");
   return { ok: true };
 }
 
