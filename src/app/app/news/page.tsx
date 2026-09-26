@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 
 import { db } from "@/lib/db";
 import { usageOf } from "@/lib/billing/limits";
@@ -12,6 +13,8 @@ import { ago, num } from "../format";
 import { RefreshButton } from "./refresh-button";
 
 export const maxDuration = 60;
+
+const INGEST_WAIT_MS = 5000;
 
 const TABS = [
   { key: "new", label: "نوێ", statuses: ["NEW"] },
@@ -28,7 +31,12 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
   const tab = TABS.find((t) => t.key === tabKey) ?? TABS[0];
 
   // Fetching is throttled to once per five minutes, so opening the desk is cheap.
-  const ingestResult = await ingest(ws.id).catch(() => null);
+  // GDELT can take 10–20 s, so the page waits at most INGEST_WAIT_MS and shows
+  // what is stored; `after` keeps the function alive until the fetch finishes,
+  // and its stories appear on the next open or refresh.
+  const fetching = ingest(ws.id).catch(() => null);
+  after(() => fetching);
+  const ingestResult = await Promise.race([fetching, new Promise<null>((r) => setTimeout(() => r(null), INGEST_WAIT_MS))]);
   const [items, sources, settings, tenant, drafts, catalogSources] = await Promise.all([
     db.newsItem.findMany({
       where: { tenantId: ws.id, status: { in: [...tab.statuses] } },

@@ -75,7 +75,8 @@ export function parseGdelt(json: unknown): RawItem[] {
 
 export async function fetchGdelt(keywords: string[]): Promise<RawItem[]> {
   if (!keywords.some((k) => k.trim())) return [];
-  const res = await fetch(gdeltUrl(keywords), { signal: AbortSignal.timeout(8000) });
+  // GDELT often takes 10–15 s to answer (measured 2026-09-27); 8 s timed out.
+  const res = await fetch(gdeltUrl(keywords), { signal: AbortSignal.timeout(20_000) });
   if (res.status === 429) throw new RateLimited("GDELT asked us to slow down");
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const body = await res.text();
