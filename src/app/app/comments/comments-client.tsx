@@ -7,6 +7,7 @@ import { EyeOff, Eye, RefreshCw, Reply, Trash2, ExternalLink } from "lucide-reac
 
 import type { CommentState, MComment, MPost, Platform } from "@/lib/merchant/types";
 import { commentState, countStates } from "@/lib/merchant/state";
+import { useBase } from "../use-base";
 import { deleteCommentAction, replyToCommentAction, setCommentHiddenAction } from "../actions";
 import { ReplyComposer } from "../reply-composer";
 import { PLATFORM_NAME, ago, friendlyError, num } from "../format";
@@ -38,6 +39,7 @@ export function CommentsClient({
   connected: Record<Platform, boolean>;
 }) {
   const router = useRouter();
+  const base = useBase();
   const [posts, setPosts] = useState(initialPosts);
   const counts = useMemo(() => countStates(posts), [posts]);
   const [filter, setFilter] = useState<Filter>(counts.unanswered > 0 ? "unanswered" : "all");
@@ -93,7 +95,7 @@ export function CommentsClient({
           {!connected.FB && !connected.IG
             ? "هیچ پەیجێک پەیوەست نەکراوە."
             : `${!connected.FB ? "فەیسبووک" : "ئینستاگرام"} پەیوەست نەکراوە.`}{" "}
-          <Link href="/app/settings" className="gm-link">پەیوەستی بکە</Link>
+          <Link href={`${base}/settings`} className="gm-link">پەیوەستی بکە</Link>
         </p>
       )}
       {errors.map((e) => (
@@ -119,7 +121,7 @@ export function CommentsClient({
       {visible.length === 0 ? (
         <div className="gm-empty">
           <b className="kufi">{filter === "unanswered" ? "هەموو کۆمێنتەکان وەڵام دراونەتەوە" : "هیچ کۆمێنتێک نییە"}</b>
-          {filter === "unanswered" ? "هیچ کڕیارێک چاوەڕێ ناکات." : <Link href="/app/publish" className="gm-link">پۆستێکی نوێ بڵاو بکەرەوە</Link>}
+          {filter === "unanswered" ? "هیچ کڕیارێک چاوەڕێ ناکات." : <Link href={`${base}/publish`} className="gm-link">پۆستێکی نوێ بڵاو بکەرەوە</Link>}
         </div>
       ) : (
         <div className="gm-stack">

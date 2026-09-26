@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { Settings } from "lucide-react";
 
 import "./app.css";
-import { currentWorkspace } from "./data";
+import { claimKind, currentWorkspace } from "./data";
 import { gmFontVars } from "./fonts";
 import { Tabs } from "./nav";
 
@@ -13,8 +13,10 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, view
 export const dynamic = "force-dynamic";
 
 export default async function MerchantLayout({ children }: { children: React.ReactNode }) {
-  const ws = await currentWorkspace();
+  let ws = await currentWorkspace();
   if (!ws) redirect("/login?next=/app");
+  if (!ws.kindChosen) ws = await claimKind(ws, "MERCHANT");
+  if (ws.kind === "NEWS") redirect("/newsroom/news");
 
   return (
     <div className={`gm ${gmFontVars}`} dir="rtl" lang="ckb">

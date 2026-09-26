@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { db } from "@/lib/db";
 import { attributionFor } from "@/lib/news/rules";
-import { currentWorkspace, loadConnections } from "../data";
+import { baseFor, currentWorkspace, loadConnections } from "../data";
 import { PublishClient } from "./publish-client";
 
 // Instagram video containers are polled for up to ~45 s before publishing.
@@ -29,7 +29,7 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
       {draft && !hasCard && (
         <p className="gm-note warn" style={{ marginBottom: 12 }}>
           کارتی ئەم هەواڵە کۆن بووە. لە مێزی هەواڵ دووبارە ئامادەی بکەوە.{" "}
-          <Link href={`/app/news/${draft.itemId}`} className="gm-link">کردنەوە</Link>
+          <Link href={`${baseFor(ws.kind)}/news/${draft.itemId}`} className="gm-link">کردنەوە</Link>
         </p>
       )}
       <PublishClient

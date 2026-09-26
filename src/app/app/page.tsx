@@ -1,17 +1,13 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { currentWorkspace, loadConnections, loadConversations, loadInsights, loadPosts } from "./data";
 import { commentState, countStates } from "@/lib/merchant/state";
 import { PLATFORM_NAME, ago, num } from "./format";
-import { KindChooser } from "./kind-chooser";
 
 export const maxDuration = 60;
 
 export default async function TodayPage() {
   const ws = (await currentWorkspace())!;
-  if (!ws.kindChosen) return <KindChooser />;
-  if (ws.kind === "NEWS") redirect("/app/news");
   const conns = await loadConnections(ws.id);
   const anyConnected = conns.META_FACEBOOK.connected || conns.META_INSTAGRAM.connected;
 

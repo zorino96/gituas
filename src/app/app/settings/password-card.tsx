@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { signIn } from "next-auth/react";
 import { Eye, EyeOff } from "lucide-react";
 
+import { useBase } from "../use-base";
 import { changePasswordAction } from "../actions";
 
 /**
@@ -11,6 +12,7 @@ import { changePasswordAction } from "../actions";
  * one, so the same person can also sign in with their email.
  */
 export function PasswordCard({ email, hasPassword: initial }: { email: string; hasPassword: boolean }) {
+  const base = useBase();
   const [hasPassword, setHasPassword] = useState(initial);
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -31,7 +33,7 @@ export function PasswordCard({ email, hasPassword: initial }: { email: string; h
       // browser back in with the new password so only the others are logged out.
       const s = await signIn("credentials", { email, password: next, redirect: false });
       if (s?.error) {
-        window.location.href = "/login?next=/app/settings";
+        window.location.href = `/login?next=${base}/settings`;
         return;
       }
       setMessage({

@@ -4,7 +4,8 @@ import { useEffect, useState, useTransition } from "react";
 import { signOut } from "next-auth/react";
 
 import { normalizePhone } from "@/lib/merchant/phone";
-import { saveWhatsAppAction, setTenantKindAction } from "../actions";
+import { useBase } from "../use-base";
+import { saveWhatsAppAction } from "../actions";
 import { PasswordCard } from "./password-card";
 import { NewsSettings, type NewsSettingsProps } from "./news-settings";
 
@@ -51,12 +52,11 @@ export function SettingsClient({
   kind: "MERCHANT" | "NEWS";
   news: NewsSettingsProps | null;
 }) {
+  const base = useBase();
   const [raw, setRaw] = useState(whatsappNumber ? localForm(whatsappNumber) : "");
   const [saved, setSaved] = useState<string | null>(whatsappNumber);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
-  const [kindPending, startKind] = useTransition();
-  const [kindError, setKindError] = useState<string | null>(null);
   const [origin, setOrigin] = useState("");
   useEffect(() => setOrigin(window.location.origin), []);
 
@@ -71,16 +71,6 @@ export function SettingsClient({
         setSaved(r.digits);
         setMessage({ ok: true, text: r.digits ? "پاشەکەوت کرا." : "ژمارەکە لابرا." });
       } else setMessage({ ok: false, text: r.error });
-    });
-  }
-
-  function toggleKind() {
-    if (!window.confirm("دڵنیایت؟ بەشەکانی ئەپەکە دەگۆڕێن.")) return;
-    setKindError(null);
-    startKind(async () => {
-      const r = await setTenantKindAction(kind === "NEWS" ? "MERCHANT" : "NEWS");
-      if (r.ok) window.location.href = kind === "NEWS" ? "/app" : "/app/news";
-      else setKindError(r.error);
     });
   }
 
@@ -103,7 +93,7 @@ export function SettingsClient({
               </p>
               <small>{c.connected && c.name ? c.name : c.note}</small>
             </div>
-            <a href={`/api/oauth/${c.provider.toLowerCase()}/start?next=/app/settings`} className={`gm-btn small ${c.connected ? "quiet" : ""}`}>
+            <a href={`/api/oauth/${c.provider.toLowerCase()}/start?next=${base}/settings`} className={`gm-btn small ${c.connected ? "quiet" : ""}`}>
               {c.connected ? "دووبارە پەیوەست بکەوە" : "پەیوەست بکە"}
             </a>
           </div>
@@ -161,22 +151,13 @@ export function SettingsClient({
         </>
       )}
 
-      <p className="gm-sec">جۆری هەژمار</p>
-      <div className="gm-card gm-row" style={{ justifyContent: "space-between" }}>
-        <span>{kind === "NEWS" ? "پەیجی هەواڵ" : "دووکان"}</span>
-        <button type="button" className="gm-btn quiet small" disabled={kindPending} onClick={toggleKind}>
-          {kindPending ? "…" : kind === "NEWS" ? "بیکە بە دووکان" : "بیکە بە پەیجی هەواڵ"}
-        </button>
-      </div>
-      {kindError && <p className="gm-err">{kindError}</p>}
-
       <p className="gm-sec">هەژمار</p>
       {account.email && (
         <p className="gm-hint" style={{ marginTop: 0, marginBottom: 10 }}>
           چوویتە ژوورەوە وەک <bdi className="gm-ltr" dir="ltr">{account.email}</bdi>
         </p>
       )}
-      <button type="button" className="gm-btn quiet" onClick={() => signOut({ callbackUrl: "/login?next=/app" })}>
+      <button type="button" className="gm-btn quiet" onClick={() => signOut({ callbackUrl: `/login?next=${base}` })}>
         چوونەدەرەوە
       </button>
     </div>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { currentWorkspace, loadConnections, loadInsights, loadPosts } from "../data";
+import { baseFor, currentWorkspace, loadConnections, loadInsights, loadPosts } from "../data";
 import { rankPosts } from "@/lib/merchant/state";
 import { PLATFORM_NAME, ago, num } from "../format";
 
@@ -55,7 +55,7 @@ export default async function InsightsPage() {
       <div className="gm-card">
         {top.length === 0 ? (
           <p className="gm-sub" style={{ margin: 0 }}>
-            هێشتا هیچ پۆستێک کۆمێنتی نییە. <Link href="/app/publish" className="gm-link">پۆستێک بڵاو بکەرەوە</Link>
+            هێشتا هیچ پۆستێک کۆمێنتی نییە. <Link href={`${baseFor(ws.kind)}/publish`} className="gm-link">پۆستێک بڵاو بکەرەوە</Link>
           </p>
         ) : (
           top.map((p) => (

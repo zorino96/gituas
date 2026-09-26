@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { hashPassword, passwordProblem, verifyPassword } from "@/lib/password";
 import type { Prisma } from "@/generated/prisma/client";
 import { getGemini } from "@/lib/gemini";
-import { currentWorkspace } from "./data";
+import { baseFor, currentWorkspace } from "./data";
 import {
   deleteIgComment,
   replyToComment,
@@ -191,14 +191,14 @@ export async function saveWhatsAppAction(raw: string): Promise<{ ok: true; digit
   if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
   if (!raw.trim()) {
     await db.tenant.update({ where: { id: ws.id }, data: { whatsappNumber: null } });
-    revalidatePath("/app", "layout");
+    revalidatePath(baseFor(ws.kind), "layout");
     return { ok: true, digits: null };
   }
   const n = normalizePhone(raw);
   if (!n.ok) return { ok: false, error: "ژمارەکە دروست نییە. بۆ نموونە: 0750 123 4567" };
   await db.tenant.update({ where: { id: ws.id }, data: { whatsappNumber: n.digits } });
   await audit(ws.id, "app.whatsapp_set", "Set the WhatsApp number.", {});
-  revalidatePath("/app", "layout");
+  revalidatePath(baseFor(ws.kind), "layout");
   return { ok: true, digits: n.digits };
 }
 
@@ -392,33 +392,4 @@ export async function tiktokStatusAction(publishId: string): Promise<{ ok: true;
   const s = await fetchTikTokPostStatus(ws.id, publishId);
   if ("error" in s) return { ok: false, error: s.error };
   return { ok: true, status: s.status, failReason: s.failReason };
-}
-
-// ---------- workspace kind --------------------------------------------------
-
-/**
- * Shop or news page. Becoming a news page also gives it desk settings and
- * GDELT as a first source — GDELT only returns stories once keywords are
- * set, so the desk stays empty until then.
- */
-export async function setTenantKindAction(kind: "MERCHANT" | "NEWS"): Promise<Result> {
-  const ws = await currentWorkspace();
-  if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
-  if (kind !== "MERCHANT" && kind !== "NEWS") return { ok: false, error: "هەڵبژاردنەکە دروست نییە." };
-  try {
-    await db.tenant.update({ where: { id: ws.id }, data: { kind, kindChosen: true } });
-    if (kind === "NEWS") {
-      await db.newsSettings.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, keywords: [] }, update: {} });
-      await db.newsSource.upsert({
-        where: { tenantId_catalogId: { tenantId: ws.id, catalogId: "gdelt" } },
-        create: { tenantId: ws.id, catalogId: "gdelt", name: "GDELT" },
-        update: {},
-      });
-    }
-    await audit(ws.id, "app.kind_set", `Set the workspace kind to ${kind}.`, { kind });
-  } catch {
-    return { ok: false, error: "پاشەکەوت نەکرا. دووبارە هەوڵ بدەرەوە." };
-  }
-  revalidatePath("/app", "layout");
-  return { ok: true };
 }

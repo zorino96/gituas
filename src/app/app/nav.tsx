@@ -4,25 +4,33 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { BarChart3, Home, MessageCircle, MessagesSquare, Newspaper, SquarePlus } from "lucide-react";
 
-const SHARED = [
-  { href: "/app/comments", label: "کۆمێنت", Icon: MessagesSquare },
-  { href: "/app/messages", label: "نامە", Icon: MessageCircle },
-  { href: "/app/publish", label: "بڵاوکردنەوە", Icon: SquarePlus },
-  { href: "/app/insights", label: "ئامار", Icon: BarChart3 },
-] as const;
+type Kind = "MERCHANT" | "NEWS";
 
-const TABS = {
-  MERCHANT: [{ href: "/app", label: "ئەمڕۆ", Icon: Home }, ...SHARED],
-  NEWS: [{ href: "/app/news", label: "هەواڵ", Icon: Newspaper }, ...SHARED],
-} as const;
+// Kept local (not imported from "./data") so this client component never
+// pulls in data.ts's server-only imports (@/lib/db, @/auth).
+function baseFor(kind: Kind): "/app" | "/newsroom" {
+  return kind === "NEWS" ? "/newsroom" : "/app";
+}
 
-export function Tabs({ kind }: { kind: "MERCHANT" | "NEWS" }) {
+export function Tabs({ kind }: { kind: Kind }) {
   const path = usePathname();
+  const base = baseFor(kind);
+  const shared = [
+    { href: `${base}/comments`, label: "کۆمێنت", Icon: MessagesSquare },
+    { href: `${base}/messages`, label: "نامە", Icon: MessageCircle },
+    { href: `${base}/publish`, label: "بڵاوکردنەوە", Icon: SquarePlus },
+    { href: `${base}/insights`, label: "ئامار", Icon: BarChart3 },
+  ];
+  const tabs =
+    kind === "MERCHANT"
+      ? [{ href: base, label: "ئەمڕۆ", Icon: Home }, ...shared]
+      : [{ href: `${base}/news`, label: "هەواڵ", Icon: Newspaper }, ...shared];
+
   return (
     <div className="gm-tabs">
       <nav aria-label="بەشەکان">
-        {TABS[kind].map(({ href, label, Icon }) => {
-          const active = href === "/app" ? path === "/app" : path.startsWith(href);
+        {tabs.map(({ href, label, Icon }) => {
+          const active = href === base ? path === base : path.startsWith(href);
           return (
             <Link key={href} href={href} className="gm-tab" aria-current={active ? "page" : undefined}>
               <Icon aria-hidden="true" strokeWidth={active ? 2.2 : 1.8} />

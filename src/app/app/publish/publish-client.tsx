@@ -8,6 +8,7 @@ import { ImagePlus, Sparkles, X } from "lucide-react";
 
 import { CAPTION_LIMITS, CITY_TAGS, captionProblems, mergeHashtags, type Target } from "@/lib/merchant/caption";
 import { tiktokProblems } from "@/lib/merchant/tiktok-rules";
+import { useBase } from "../use-base";
 import {
   publishAction,
   suggestCaptionAction,
@@ -53,6 +54,7 @@ export function PublishClient({
   initial?: { newsDraftId: string; caption: string; media: Media; attribution: string };
 }) {
   const router = useRouter();
+  const base = useBase();
 
   // media
   const fileInput = useRef<HTMLInputElement>(null);
@@ -123,7 +125,7 @@ export function PublishClient({
     if (!newsDraftId) return;
     setNewsDraftId(null);
     setAttribution(null);
-    router.replace("/app/publish");
+    router.replace(`${base}/publish`);
   }
 
   async function pickFile(file: File) {
@@ -402,7 +404,7 @@ export function PublishClient({
                 <p>{PLATFORM_NAME[t]}</p>
                 <small>
                   {!account ? (
-                    <Link href="/app/settings" className="gm-link">پەیوەست نەکراوە — پەیوەستی بکە</Link>
+                    <Link href={`${base}/settings`} className="gm-link">پەیوەست نەکراوە — پەیوەستی بکە</Link>
                   ) : needsMedia ? (
                     "وێنە یان ڤیدیۆی دەوێت"
                   ) : (

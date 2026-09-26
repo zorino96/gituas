@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, RefreshCw } from "lucide-react";
 
 import type { MConversation, Platform } from "@/lib/merchant/types";
+import { useBase } from "../use-base";
 import { sendMessageAction } from "../actions";
 import { ReplyComposer } from "../reply-composer";
 import { PLATFORM_NAME, ago, friendlyError, num } from "../format";
@@ -24,6 +25,7 @@ export function MessagesClient({
   connected: Record<Platform, boolean>;
 }) {
   const router = useRouter();
+  const base = useBase();
   const [convs, setConvs] = useState(initial);
   const [openId, setOpenId] = useState<string | null>(null);
   const [refreshing, startRefresh] = useTransition();
@@ -105,7 +107,7 @@ export function MessagesClient({
       {(!connected.FB || !connected.IG) && (
         <p className="gm-note" style={{ marginBottom: 12 }}>
           {!connected.FB && !connected.IG ? "هیچ پەیجێک پەیوەست نەکراوە." : `${!connected.FB ? "مەسنجەر" : "ئینستاگرام"} پەیوەست نەکراوە.`}{" "}
-          <Link href="/app/settings" className="gm-link">پەیوەستی بکە</Link>
+          <Link href={`${base}/settings`} className="gm-link">پەیوەستی بکە</Link>
         </p>
       )}
       {errors.map((e) => (
