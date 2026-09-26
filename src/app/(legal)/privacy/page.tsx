@@ -155,7 +155,11 @@ export default function PrivacyPage() {
       <P>We share data only with service providers that help us run Gituas, including:</P>
       <UL>
         <LI><Strong>Hosting &amp; infrastructure</Strong> — Vercel (application) and Neon (database).</LI>
-        <LI><Strong>AI processing</Strong> — Google (Gemini) to generate marketing content.</LI>
+        <LI>
+          <Strong>AI processing</Strong> — Google (Gemini) and DeepSeek to generate and summarise
+          content. What we send them is the content being drafted; for news pages, that is a public
+          headline and summary of a news story.
+        </LI>
         <LI><Strong>Connected platforms</Strong> — TikTok, YouTube, X, LinkedIn, Reddit, Meta, and Stripe, to which we send the content and requests you authorize.</LI>
       </UL>
       <P>
