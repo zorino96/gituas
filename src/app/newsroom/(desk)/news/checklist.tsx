@@ -20,7 +20,7 @@ export function Checklist({ steps }: { steps: ChecklistStep[] }) {
       <div className="nr-meter" aria-hidden="true">
         <span style={{ width: `${(done / steps.length) * 100}%` }} />
       </div>
-      <ol>
+      <ol role="list">
         {steps.map((s) => (
           <li key={s.key} className={s.done ? "done" : undefined}>
             <Link href={s.href}>

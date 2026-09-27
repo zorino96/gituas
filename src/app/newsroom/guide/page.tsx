@@ -29,9 +29,11 @@ export default async function GuidePage() {
             <span className="nr-live" aria-hidden="true" />
             گیتواس نیوزڕووم
           </Link>
-          <Link href="/login?next=/newsroom/news" className="gm-btn quiet small">
-            چوونەژوورەوە
-          </Link>
+          {!ws && (
+            <Link href="/login?next=/newsroom/news" className="gm-btn quiet small">
+              چوونەژوورەوە
+            </Link>
+          )}
         </div>
         <GuideArticle />
       </div>
