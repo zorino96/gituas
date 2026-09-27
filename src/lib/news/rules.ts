@@ -51,6 +51,29 @@ export function sequenceRatio(text: string, source: string): number {
 const HEADLINE_SEQ_RATIO = 0.8;
 const BODY_SEQ_RATIO = 0.6;
 
+export type CopyPart = "headline" | "body" | "both" | null;
+
+/** Which part of the draft copies the source, if any, using exactly checkDraft's thresholds. */
+export function copyPart(d: { headline: string; body: string }, src: { title: string; snippet: string }): CopyPart {
+  const headline = d.headline.trim();
+  const body = d.body.trim();
+  const sourceText = `${src.title} ${src.snippet}`;
+  const headlineCopy = words(headline).length >= 3 && sequenceRatio(headline, src.title) >= HEADLINE_SEQ_RATIO;
+  const bodyCopy =
+    overlapRatio(`${headline} ${body}`, sourceText) >= COPY_RATIO ||
+    (words(body).length >= 4 && sequenceRatio(body, sourceText) >= BODY_SEQ_RATIO);
+  if (headlineCopy && bodyCopy) return "both";
+  if (headlineCopy) return "headline";
+  if (bodyCopy) return "body";
+  return null;
+}
+
+const COPY_MESSAGE: Record<Exclude<CopyPart, null>, string> = {
+  headline: "سەردێڕەکە زۆر لە سەردێڕی سەرچاوەکە دەچێت. بە وشەی خۆت بینووسەوە.",
+  body: "دەقەکە زۆر لە دەقی سەرچاوەکە دەچێت. بە وشەی خۆت بینووسەوە.",
+  both: "سەردێڕ و دەقەکە زۆر لە سەرچاوەکە دەچن. بە وشەی خۆت بینووسەوە.",
+};
+
 /** Every problem blocks publishing until the editor fixes it. */
 export function checkDraft(d: { headline: string; body: string }, src: { title: string; snippet: string }): Problem[] {
   const out: Problem[] = [];
@@ -59,13 +82,9 @@ export function checkDraft(d: { headline: string; body: string }, src: { title: 
   if (!headline || !body) out.push({ code: "EMPTY", message: "سەردێڕ و دەق هەردووکیان پێویستن." });
   if ([...headline].length > LIMITS.headline) out.push({ code: "HEADLINE_LONG", message: `سەردێڕ لە ${ku(LIMITS.headline)} پیت درێژترە.` });
   if ([...body].length > LIMITS.body) out.push({ code: "BODY_LONG", message: `دەق لە ${ku(LIMITS.body)} پیت درێژترە.` });
-  const sourceText = `${src.title} ${src.snippet}`;
-  const isCopy =
-    overlapRatio(`${headline} ${body}`, sourceText) >= COPY_RATIO ||
-    (words(headline).length >= 3 && sequenceRatio(headline, src.title) >= HEADLINE_SEQ_RATIO) ||
-    (words(body).length >= 4 && sequenceRatio(body, sourceText) >= BODY_SEQ_RATIO);
-  if (isCopy) {
-    out.push({ code: "COPY", message: "ئەم دەقە زۆر لە دەقی سەرچاوەکە دەچێت. بە وشەی خۆت بینووسەوە." });
+  const part = copyPart(d, src);
+  if (part) {
+    out.push({ code: "COPY", message: COPY_MESSAGE[part] });
   }
   return out;
 }

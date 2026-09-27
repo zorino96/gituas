@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildUserPrompt, DRAFT_SYSTEM, validateDraft } from "@/lib/news/draft";
+import { buildUserPrompt, DRAFT_SYSTEM, nextAttempt, validateDraft } from "@/lib/news/draft";
 import { CATEGORIES } from "@/lib/news/types";
 
 describe("validateDraft", () => {
@@ -43,6 +43,54 @@ describe("buildUserPrompt", () => {
     expect(buildUserPrompt({ sourceName: "GDELT", title: "T", snippet: "" })).toBe(
       "Source: GDELT\n--- BEGIN SOURCE TEXT ---\nHeadline: T\nSnippet: (none)\n--- END SOURCE TEXT ---",
     );
+  });
+
+  const item = { sourceName: "GDELT", title: "T", snippet: "s" };
+  const base = buildUserPrompt(item);
+
+  it("is byte-for-byte the same when there is no feedback", () => {
+    expect(buildUserPrompt(item, undefined)).toBe(base);
+    expect(buildUserPrompt(item, {})).toBe(base);
+  });
+  it("quotes the copied headline and asks for it to be rewritten, on top of the unchanged base prompt", () => {
+    const out = buildUserPrompt(item, { headline: "سەردێڕی کۆپیکراو" });
+    expect(out.startsWith(base)).toBe(true);
+    expect(out).toContain('"سەردێڕی کۆپیکراو"');
+    expect(out).not.toContain("Previous body");
+    expect(out).toMatch(/clearly different words/i);
+  });
+  it("quotes the copied body and asks for it to be rewritten", () => {
+    const out = buildUserPrompt(item, { body: "دەقی کۆپیکراو" });
+    expect(out).toContain('"دەقی کۆپیکراو"');
+    expect(out).not.toContain("Previous headline");
+  });
+  it("quotes both parts when both copied", () => {
+    const out = buildUserPrompt(item, { headline: "H", body: "B" });
+    expect(out).toContain('"H"');
+    expect(out).toContain('"B"');
+  });
+});
+
+describe("nextAttempt", () => {
+  it("stops once there is nothing left to fix", () => {
+    expect(nextAttempt(1, "fast", null, 0)).toBeNull();
+  });
+  it("retries once at the same strength, with feedback", () => {
+    expect(nextAttempt(1, "fast", "headline", 0)).toBe("fast");
+    expect(nextAttempt(1, "strong", "body", 0)).toBe("strong");
+  });
+  it("escalates a fast draft to strong when it still copies after the retry", () => {
+    expect(nextAttempt(2, "fast", "both", 0)).toBe("strong");
+  });
+  it("does not escalate further once already strong", () => {
+    expect(nextAttempt(2, "strong", "body", 0)).toBeNull();
+  });
+  it("stops after the third attempt regardless of strength", () => {
+    expect(nextAttempt(3, "strong", "headline", 0)).toBeNull();
+  });
+  it("skips further attempts once more than 35s have passed", () => {
+    expect(nextAttempt(1, "fast", "headline", 35_000)).toBe("fast");
+    expect(nextAttempt(1, "fast", "headline", 35_001)).toBeNull();
   });
 });
 

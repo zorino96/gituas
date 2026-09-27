@@ -56,7 +56,7 @@ export function NewsEditor({ workspaceId, source, initial, brand }: { workspaceI
   function redraft(strength: "fast" | "strong") {
     setError(null);
     start(async () => {
-      setStage(strength === "strong" ? "باشتر دەنووسرێتەوە… (تا ١٠ چرکە)" : "ئامادە دەکرێت…");
+      setStage(strength === "strong" ? "باشتر دەنووسرێتەوە… (تا ١٠ چرکە)" : "ئامادە دەکرێت… (تا ٢٠ چرکە)");
       const r = await draftNewsAction(source.itemId, strength);
       setStage(null);
       if (r.ok) setD(r.draft);

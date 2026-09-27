@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { attributionFor, captionFor, captionWithAttribution, checkDraft, overlapRatio, sequenceRatio } from "@/lib/news/rules";
+import { attributionFor, captionFor, captionWithAttribution, checkDraft, copyPart, overlapRatio, sequenceRatio } from "@/lib/news/rules";
 
 const SRC = {
   title: "بەغدا و کوەیت لاپەڕەیەکی نوێ",
@@ -69,6 +69,55 @@ describe("checkDraft", () => {
     const d = { headline: "هەولێر ئاو", body: "هەولێر ئاو" };
     const src = { title: "دۆزینەوەی کەمپی ئاوارەکان", snippet: "" };
     expect(checkDraft(d, src).map((p) => p.code)).not.toContain("COPY");
+  });
+  it("names the headline in the COPY message when only the headline copies", () => {
+    const d = {
+      headline: SRC.title,
+      body: "هەولێر شارێکی زۆر کۆن و مێژووییە کە هەزاران گەشتیار ساڵانە سەردانی ئەم شارە بەناوبانگە دەکەن",
+    };
+    const problems = checkDraft(d, SRC);
+    expect(problems.find((p) => p.code === "COPY")?.message).toBe("سەردێڕەکە زۆر لە سەردێڕی سەرچاوەکە دەچێت. بە وشەی خۆت بینووسەوە.");
+  });
+  it("names the body in the COPY message when only the body copies", () => {
+    const d = {
+      headline: "هەواڵێکی گرنگ لە هەرێم",
+      body: "عێراق و کوەیت لەبارەی پێکهێنانی لیژنەیەکی هاوبەش بۆ چارەسەرکردنی دۆسیە هەڵپەسێردراوەکان ڕێککەوتوون",
+    };
+    const problems = checkDraft(d, SRC);
+    expect(problems.find((p) => p.code === "COPY")?.message).toBe("دەقەکە زۆر لە دەقی سەرچاوەکە دەچێت. بە وشەی خۆت بینووسەوە.");
+  });
+  it("names both in the COPY message when the headline and body both copy", () => {
+    const d = { headline: SRC.title, body: SRC.snippet };
+    const problems = checkDraft(d, SRC);
+    expect(problems.find((p) => p.code === "COPY")?.message).toBe("سەردێڕ و دەقەکە زۆر لە سەرچاوەکە دەچن. بە وشەی خۆت بینووسەوە.");
+  });
+});
+
+describe("copyPart", () => {
+  it("names the headline when only the headline copies", () => {
+    const d = {
+      headline: SRC.title,
+      body: "هەولێر شارێکی زۆر کۆن و مێژووییە کە هەزاران گەشتیار ساڵانە سەردانی ئەم شارە بەناوبانگە دەکەن",
+    };
+    expect(copyPart(d, SRC)).toBe("headline");
+  });
+  it("names the body when only the body copies", () => {
+    const d = {
+      headline: "هەواڵێکی گرنگ لە هەرێم",
+      body: "عێراق و کوەیت لەبارەی پێکهێنانی لیژنەیەکی هاوبەش بۆ چارەسەرکردنی دۆسیە هەڵپەسێردراوەکان ڕێککەوتوون",
+    };
+    expect(copyPart(d, SRC)).toBe("body");
+  });
+  it("names both when the headline and body both copy", () => {
+    const d = { headline: SRC.title, body: SRC.snippet };
+    expect(copyPart(d, SRC)).toBe("both");
+  });
+  it("is null for a genuinely restated draft", () => {
+    const d = {
+      headline: "عێراق و کوەیت لەسەر دۆسیەی ئاوارەکان ڕێککەوتن",
+      body: "وەزارەتی دەرەوەی عێراق ڕایگەیاند کە لەگەڵ کوەیت لیژنەیەکی هاوبەشیان پێکهێناوە بۆ چارەسەرکردنی کێشە کۆنەکانی نێوان هەردوو وڵات",
+    };
+    expect(copyPart(d, SRC)).toBeNull();
   });
 });
 

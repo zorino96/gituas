@@ -7,9 +7,9 @@ import { assertWithin, countUsage, LimitReached, limitMessage } from "@/lib/bill
 import { NEWS_LIMITS } from "@/lib/billing/plans";
 import { AiUnavailable, type Strength } from "@/lib/ai/provider";
 import { catalogAvailable, type CatalogId } from "@/lib/news/catalog";
-import { draftFor } from "@/lib/news/draft";
+import { draftFor, nextAttempt } from "@/lib/news/draft";
 import { ingest } from "@/lib/news/ingest";
-import { checkDraft, LIMITS } from "@/lib/news/rules";
+import { checkDraft, copyPart, LIMITS } from "@/lib/news/rules";
 import { fetchFeed } from "@/lib/news/sources/rss";
 import { CARD_KINDS, type CardKind } from "@/lib/news/types";
 import { currentWorkspace, type Workspace } from "@/app/app/data";
@@ -79,8 +79,13 @@ export async function refreshNewsAction(): Promise<Result<{ added: number; faile
   }
 }
 
-/** Write (or rewrite) the draft for an item. `strong` is the editor's "improve". */
+/**
+ * Write (or rewrite) the draft for an item. `strong` is the editor's "improve".
+ * When the draft copies the source, it is redrafted with feedback (same strength), and once
+ * more at "strong" if a "fast" draft still copies — kept inside Vercel's 60s action budget.
+ */
 export async function draftNewsAction(itemId: string, strength: Strength): Promise<Result<{ draft: DraftView }>> {
+  const actionStart = Date.now();
   const ws = await newsWorkspace();
   if (!ws) return NOT_NEWS;
   if (strength !== "fast" && strength !== "strong") return { ok: false, error: "جۆری داواکراو دروست نییە." };
@@ -89,7 +94,23 @@ export async function draftNewsAction(itemId: string, strength: Strength): Promi
   const metric = strength === "strong" ? "improve" : "draft";
   try {
     await assertWithin(ws.id, metric);
-    const { draft, model } = await draftFor(item, strength);
+    let attempt = 1;
+    let currentStrength: Strength = strength;
+    let feedback: { headline?: string; body?: string } | undefined;
+    let result = await draftFor(item, currentStrength, feedback);
+    for (;;) {
+      const part = copyPart(result.draft, item);
+      const next = nextAttempt(attempt, currentStrength, part, Date.now() - actionStart);
+      if (next === null) break;
+      feedback = {
+        headline: part !== "body" ? result.draft.headline : undefined,
+        body: part !== "headline" ? result.draft.body : undefined,
+      };
+      currentStrength = next;
+      attempt++;
+      result = await draftFor(item, currentStrength, feedback);
+    }
+    const { draft, model } = result;
     // A stale card must never go out with new text.
     const data = { ...draft, model, tenantId: ws.id, cardUrl: null, cardPath: null };
     const saved = await db.newsDraft.upsert({ where: { itemId }, create: { itemId, ...data }, update: data });
