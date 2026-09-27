@@ -32,6 +32,9 @@ export async function GET(req: Request) {
     }
   }
 
+  // Abandoned Facebook Page choices hold encrypted user tokens; drop the expired ones.
+  await db.oAuthPageChoice.deleteMany({ where: { expiresAt: { lt: new Date() } } }).catch(() => undefined);
+
   const projects = await db.project.findMany({
     where: { mode: { masterMode: "AUTO" }, status: "ACTIVE" },
     select: { id: true, name: true },

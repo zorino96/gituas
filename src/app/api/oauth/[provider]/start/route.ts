@@ -6,6 +6,7 @@ import { buildAuthorizeUrl } from "@/lib/oauth/flow";
 import type { OAuthProvider } from "@/generated/prisma/client";
 import { currentWorkspace } from "@/app/app/data";
 import { can } from "@/lib/newsroom/roles";
+import { safeNext } from "@/lib/safe-next";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,8 +21,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
   // Where to land after the provider sends the user back. Only our own
   // surfaces are allowed, so this can never become an open redirect.
   const next = new URL(req.url).searchParams.get("next");
-  const returnTo =
-    next && !next.includes("..") && /^\/(app|newsroom|dashboard)(\/|$)/.test(next) ? next : "/dashboard/integrations";
+  // The parsed, normalised path is what's checked and stored, so encoded
+  // dot-segments can't smuggle in another host.
+  const cleaned = safeNext(next, "");
+  const returnTo = /^\/(app|newsroom|dashboard)(\/|\?|$)/.test(cleaned) ? cleaned : "/dashboard/integrations";
 
   // The shop and the newsroom connect pages to the workspace being worked in,
   // and only owners and editors may. The operator dashboard keeps its own tenant.

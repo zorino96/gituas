@@ -16,6 +16,12 @@ describe("safeNext", () => {
     expect(safeNext("/a/../b", "/app")).toBe("/app");
   });
 
+  it("falls back when percent-encoded dot-segments collapse the path into another host", () => {
+    expect(safeNext("/app/%2e%2e//evil.com/x", "/app")).toBe("/app");
+    expect(safeNext("/app/%2E%2E//evil.com", "/app")).toBe("/app");
+    expect(safeNext("/a/.%2e//evil.com", "/app")).toBe("/app");
+  });
+
   it("uses an array's first element", () => {
     expect(safeNext(["/newsroom", "/app"], "/dashboard")).toBe("/newsroom");
   });

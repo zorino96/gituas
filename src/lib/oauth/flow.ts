@@ -410,12 +410,18 @@ type ChoiceRow = { tenantId: string; redirectTo: string; pages: unknown; scopes:
 async function ownedChoice(choiceId: string, userId: string): Promise<ChoiceRow | null> {
   if (!choiceId) return null;
   const choice = await db.oAuthPageChoice.findUnique({ where: { id: choiceId } });
-  if (!choice || choice.expiresAt < new Date()) return null;
-  const member = await db.membership.findUnique({
-    where: { tenantId_userId: { tenantId: choice.tenantId, userId } },
-    select: { role: true },
-  });
-  return member && can(member.role, "configure") ? choice : null;
+  if (!choice) return null;
+  if (choice.expiresAt < new Date()) {
+    // It holds a long-lived user token; don't keep it past its ten minutes.
+    await db.oAuthPageChoice.delete({ where: { id: choiceId } }).catch(() => undefined);
+    return null;
+  }
+  const [member, tenant] = await Promise.all([
+    db.membership.findUnique({ where: { tenantId_userId: { tenantId: choice.tenantId, userId } }, select: { role: true } }),
+    db.tenant.findUnique({ where: { id: choice.tenantId }, select: { ownerId: true } }),
+  ]);
+  // The owner always may (the operator dashboard starts connects by ownership).
+  return tenant?.ownerId === userId || (member && can(member.role, "configure")) ? choice : null;
 }
 
 function choicePages(pages: unknown): { id: string; name: string }[] {

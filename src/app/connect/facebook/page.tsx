@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export default async function ChooseFacebookPage({ searchParams }: { searchParams: Promise<{ c?: string; error?: string }> }) {
   const { c = "", error } = await searchParams;
   const session = await auth();
-  if (!session?.user?.id) redirect("/login");
+  if (!session?.user?.id) redirect(`/login?next=${encodeURIComponent(`/connect/facebook?c=${c}`)}`);
   const choice = await loadPageChoice(c, session.user.id);
   const newsroom = !!choice?.redirectTo.startsWith("/newsroom");
 
