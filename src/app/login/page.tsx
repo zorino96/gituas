@@ -6,15 +6,10 @@ import "@/app/app/app.css";
 import { auth, googleEnabled } from "@/auth";
 import { gmFontVars } from "@/app/app/fonts";
 import { emailEnabled } from "@/lib/mailer";
+import { safeNext } from "@/lib/safe-next";
 import { LoginCard } from "./login-card";
 import { MerchantLogin } from "./merchant-login";
 import { loginTitle, productFor } from "./product";
-
-/** Only same-site paths may be a post-login destination — never `//host` or a URL. */
-function safeNext(next: string | string[] | undefined, fallback: string): string {
-  const n = Array.isArray(next) ? next[0] : next;
-  return n && n.startsWith("/") && !n.startsWith("//") && !n.includes("..") ? n : fallback;
-}
 
 /**
  * Auth.js sets this cookie when a sign-in attempt starts and does not always
@@ -32,24 +27,18 @@ async function callbackCookiePath(): Promise<string | undefined> {
   }
 }
 
-export async function generateMetadata({
-  searchParams,
-}: {
-  searchParams: Promise<{ next?: string | string[]; callbackUrl?: string | string[]; error?: string }>;
-}): Promise<Metadata> {
-  const sp = await searchParams;
-  const callbackUrlPath = typeof sp.callbackUrl === "string" ? new URL(sp.callbackUrl, "https://x").pathname : undefined;
-  const title = loginTitle(productFor(safeNext(sp.next ?? callbackUrlPath, sp.error ? "/app" : "/dashboard")));
-  return title ? { title } : {};
-}
+type LoginParams = { next?: string | string[]; callbackUrl?: string | string[]; error?: string };
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ next?: string | string[]; callbackUrl?: string | string[]; error?: string }>;
-}) {
-  const sp = await searchParams;
-  const callbackUrlPath = typeof sp.callbackUrl === "string" ? new URL(sp.callbackUrl, "https://x").pathname : undefined;
+/** Where to go after signing in, and so which product's sign-in to show. */
+async function resolveNext(sp: LoginParams): Promise<string> {
+  let callbackUrlPath: string | undefined;
+  if (typeof sp.callbackUrl === "string") {
+    try {
+      callbackUrlPath = new URL(sp.callbackUrl, "https://x").pathname;
+    } catch {
+      callbackUrlPath = undefined;
+    }
+  }
   // Auth.js sends failed sign-in attempts back here with ?error= and, not
   // always, ?callbackUrl=. When neither ?next= nor ?callbackUrl= says where the
   // attempt started, fall back to the callback-url cookie Auth.js set when it
@@ -57,7 +46,25 @@ export default async function LoginPage({
   // sign-in — not the shop's — and a second attempt doesn't create the
   // account under the wrong product.
   const cookieNext = sp.error && !sp.next && !callbackUrlPath ? await callbackCookiePath() : undefined;
-  const next = safeNext(sp.next ?? callbackUrlPath ?? cookieNext, sp.error ? "/app" : "/dashboard");
+  return safeNext(sp.next ?? callbackUrlPath ?? cookieNext, sp.error ? "/app" : "/dashboard");
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<LoginParams>;
+}): Promise<Metadata> {
+  const title = loginTitle(productFor(await resolveNext(await searchParams)));
+  return title ? { title } : {};
+}
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<LoginParams>;
+}) {
+  const sp = await searchParams;
+  const next = await resolveNext(sp);
   const session = await auth();
   if (session) redirect(next);
 
