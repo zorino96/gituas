@@ -88,6 +88,19 @@ Deferred work, with the context needed to pick it up cold.
   - Small follow-up: the checklist's "page connected" counts expired tokens too, while `loadConnections` filters
     them out.
 
+  **Part 1B shipped — 2026-09-28** (plan `docs/superpowers/plans/2026-09-28-newsroom-1b-team.md`).
+  - **Workspace lookup.** It now goes through membership plus the `gm_ws` cookie (`currentWorkspace` in
+    `src/app/app/data.ts`), and it's validated on every read.
+  - **Roles.** خاوەن / سەرنووسەر / نووسەر (`src/lib/newsroom/roles.ts`) are checked in every action that mutates.
+  - **Invites.** They go out by email and as an on-screen link, and accepting needs the same verified email. Seats
+    are enforced at accept time under a lock. Google sign-ins now mark the email verified.
+  - **Desks.** The top-bar switcher changes desks and adds new ones; a new desk reuses the sign-up placeholder.
+  - **Test accounts.** `newsroom-writer@gituas.app` is a local test writer (password in gituas-private); it owns
+    «مێزی نووسەر» and was removed from the test desk.
+  - **Out of scope.** The operator `/dashboard` still finds its tenant by `ownerId` with no `orderBy`. Revisit if an
+    operator ever owns several tenants.
+  - **Next.** 1C (own-site feed, own images, faster refresh), then 1D (review queue, scheduling, calendar).
+
 - **Merchant app Phase 1 — shipped to production 2026-09-23 at `/app`.**
   Plan: `docs/superpowers/plans/2026-09-23-merchant-app-phase1.md`. Comments
   (reply / hide / delete, both platforms), one inbox for Instagram and
