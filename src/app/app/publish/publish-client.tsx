@@ -421,7 +421,14 @@ export function PublishClient({
                   {!account ? (
                     <Link href={`${base}/settings`} className="gm-link">پەیوەست نەکراوە — پەیوەستی بکە</Link>
                   ) : needsMedia ? (
-                    "وێنە یان ڤیدیۆی دەوێت"
+                    // Connected, but Instagram and TikTok can't post text alone: say
+                    // which account it is and offer the missing step right here.
+                    <>
+                      {account} ·{" "}
+                      <button type="button" className="gm-link gm-linkbtn" onClick={() => fileInput.current?.click()}>
+                        سەرەتا وێنە یان ڤیدیۆ زیاد بکە
+                      </button>
+                    </>
                   ) : (
                     account
                   )}
