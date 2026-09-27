@@ -12,6 +12,7 @@ import { ingest } from "@/lib/news/ingest";
 import { checkDraft, copyPart, LIMITS } from "@/lib/news/rules";
 import { fetchFeed } from "@/lib/news/sources/rss";
 import { CARD_KINDS, type CardKind } from "@/lib/news/types";
+import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
 import { currentWorkspace, type Workspace } from "@/app/app/data";
 
 export type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
@@ -88,6 +89,7 @@ export async function draftNewsAction(itemId: string, strength: Strength): Promi
   const actionStart = Date.now();
   const ws = await newsWorkspace();
   if (!ws) return NOT_NEWS;
+  if (!can(ws.role, "draft")) return { ok: false, error: NOT_ALLOWED };
   if (strength !== "fast" && strength !== "strong") return { ok: false, error: "جۆری داواکراو دروست نییە." };
   const item = await db.newsItem.findFirst({ where: { id: itemId, tenantId: ws.id } });
   if (!item) return { ok: false, error: "هەواڵەکە نەدۆزرایەوە." };
@@ -138,6 +140,7 @@ export interface DraftFields {
 export async function saveNewsDraftAction(itemId: string, f: DraftFields): Promise<Result<{ draftId: string }>> {
   const ws = await newsWorkspace();
   if (!ws) return NOT_NEWS;
+  if (!can(ws.role, "draft")) return { ok: false, error: NOT_ALLOWED };
   const item = await db.newsItem.findFirst({ where: { id: itemId, tenantId: ws.id } });
   if (!item) return { ok: false, error: "هەواڵەکە نەدۆزرایەوە." };
   if (!CARD_KINDS.includes(f.cardKind)) return { ok: false, error: "جۆری کارت دروست نییە." };
@@ -168,6 +171,7 @@ export async function saveNewsDraftAction(itemId: string, f: DraftFields): Promi
 export async function attachCardAction(itemId: string, card: { url: string; pathname: string }): Promise<Result<{ draftId: string }>> {
   const ws = await newsWorkspace();
   if (!ws) return NOT_NEWS;
+  if (!can(ws.role, "draft")) return { ok: false, error: NOT_ALLOWED };
   const draft = await db.newsDraft.findFirst({ where: { itemId, tenantId: ws.id }, include: { item: true } });
   if (!draft) return { ok: false, error: "سەرەتا دەقەکە پاشەکەوت بکە." };
   const problems = checkDraft(draft, draft.item);
@@ -180,6 +184,7 @@ export async function attachCardAction(itemId: string, card: { url: string; path
 export async function dismissNewsAction(itemId: string): Promise<Result> {
   const ws = await newsWorkspace();
   if (!ws) return NOT_NEWS;
+  if (!can(ws.role, "draft")) return { ok: false, error: NOT_ALLOWED };
   await db.newsItem.updateMany({ where: { id: itemId, tenantId: ws.id }, data: { status: "DISMISSED" } });
   revalidatePath("/newsroom/news");
   return { ok: true };
@@ -190,6 +195,7 @@ export async function dismissNewsAction(itemId: string): Promise<Result> {
 export async function saveKeywordsAction(raw: string): Promise<Result<{ keywords: string[] }>> {
   const ws = await newsWorkspace();
   if (!ws) return NOT_NEWS;
+  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
   const keywords = [...new Set(raw.split(/[,،\n]/).map((k) => k.trim()).filter((k) => k.length >= 2 && k.length <= 40 && !k.includes("|")))].slice(
     0,
     20,
@@ -209,6 +215,7 @@ async function underSourceLimit(tenantId: string): Promise<boolean> {
 export async function toggleCatalogSourceAction(catalogId: CatalogId, enabled: boolean): Promise<Result> {
   const ws = await newsWorkspace();
   if (!ws) return NOT_NEWS;
+  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
   const entry = catalogAvailable().find((c) => c.id === catalogId);
   if (!entry) return { ok: false, error: "ئەم سەرچاوەیە بەردەست نییە." };
   const existing = await db.newsSource.findUnique({ where: { tenantId_catalogId: { tenantId: ws.id, catalogId } } });
@@ -225,6 +232,7 @@ export async function toggleCatalogSourceAction(catalogId: CatalogId, enabled: b
 export async function addRssSourceAction(url: string, name: string): Promise<Result> {
   const ws = await newsWorkspace();
   if (!ws) return NOT_NEWS;
+  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
   const u = url.trim();
   const n = name.trim().slice(0, 60);
   if (!/^https?:\/\/[^\s]+$/i.test(u)) return { ok: false, error: "لینکەکە دروست نییە." };
@@ -247,6 +255,7 @@ export async function addRssSourceAction(url: string, name: string): Promise<Res
 export async function removeSourceAction(id: string): Promise<Result> {
   const ws = await newsWorkspace();
   if (!ws) return NOT_NEWS;
+  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
   await db.newsSource.deleteMany({ where: { id, tenantId: ws.id, rssUrl: { not: null } } });
   return { ok: true };
 }
@@ -262,6 +271,7 @@ export async function saveBrandKitAction(kit: {
 }): Promise<Result> {
   const ws = await newsWorkspace();
   if (!ws) return NOT_NEWS;
+  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
   if (![kit.primary, kit.accent, kit.text].every((c) => HEX.test(c))) return { ok: false, error: "ڕەنگەکان دروست نین." };
   if (kit.headingFont !== "kufi" && kit.headingFont !== "sans") return { ok: false, error: "فۆنتەکە دروست نییە." };
   if (kit.logoPath && !isOwnPath(kit.logoPath, ws.id)) return { ok: false, error: "لۆگۆکە ناناسرێتەوە." };

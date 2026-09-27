@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { db } from "@/lib/db";
+import { can } from "@/lib/newsroom/roles";
 import { baseFor, currentWorkspace, loadConnections } from "../data";
 import { PublishClient } from "./publish-client";
 
@@ -9,6 +10,13 @@ export const maxDuration = 60;
 
 export default async function PublishPage({ searchParams }: { searchParams: Promise<{ draft?: string }> }) {
   const ws = (await currentWorkspace())!;
+  if (!can(ws.role, "publish")) {
+    return (
+      <p className="gm-note">
+        تەنها خاوەن و سەرنووسەر دەتوانن بڵاو بکەنەوە. کارتەکە ئامادە بکە و سەرنووسەرەکەت ئاگادار بکەرەوە.
+      </p>
+    );
+  }
   const { draft: draftId } = await searchParams;
   const [conns, draft] = await Promise.all([
     loadConnections(ws.id),

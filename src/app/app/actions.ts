@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { hashPassword, passwordProblem, verifyPassword } from "@/lib/password";
 import type { Prisma } from "@/generated/prisma/client";
 import { getGemini } from "@/lib/gemini";
+import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
 import { baseFor, currentWorkspace } from "./data";
 import {
   deleteIgComment,
@@ -51,6 +52,7 @@ function cleanText(text: string, max: number): { ok: true; text: string } | { ok
 export async function replyToCommentAction(platform: Platform, commentId: string, text: string): Promise<Result> {
   const ws = await currentWorkspace();
   if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
+  if (!can(ws.role, "engage")) return { ok: false, error: NOT_ALLOWED };
   const t = cleanText(text, platform === "IG" ? 2200 : 8000);
   if (!t.ok) return t;
   const r = platform === "IG" ? await replyToComment(ws.id, commentId, t.text) : await replyToPageComment(ws.id, commentId, t.text);
@@ -62,6 +64,7 @@ export async function replyToCommentAction(platform: Platform, commentId: string
 export async function setCommentHiddenAction(platform: Platform, commentId: string, hidden: boolean): Promise<Result> {
   const ws = await currentWorkspace();
   if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
+  if (!can(ws.role, "engage")) return { ok: false, error: NOT_ALLOWED };
   const r = platform === "IG" ? await setCommentHidden(ws.id, commentId, hidden) : await hidePageComment(ws.id, commentId, hidden);
   if (!r.ok) return { ok: false, error: r.error ?? "نەکرا." };
   await audit(ws.id, hidden ? "app.comment_hide" : "app.comment_unhide", `${hidden ? "Hid" : "Unhid"} ${platform} comment ${commentId}.`, { platform, commentId });
@@ -71,6 +74,7 @@ export async function setCommentHiddenAction(platform: Platform, commentId: stri
 export async function deleteCommentAction(platform: Platform, commentId: string): Promise<Result> {
   const ws = await currentWorkspace();
   if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
+  if (!can(ws.role, "engage")) return { ok: false, error: NOT_ALLOWED };
   const r = platform === "IG" ? await deleteIgComment(ws.id, commentId) : await deletePageComment(ws.id, commentId);
   if (!r.ok) return { ok: false, error: r.error ?? "سڕینەوە نەکرا." };
   await audit(ws.id, "app.comment_delete", `Deleted ${platform} comment ${commentId}.`, { platform, commentId });
@@ -82,6 +86,7 @@ export async function deleteCommentAction(platform: Platform, commentId: string)
 export async function sendMessageAction(platform: Platform, recipientId: string, text: string): Promise<Result> {
   const ws = await currentWorkspace();
   if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
+  if (!can(ws.role, "engage")) return { ok: false, error: NOT_ALLOWED };
   const t = cleanText(text, 1000);
   if (!t.ok) return t;
   const r = platform === "IG" ? await sendInstagramDM(ws.id, recipientId, t.text) : await sendMessengerMessage(ws.id, recipientId, t.text);
@@ -107,6 +112,7 @@ export async function draftReplyAction(
 ): Promise<{ ok: true; reply: string } | { ok: false; error: string }> {
   const ws = await currentWorkspace();
   if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
+  if (!can(ws.role, "engage")) return { ok: false, error: NOT_ALLOWED };
   if (!incoming.trim()) return { ok: false, error: "هیچ دەقێک نییە بۆ وەڵامدانەوە." };
   try {
     const reply = await gemini(
@@ -132,6 +138,7 @@ export async function suggestCaptionAction(
 ): Promise<{ ok: true; caption: string } | { ok: false; error: string }> {
   const ws = await currentWorkspace();
   if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
+  if (!can(ws.role, "draft")) return { ok: false, error: NOT_ALLOWED };
   try {
     const caption = await gemini(
       `Write a social media caption in Sorani Kurdish (Arabic script) for a small shop in Iraqi Kurdistan.
@@ -189,6 +196,7 @@ export async function changePasswordAction(current: string, next: string): Promi
 export async function saveWhatsAppAction(raw: string): Promise<{ ok: true; digits: string | null } | { ok: false; error: string }> {
   const ws = await currentWorkspace();
   if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
+  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
   if (!raw.trim()) {
     await db.tenant.update({ where: { id: ws.id }, data: { whatsappNumber: null } });
     revalidatePath(baseFor(ws.kind), "layout");
@@ -267,6 +275,7 @@ export interface PublishOutcome {
 export async function publishAction(input: PublishInput): Promise<{ ok: true; results: PublishOutcome[] } | { ok: false; error: string }> {
   const ws = await currentWorkspace();
   if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
+  if (!can(ws.role, "publish")) return { ok: false, error: NOT_ALLOWED };
   const targets = [...new Set(input.targets)];
   if (!targets.length) return { ok: false, error: "لانیکەم یەک شوێن هەڵبژێرە." };
   if (input.newsDraftId) {
