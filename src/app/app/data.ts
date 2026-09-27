@@ -2,8 +2,12 @@
 // reads live from the platforms — nothing here is cached, so what the merchant
 // sees is what their customers see.
 
+import { cookies } from "next/headers";
 import { auth, ensureWorkspace } from "@/auth";
 import { db } from "@/lib/db";
+import type { Prisma } from "@/generated/prisma/client";
+import { pickWorkspace } from "@/lib/workspace/pick";
+import type { Role } from "@/lib/newsroom/roles";
 import { newestFirst, unexpired, usableOrRefreshable } from "@/lib/oauth/pick";
 import { fetchComments, fetchConversations, fetchMedia, fetchUserInsights } from "@/lib/publishers/instagram-engage";
 import {
@@ -25,18 +29,68 @@ export interface Workspace {
   whatsappNumber: string | null;
   kind: Kind;
   kindChosen: boolean;
+  /** The signed-in person's role in this workspace. */
+  role: Role;
 }
 
 const WORKSPACE_SELECT = { id: true, slug: true, name: true, whatsappNumber: true, kind: true, kindChosen: true } as const;
 
+/** Names the workspace a person with several is working in; checked against their memberships on every read. */
+export const WS_COOKIE = "gm_ws";
+
+async function membershipsOf(userId: string) {
+  return db.membership.findMany({
+    where: { userId },
+    orderBy: { createdAt: "asc" },
+    select: { role: true, createdAt: true, tenant: { select: WORKSPACE_SELECT } },
+  });
+}
+
+/** Every workspace the signed-in person belongs to, oldest membership first. */
+export async function listWorkspaces(): Promise<Workspace[]> {
+  const session = await auth();
+  if (!session?.user?.id) return [];
+  return (await membershipsOf(session.user.id)).map((m) => ({ ...m.tenant, role: m.role }));
+}
+
 export async function currentWorkspace(): Promise<Workspace | null> {
   const session = await auth();
-  if (!session?.user?.id) return null;
-  const found = await db.tenant.findFirst({ where: { ownerId: session.user.id }, select: WORKSPACE_SELECT });
-  if (found) return found;
-  // Every signed-in person gets a workspace, however they signed up.
-  const { id } = await ensureWorkspace(session.user.id, session.user.name);
-  return db.tenant.findUnique({ where: { id }, select: WORKSPACE_SELECT });
+  const userId = session?.user?.id;
+  if (!userId) return null;
+  let rows = await membershipsOf(userId);
+  if (rows.length === 0) {
+    // Every signed-in person gets a workspace, however they signed up.
+    await ensureWorkspace(userId, session.user?.name);
+    rows = await membershipsOf(userId);
+  }
+  const chosen = (await cookies()).get(WS_COOKIE)?.value;
+  const picked = pickWorkspace(
+    rows.map((m) => ({ id: m.tenant.id, kindChosen: m.tenant.kindChosen, joinedAt: m.createdAt })),
+    chosen,
+  );
+  const row = rows.find((m) => m.tenant.id === picked?.id);
+  return row ? { ...row.tenant, role: row.role } : null;
+}
+
+/** Remember which workspace to open. Call only from a server action or route handler. */
+export async function rememberWorkspace(tenantId: string): Promise<void> {
+  (await cookies()).set(WS_COOKIE, tenantId, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+}
+
+/** A new desk's starting settings: no keywords yet, and the GDELT source. */
+export async function setupNewsDesk(tx: Prisma.TransactionClient, tenantId: string): Promise<void> {
+  await tx.newsSettings.upsert({ where: { tenantId }, create: { tenantId, keywords: [] }, update: {} });
+  await tx.newsSource.upsert({
+    where: { tenantId_catalogId: { tenantId, catalogId: "gdelt" } },
+    create: { tenantId, catalogId: "gdelt", name: "GDELT" },
+    update: {},
+  });
 }
 
 /** `/app` for a shop, `/newsroom` for a channel — the base every shared link hangs off. */
@@ -66,14 +120,7 @@ export async function claimKind(ws: Workspace, kind: Kind): Promise<Workspace> {
         data: { kind, kindChosen: true, ...(rename ? { name: DEFAULT_NEWS_NAME } : {}) },
       });
       if (count === 0) return false;
-      if (kind === "NEWS") {
-        await tx.newsSettings.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, keywords: [] }, update: {} });
-        await tx.newsSource.upsert({
-          where: { tenantId_catalogId: { tenantId: ws.id, catalogId: "gdelt" } },
-          create: { tenantId: ws.id, catalogId: "gdelt", name: "GDELT" },
-          update: {},
-        });
-      }
+      if (kind === "NEWS") await setupNewsDesk(tx, ws.id);
       await tx.auditLog.create({
         data: { tenantId: ws.id, actor: "USER", action: "app.kind_set", reasoning: `Claimed the workspace as ${kind}.`, metadata: { kind } },
       });
@@ -81,7 +128,7 @@ export async function claimKind(ws: Workspace, kind: Kind): Promise<Workspace> {
     });
     if (!claimed) {
       const found = await db.tenant.findUnique({ where: { id: ws.id }, select: WORKSPACE_SELECT });
-      return found ?? ws;
+      return found ? { ...found, role: ws.role } : ws;
     }
     return { ...ws, kind, kindChosen: true, ...(rename ? { name: DEFAULT_NEWS_NAME } : {}) };
   } catch (e) {
