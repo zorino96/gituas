@@ -49,7 +49,7 @@ export function Tabs({ kind }: { kind: Kind }) {
  * seconds. Instead of a streamed loading screen — which left a hidden second
  * copy of every page in the document — the tapped tab shows it is working.
  */
-function Pending() {
+export function Pending() {
   const { pending } = useLinkStatus();
   return pending ? <span className="gm-pending" role="status" aria-label="چاوەڕێ بکە" /> : null;
 }

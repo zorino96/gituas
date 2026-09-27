@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import "@/app/app/app.css";
+import "@/app/newsroom/newsroom.css";
 import { gmFontVars } from "@/app/app/fonts";
 import { emailEnabled } from "@/lib/mailer";
 import { safeNext } from "@/lib/safe-next";
@@ -18,7 +19,7 @@ export async function generateMetadata({
 export default async function ForgotPage({ searchParams }: { searchParams: Promise<{ next?: string | string[] }> }) {
   const next = safeNext((await searchParams).next, "/app");
   return (
-    <div className={`gm ${gmFontVars}`} dir="rtl" lang="ckb">
+    <div className={`gm ${next.startsWith("/newsroom") ? "nr " : ""}${gmFontVars}`} dir="rtl" lang="ckb">
       <ForgotForm next={next} enabled={emailEnabled} product={next.startsWith("/newsroom") ? "newsroom" : "shop"} />
     </div>
   );

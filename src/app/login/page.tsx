@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import "@/app/app/app.css";
+import "@/app/newsroom/newsroom.css";
 import { auth, googleEnabled } from "@/auth";
 import { gmFontVars } from "@/app/app/fonts";
 import { emailEnabled } from "@/lib/mailer";
@@ -74,7 +75,7 @@ export default async function LoginPage({
   const product = productFor(next);
   if (product !== "operator") {
     return (
-      <div className={`gm ${gmFontVars}`} dir="rtl" lang="ckb">
+      <div className={`gm ${product === "newsroom" ? "nr " : ""}${gmFontVars}`} dir="rtl" lang="ckb">
         <MerchantLogin
           next={next}
           googleEnabled={googleEnabled}

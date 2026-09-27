@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import "@/app/app/app.css";
+import "@/app/newsroom/newsroom.css";
 import { auth, googleEnabled } from "@/auth";
 import { gmFontVars } from "@/app/app/fonts";
 import { safeNext } from "@/lib/safe-next";
@@ -20,7 +21,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
   const next = safeNext((await searchParams).next, "/app");
   if (await auth()) redirect(next);
   return (
-    <div className={`gm ${gmFontVars}`} dir="rtl" lang="ckb">
+    <div className={`gm ${next.startsWith("/newsroom") ? "nr " : ""}${gmFontVars}`} dir="rtl" lang="ckb">
       <SignupForm next={next} googleEnabled={googleEnabled} product={next.startsWith("/newsroom") ? "newsroom" : "shop"} />
     </div>
   );
