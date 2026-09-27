@@ -56,7 +56,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
   return (
     <div className="gm-stack">
       <div className="gm-between">
-        <h2 className="gm-title kufi">هەواڵ</h2>
+        <h2 className="gm-title kufi">هەواڵەکان</h2>
         <RefreshButton />
       </div>
 

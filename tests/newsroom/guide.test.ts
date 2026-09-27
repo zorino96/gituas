@@ -14,6 +14,6 @@ describe("GUIDE", () => {
     }
   });
   it("links only to same-site paths", () => {
-    for (const s of GUIDE) if (s.link) expect(s.link.href.startsWith("/")).toBe(true);
+    for (const s of GUIDE) if (s.link) expect(s.link.href).toMatch(/^\/(?![\/\\])/);
   });
 });
