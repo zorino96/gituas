@@ -72,7 +72,7 @@ export async function createDeskAction(_prev: DeskResult | null, formData: FormD
       data: { tenantId: id, actor: "USER", action: "desk.created", reasoning: "Created a newsroom desk.", metadata: { userId, reusedPlaceholder: !!spare } },
     });
     return id;
-  });
+  }, { timeout: 15_000 }); // six round trips; the 5 s default is too tight far from the database
   if (!deskId) return { ok: false, error: "گەیشتیتە سنووری مێزەکانی پلانەکەت." };
   await rememberWorkspace(deskId);
   redirect("/newsroom/news");
