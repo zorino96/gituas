@@ -266,6 +266,24 @@ model OAuthState {
   @@index([tenantId])
 }
 
+/// A Facebook sign-in waiting for the person to pick which Page to connect.
+/// Holds the long-lived user token (vault-encrypted) for ten minutes; the Page
+/// token is minted only for the Page they choose, then the row is deleted.
+model OAuthPageChoice {
+  id                 String   @id @default(cuid())
+  tenantId           String
+  userTokenEncrypted String
+  /// [{ id, name }] — shown to the person; never trusted on its own.
+  pages              Json
+  scopes             String[]
+  redirectTo         String
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([expiresAt])
+}
+
 model PlatformPost {
   id             String      @id @default(cuid())
   contentPostId  String

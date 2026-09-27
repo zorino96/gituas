@@ -1,7 +1,8 @@
 import { randomBytes, createHash } from "node:crypto";
 
 import { db } from "@/lib/db";
-import { vaultEncrypt } from "@/lib/vault";
+import { vaultDecrypt, vaultEncrypt } from "@/lib/vault";
+import { can } from "@/lib/newsroom/roles";
 import { findProvider, type ProviderConfig } from "@/lib/oauth/registry";
 import type { OAuthProvider } from "@/generated/prisma/client";
 
@@ -82,6 +83,27 @@ export interface TokenResult {
   scope?: string;
   /** Some providers (Instagram) return the account id with the token. */
   providerUserId?: string;
+  /** Facebook, when the person runs several Pages: nothing is connected until they pick one. */
+  pageChoice?: { userToken: string; pages: { id: string; name: string }[] };
+}
+
+type FacebookPage = { id: string; name: string; access_token: string };
+
+/** The person's Pages that came back with a usable Page token (up to 100). */
+async function fetchFacebookPages(userToken: string): Promise<{ pages: FacebookPage[]; raw: unknown }> {
+  const res = await fetch(
+    `https://graph.facebook.com/v25.0/me/accounts?fields=id,name,access_token&limit=100&access_token=${encodeURIComponent(userToken)}`,
+  );
+  const raw: unknown = await res.json().catch(() => null);
+  const data = (raw as { data?: unknown } | null)?.data;
+  const pages = Array.isArray(data)
+    ? data.flatMap((p: { id?: unknown; name?: unknown; access_token?: unknown }) =>
+        typeof p?.id === "string" && typeof p.access_token === "string"
+          ? [{ id: p.id, name: typeof p.name === "string" && p.name ? p.name : p.id, access_token: p.access_token }]
+          : [],
+      )
+    : [];
+  return { pages, raw };
 }
 
 async function exchangeCode(cfg: ProviderConfig, code: string, codeVerifier: string): Promise<TokenResult> {
@@ -161,25 +183,28 @@ async function exchangeCode(cfg: ProviderConfig, code: string, codeVerifier: str
     const long = await longRes.json().catch(() => null);
     const userToken = long?.access_token ?? short.access_token;
 
-    const pagesRes = await fetch(
-      `https://graph.facebook.com/v25.0/me/accounts?fields=id,name,access_token,tasks&access_token=${encodeURIComponent(userToken)}`,
-    );
-    const pagesJson = await pagesRes.json().catch(() => null);
-    const pages: Array<{ id?: string; name?: string; access_token?: string }> = pagesJson?.data ?? [];
-    // Prefer a specific page if configured, else the first the user administers.
-    const wanted = process.env.FACEBOOK_PAGE_ID;
-    const page = (wanted && pages.find((p) => p.id === wanted)) || pages[0];
-    if (!page?.access_token || !page.id) {
+    const { pages, raw } = await fetchFacebookPages(userToken);
+    if (pages.length === 0) {
       throw new Error(
-        `Facebook: no page token returned — grant pages_show_list and ensure the user has a Page role. (${JSON.stringify(pagesJson).slice(0, 160)})`,
+        `Facebook: no page token returned — grant pages_show_list and ensure the user has a Page role. (${JSON.stringify(raw).slice(0, 160)})`,
       );
+    }
+    // Someone who runs several Pages chooses one on our side; with one Page
+    // there is nothing to ask. (Never pick for them — the first Page is just
+    // whichever Facebook lists first.)
+    if (pages.length > 1) {
+      return {
+        access_token: "",
+        scope: cfg.scopes?.join(","),
+        pageChoice: { userToken, pages: pages.map(({ id, name }) => ({ id, name })) },
+      };
     }
 
     return {
-      access_token: page.access_token,
+      access_token: pages[0].access_token,
       // Page tokens (from a long-lived user token) are non-expiring.
       scope: cfg.scopes?.join(","),
-      providerUserId: String(page.id),
+      providerUserId: pages[0].id,
     };
   }
 
@@ -307,54 +332,129 @@ export async function completeOAuth(provider: OAuthProvider, code: string, state
   }
 
   const token = await exchangeCode(cfg, code, stateRow.codeVerifier);
+  const redirectTo = stateRow.redirectTo ?? "/dashboard/integrations";
+
+  if (token.pageChoice) {
+    // Park the sign-in until the person picks a Page. Expired choices (which
+    // hold user tokens) are cleared on the way in.
+    const now = new Date();
+    await db.oAuthPageChoice.deleteMany({ where: { OR: [{ expiresAt: { lt: now } }, { tenantId: stateRow.tenantId }] } });
+    const choice = await db.oAuthPageChoice.create({
+      data: {
+        tenantId: stateRow.tenantId,
+        userTokenEncrypted: vaultEncrypt(token.pageChoice.userToken),
+        pages: token.pageChoice.pages,
+        scopes: scopeList(token, cfg),
+        redirectTo,
+        expiresAt: new Date(now.getTime() + PAGE_CHOICE_TTL_MS),
+      },
+      select: { id: true },
+    });
+    await db.oAuthState.delete({ where: { state } });
+    return { redirectTo: `/connect/facebook?c=${choice.id}` };
+  }
+
   const account = await fetchProviderAccount(cfg, token.access_token);
   // Instagram's /me lookup can be flaky right after auth — the token exchange
   // already carries the account id, so fall back to it.
   if (account.id === "unknown" && token.providerUserId) account.id = token.providerUserId;
 
-  const expiresAt = token.expires_in ? new Date(Date.now() + token.expires_in * 1000) : null;
-
-  await db.oAuthCredential.upsert({
-    where: {
-      tenantId_provider_providerAccountId: {
-        tenantId: stateRow.tenantId,
-        provider,
-        providerAccountId: account.id,
-      },
-    },
-    create: {
-      tenantId: stateRow.tenantId,
-      provider,
-      providerAccountId: account.id,
-      providerAccountName: account.name,
-      avatarUrl: account.avatarUrl ?? null,
-      scopes: (token.scope ?? cfg.scopes?.join(" ") ?? "").split(/[\s,]+/).filter(Boolean),
-      tokenEncrypted: vaultEncrypt(token.access_token),
-      refreshTokenEncrypted: token.refresh_token ? vaultEncrypt(token.refresh_token) : null,
-      expiresAt,
-    },
-    update: {
-      providerAccountName: account.name,
-      avatarUrl: account.avatarUrl ?? null,
-      scopes: (token.scope ?? cfg.scopes?.join(" ") ?? "").split(/[\s,]+/).filter(Boolean),
-      tokenEncrypted: vaultEncrypt(token.access_token),
-      refreshTokenEncrypted: token.refresh_token ? vaultEncrypt(token.refresh_token) : null,
-      expiresAt,
-      lastUsedAt: null,
-    },
-  });
-
+  await saveCredential(stateRow.tenantId, cfg, token, account);
   await db.oAuthState.delete({ where: { state } });
+  return { redirectTo };
+}
 
+const PAGE_CHOICE_TTL_MS = 10 * 60 * 1000;
+
+function scopeList(token: TokenResult, cfg: ProviderConfig): string[] {
+  return (token.scope ?? cfg.scopes?.join(" ") ?? "").split(/[\s,]+/).filter(Boolean);
+}
+
+async function saveCredential(
+  tenantId: string,
+  cfg: ProviderConfig,
+  token: TokenResult,
+  account: { id: string; name: string; avatarUrl?: string },
+): Promise<void> {
+  const provider = cfg.provider;
+  const expiresAt = token.expires_in ? new Date(Date.now() + token.expires_in * 1000) : null;
+  const fields = {
+    providerAccountName: account.name,
+    avatarUrl: account.avatarUrl ?? null,
+    scopes: scopeList(token, cfg),
+    tokenEncrypted: vaultEncrypt(token.access_token),
+    refreshTokenEncrypted: token.refresh_token ? vaultEncrypt(token.refresh_token) : null,
+    expiresAt,
+  };
+  await db.oAuthCredential.upsert({
+    where: { tenantId_provider_providerAccountId: { tenantId, provider, providerAccountId: account.id } },
+    create: { tenantId, provider, providerAccountId: account.id, ...fields },
+    update: { ...fields, lastUsedAt: null },
+  });
   await db.auditLog.create({
     data: {
-      tenantId: stateRow.tenantId,
+      tenantId,
       actor: "USER",
       action: "integrations.connected",
       reasoning: `Connected ${cfg.label} as ${account.name}.`,
       metadata: { provider, accountId: account.id },
     },
   });
+}
 
-  return { redirectTo: stateRow.redirectTo ?? "/dashboard/integrations" };
+export type PendingPageChoice = { redirectTo: string; pages: { id: string; name: string }[] };
+
+type ChoiceRow = { tenantId: string; redirectTo: string; pages: unknown; scopes: string[]; userTokenEncrypted: string };
+
+/** A pending Page choice this person may act on: unexpired, in a workspace where they may configure. */
+async function ownedChoice(choiceId: string, userId: string): Promise<ChoiceRow | null> {
+  if (!choiceId) return null;
+  const choice = await db.oAuthPageChoice.findUnique({ where: { id: choiceId } });
+  if (!choice || choice.expiresAt < new Date()) return null;
+  const member = await db.membership.findUnique({
+    where: { tenantId_userId: { tenantId: choice.tenantId, userId } },
+    select: { role: true },
+  });
+  return member && can(member.role, "configure") ? choice : null;
+}
+
+function choicePages(pages: unknown): { id: string; name: string }[] {
+  return Array.isArray(pages)
+    ? pages.flatMap((p: { id?: unknown; name?: unknown }) =>
+        typeof p?.id === "string" ? [{ id: p.id, name: typeof p.name === "string" ? p.name : p.id }] : [],
+      )
+    : [];
+}
+
+/** What the chooser shows: the Page names only — never the token. */
+export async function loadPageChoice(choiceId: string, userId: string): Promise<PendingPageChoice | null> {
+  const choice = await ownedChoice(choiceId, userId);
+  return choice ? { redirectTo: choice.redirectTo, pages: choicePages(choice.pages) } : null;
+}
+
+/**
+ * Connect the Page the person picked. Its token is minted fresh from the
+ * stored user token for that Page id, so a tampered form can only pick among
+ * the Pages Facebook itself says the person runs.
+ */
+export async function completeFacebookPageChoice(choiceId: string, pageId: string, userId: string): Promise<{ redirectTo: string } | null> {
+  const choice = await ownedChoice(choiceId, userId);
+  const cfg = findProvider("META_FACEBOOK");
+  if (!choice || !cfg) return null;
+  const { pages } = await fetchFacebookPages(vaultDecrypt(choice.userTokenEncrypted));
+  const page = pages.find((p) => p.id === pageId);
+  if (!page) return null;
+  const account = await fetchProviderAccount(cfg, page.access_token);
+  if (account.id === "unknown") account.id = page.id;
+  await saveCredential(choice.tenantId, cfg, { access_token: page.access_token, scope: choice.scopes.join(",") }, account);
+  await db.oAuthPageChoice.delete({ where: { id: choiceId } }).catch(() => undefined);
+  return { redirectTo: choice.redirectTo };
+}
+
+/** Drop a pending choice (the person cancelled). Returns where they came from. */
+export async function cancelFacebookPageChoice(choiceId: string, userId: string): Promise<{ redirectTo: string } | null> {
+  const choice = await ownedChoice(choiceId, userId);
+  if (!choice) return null;
+  await db.oAuthPageChoice.delete({ where: { id: choiceId } }).catch(() => undefined);
+  return { redirectTo: choice.redirectTo };
 }
