@@ -3,7 +3,7 @@
 
 import type { GuideId } from "./guide";
 
-export type NavKey = "news" | "publish" | "comments" | "messages" | "insights" | "settings" | "guide";
+export type NavKey = "news" | "publish" | "comments" | "messages" | "insights" | "team" | "settings" | "guide";
 export type NavGroup = "desk" | "audience" | "account";
 
 export interface NavItem {
@@ -29,6 +29,7 @@ export const NAV: readonly NavItem[] = [
   { key: "comments", href: "/newsroom/comments", label: "کۆمێنت", group: "audience", mobile: true, guide: "comments" },
   { key: "messages", href: "/newsroom/messages", label: "نامە", group: "audience", mobile: false, guide: "comments" },
   { key: "insights", href: "/newsroom/insights", label: "ئامار", group: "audience", mobile: true, guide: "insights" },
+  { key: "team", href: "/newsroom/team", label: "تیم", group: "account", mobile: false, guide: "team" },
   { key: "settings", href: "/newsroom/settings", label: "ڕێکخستن", group: "account", mobile: false, guide: "connect" },
   { key: "guide", href: "/newsroom/guide", label: "ڕێنمایی", group: "account", mobile: false, guide: "start" },
 ];

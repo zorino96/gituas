@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart3, LayoutTemplate, ShieldCheck, Sparkles, Send } from "lucide-react";
+import { BarChart3, LayoutTemplate, ShieldCheck, Sparkles, Send, Users } from "lucide-react";
 
 import { currentWorkspace, listWorkspaces } from "@/app/app/data";
 import { NewsroomRoot } from "./desk-shell";
@@ -34,6 +34,11 @@ const FEATURES = [
     Icon: BarChart3,
     title: "کۆمێنت، نامە و ئامار",
     body: "وەڵامی بینەران بدەرەوە و بزانە کام هەواڵ زۆرترین کۆمێنتی وەرگرتووە، بێ ئەوەی لە ئەپێکەوە بچیتە ئەپێکی تر.",
+  },
+  {
+    Icon: Users,
+    title: "تیمەکەت پێکەوە",
+    body: "نووسەر، سەرنووسەر و خاوەن، هەر یەکە بە ڕۆڵی خۆی. چەند مێز بۆ چەند زمان یان براند.",
   },
 ] as const;
 

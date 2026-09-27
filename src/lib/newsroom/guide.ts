@@ -2,7 +2,7 @@
 // the frame and later parts (team, own site, review, calendar) share one list.
 // Quoted labels are the real names on screen — check the screen before editing.
 
-export const GUIDE_IDS = ["start", "connect", "brand", "sources", "stories", "publish", "comments", "insights", "faq"] as const;
+export const GUIDE_IDS = ["start", "connect", "brand", "sources", "stories", "publish", "comments", "insights", "team", "faq"] as const;
 export type GuideId = (typeof GUIDE_IDS)[number];
 
 export interface GuideSection {
@@ -106,6 +106,20 @@ export const GUIDE: readonly GuideSection[] = [
     intro: "ژمارە گشتییەکانی پەیجەکانت و ئەو پۆستانەی زۆرترین کۆمێنتیان وەرگرتووە ببینە.",
     steps: ["«ئامار» بکەرەوە.", "سەیری ئەو پۆستانە بکە کە زۆرترین کۆمێنتیان هەیە، و هەواڵی لەو جۆرە زیاتر بڵاو بکەرەوە."],
     link: { href: "/newsroom/insights", label: "بچۆ ئامار" },
+  },
+  {
+    id: "team",
+    title: "تیم و ڕۆڵەکان",
+    intro: "هاوکارەکانت بانگهێشت بکە. ڕۆڵی هەر کەسێک دیاری دەکات چی دەتوانێت بکات.",
+    steps: [
+      "«خاوەن»: هەموو شتێک، لەوانە تیم و پلان.",
+      "«سەرنووسەر»: بڵاوکردنەوە، وەڵامی کۆمێنت و نامە، و ڕێکخستنی سەرچاوە و براند.",
+      "«نووسەر»: هەواڵ و کارت ئامادە دەکات، بەڵام بڵاوی ناکاتەوە.",
+      "لە «تیم»، ئیمەیڵ و ڕۆڵ بنووسە و «بانگهێشت بکە» دابگرە. بەستەرەکە بە ئیمەیڵ دەنێردرێت و دەتوانیت خۆشت کۆپی بکەیت و بینێریت.",
+      "بانگهێشتکراو دەبێت بە هەمان ئیمەیڵ بچێتە ژوورەوە. بەستەرەکە ٧ ڕۆژ کار دەکات.",
+      "بۆ مێزێکی تر، بۆ نموونە بەشی عەرەبی، لە سەرەوە ناوی مێزەکە دابگرە و «مێزی نوێ» هەڵبژێرە.",
+    ],
+    link: { href: "/newsroom/team", label: "بچۆ تیم" },
   },
   {
     id: "faq",

@@ -15,6 +15,7 @@ import {
   Newspaper,
   Settings,
   SquarePlus,
+  Users,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -28,6 +29,7 @@ const ICONS: Record<NavKey, LucideIcon> = {
   comments: MessagesSquare,
   messages: MessageCircle,
   insights: BarChart3,
+  team: Users,
   settings: Settings,
   guide: BookOpen,
 };
