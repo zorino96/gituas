@@ -74,6 +74,20 @@ Deferred work, with the context needed to pick it up cold.
   whichever surface it first opens (`/newsroom` claims NEWS, `/app` claims MERCHANT), via
   `claimKind` in `src/app/app/data.ts`.
 
+  **Big-media phase 1, part 1A shipped — 2026-09-28** (spec
+  `docs/superpowers/specs/2026-09-28-newsroom-big-media-phase1-design.md`, plan
+  `docs/superpowers/plans/2026-09-28-newsroom-1a-shell-guide.md`).
+  - The newsroom has its own frame: a sidebar on desktop, a phone bar with a "more" sheet (native `<dialog>`), a
+    `.nr` palette, and a "?" guide link on each screen.
+  - Also shipped: a public Kurdish guide at `/newsroom/guide`, a first-run checklist on the news page, and a new
+    landing page.
+  - The newsroom sign-in has its own title and no GitHub button.
+  - Closed an open redirect in the sign-in `next` (`src/lib/safe-next.ts`).
+  - Next: 1B (team, roles, invites, several desks — the workspace lookup must move from `ownerId` to
+    membership), then 1C (own-site feed) and 1D (review, scheduling, calendar).
+  - Small follow-up: the checklist's "page connected" counts expired tokens too, while `loadConnections` filters
+    them out.
+
 - **Merchant app Phase 1 — shipped to production 2026-09-23 at `/app`.**
   Plan: `docs/superpowers/plans/2026-09-23-merchant-app-phase1.md`. Comments
   (reply / hide / delete, both platforms), one inbox for Instagram and

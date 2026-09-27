@@ -137,7 +137,10 @@ export function BottomNav() {
         ref={sheetRef}
         className="nr-sheet"
         aria-label="هەموو بەشەکان"
-        onClose={() => setOpenAt(null)}
+        onClose={(e) => {
+          // The close event is queued; ignore a late one that lands after the sheet was reopened.
+          if (!e.currentTarget.open) setOpenAt(null);
+        }}
         onClick={(e) => {
           if (e.target === e.currentTarget) setOpenAt(null); // the backdrop
         }}
