@@ -45,7 +45,7 @@ function Brand() {
   );
 }
 
-function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
+function NavLinks({ onNavigate }: { onNavigate?: (href: string) => void }) {
   const current = activeItem(usePathname());
   return (
     <>
@@ -56,7 +56,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             const Icon = ICONS[i.key];
             const on = current?.key === i.key;
             return (
-              <Link key={i.key} href={i.href} className="nr-link" aria-current={on ? "page" : undefined} onClick={onNavigate}>
+              <Link key={i.key} href={i.href} className="nr-link" aria-current={on ? "page" : undefined} onClick={() => onNavigate?.(i.href)}>
                 <Icon aria-hidden="true" strokeWidth={on ? 2.2 : 1.8} />
                 {i.label}
                 <Pending />
@@ -95,18 +95,21 @@ export function SideNav() {
 
 /** Phone bar: four sections plus "more", which opens every section in a sheet (hidden from 960px by CSS). */
 export function BottomNav() {
-  const current = activeItem(usePathname());
-  const [open, setOpen] = useState(false);
-  const closeRef = useRef<HTMLButtonElement>(null);
+  const path = usePathname();
+  const current = activeItem(path);
+  // The sheet belongs to the page it was opened on: after a link is tapped it
+  // stays up, showing that link's loading bar, until the route changes.
+  const [openAt, setOpenAt] = useState<string | null>(null);
+  const open = openAt === path;
+  const sheetRef = useRef<HTMLDialogElement>(null);
 
+  // A native modal dialog traps focus, makes the page behind it inert, closes
+  // on Escape and hands focus back to "more" — closing always ends in onClose.
   useEffect(() => {
-    if (!open) return;
-    closeRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+    if (open && !sheet.open) sheet.showModal();
+    if (!open && sheet.open) sheet.close();
   }, [open]);
 
   return (
@@ -124,31 +127,36 @@ export function BottomNav() {
               </Link>
             );
           })}
-          <button type="button" className="gm-tab nr-more" aria-expanded={open} aria-controls="nr-sheet" onClick={() => setOpen(true)}>
+          <button type="button" className="gm-tab nr-more" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpenAt(path)}>
             <Menu aria-hidden="true" strokeWidth={1.8} />
             زیاتر
           </button>
         </nav>
       </div>
-      {open && (
-        <>
-          <div className="nr-backdrop" aria-hidden="true" onClick={() => setOpen(false)} />
-          <div id="nr-sheet" className="nr-sheet" role="dialog" aria-modal="true" aria-label="هەموو بەشەکان">
-            <div className="nr-sheet-head">
-              <Brand />
-              <button ref={closeRef} type="button" className="nr-help" aria-label="داخستن" onClick={() => setOpen(false)}>
-                <X size={16} aria-hidden="true" />
-              </button>
-            </div>
-            <nav aria-label="هەموو بەشەکان" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <NavLinks onNavigate={() => setOpen(false)} />
-            </nav>
-            <div className="nr-foot">
-              <SignOutButton />
-            </div>
+      <dialog
+        ref={sheetRef}
+        className="nr-sheet"
+        aria-label="هەموو بەشەکان"
+        onClose={() => setOpenAt(null)}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setOpenAt(null); // the backdrop
+        }}
+      >
+        <div className="nr-sheet-body">
+          <div className="nr-sheet-head">
+            <Brand />
+            <button type="button" className="nr-help" aria-label="داخستن" onClick={() => setOpenAt(null)}>
+              <X size={16} aria-hidden="true" />
+            </button>
           </div>
-        </>
-      )}
+          <nav aria-label="هەموو بەشەکان" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <NavLinks onNavigate={(href) => href === path && setOpenAt(null)} />
+          </nav>
+          <div className="nr-foot">
+            <SignOutButton />
+          </div>
+        </div>
+      </dialog>
     </>
   );
 }
