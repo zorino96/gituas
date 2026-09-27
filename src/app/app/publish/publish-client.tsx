@@ -55,6 +55,7 @@ export function PublishClient({
 }) {
   const router = useRouter();
   const base = useBase();
+  const isNewsroom = base === "/newsroom";
 
   // media
   const fileInput = useRef<HTMLInputElement>(null);
@@ -307,6 +308,13 @@ export function PublishClient({
     <div>
       <h2 className="gm-title kufi">بڵاوکردنەوە</h2>
       <p className="gm-sub">یەک جار — بۆ فەیسبووک، ئینستاگرام و تیکتۆک پێکەوە.</p>
+      {isNewsroom && !newsDraftId && !media && (
+        <p className="gm-note">
+          بۆ بڵاوکردنەوەی هەواڵ: لە{" "}
+          <Link href="/newsroom/news" className="gm-link">بەشی هەواڵ</Link> هەواڵێک بکەرەوە و «ئامادەکردن بۆ بڵاوکردنەوە» دابگرە —
+          کارت و دەقەکە خۆکار لێرە دادەنرێن.
+        </p>
+      )}
 
       {/* media */}
       {preview ? (
@@ -360,20 +368,27 @@ export function PublishClient({
         dir="auto"
         value={caption}
         onChange={(e) => setCaption(e.target.value)}
-        placeholder="دەربارەی بەرهەمەکە بنووسە… یان چەند وشەیەک بنووسە و AI دەقەکەت بۆ دەنووسێت."
+        placeholder={
+          isNewsroom
+            ? "دەقی پۆستەکە بنووسە…"
+            : "دەربارەی بەرهەمەکە بنووسە… یان چەند وشەیەک بنووسە و زیرەکیی دەستکرد دەقەکەت بۆ دەنووسێت."
+        }
         aria-label="دەقی پۆست"
       />
       <div className="gm-between" style={{ marginTop: 8, flexWrap: "wrap" }}>
         <div className="gm-row" style={{ gap: 6, flexWrap: "wrap" }}>
-          {!newsDraftId && (
+          {/* Both are shop tools: the product-caption writer and the shops' city hashtags. */}
+          {!newsDraftId && !isNewsroom && (
             <button type="button" className="gm-btn quiet small" onClick={suggest} disabled={suggesting}>
               <Sparkles size={14} aria-hidden="true" />
               {suggesting ? "دەنووسێت…" : "دەقێکم بۆ بنووسە"}
             </button>
           )}
-          <button type="button" className="gm-btn quiet small" onClick={() => setCaption((c) => mergeHashtags(c, CITY_TAGS))}>
-            + هاشتاگی شارەکان
-          </button>
+          {!isNewsroom && (
+            <button type="button" className="gm-btn quiet small" onClick={() => setCaption((c) => mergeHashtags(c, CITY_TAGS))}>
+              + هاشتاگی شارەکان
+            </button>
+          )}
         </div>
         <span className={`gm-time ${captionIssues.length ? "gm-err" : ""}`} style={{ margin: 0 }}>
           {num([...fullCaption].length)} / {num(limit)}
