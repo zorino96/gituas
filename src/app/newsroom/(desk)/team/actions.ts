@@ -81,9 +81,24 @@ export async function inviteMemberAction(input: { email: string; role: string })
 export async function resendInviteAction(inviteId: string): Promise<TeamResult> {
   const ws = await ownedDesk();
   if (!ws) return { ok: false, error: OWNER_ONLY };
-  const invite = await db.invite.findFirst({ where: { id: inviteId, tenantId: ws.id, acceptedAt: null }, select: { id: true, email: true, role: true } });
+  const invite = await db.invite.findFirst({
+    where: { id: inviteId, tenantId: ws.id, acceptedAt: null },
+    select: { id: true, email: true, role: true, expiresAt: true },
+  });
   if (!invite || !isInvitableRole(invite.role)) return { ok: false, error: "بانگهێشتەکە نەدۆزرایەوە." };
   if ((await invitesToday(ws.id)) >= INVITES_PER_DAY) return { ok: false, error: "ئەمڕۆ بانگهێشتی زۆرت ناردووە. سبەی هەوڵ بدەرەوە." };
+  // An expired invite no longer holds a seat, so bringing it back needs one free.
+  const now = new Date();
+  if (invite.expiresAt <= now) {
+    const [members, live, tenant] = await Promise.all([
+      db.membership.count({ where: { tenantId: ws.id } }),
+      db.invite.count({ where: { tenantId: ws.id, acceptedAt: null, expiresAt: { gt: now } } }),
+      db.tenant.findUnique({ where: { id: ws.id }, select: { plan: true } }),
+    ]);
+    if (seatsLeft(NEWS_LIMITS[tenant?.plan ?? "MANUAL"].seats, members, live) === 0) {
+      return { ok: false, error: "هەموو شوێنەکانی پلانەکەت پڕن." };
+    }
+  }
   const { token, tokenHash } = newInviteToken();
   await db.invite.update({ where: { id: invite.id }, data: { tokenHash, expiresAt: new Date(Date.now() + INVITE_TTL_MS) } });
   await audit(ws.id, "member.reinvited", `Re-sent the invite to ${invite.email}.`, { email: invite.email });

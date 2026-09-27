@@ -126,6 +126,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async createUser({ user }) {
       if (user.id) await ensureWorkspace(user.id, user.name);
     },
+    // Google has already verified the address, but Auth.js stores OAuth users
+    // with emailVerified null — which would keep them from accepting invites.
+    async signIn({ user, account, profile }) {
+      if (account?.provider === "google" && profile?.email_verified && user.id) {
+        await db.user.updateMany({ where: { id: user.id, emailVerified: null }, data: { emailVerified: new Date() } });
+      }
+    },
   },
 });
 

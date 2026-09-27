@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { rememberWorkspace } from "@/app/app/data";
+import { NEWS_LIMITS } from "@/lib/billing/plans";
 import { hashInviteToken, inviteState } from "@/lib/newsroom/invite";
 
 export type JoinResult = { ok: false; error: string };
@@ -28,23 +29,35 @@ export async function acceptInviteAction(_prev: JoinResult | null, formData: For
   }
 
   const now = new Date();
-  const joined = await db.$transaction(async (tx) => {
-    const { count } = await tx.invite.updateMany({
-      where: { id: invite.id, acceptedAt: null, expiresAt: { gt: now } },
-      data: { acceptedAt: now },
-    });
-    if (count === 0) return false;
-    await tx.membership.upsert({
-      where: { tenantId_userId: { tenantId: invite.tenantId, userId } },
-      create: { tenantId: invite.tenantId, userId, role: invite.role },
-      update: {},
-    });
-    await tx.auditLog.create({
-      data: { tenantId: invite.tenantId, actor: "USER", action: "member.joined", reasoning: "Accepted a team invite.", metadata: { userId, role: invite.role } },
-    });
-    return true;
-  });
-  if (!joined) return { ok: false, error: GONE };
+  const outcome = await db.$transaction(
+    async (tx) => {
+      // One accept at a time per desk, and the seat limit is checked here — the
+      // hard stop — so re-sent or simultaneous invites can't overfill a plan.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${invite.tenantId}))`;
+      const already = await tx.membership.findUnique({
+        where: { tenantId_userId: { tenantId: invite.tenantId, userId } },
+        select: { id: true },
+      });
+      if (!already) {
+        const members = await tx.membership.count({ where: { tenantId: invite.tenantId } });
+        const tenant = await tx.tenant.findUnique({ where: { id: invite.tenantId }, select: { plan: true } });
+        if (members >= NEWS_LIMITS[tenant?.plan ?? "MANUAL"].seats) return "full" as const;
+      }
+      const { count } = await tx.invite.updateMany({
+        where: { id: invite.id, acceptedAt: null, expiresAt: { gt: now } },
+        data: { acceptedAt: now },
+      });
+      if (count === 0) return "gone" as const;
+      if (!already) await tx.membership.create({ data: { tenantId: invite.tenantId, userId, role: invite.role } });
+      await tx.auditLog.create({
+        data: { tenantId: invite.tenantId, actor: "USER", action: "member.joined", reasoning: "Accepted a team invite.", metadata: { userId, role: invite.role } },
+      });
+      return "joined" as const;
+    },
+    { timeout: 15_000 },
+  );
+  if (outcome === "full") return { ok: false, error: "هەموو شوێنەکانی ئەم مێزە پڕن. بە خاوەنی مێزەکە بڵێ." };
+  if (outcome === "gone") return { ok: false, error: GONE };
   await rememberWorkspace(invite.tenantId);
   redirect("/newsroom/news");
 }

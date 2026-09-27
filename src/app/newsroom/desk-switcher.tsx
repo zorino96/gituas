@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { Check, ChevronDown, Plus } from "lucide-react";
 
@@ -7,12 +8,33 @@ import { switchWorkspaceAction } from "./desk-actions";
 
 export type DeskOption = { id: string; name: string; role: string };
 
-/** The desk name in the top bar opens a list of the person's desks and "new desk". */
+/** The desk name in the top bar opens a list of the person's desks and "new desk". Escape or a click outside closes it. */
 export function DeskSwitcher({ currentId, currentName, desks }: { currentId: string; currentName: string; desks: DeskOption[] }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const d = ref.current;
+      if (e.key !== "Escape" || !d?.open) return;
+      d.open = false;
+      d.querySelector("summary")?.focus();
+    };
+    const onClick = (e: MouseEvent) => {
+      const d = ref.current;
+      if (d?.open && !d.contains(e.target as Node)) d.open = false;
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("click", onClick);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("click", onClick);
+    };
+  }, []);
+
   return (
-    <details className="nr-switch">
+    <details ref={ref} className="nr-switch">
       <summary className="nr-desk" aria-label={`مێز: ${currentName} — گۆڕین`}>
-        <h1 className="kufi">{currentName}</h1>
+        <span className="nr-desk-name kufi">{currentName}</span>
         <ChevronDown size={16} aria-hidden="true" />
       </summary>
       <div className="nr-switch-menu">

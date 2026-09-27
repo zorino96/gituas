@@ -87,7 +87,13 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
     return (
       <Frame>
         {intro}
-        <p className="gm-note warn" style={{ margin: 0 }}>ئیمەیڵی ئەم هەژمارە پشتڕاست نەکراوەتەوە، بۆیە ناتوانێت بانگهێشت وەربگرێت.</p>
+        <p className="gm-note warn" style={{ margin: 0 }}>
+          ئیمەیڵی ئەم هەژمارە هێشتا پشتڕاست نەکراوەتەوە. کۆدێک بۆ ئیمەیڵەکەت دەنێرین. دوای دانانی وشەی نهێنیی نوێ، ئیمەیڵەکەت پشتڕاست دەبێتەوە و
+          دەتوانیت بێیتە ناو مێزەکە.
+        </p>
+        <Link href={`/forgot?next=${encodeURIComponent(here)}`} className="gm-btn block">
+          ئیمەیڵەکەم پشتڕاست بکەرەوە
+        </Link>
       </Frame>
     );
   }

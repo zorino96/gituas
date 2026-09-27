@@ -11,25 +11,29 @@ export default async function TeamPage() {
   const ws = (await currentWorkspace())!;
   if (ws.kind !== "NEWS") redirect("/newsroom");
   const now = new Date();
-  const [members, invites, tenant] = await Promise.all([
+  // Only the owner acts on invites, so only the owner sees who was invited.
+  const canManage = can(ws.role, "team");
+  const [members, invites, live, tenant] = await Promise.all([
     db.membership.findMany({
       where: { tenantId: ws.id },
       orderBy: { createdAt: "asc" },
       select: { id: true, role: true, createdAt: true, user: { select: { name: true, email: true } } },
     }),
-    db.invite.findMany({
-      where: { tenantId: ws.id, acceptedAt: null },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, email: true, role: true, expiresAt: true },
-    }),
+    canManage
+      ? db.invite.findMany({
+          where: { tenantId: ws.id, acceptedAt: null },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, email: true, role: true, expiresAt: true },
+        })
+      : [],
+    db.invite.count({ where: { tenantId: ws.id, acceptedAt: null, expiresAt: { gt: now } } }),
     db.tenant.findUnique({ where: { id: ws.id }, select: { plan: true } }),
   ]);
-  const live = invites.filter((i) => inviteState({ acceptedAt: null, expiresAt: i.expiresAt }, now) === "ok").length;
   const seats = NEWS_LIMITS[tenant?.plan ?? "MANUAL"].seats;
 
   return (
     <TeamClient
-      canManage={can(ws.role, "team")}
+      canManage={canManage}
       seats={seats}
       left={seatsLeft(seats, members.length, live)}
       members={members.map((m) => ({ id: m.id, name: m.user.name ?? "", email: m.user.email ?? "", role: m.role }))}
