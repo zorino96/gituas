@@ -10,6 +10,8 @@ import { groupByCluster } from "@/lib/news/cluster";
 import { ingest } from "@/lib/news/ingest";
 import { currentWorkspace } from "@/app/app/data";
 import { ago, num } from "@/app/app/format";
+import { checklist, checklistDone } from "@/lib/newsroom/checklist";
+import { Checklist } from "./checklist";
 import { RefreshButton } from "./refresh-button";
 
 export const maxDuration = 60;
@@ -37,7 +39,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
   const fetching = ingest(ws.id).catch(() => null);
   after(() => fetching);
   const ingestResult = await Promise.race([fetching, new Promise<null>((r) => setTimeout(() => r(null), INGEST_WAIT_MS))]);
-  const [items, sources, settings, tenant, drafts, catalogSources] = await Promise.all([
+  const [items, sources, settings, tenant, drafts, catalogSources, pagesConnected, rssFeeds, kit, cardsMade, postsPublished] = await Promise.all([
     db.newsItem.findMany({
       where: { tenantId: ws.id, status: { in: [...tab.statuses] } },
       orderBy: { publishedAt: "desc" },
@@ -48,10 +50,23 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
     db.tenant.findUnique({ where: { id: ws.id }, select: { plan: true } }),
     usageOf(ws.id, "draft"),
     db.newsSource.findMany({ where: { tenantId: ws.id, enabled: true, catalogId: { not: null } }, select: { catalogId: true } }),
+    db.oAuthCredential.count({ where: { tenantId: ws.id, provider: { in: ["META_FACEBOOK", "META_INSTAGRAM", "TIKTOK"] } } }),
+    db.newsSource.count({ where: { tenantId: ws.id, enabled: true, rssUrl: { not: null } } }),
+    db.brandKit.findUnique({ where: { tenantId: ws.id }, select: { logoPath: true } }),
+    db.newsDraft.count({ where: { tenantId: ws.id, cardPath: { not: null } } }),
+    db.newsDraft.count({ where: { tenantId: ws.id, publishedAt: { not: null } } }),
   ]);
   const groups = groupByCluster(items);
   const limit = NEWS_LIMITS[tenant?.plan ?? "MANUAL"].draft;
   const attributions = CATALOG.filter((c) => catalogSources.some((s) => s.catalogId === c.id));
+  const steps = checklist({
+    pagesConnected,
+    logoSet: !!kit?.logoPath,
+    keywords: settings?.keywords.length ?? 0,
+    rssFeeds,
+    cardsMade,
+    postsPublished,
+  });
 
   return (
     <div className="gm-stack">
@@ -59,6 +74,8 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
         <h2 className="gm-title kufi">هەواڵەکان</h2>
         <RefreshButton />
       </div>
+
+      {!checklistDone(steps) && <Checklist steps={steps} />}
 
       <div className="gm-chips" role="tablist">
         {TABS.map((t) => (
