@@ -201,6 +201,24 @@ model Membership {
   @@index([userId])
 }
 
+/// A pending invitation into a workspace. Only the SHA-256 of the link's token
+/// is stored; the row is kept after acceptance for the record.
+model Invite {
+  id          String         @id @default(cuid())
+  tenantId    String
+  email       String
+  role        MembershipRole
+  tokenHash   String         @unique
+  invitedById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime       @default(now())
+  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([email])
+}
+
 model MemoryItem {
   id        String   @id @default(cuid())
   tenantId  String
@@ -364,28 +382,29 @@ model Tenant {
   aiUsages              AiUsage[]
   auditLogs             AuditLog[]
   memberships           Membership[]
+  invites               Invite[]
   oauthCredentials      OAuthCredential[]
   projects              Project[]
   wallet                Wallet?
 }
 
 model User {
-  id            String       @id @default(cuid())
-  name          String?
-  email         String?      @unique
-  emailVerified DateTime?
-  image         String?
+  id             String       @id @default(cuid())
+  name           String?
+  email          String?      @unique
+  emailVerified  DateTime?
+  image          String?
   /// scrypt hash for email-and-password sign-in; null for GitHub/Google-only users.
-  passwordHash  String?
+  passwordHash   String?
   /// Raised when the password changes. Sessions are JWTs that can't be deleted,
   /// so a token issued under an older version stops being accepted instead.
-  sessionVersion Int         @default(0)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  accounts      Account[]
-  memberships   Membership[]
-  sessions      Session[]
-  tenants       Tenant[]
+  sessionVersion Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  accounts       Account[]
+  memberships    Membership[]
+  sessions       Session[]
+  tenants        Tenant[]
 }
 
 model VerificationToken {
