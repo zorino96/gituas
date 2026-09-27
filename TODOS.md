@@ -44,6 +44,14 @@ Deferred work, with the context needed to pick it up cold.
 
 ## In flight — check, don't redo
 
+- **File uploads (Vercel Blob) — fixed 2026-09-28.** `BLOB_READ_WRITE_TOKEN`
+  had never been set, so no upload (photos, videos, logos, news cards) ever
+  worked in production or locally. Created the Blob store `gituas-blob`
+  (public, iad1) in the zorino96 team and connected it to the gituas project,
+  which added the env var. Hobby's free storage is small: move video to R2
+  before channels upload a lot of footage. For local uploads, pull the var
+  with `vercel env pull` (the project is not linked locally yet).
+
 - **News desk phase 1 — built 2026-09-27** (plan `docs/superpowers/plans/2026-09-26-news-desk-phase1.md`).
   News pages (list, editor), keywords, sources (GDELT, NewsData when `NEWSDATA_API_KEY` is set,
   their own RSS) and a brand kit in Settings. Cards render in the browser and go out through
