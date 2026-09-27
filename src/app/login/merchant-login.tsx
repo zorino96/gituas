@@ -5,7 +5,7 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { Eye, EyeOff } from "lucide-react";
 
-/** Sign-in for the merchant app or the newsroom: email and password, Google when configured, GitHub for the owner. */
+/** Sign-in for the merchant app or the newsroom: email and password, Google when configured; GitHub (the owner's own sign-in) only on the shop's page. */
 export function MerchantLogin({
   next,
   googleEnabled,
@@ -102,11 +102,13 @@ export function MerchantLogin({
         هەژمارت نییە؟{" "}
         <Link href={`/signup?next=${encodeURIComponent(next)}`} className="gm-link">خۆت تۆمار بکە</Link>
       </p>
-      <p style={{ textAlign: "center", marginTop: 4 }}>
-        <button type="button" className="gm-link" style={{ background: "none", border: 0, cursor: "pointer", font: "inherit", fontSize: 12, fontWeight: 500 }} onClick={() => signIn("github", { callbackUrl: next })}>
-          بە GitHub بچۆ ژوورەوە
-        </button>
-      </p>
+      {product !== "newsroom" && (
+        <p style={{ textAlign: "center", marginTop: 4 }}>
+          <button type="button" className="gm-link" style={{ background: "none", border: 0, cursor: "pointer", font: "inherit", fontSize: 12, fontWeight: 500 }} onClick={() => signIn("github", { callbackUrl: next })}>
+            بە GitHub بچۆ ژوورەوە
+          </button>
+        </p>
+      )}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -7,6 +8,7 @@ import { gmFontVars } from "@/app/app/fonts";
 import { emailEnabled } from "@/lib/mailer";
 import { LoginCard } from "./login-card";
 import { MerchantLogin } from "./merchant-login";
+import { loginTitle, productFor } from "./product";
 
 /** Only same-site paths may be a post-login destination — never `//host` or a URL. */
 function safeNext(next: string | string[] | undefined, fallback: string): string {
@@ -30,6 +32,17 @@ async function callbackCookiePath(): Promise<string | undefined> {
   }
 }
 
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string | string[]; callbackUrl?: string | string[]; error?: string }>;
+}): Promise<Metadata> {
+  const sp = await searchParams;
+  const callbackUrlPath = typeof sp.callbackUrl === "string" ? new URL(sp.callbackUrl, "https://x").pathname : undefined;
+  const title = loginTitle(productFor(safeNext(sp.next ?? callbackUrlPath, sp.error ? "/app" : "/dashboard")));
+  return title ? { title } : {};
+}
+
 export default async function LoginPage({
   searchParams,
 }: {
@@ -51,7 +64,8 @@ export default async function LoginPage({
   // Merchants and channels (anyone heading into the app or the newsroom) get
   // the Kurdish sign-in with email, Google and sign-up. The operator
   // dashboard keeps its GitHub card.
-  if (next.startsWith("/app") || next.startsWith("/newsroom")) {
+  const product = productFor(next);
+  if (product !== "operator") {
     return (
       <div className={`gm ${gmFontVars}`} dir="rtl" lang="ckb">
         <MerchantLogin
@@ -59,7 +73,7 @@ export default async function LoginPage({
           googleEnabled={googleEnabled}
           resetEnabled={emailEnabled}
           oauthError={sp.error}
-          product={next.startsWith("/newsroom") ? "newsroom" : "shop"}
+          product={product}
         />
       </div>
     );
