@@ -114,3 +114,14 @@ button.nr-link { font: inherit; font-size: 13.5px; background: none; border: 0; 
   .nr-features { grid-template-columns: 1fr 1fr; }
   .nr-hero h1 { font-size: 34px; }
 }
+
+/* desk switcher */
+.nr-switch { position: relative; min-width: 0; }
+.nr-switch > summary { list-style: none; cursor: pointer; border-radius: 10px; padding: 4px 6px; margin: -4px -6px; }
+.nr-switch > summary::-webkit-details-marker { display: none; }
+.nr-switch > summary:hover { background: var(--raised); }
+.nr-switch > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.nr-switch-menu { position: absolute; inset-inline-start: 0; top: calc(100% + 8px); z-index: 10; display: grid; gap: 2px;
+  min-width: 240px; max-width: calc(100vw - 32px); padding: 6px; border-radius: 12px; background: var(--surface);
+  border: 1px solid var(--line-soft); box-shadow: 0 10px 28px rgb(0 0 0 / 0.14); }
+.nr-switch-role { margin-inline-start: auto; font-size: 11px; color: var(--faint); }

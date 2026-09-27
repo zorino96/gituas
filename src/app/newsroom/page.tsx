@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BarChart3, LayoutTemplate, ShieldCheck, Sparkles, Send } from "lucide-react";
 
-import { currentWorkspace } from "@/app/app/data";
+import { currentWorkspace, listWorkspaces } from "@/app/app/data";
 import { NewsroomRoot } from "./desk-shell";
 import { ShopNotice } from "./shop-notice";
 
@@ -41,9 +41,10 @@ export default async function NewsroomLandingPage() {
   const ws = await currentWorkspace();
   if (ws) {
     if (!ws.kindChosen || ws.kind === "NEWS") redirect("/newsroom/news");
+    const desks = (await listWorkspaces()).filter((w) => w.kind === "NEWS" && w.kindChosen).map((w) => ({ id: w.id, name: w.name }));
     return (
       <NewsroomRoot>
-        <ShopNotice />
+        <ShopNotice desks={desks} />
       </NewsroomRoot>
     );
   }

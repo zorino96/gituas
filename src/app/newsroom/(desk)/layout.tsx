@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { claimKind, currentWorkspace } from "@/app/app/data";
+import { claimKind, currentWorkspace, listWorkspaces } from "@/app/app/data";
 import { DeskShell, NewsroomRoot } from "../desk-shell";
 import { ShopNotice } from "../shop-notice";
 
@@ -32,9 +32,10 @@ export default async function NewsroomDeskLayout({ children }: { children: React
   }
 
   if (ws.kind !== "NEWS") {
+    const desks = (await listWorkspaces()).filter((w) => w.kind === "NEWS" && w.kindChosen).map((w) => ({ id: w.id, name: w.name }));
     return (
       <NewsroomRoot>
-        <ShopNotice />
+        <ShopNotice desks={desks} />
       </NewsroomRoot>
     );
   }
