@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { buildAuthorizeUrl } from "@/lib/oauth/flow";
 import type { OAuthProvider } from "@/generated/prisma/client";
 import { currentWorkspace } from "@/app/app/data";
-import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
+import { can } from "@/lib/newsroom/roles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,7 +31,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
     if (!ws) return NextResponse.redirect(new URL("/login", req.url));
     if (!can(ws.role, "configure")) {
       const back = new URL(returnTo, req.url);
-      back.searchParams.set("error", NOT_ALLOWED);
+      back.searchParams.set("error", "not_allowed");
       return NextResponse.redirect(back);
     }
     tenantId = ws.id;

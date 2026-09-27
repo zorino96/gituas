@@ -5,6 +5,7 @@ import { signOut } from "next-auth/react";
 
 import { normalizePhone } from "@/lib/merchant/phone";
 import { useBase } from "../use-base";
+import { NOT_ALLOWED } from "@/lib/newsroom/roles";
 import { saveWhatsAppAction } from "../actions";
 import { PasswordCard } from "./password-card";
 import { NewsSettings, type NewsSettingsProps } from "./news-settings";
@@ -31,6 +32,7 @@ const CONNECT_ERRORS: Record<string, string> = {
   state_expired: "کاتەکەی بەسەرچوو — دووبارە هەوڵ بدەرەوە.",
   token_exchange_failed: "پلاتفۆرمەکە ڕێگەی نەدا — دووبارە هەوڵ بدەرەوە.",
   provider_mismatch: "ئەکاونتێکی هەڵە هەڵبژێردرا.",
+  not_allowed: NOT_ALLOWED,
 };
 
 export function SettingsClient({

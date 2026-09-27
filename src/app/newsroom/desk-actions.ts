@@ -17,9 +17,10 @@ export async function switchWorkspaceAction(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   const member = await db.membership.findUnique({
     where: { tenantId_userId: { tenantId: id, userId } },
-    select: { tenant: { select: { kind: true } } },
+    select: { tenant: { select: { kind: true, kindChosen: true } } },
   });
-  if (!member) redirect("/newsroom/news");
+  // Only claimed workspaces are switchable; a placeholder is turned into a desk by createDeskAction.
+  if (!member || !member.tenant.kindChosen) redirect("/newsroom/news");
   await rememberWorkspace(id);
   const home = member.tenant.kind === "NEWS" ? "/newsroom/news" : "/app";
   const next = safeNext(String(formData.get("next") ?? ""), home);
@@ -36,29 +37,43 @@ export async function createDeskAction(_prev: DeskResult | null, formData: FormD
   const name = String(formData.get("name") ?? "").trim();
   if (!name || [...name].length > 60) return { ok: false, error: "ناوێک بۆ مێزەکە بنووسە، تا ٦٠ پیت." };
 
-  const owned = await db.tenant.findMany({ where: { ownerId: userId, kind: "NEWS", kindChosen: true }, select: { plan: true } });
-  if (owned.length >= deskLimit(owned.map((t) => t.plan))) {
-    return { ok: false, error: "گەیشتیتە سنووری مێزەکانی پلانەکەت." };
-  }
+  // Counting and creating happen under a per-person lock, so two quick submits
+  // can't both pass the limit. An unclaimed workspace the person owns (the
+  // placeholder every sign-up gets) becomes the desk rather than lingering
+  // beside it, where it could later be claimed as a desk past the limit.
+  const deskId = await db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
+    const owned = await tx.tenant.findMany({
+      where: { ownerId: userId, OR: [{ kind: "NEWS", kindChosen: true }, { kindChosen: false }] },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, plan: true, kindChosen: true },
+    });
+    const desks = owned.filter((t) => t.kindChosen);
+    if (desks.length >= deskLimit(desks.map((t) => t.plan))) return null;
 
-  const desk = await db.$transaction(async (tx) => {
-    const t = await tx.tenant.create({
-      data: {
-        name,
-        slug: `d-${randomBytes(6).toString("hex")}`,
-        ownerId: userId,
-        kind: "NEWS",
-        kindChosen: true,
-        memberships: { create: { userId, role: "OWNER" } },
-      },
-      select: { id: true },
-    });
-    await setupNewsDesk(tx, t.id);
+    const spare = owned.find((t) => !t.kindChosen);
+    const id = spare
+      ? (await tx.tenant.update({ where: { id: spare.id }, data: { name, kind: "NEWS", kindChosen: true }, select: { id: true } })).id
+      : (
+          await tx.tenant.create({
+            data: {
+              name,
+              slug: `d-${randomBytes(6).toString("hex")}`,
+              ownerId: userId,
+              kind: "NEWS",
+              kindChosen: true,
+              memberships: { create: { userId, role: "OWNER" } },
+            },
+            select: { id: true },
+          })
+        ).id;
+    await setupNewsDesk(tx, id);
     await tx.auditLog.create({
-      data: { tenantId: t.id, actor: "USER", action: "desk.created", reasoning: "Created a newsroom desk.", metadata: { userId } },
+      data: { tenantId: id, actor: "USER", action: "desk.created", reasoning: "Created a newsroom desk.", metadata: { userId, reusedPlaceholder: !!spare } },
     });
-    return t;
+    return id;
   });
-  await rememberWorkspace(desk.id);
+  if (!deskId) return { ok: false, error: "گەیشتیتە سنووری مێزەکانی پلانەکەت." };
+  await rememberWorkspace(deskId);
   redirect("/newsroom/news");
 }

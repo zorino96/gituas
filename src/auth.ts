@@ -132,7 +132,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 /** The user's workspace, created on first need. Safe to call concurrently. */
 export async function ensureWorkspace(userId: string, name?: string | null) {
   const existing = await db.tenant.findFirst({ where: { ownerId: userId }, select: { id: true } });
-  if (existing) return existing;
+  if (existing) {
+    // Workspaces are found through memberships, so an owner must always have one.
+    await db.membership.upsert({
+      where: { tenantId_userId: { tenantId: existing.id, userId } },
+      create: { tenantId: existing.id, userId, role: "OWNER" },
+      update: {},
+    });
+    return existing;
+  }
   try {
     return await db.tenant.create({
       data: {
