@@ -243,7 +243,6 @@ export function NewsEditor({ workspaceId, source, initial, brand }: { workspaceI
                   stat: d.stat,
                   quote: d.quote,
                   speaker: d.speaker,
-                  sourceName: source.sourceName,
                   stamp: stampOf(source.publishedAt),
                   photoSrc: mediaSrc(d.photoPath),
                 }}

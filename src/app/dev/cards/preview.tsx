@@ -29,7 +29,7 @@ export function CardsPreview() {
                 ref={i === 1 ? first : undefined}
                 kind={s.kind}
                 brand={brand}
-                content={{ headline: s.headline, stat: s.stat ?? null, quote: s.quote ?? null, speaker: s.speaker ?? null, sourceName: "ڕاگەیەندراوی فەرمی", stamp: "٢٦/٩ ١٠:٤٢", photoSrc: null }}
+                content={{ headline: s.headline, stat: s.stat ?? null, quote: s.quote ?? null, speaker: s.speaker ?? null, stamp: "٢٦/٩ ١٠:٤٢", photoSrc: null }}
               />
             </div>
           </div>

@@ -51,7 +51,7 @@ export function PublishClient({
 }: {
   workspaceId: string;
   accounts: Record<Target, string | null>;
-  initial?: { newsDraftId: string; caption: string; media: Media; attribution: string };
+  initial?: { newsDraftId: string; caption: string; media: Media };
 }) {
   const router = useRouter();
   const base = useBase();
@@ -68,7 +68,6 @@ export function PublishClient({
 
   // news draft — dropped the moment the post stops being that draft's post
   const [newsDraftId, setNewsDraftId] = useState<string | null>(initial?.newsDraftId ?? null);
-  const [attribution, setAttribution] = useState<string | null>(initial?.attribution ?? null);
 
   // caption
   const [caption, setCaption] = useState(initial?.caption ?? "");
@@ -121,11 +120,10 @@ export function PublishClient({
   }, [on.TT, tt]);
 
   // The composer stops being "this news draft's post" the moment its media
-  // changes — its card and its attribution belonged to that exact image.
+  // changes — its card belonged to that exact image.
   function dropNewsDraft() {
     if (!newsDraftId) return;
     setNewsDraftId(null);
-    setAttribution(null);
     router.replace(`${base}/publish`);
   }
 
@@ -185,11 +183,8 @@ export function PublishClient({
     });
   }
 
-  // The attribution line is fixed and non-editable, but it is posted with the
-  // caption, so its length counts toward the same limits.
-  const fullCaption = attribution ? `${caption}\n\n${attribution}` : caption;
   const limit = targets.length ? Math.min(...targets.map((t) => CAPTION_LIMITS[t])) : CAPTION_LIMITS.IG;
-  const captionIssues = captionProblems(fullCaption, targets);
+  const captionIssues = captionProblems(caption, targets);
   const ttIssues = useMemo(
     () =>
       on.TT && tt
@@ -391,20 +386,10 @@ export function PublishClient({
           )}
         </div>
         <span className={`gm-time ${captionIssues.length ? "gm-err" : ""}`} style={{ margin: 0 }}>
-          {num([...fullCaption].length)} / {num(limit)}
+          {num([...caption].length)} / {num(limit)}
         </span>
       </div>
       {captionError && <p className="gm-err">{captionError}</p>}
-      {attribution && (
-        <div className="gm-card" style={{ marginTop: 8 }}>
-          <small className="gm-hint" style={{ margin: 0 }}>ئەم دێڕە خۆکار زیاد دەکرێت</small>
-          {attribution.split("\n").map((line, i) => (
-            <p key={i} dir={/^https?:\/\//i.test(line) ? "ltr" : "auto"} style={{ margin: "4px 0 0" }}>
-              {line}
-            </p>
-          ))}
-        </div>
-      )}
 
       {/* targets */}
       <p className="gm-sec">بۆ کوێ</p>

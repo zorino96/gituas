@@ -29,7 +29,7 @@ import { tiktokProblems } from "@/lib/merchant/tiktok-rules";
 import type { Platform } from "@/lib/merchant/types";
 import { assertWithin, LimitReached, limitMessage } from "@/lib/billing/limits";
 import { recordNewsPublish } from "@/lib/news/publish-record";
-import { captionWithAttribution, checkDraft } from "@/lib/news/rules";
+import { checkDraft } from "@/lib/news/rules";
 
 export type Result = { ok: true } | { ok: false; error: string };
 
@@ -293,9 +293,9 @@ export async function publishAction(input: PublishInput): Promise<{ ok: true; re
     }
   }
 
-  // A news post's caption is built here, from the server's own copy of the
-  // draft's source — never from whatever suffix the client sent.
-  let caption = typedCaption;
+  // A news post is exactly what the editor typed — no source credit is
+  // appended. The draft's source is used only to re-check it for copying.
+  const caption = typedCaption;
   if (input.newsDraftId) {
     const draft = await db.newsDraft.findFirst({ where: { id: input.newsDraftId, tenantId: ws.id }, include: { item: true } });
     if (!draft) return { ok: false, error: "هەواڵەکە نەدۆزرایەوە." };
@@ -306,7 +306,6 @@ export async function publishAction(input: PublishInput): Promise<{ ok: true; re
       (p) => p.code === "COPY",
     );
     if (copyProblem) return { ok: false, error: copyProblem.message };
-    caption = captionWithAttribution(typedCaption, { name: draft.item.sourceName, url: draft.item.url });
   }
   if (captionProblems(caption, targets).length) return { ok: false, error: "دەقەکە بۆ یەکێک لە شوێنەکان درێژە." };
 

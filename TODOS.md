@@ -57,12 +57,15 @@ Deferred work, with the context needed to pick it up cold.
   their own RSS) and a brand kit in Settings. Cards render in the browser and go out through
   publish; TikTok now takes photo posts there too. `DEEPSEEK_API_KEY` must be set in Vercel for
   drafts (Gemini is the fallback). JPEG cards (TikTok photo posts take JPEG/WebP, Instagram JPEG);
-  the publish screen converts PNG/WebP uploads to JPEG in the browser; the source line is appended
-  on the server and cannot be removed; `/dev/cards` previews the templates in development. Open:
-  outlet RSS feeds join the catalog only after each outlet's terms are read (BBC's terms page could
-  not be fetched while planning); the COPY rule's 0.5 threshold needs tuning on real Kurdish-source
-  drafts; the first TikTok photo post should be tried by the owner as "Only me". Phases 2–4 (page
-  frames, page video, motion video) follow the same spec.
+  the publish screen converts PNG/WebP uploads to JPEG in the browser; `/dev/cards` previews the
+  templates in development. Open: outlet RSS feeds join the catalog only after each outlet's terms
+  are read (BBC's terms page could not be fetched while planning); the COPY rule's 0.5 threshold
+  needs tuning on real Kurdish-source drafts; the first TikTok photo post should be tried by the
+  owner as "Only me". Phases 2–4 (page frames, page video, motion video) follow the same spec.
+
+  **No source credit — 2026-09-28.** The owner decided posts and cards carry no source credit: the
+  source line that used to be appended to every caption and printed in the card footer is gone.
+  The own-words (COPY) rule and the no-source-media rule still apply unchanged.
 
   **Split into its own product at `/newsroom` — 2026-09-27** (plan
   `docs/superpowers/plans/2026-09-27-newsroom.md`). The news desk now has its own landing page,

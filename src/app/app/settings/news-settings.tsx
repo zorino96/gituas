@@ -152,7 +152,7 @@ export function NewsSettings(p: NewsSettingsProps) {
             <NewsCard
               kind="BREAKING"
               brand={brandFrom(kit, p.pageName)}
-              content={{ headline: "نموونەی سەردێڕێکی هەواڵ لەسەر کارتەکەت", stat: null, quote: null, speaker: null, sourceName: "سەرچاوە", stamp: "١٠:٤٢", photoSrc: null }}
+              content={{ headline: "نموونەی سەردێڕێکی هەواڵ لەسەر کارتەکەت", stat: null, quote: null, speaker: null, stamp: "١٠:٤٢", photoSrc: null }}
             />
           </div>
         </div>

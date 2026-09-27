@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { db } from "@/lib/db";
-import { attributionFor } from "@/lib/news/rules";
 import { baseFor, currentWorkspace, loadConnections } from "../data";
 import { PublishClient } from "./publish-client";
 
@@ -21,7 +20,6 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
         newsDraftId: draft.id,
         caption: `${draft.headline.trim()}\n\n${draft.body.trim()}`,
         media: { url: draft.cardUrl!, pathname: draft.cardPath!, type: "IMAGE" as const },
-        attribution: attributionFor({ name: draft.item.sourceName, url: draft.item.url }),
       }
     : undefined;
   return (

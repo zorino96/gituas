@@ -150,8 +150,11 @@ NewsAPI.org and GNews free tiers are excluded: both forbid production use.
    text, and writes a summary within fixed length limits.
 2. A draft whose body overlaps the source text heavily (same language, long
    shared word sequences) is blocked from publishing until edited.
-3. Source name and link are appended on every platform and printed on the
-   card; the UI has no control to remove them.
+3. ~~Source name and link are appended on every platform and printed on the
+   card; the UI has no control to remove them.~~ **Superseded 2026-09-28:** the
+   owner decided posts and cards carry no source credit — no attribution line
+   on the post, no source line in the card footer. Rules 2 and 4 still apply
+   unchanged.
 4. No image or video is ever fetched from a source. Photos come only from the
    page's uploads.
 5. Nothing publishes without an editor's approval.

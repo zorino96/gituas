@@ -13,7 +13,6 @@ export interface CardContent {
   stat: string | null;
   quote: string | null;
   speaker: string | null;
-  sourceName: string;
   stamp: string;
   photoSrc: string | null;
 }
@@ -74,8 +73,7 @@ function Header({ brand, dark }: { brand: Brand; dark: boolean }) {
 
 function Footer({ brand, content, dark }: { brand: Brand; content: CardContent; dark: boolean }) {
   return (
-    <div style={abs({ bottom: 44, right: 56, left: 56, display: "flex", justifyContent: "space-between", font: `500 32px ${BODY_FONT}`, color: dark ? brand.primary : brand.text, opacity: 0.85 })}>
-      <span>سەرچاوە: {content.sourceName}</span>
+    <div style={abs({ bottom: 44, right: 56, left: 56, display: "flex", justifyContent: "flex-end", font: `500 32px ${BODY_FONT}`, color: dark ? brand.primary : brand.text, opacity: 0.85 })}>
       <span>{content.stamp}</span>
     </div>
   );

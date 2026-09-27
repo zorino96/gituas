@@ -10,7 +10,7 @@ export default function TermsPage() {
   return (
     <article>
       <h1 className="font-display text-4xl md:text-5xl leading-tight">Terms of Service</h1>
-      <Updated date="September 26, 2026" />
+      <Updated date="September 28, 2026" />
 
       <Lead>
         These Terms govern your access to and use of Gituas. By creating an account or using the
@@ -69,12 +69,12 @@ export default function TermsPage() {
       </P>
       <P>
         <Strong>News pages.</Strong> For news pages, Gituas reads headlines and short summaries from
-        news sources, drafts an original summary in Kurdish, and always credits the source with a
-        link. Gituas never publishes a source&rsquo;s article text, photos, or video. You are
-        responsible for everything your page publishes, for any feed you add yourself and your
-        right to use it, for any media licence your page needs, and for reviewing every draft
-        before approving it. Nothing is published without your approval. Some headlines are
-        provided by the <ExtLink href="https://www.gdeltproject.org/">GDELT Project</ExtLink>.
+        news sources and drafts an original summary in Kurdish. Gituas never publishes a
+        source&rsquo;s article text, photos, or video. Whether to credit a source is your page&rsquo;s
+        own decision. You are responsible for everything your page publishes, for any feed you add
+        yourself and your right to use it, for any media licence your page needs, and for reviewing
+        every draft before approving it. Nothing is published without your approval. Some headlines
+        are provided by the <ExtLink href="https://www.gdeltproject.org/">GDELT Project</ExtLink>.
       </P>
 
       <H2>7. Fees</H2>
