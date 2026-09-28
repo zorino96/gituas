@@ -687,23 +687,25 @@ model NewsSource {
 
 /// A story fetched for a news page: headline and snippet only, never article text.
 model NewsItem {
-  id          String     @id @default(cuid())
-  tenantId    String
-  sourceName  String
-  url         String
-  title       String
-  snippet     String
-  lang        String?
-  publishedAt DateTime
-  clusterKey  String
+  id            String     @id @default(cuid())
+  tenantId      String
+  sourceName    String
+  url           String
+  title         String
+  snippet       String
+  lang          String?
+  publishedAt   DateTime
+  clusterKey    String
   /// NEW | DRAFTED | PUBLISHED | DISMISSED
-  status      String     @default("NEW")
-  createdAt   DateTime   @default(now())
-  draft       NewsDraft?
+  status        String     @default("NEW")
+  createdAt     DateTime   @default(now())
+  draft         NewsDraft?
   /// Set by the classifier (src/lib/news/taxonomy.ts codes); null until classified.
-  category    String?
-  subcategory String?
-  region      String?
+  category      String?
+  subcategory   String?
+  region        String?
+  /// Failed classification attempts; after three the story is left unclassified (and still shown).
+  classifyTries Int        @default(0)
 
   @@unique([tenantId, url])
   @@index([tenantId, status, publishedAt])

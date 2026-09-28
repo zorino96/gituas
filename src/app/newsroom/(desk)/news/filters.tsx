@@ -30,7 +30,10 @@ export function NewsFilters(props: {
   sources: string[];
 }) {
   const { q, categoryCounts, regionCounts, langs, sources } = props;
-  const cats = TAXONOMY.filter((c) => categoryCounts[c.id]);
+  const cats = TAXONOMY.filter((c) => categoryCounts[c.id] || c.id === q.cat);
+  // An active filter always stays visible, so it can be cleared.
+  const langList = q.lang && !langs.includes(q.lang) ? [...langs, q.lang] : langs;
+  const sourceList = q.src && !sources.includes(q.src) ? [...sources, q.src] : sources;
   return (
     <div className="gm-stack" style={{ gap: 8 }}>
       {cats.length > 0 && (
@@ -45,22 +48,23 @@ export function NewsFilters(props: {
       )}
       <div className="gm-chips" aria-label="ناوچە">
         <Chip href={newsHref(q, { region: undefined })} on={!q.region}>هەموو ناوچەکان</Chip>
-        {REGIONS.filter((r) => regionCounts[r.id]).map((r) => (
+        {REGIONS.filter((r) => regionCounts[r.id] || r.id === q.region).map((r) => (
           <Chip key={r.id} href={newsHref(q, { region: q.region === r.id ? undefined : r.id })} on={q.region === r.id}>
             {r.label}
           </Chip>
         ))}
-        {langs.length > 1 &&
-          langs.map((l) => (
+        {langList.length > 1 || q.lang
+          ? langList.map((l) => (
             <Chip key={l} href={newsHref(q, { lang: q.lang === l ? undefined : l })} on={q.lang === l}>
               {LANGS[l] ?? l}
             </Chip>
-          ))}
+          ))
+          : null}
       </div>
-      {sources.length > 1 && (
+      {(sourceList.length > 1 || q.src) && (
         <div className="gm-chips" aria-label="سەرچاوە">
           <Chip href={newsHref(q, { src: undefined })} on={!q.src}>هەموو سەرچاوەکان</Chip>
-          {sources.map((s) => (
+          {sourceList.map((s) => (
             <Chip key={s} href={newsHref(q, { src: q.src === s ? undefined : s })} on={q.src === s}>
               {s}
             </Chip>

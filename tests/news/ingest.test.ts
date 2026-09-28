@@ -9,8 +9,10 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 vi.mock("@/lib/news/classify", () => ({ classifyPending: vi.fn().mockResolvedValue(0) }));
+vi.mock("@/lib/news/sources/rss", () => ({ fetchFeed: vi.fn() }));
 
-import { cached, pickNew } from "@/lib/news/ingest";
+import { cached, ingest, pickNew } from "@/lib/news/ingest";
+import { fetchFeed } from "@/lib/news/sources/rss";
 import { db } from "@/lib/db";
 import type { RawItem } from "@/lib/news/types";
 
@@ -105,5 +107,49 @@ describe("pickNew", () => {
     const candidates = [item("https://a", new Date(now - 3000)), item("https://b", new Date(now - 1000)), item("https://c", new Date(now - 2000))];
     const result = pickNew(candidates, new Set(), now, 2);
     expect(result.map((i) => i.url)).toEqual(["https://b", "https://c"]);
+  });
+});
+
+describe("ingest", () => {
+  const m = db as unknown as Record<string, Record<string, ReturnType<typeof vi.fn>>>;
+  const fresh = (url: string, title: string): RawItem => ({ url, title, snippet: "", publishedAt: new Date(), lang: "ar", sourceName: "feed" });
+
+  function setup(opts: { keywordFilter: boolean; sources: Array<{ id: string; name: string; catalogId: string | null; rssUrl: string | null }> }) {
+    vi.clearAllMocks();
+    m.newsSettings.upsert.mockResolvedValue({ keywords: ["أربيل"], keywordFilter: opts.keywordFilter });
+    m.newsSettings.update.mockResolvedValue({});
+    m.newsSource.findMany.mockResolvedValue(opts.sources.map((s) => ({ ...s, enabled: true, lastError: null })));
+    m.newsSource.updateMany.mockResolvedValue({ count: 1 });
+    m.sourceCache.findUnique.mockResolvedValue(null);
+    m.sourceCache.upsert.mockResolvedValue({});
+    m.newsItem.findMany.mockResolvedValue([]);
+    m.newsItem.createMany.mockResolvedValue({ count: 1 });
+    vi.mocked(fetchFeed).mockResolvedValue([fresh("https://x/1", "خبر عن أربيل"), fresh("https://x/2", "خبر رياضي")]);
+  }
+  const stored = () => m.newsItem.createMany.mock.calls.map((c) => c[0].data[0].title);
+
+  it("keeps every RSS story when the keyword filter is off", async () => {
+    setup({ keywordFilter: false, sources: [{ id: "s1", name: "Own", catalogId: null, rssUrl: "https://own.example/rss" }] });
+    await ingest("t1", { force: true });
+    expect(stored().sort()).toEqual(["خبر رياضي", "خبر عن أربيل"].sort());
+  });
+
+  it("keeps only keyword matches when the keyword filter is on", async () => {
+    setup({ keywordFilter: true, sources: [{ id: "s1", name: "Own", catalogId: null, rssUrl: "https://own.example/rss" }] });
+    await ingest("t1", { force: true });
+    expect(stored()).toEqual(["خبر عن أربيل"]);
+  });
+
+  it("fetches a catalog feed from the catalog's address", async () => {
+    setup({ keywordFilter: false, sources: [{ id: "s2", name: "BBC عربي", catalogId: "bbc-ar", rssUrl: null }] });
+    await ingest("t1", { force: true });
+    expect(vi.mocked(fetchFeed)).toHaveBeenCalledWith("https://feeds.bbci.co.uk/arabic/rss.xml", "BBC عربي");
+  });
+
+  it("reports a catalog entry that no longer exists instead of fetching anything", async () => {
+    setup({ keywordFilter: false, sources: [{ id: "s3", name: "Gone", catalogId: "no-such-feed", rssUrl: null }] });
+    const r = await ingest("t1", { force: true });
+    expect(vi.mocked(fetchFeed)).not.toHaveBeenCalled();
+    expect(r.failed).toEqual(["Gone"]);
   });
 });

@@ -1,7 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { catalogEntry } from "./catalog";
-import { classifyPending } from "./classify";
 import { clusterKeyFor } from "./cluster";
 import { fetchGdelt } from "./sources/gdelt";
 import { fetchNewsdata } from "./sources/newsdata";
@@ -119,6 +118,9 @@ export async function ingest(tenantId: string, { force = false } = {}): Promise<
               .filter((i) => !settings.keywordFilter || matchesKeywords(`${i.title} ${i.snippet}`, keywords))
               .map((i) => ({ ...i, sourceName: s.name }));
             error = r.error;
+          } else {
+            // A catalog entry that has since been removed: say so instead of silently bringing nothing.
+            error = "ئەم سەرچاوەیە چیتر بەردەست نییە. لە ڕێکخستن بیکوژێنەوە.";
           }
         }
         items = [...items].sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime()).slice(0, PER_SOURCE);
@@ -174,7 +176,5 @@ export async function ingest(tenantId: string, { force = false } = {}): Promise<
       recent.push({ title: it.title, lang: it.lang, publishedAt: it.publishedAt, clusterKey });
     }
   }
-  // Sort what came in (and anything left from earlier runs) into categories.
-  await classifyPending(tenantId);
   return { added, failed: fetched.flatMap((f) => (f.failed ? [f.failed] : [])), skipped: false };
 }

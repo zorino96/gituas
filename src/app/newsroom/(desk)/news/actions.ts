@@ -1,12 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 
 import { db } from "@/lib/db";
 import { assertWithin, countUsage, LimitReached, limitMessage } from "@/lib/billing/limits";
 import { NEWS_LIMITS } from "@/lib/billing/plans";
 import { AiUnavailable, type Strength } from "@/lib/ai/provider";
 import { catalogEntry } from "@/lib/news/catalog";
+import { classifyPending } from "@/lib/news/classify";
 import { draftFor, nextAttempt } from "@/lib/news/draft";
 import { ingest } from "@/lib/news/ingest";
 import { checkDraft, copyPart, LIMITS } from "@/lib/news/rules";
@@ -74,6 +76,7 @@ export async function refreshNewsAction(): Promise<Result<{ added: number; faile
   if (!ws) return NOT_NEWS;
   try {
     const r = await ingest(ws.id, { force: true });
+    after(() => classifyPending(ws.id));
     revalidatePath("/newsroom/news");
     return { ok: true, added: r.added, failed: r.failed };
   } catch {
@@ -208,7 +211,8 @@ export async function saveKeywordsAction(raw: string): Promise<Result<{ keywords
 async function underSourceLimit(tenantId: string): Promise<boolean> {
   const [tenant, count] = await Promise.all([
     db.tenant.findUnique({ where: { id: tenantId }, select: { plan: true } }),
-    db.newsSource.count({ where: { tenantId } }),
+    // Only switched-on sources use a slot, so switching one off frees it.
+    db.newsSource.count({ where: { tenantId, enabled: true } }),
   ]);
   return count < NEWS_LIMITS[tenant?.plan ?? "MANUAL"].sources;
 }
@@ -220,7 +224,7 @@ export async function toggleCatalogSourceAction(catalogId: string, enabled: bool
   const entry = catalogEntry(catalogId);
   if (!entry) return { ok: false, error: "ئەم سەرچاوەیە بەردەست نییە." };
   const existing = await db.newsSource.findUnique({ where: { tenantId_catalogId: { tenantId: ws.id, catalogId } } });
-  if (!existing && enabled && !(await underSourceLimit(ws.id))) return { ok: false, error: "سنووری ژمارەی سەرچاوەکانی پاکێجەکەت پڕ بووە." };
+  if (enabled && !existing?.enabled && !(await underSourceLimit(ws.id))) return { ok: false, error: "سنووری ژمارەی سەرچاوەکانی پاکێجەکەت پڕ بووە." };
   await db.newsSource.upsert({
     where: { tenantId_catalogId: { tenantId: ws.id, catalogId } },
     create: { tenantId: ws.id, catalogId, name: entry.name, enabled },

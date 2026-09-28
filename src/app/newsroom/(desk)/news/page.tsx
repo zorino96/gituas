@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
+import { classifyPending } from "@/lib/news/classify";
+
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { usageOf } from "@/lib/billing/limits";
@@ -9,7 +11,7 @@ import { NEWS_LIMITS } from "@/lib/billing/plans";
 import { CATALOG } from "@/lib/news/catalog";
 import { groupByCluster } from "@/lib/news/cluster";
 import { ingest } from "@/lib/news/ingest";
-import { categoryLabel, categoryWhere, regionLabel } from "@/lib/news/taxonomy";
+import { categoryLabel, categoryWhere, regionLabel, REGIONS, TAXONOMY } from "@/lib/news/taxonomy";
 import { currentWorkspace } from "@/app/app/data";
 import { ago, num } from "@/app/app/format";
 import { checklist, checklistDone } from "@/lib/newsroom/checklist";
@@ -44,11 +46,20 @@ export default async function NewsPage({
   // what is stored; `after` keeps the function alive until the fetch finishes,
   // and its stories appear on the next open or refresh.
   const fetching = ingest(ws.id).catch(() => null);
-  after(() => fetching);
+  // Classification runs after the response, so neither the page nor a refresh waits on the AI.
+  after(() => fetching.then(() => classifyPending(ws.id)));
   const ingestResult = await Promise.race([fetching, new Promise<null>((r) => setTimeout(() => r(null), INGEST_WAIT_MS))]);
 
   const settings = await db.newsSettings.findUnique({ where: { tenantId: ws.id } });
-  const q: NewsQuery = { tab: tab.key, cat: sp.cat, region: sp.region, lang: sp.lang, src: sp.src };
+  // Only single string values, and only known category/region ids (a repeated or odd param must not break the page).
+  const one = (v: unknown) => (typeof v === "string" && v ? v.slice(0, 120) : undefined);
+  const q: NewsQuery = {
+    tab: tab.key,
+    cat: TAXONOMY.some((c) => c.id === sp.cat) ? one(sp.cat) : undefined,
+    region: REGIONS.some((r) => r.id === sp.region) ? one(sp.region) : undefined,
+    lang: one(sp.lang),
+    src: one(sp.src),
+  };
   const base: Prisma.NewsItemWhereInput = {
     tenantId: ws.id,
     status: { in: [...tab.statuses] },

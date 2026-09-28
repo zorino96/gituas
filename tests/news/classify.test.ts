@@ -12,12 +12,9 @@ describe("classifyPrompt", () => {
 });
 
 describe("parseBatch", () => {
-  it("maps answers back by index and marks missing ones 'other'", () => {
+  it("maps answers back by index and leaves skipped ones null", () => {
     const out = parseBatch({ items: [{ i: 1, category: "sports", subcategory: "football", region: "world" }] }, 2);
-    expect(out).toEqual([
-      { category: "other", subcategory: null, region: "world" },
-      { category: "sports", subcategory: "football", region: "world" },
-    ]);
+    expect(out).toEqual([null, { category: "sports", subcategory: "football", region: "world" }]);
   });
   it("ignores out-of-range indexes", () => {
     const out = parseBatch({ items: [{ i: 5, category: "sports", region: "world" }, { i: 0, category: "health", region: "iraq" }] }, 1);

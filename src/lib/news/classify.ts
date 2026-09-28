@@ -25,8 +25,12 @@ Use null for subcategory when none fits.`,
   };
 }
 
-/** The AI's reply → one classification per input; entries it skipped become "other". Null if nothing usable. */
-export function parseBatch(data: unknown, n: number): Classification[] | null {
+/**
+ * The AI's reply → one classification per input, by index. Entries it skipped
+ * stay null (they're retried, then left unclassified — never forced into a
+ * category a desk might hide). Null overall if nothing was usable.
+ */
+export function parseBatch(data: unknown, n: number): (Classification | null)[] | null {
   const arr = (data as { items?: unknown } | null)?.items;
   if (!Array.isArray(arr)) return null;
   const out: (Classification | null)[] = Array.from({ length: n }, () => null);
@@ -34,32 +38,47 @@ export function parseBatch(data: unknown, n: number): Classification[] | null {
     const i = (e as { i?: unknown } | null)?.i;
     if (typeof i === "number" && Number.isInteger(i) && i >= 0 && i < n) out[i] = parseClassification(e);
   }
-  if (!out.some(Boolean)) return null;
-  return out.map((c) => c ?? { category: "other", subcategory: null, region: "world" });
+  return out.some(Boolean) ? out : null;
 }
 
-/** Classify a desk's newest unclassified stories, a few batches per run. Never throws. */
+const MAX_TRIES = 3;
+const RECENT_MS = 3 * 24 * 60 * 60 * 1000;
+
+/**
+ * Classify a desk's newest unclassified stories, a few batches per run. A
+ * story that fails MAX_TRIES times is left unclassified (and still shown), so
+ * nothing is sent to the AI forever. Never throws.
+ */
 export async function classifyPending(tenantId: string): Promise<number> {
-  const items = await db.newsItem.findMany({
-    where: { tenantId, category: null },
-    orderBy: { publishedAt: "desc" },
-    take: PER_RUN,
-    select: { id: true, title: true, snippet: true },
-  });
-  const batches: (typeof items)[] = [];
-  for (let i = 0; i < items.length; i += BATCH) batches.push(items.slice(i, i + BATCH));
-  const counts = await Promise.all(
-    batches.map(async (b) => {
-      try {
-        const { system, user } = classifyPrompt(b);
-        const { data } = await completeJson({ system, user, strength: "fast" }, (d) => parseBatch(d, b.length));
-        await Promise.all(data.map((c, i) => db.newsItem.updateMany({ where: { id: b[i].id }, data: c })));
-        return b.length;
-      } catch (e) {
-        console.error("[news] classify failed:", e instanceof Error ? e.message : "unknown error");
-        return 0;
-      }
-    }),
-  );
-  return counts.reduce((a, b) => a + b, 0);
+  try {
+    const items = await db.newsItem.findMany({
+      where: { tenantId, category: null, classifyTries: { lt: MAX_TRIES }, publishedAt: { gte: new Date(Date.now() - RECENT_MS) } },
+      orderBy: { publishedAt: "desc" },
+      take: PER_RUN,
+      select: { id: true, title: true, snippet: true },
+    });
+    const batches: (typeof items)[] = [];
+    for (let i = 0; i < items.length; i += BATCH) batches.push(items.slice(i, i + BATCH));
+    const counts = await Promise.all(
+      batches.map(async (b) => {
+        let data: (Classification | null)[] = b.map(() => null);
+        try {
+          const { system, user } = classifyPrompt(b);
+          data = (await completeJson({ system, user, strength: "fast" }, (d) => parseBatch(d, b.length))).data;
+        } catch (e) {
+          console.error("[news] classify failed:", e instanceof Error ? e.message : "unknown error");
+        }
+        await Promise.all(
+          data.map((c, i) =>
+            db.newsItem.updateMany({ where: { id: b[i].id }, data: c ?? { classifyTries: { increment: 1 } } }),
+          ),
+        );
+        return data.filter(Boolean).length;
+      }),
+    );
+    return counts.reduce((a, n) => a + n, 0);
+  } catch (e) {
+    console.error("[news] classify failed:", e instanceof Error ? e.message : "unknown error");
+    return 0;
+  }
 }
