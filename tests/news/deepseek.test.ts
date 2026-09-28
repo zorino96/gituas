@@ -22,6 +22,15 @@ describe("deepseekJson", () => {
     expect(sent.response_format).toEqual({ type: "json_object" });
   });
 
+  it("uses the non-thinking chat model when thinking is off (bulk sorting)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ model: "deepseek-flash", choices: [{ message: { content: '{"items":[]}' } }] }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await deepseekJson({ system: "s", user: "u", strength: "fast", thinking: false }, 5000);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).model).toBe(DEEPSEEK_MODELS.noThinking);
+  });
+
   it("throws on an HTTP error", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response('{"error":{"type":"invalid_request_error"}}', { status: 401 })));
     await expect(deepseekJson({ system: "s", user: "u", strength: "strong" }, 5000)).rejects.toThrow("HTTP 401");

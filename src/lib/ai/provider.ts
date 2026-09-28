@@ -13,6 +13,8 @@ export interface JsonCall {
   system: string;
   user: string;
   strength: Strength;
+  /** DeepSeek only: false skips the reasoning pass (bulk, simple tasks like sorting headlines). */
+  thinking?: boolean;
 }
 
 export interface JsonResult {

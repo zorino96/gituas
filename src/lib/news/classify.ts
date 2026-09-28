@@ -64,7 +64,7 @@ export async function classifyPending(tenantId: string): Promise<number> {
         let data: (Classification | null)[] = b.map(() => null);
         try {
           const { system, user } = classifyPrompt(b);
-          data = (await completeJson({ system, user, strength: "fast" }, (d) => parseBatch(d, b.length))).data;
+          data = (await completeJson({ system, user, strength: "fast", thinking: false }, (d) => parseBatch(d, b.length))).data;
         } catch (e) {
           console.error("[news] classify failed:", e instanceof Error ? e.message : "unknown error");
         }
