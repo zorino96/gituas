@@ -29,10 +29,12 @@ export default async function SettingsPage({
       workspaceId: ws.id,
       pageName: ws.name,
       keywords: settings?.keywords ?? [],
-      catalog: catalogAvailable().map((c) => {
-        const s = sources.find((x) => x.catalogId === c.id);
-        return { id: c.id, name: c.name, description: c.description, enabled: !!s?.enabled, lastError: s?.lastError ?? null };
-      }),
+      catalog: catalogAvailable()
+        .filter((c) => c.group === "api")
+        .map((c) => {
+          const s = sources.find((x) => x.catalogId === c.id);
+          return { id: c.id, name: c.name, description: c.description ?? "", enabled: !!s?.enabled, lastError: s?.lastError ?? null };
+        }),
       feeds: sources.filter((s) => s.rssUrl).map((s) => ({ id: s.id, name: s.name, url: s.rssUrl!, lastError: s.lastError })),
       kit: {
         logoPath: kit?.logoPath ?? null,

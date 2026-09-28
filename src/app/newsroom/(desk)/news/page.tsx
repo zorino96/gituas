@@ -58,7 +58,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
   ]);
   const groups = groupByCluster(items);
   const limit = NEWS_LIMITS[tenant?.plan ?? "MANUAL"].draft;
-  const attributions = CATALOG.filter((c) => catalogSources.some((s) => s.catalogId === c.id));
+  const attributions = CATALOG.filter((c) => c.attribution && catalogSources.some((s) => s.catalogId === c.id));
   const steps = checklist({
     pagesConnected,
     logoSet: !!kit?.logoPath,
@@ -122,7 +122,7 @@ export default async function NewsPage({ searchParams }: { searchParams: Promise
             {attributions.map((a, i) => (
               <span key={a.id}>
                 {i > 0 ? " و " : ""}
-                <a href={a.attribution.url} className="gm-link" target="_blank" rel="noreferrer">{a.attribution.label}</a>
+                <a href={a.attribution!.url} className="gm-link" target="_blank" rel="noreferrer">{a.attribution!.label}</a>
               </span>
             ))}
             ەوە دێن.

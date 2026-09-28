@@ -6,7 +6,6 @@ import { upload } from "@vercel/blob/client";
 
 import { NewsCard, CARD_H, CARD_W } from "@/lib/cards/templates";
 import { brandFrom } from "@/lib/cards/brand";
-import type { CatalogId } from "@/lib/news/catalog";
 import {
   addRssSourceAction,
   removeSourceAction,
@@ -19,7 +18,7 @@ export interface NewsSettingsProps {
   workspaceId: string;
   pageName: string;
   keywords: string[];
-  catalog: Array<{ id: CatalogId; name: string; description: string; enabled: boolean; lastError: string | null }>;
+  catalog: Array<{ id: string; name: string; description: string; enabled: boolean; lastError: string | null }>;
   feeds: Array<{ id: string; name: string; url: string; lastError: string | null }>;
   kit: { logoPath: string | null; primary: string; accent: string; text: string; headingFont: "kufi" | "sans" };
 }

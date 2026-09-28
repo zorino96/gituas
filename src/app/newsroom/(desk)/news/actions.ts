@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { assertWithin, countUsage, LimitReached, limitMessage } from "@/lib/billing/limits";
 import { NEWS_LIMITS } from "@/lib/billing/plans";
 import { AiUnavailable, type Strength } from "@/lib/ai/provider";
-import { catalogAvailable, type CatalogId } from "@/lib/news/catalog";
+import { catalogEntry } from "@/lib/news/catalog";
 import { draftFor, nextAttempt } from "@/lib/news/draft";
 import { ingest } from "@/lib/news/ingest";
 import { checkDraft, copyPart, LIMITS } from "@/lib/news/rules";
@@ -212,11 +212,11 @@ async function underSourceLimit(tenantId: string): Promise<boolean> {
   return count < NEWS_LIMITS[tenant?.plan ?? "MANUAL"].sources;
 }
 
-export async function toggleCatalogSourceAction(catalogId: CatalogId, enabled: boolean): Promise<Result> {
+export async function toggleCatalogSourceAction(catalogId: string, enabled: boolean): Promise<Result> {
   const ws = await newsWorkspace();
   if (!ws) return NOT_NEWS;
   if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
-  const entry = catalogAvailable().find((c) => c.id === catalogId);
+  const entry = catalogEntry(catalogId);
   if (!entry) return { ok: false, error: "ئەم سەرچاوەیە بەردەست نییە." };
   const existing = await db.newsSource.findUnique({ where: { tenantId_catalogId: { tenantId: ws.id, catalogId } } });
   if (!existing && enabled && !(await underSourceLimit(ws.id))) return { ok: false, error: "سنووری ژمارەی سەرچاوەکانی پاکێجەکەت پڕ بووە." };
