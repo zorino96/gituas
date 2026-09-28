@@ -11,6 +11,7 @@ import { draftFor, nextAttempt } from "@/lib/news/draft";
 import { ingest } from "@/lib/news/ingest";
 import { checkDraft, copyPart, LIMITS } from "@/lib/news/rules";
 import { fetchFeed } from "@/lib/news/sources/rss";
+import { normalizeChoice } from "@/lib/news/taxonomy";
 import { CARD_KINDS, type CardKind } from "@/lib/news/types";
 import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
 import { currentWorkspace, type Workspace } from "@/app/app/data";
@@ -277,5 +278,28 @@ export async function saveBrandKitAction(kit: {
   if (kit.logoPath && !isOwnPath(kit.logoPath, ws.id)) return { ok: false, error: "لۆگۆکە ناناسرێتەوە." };
   const data = { logoPath: kit.logoPath, primary: kit.primary, accent: kit.accent, text: kit.text, headingFont: kit.headingFont };
   await db.brandKit.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, ...data }, update: data });
+  return { ok: true };
+}
+
+/** Which categories the desk keeps. An empty list keeps everything. */
+export async function saveCategoriesAction(list: string[]): Promise<Result> {
+  const ws = await newsWorkspace();
+  if (!ws) return NOT_NEWS;
+  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
+  const categories = normalizeChoice(Array.isArray(list) ? list.slice(0, 60).map(String) : []);
+  await db.newsSettings.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, keywords: [], categories }, update: { categories } });
+  return { ok: true };
+}
+
+/** RSS stories must also match the keywords (off: categories alone decide). */
+export async function setKeywordFilterAction(on: boolean): Promise<Result> {
+  const ws = await newsWorkspace();
+  if (!ws) return NOT_NEWS;
+  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
+  await db.newsSettings.upsert({
+    where: { tenantId: ws.id },
+    create: { tenantId: ws.id, keywords: [], keywordFilter: !!on },
+    update: { keywordFilter: !!on },
+  });
   return { ok: true };
 }

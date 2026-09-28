@@ -6,11 +6,15 @@ import { upload } from "@vercel/blob/client";
 
 import { NewsCard, CARD_H, CARD_W } from "@/lib/cards/templates";
 import { brandFrom } from "@/lib/cards/brand";
+import { GROUPS, LANG_LABEL, type SourceGroup, type SourceLang } from "@/lib/news/catalog";
+import { TAXONOMY } from "@/lib/news/taxonomy";
 import {
   addRssSourceAction,
   removeSourceAction,
   saveBrandKitAction,
+  saveCategoriesAction,
   saveKeywordsAction,
+  setKeywordFilterAction,
   toggleCatalogSourceAction,
 } from "@/app/newsroom/(desk)/news/actions";
 
@@ -18,7 +22,9 @@ export interface NewsSettingsProps {
   workspaceId: string;
   pageName: string;
   keywords: string[];
-  catalog: Array<{ id: string; name: string; description: string; enabled: boolean; lastError: string | null }>;
+  catalog: Array<{ id: string; name: string; group: SourceGroup; lang: SourceLang | null; description: string | null; enabled: boolean; lastError: string | null }>;
+  categories: string[];
+  keywordFilter: boolean;
   feeds: Array<{ id: string; name: string; url: string; lastError: string | null }>;
   kit: { logoPath: string | null; primary: string; accent: string; text: string; headingFont: "kufi" | "sans" };
 }
@@ -34,6 +40,7 @@ export function NewsSettings(p: NewsSettingsProps) {
   const [feedName, setFeedName] = useState("");
   const [kit, setKit] = useState(p.kit);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [cats, setCats] = useState<string[]>(p.categories);
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, okText: string) =>
     start(async () => {
@@ -68,29 +75,54 @@ export function NewsSettings(p: NewsSettingsProps) {
         <textarea className="gm-textarea" value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="هەولێر، Erbil، أربيل، ئابووری" />
         <p className="gm-hint" style={{ margin: 0 }}>بە کۆما جیایان بکەرەوە. بە چەند زمانێک بنووسە تا هەواڵی زیاتر بدۆزرێتەوە.</p>
         <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => saveKeywordsAction(keywords), "پاشەکەوت کرا.")}>پاشەکەوت</button>
+        <div className="gm-between" style={{ marginTop: 4 }}>
+          <small className="gm-sub" style={{ margin: 0 }}>تەنها ئەو هەواڵانەی RSS کە یەکێک لە وشە سەرەکییەکانیان تێدایە</small>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={p.keywordFilter}
+            aria-label="فلتەری وشە سەرەکی بۆ RSS"
+            className="gm-knob"
+            disabled={pending}
+            onClick={() => run(() => setKeywordFilterAction(!p.keywordFilter), "گۆڕدرا.")}
+          >
+            <i />
+          </button>
+        </div>
       </div>
 
       <p className="gm-sec">سەرچاوەکان</p>
       <div className="gm-card">
-        {p.catalog.map((c) => (
-          <div key={c.id} className="gm-target">
-            <div>
-              <p>{c.name}</p>
-              <small>{c.lastError ? `هەڵە: ${c.lastError}` : c.description}</small>
+        {GROUPS.map((g) => {
+          const entries = p.catalog.filter((c) => c.group === g.id);
+          if (!entries.length) return null;
+          return (
+            <div key={g.id}>
+              <p className="gm-hint" style={{ fontWeight: 700, margin: "10px 0 2px" }}>{g.label}</p>
+              {entries.map((c) => (
+                <div key={c.id} className="gm-target">
+                  <div>
+                    <p>
+                      {c.name} {c.lang && <span className="gm-badge ghost">{LANG_LABEL[c.lang]}</span>}
+                    </p>
+                    <small>{c.lastError ? `هەڵە: ${c.lastError}` : c.description ?? ""}</small>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={c.enabled}
+                    aria-label={c.name}
+                    className="gm-knob"
+                    disabled={pending}
+                    onClick={() => run(() => toggleCatalogSourceAction(c.id, !c.enabled), "گۆڕدرا.")}
+                  >
+                    <i />
+                  </button>
+                </div>
+              ))}
             </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={c.enabled}
-              aria-label={c.name}
-              className="gm-knob"
-              disabled={pending}
-              onClick={() => run(() => toggleCatalogSourceAction(c.id, !c.enabled), "گۆڕدرا.")}
-            >
-              <i />
-            </button>
-          </div>
-        ))}
+          );
+        })}
         {p.feeds.map((f) => (
           <div key={f.id} className="gm-target">
             <div>
@@ -116,6 +148,50 @@ export function NewsSettings(p: NewsSettingsProps) {
           }, "زیاد کرا.")}
         >
           زیادکردنی RSS
+        </button>
+      </div>
+
+      <p className="gm-sec">بابەتەکان</p>
+      <div className="gm-card gm-stack">
+        <p className="gm-hint" style={{ margin: 0 }}>
+          کام بابەتانە بهێنرێن؟ ئەگەر هیچ هەڵنەبژێریت، هەموو بابەتەکان دێن. هەواڵەکان بە زیرەکیی دەستکرد پۆلێن دەکرێن.
+        </p>
+        {TAXONOMY.map((c) => {
+          const whole = cats.includes(c.id);
+          return (
+            <div key={c.id} className="gm-stack" style={{ gap: 6 }}>
+              <div className="gm-chips">
+                <button
+                  type="button"
+                  className="gm-chip"
+                  aria-pressed={whole}
+                  onClick={() => setCats((x) => (whole ? x.filter((v) => v !== c.id) : [...x.filter((v) => !v.startsWith(`${c.id}/`)), c.id]))}
+                >
+                  {c.label}
+                </button>
+                {!whole &&
+                  c.subs.map((s) => {
+                    const code = `${c.id}/${s.id}`;
+                    const on = cats.includes(code);
+                    return (
+                      <button
+                        key={code}
+                        type="button"
+                        className="gm-chip"
+                        style={{ fontSize: 12 }}
+                        aria-pressed={on}
+                        onClick={() => setCats((x) => (on ? x.filter((v) => v !== code) : [...x, code]))}
+                      >
+                        {s.label}
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+          );
+        })}
+        <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => saveCategoriesAction(cats), "پاشەکەوت کرا.")}>
+          پاشەکەوتی بابەتەکان
         </button>
       </div>
 
