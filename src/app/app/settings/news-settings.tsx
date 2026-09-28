@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 
 import { NewsCard, CARD_H, CARD_W } from "@/lib/cards/templates";
-import { brandFrom } from "@/lib/cards/brand";
+import { brandFrom, mediaSrc } from "@/lib/cards/brand";
+import { ReferencePicker } from "./color-picker";
 import { GROUPS, LANG_LABEL, type SourceGroup, type SourceLang } from "@/lib/news/catalog";
 import { TAXONOMY } from "@/lib/news/taxonomy";
 import {
@@ -205,6 +206,11 @@ export function NewsSettings(p: NewsSettingsProps) {
             </label>
           ))}
         </div>
+        <ReferencePicker
+          logoSrc={mediaSrc(kit.logoPath)}
+          values={kit}
+          onPick={(slot, hex) => setKit((k) => ({ ...k, [slot]: hex }))}
+        />
         <div className="gm-chips">
           {(["kufi", "sans"] as const).map((f) => (
             <button key={f} type="button" className="gm-chip" aria-pressed={kit.headingFont === f} onClick={() => setKit((k) => ({ ...k, headingFont: f }))}>
