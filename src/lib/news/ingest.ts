@@ -1,5 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { catalogEntry } from "./catalog";
+import { classifyPending } from "./classify";
 import { clusterKeyFor } from "./cluster";
 import { fetchGdelt } from "./sources/gdelt";
 import { fetchNewsdata } from "./sources/newsdata";
@@ -11,6 +13,8 @@ const THROTTLE_MS = 5 * 60 * 1000;
 const TTL = { rss: 5 * 60 * 1000, gdelt: 10 * 60 * 1000, newsdata: 15 * 60 * 1000 };
 const MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 const MAX_NEW_PER_FETCH = 100;
+/** Newest stories taken from one source per run, so one busy feed can't crowd out the rest. */
+const PER_SOURCE = 40;
 /** After a fetch fails, a source's cache is retried at most this often. */
 const BACKOFF_MS = 60 * 1000;
 
@@ -105,11 +109,19 @@ export async function ingest(tenantId: string, { force = false } = {}): Promise<
           const r = await cached(`newsdata:${kwKey}`, TTL.newsdata, () => fetchNewsdata(keywords));
           items = r.items;
           error = r.error;
-        } else if (s.rssUrl) {
-          const r = await cached(`rss:${s.rssUrl}`, TTL.rss, () => fetchFeed(s.rssUrl!, s.name));
-          items = r.items.filter((i) => matchesKeywords(`${i.title} ${i.snippet}`, keywords)).map((i) => ({ ...i, sourceName: s.name }));
-          error = r.error;
+        } else {
+          // An outlet feed from the catalog, or a feed the page added itself.
+          const entry = s.catalogId ? catalogEntry(s.catalogId) : undefined;
+          const url = entry?.rss ?? s.rssUrl;
+          if (url) {
+            const r = await cached(`rss:${url}`, TTL.rss, () => fetchFeed(url, s.name));
+            items = r.items
+              .filter((i) => !settings.keywordFilter || matchesKeywords(`${i.title} ${i.snippet}`, keywords))
+              .map((i) => ({ ...i, sourceName: s.name }));
+            error = r.error;
+          }
         }
+        items = [...items].sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime()).slice(0, PER_SOURCE);
         // updateMany rather than update: a source deleted mid-fetch (by id,
         // no longer a match) must not throw here.
         if (error) {
@@ -162,5 +174,7 @@ export async function ingest(tenantId: string, { force = false } = {}): Promise<
       recent.push({ title: it.title, lang: it.lang, publishedAt: it.publishedAt, clusterKey });
     }
   }
+  // Sort what came in (and anything left from earlier runs) into categories.
+  await classifyPending(tenantId);
   return { added, failed: fetched.flatMap((f) => (f.failed ? [f.failed] : [])), skipped: false };
 }

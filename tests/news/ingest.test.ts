@@ -8,6 +8,7 @@ vi.mock("@/lib/db", () => ({
     newsItem: { findMany: vi.fn(), createMany: vi.fn() },
   },
 }));
+vi.mock("@/lib/news/classify", () => ({ classifyPending: vi.fn().mockResolvedValue(0) }));
 
 import { cached, pickNew } from "@/lib/news/ingest";
 import { db } from "@/lib/db";
