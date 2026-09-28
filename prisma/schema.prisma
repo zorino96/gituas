@@ -663,6 +663,10 @@ model NewsSettings {
   keywords      String[]
   lastFetchedAt DateTime?
   updatedAt     DateTime  @updatedAt
+  /// "category" or "category/sub" codes to keep; empty keeps everything.
+  categories    String[]  @default([])
+  /// When on, RSS stories must match the keywords too (the APIs always search by them).
+  keywordFilter Boolean   @default(false)
 }
 
 /// One source a news page reads: a catalog entry or the page's own RSS feed.
@@ -696,9 +700,14 @@ model NewsItem {
   status      String     @default("NEW")
   createdAt   DateTime   @default(now())
   draft       NewsDraft?
+  /// Set by the classifier (src/lib/news/taxonomy.ts codes); null until classified.
+  category    String?
+  subcategory String?
+  region      String?
 
   @@unique([tenantId, url])
   @@index([tenantId, status, publishedAt])
+  @@index([tenantId, category])
 }
 
 /// The Sorani post written from one item, and where it went.
