@@ -5,6 +5,7 @@ import { Sparkles, Send } from "lucide-react";
 
 import { draftReplyAction } from "./actions";
 import { friendlyError } from "./format";
+import { useBase } from "./use-base";
 
 /**
  * The reply box shared by comments and messages. The AI suggestion only fills
@@ -27,6 +28,8 @@ export function ReplyComposer({
   onCancel?: () => void;
   autoFocus?: boolean;
 }) {
+  // The WhatsApp order link is a shop tool; a newsroom has no orders.
+  const isShop = useBase() === "/app";
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [drafting, startDraft] = useTransition();
@@ -75,15 +78,17 @@ export function ReplyComposer({
             <Sparkles size={14} aria-hidden="true" />
             {drafting ? "دەنووسێت…" : "پێشنیاری AI"}
           </button>
-          <button
-            type="button"
-            className="gm-btn quiet small"
-            onClick={addWhatsApp}
-            disabled={!waUrl || sending}
-            title={waUrl ? undefined : "سەرەتا ژمارەی وەتسئەپ لە ڕێکخستن دابنێ"}
-          >
-            لینکی وەتسئەپ
-          </button>
+          {isShop && (
+            <button
+              type="button"
+              className="gm-btn quiet small"
+              onClick={addWhatsApp}
+              disabled={!waUrl || sending}
+              title={waUrl ? undefined : "سەرەتا ژمارەی وەتسئەپ لە ڕێکخستن دابنێ"}
+            >
+              لینکی وەتسئەپ
+            </button>
+          )}
         </div>
         <div className="gm-row" style={{ gap: 6 }}>
           <span className={`gm-time ${tooLong ? "gm-err" : ""}`} style={{ margin: 0 }}>
@@ -100,7 +105,7 @@ export function ReplyComposer({
           </button>
         </div>
       </div>
-      {!waUrl && <p className="gm-hint">بۆ لینکی وەتسئەپ، ژمارەکەت لە ڕێکخستن دابنێ.</p>}
+      {isShop && !waUrl && <p className="gm-hint">بۆ لینکی وەتسئەپ، ژمارەکەت لە ڕێکخستن دابنێ.</p>}
       {error && <p className="gm-err">{error}</p>}
     </div>
   );

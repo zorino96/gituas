@@ -34,13 +34,15 @@ export default async function InsightsPage() {
     ...(conns.META_FACEBOOK.connected ? [{ key: "fb-followers", label: "شوێنکەوتووی فەیسبووک", value: insights.fbFollowers }] : []),
     ...pick(insights.igMetrics, IG_LABEL),
     ...pick(insights.fbMetrics, FB_LABEL),
-    { key: "wa", label: "چوونە وەتسئەپ · ٧ ڕۆژ", value: insights.waTaps7d },
+    ...(ws.kind === "MERCHANT" ? [{ key: "wa", label: "چوونە وەتسئەپ · ٧ ڕۆژ", value: insights.waTaps7d }] : []),
   ];
 
   return (
     <div>
       <h2 className="gm-title kufi">ئامار</h2>
-      <p className="gm-sub">کام پۆست کڕیاری بۆ هێنایت، و چەند کەس چوونە وەتسئەپ.</p>
+      <p className="gm-sub">
+        {ws.kind === "NEWS" ? "کام پۆست زۆرترین کارلێکی هەبووە." : "کام پۆست کڕیاری بۆ هێنایت، و چەند کەس چوونە وەتسئەپ."}
+      </p>
 
       <div className="gm-kpis">
         {tiles.map((t) => (

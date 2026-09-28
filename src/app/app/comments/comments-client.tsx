@@ -121,7 +121,7 @@ export function CommentsClient({
       {visible.length === 0 ? (
         <div className="gm-empty">
           <b className="kufi">{filter === "unanswered" ? "هەموو کۆمێنتەکان وەڵام دراونەتەوە" : "هیچ کۆمێنتێک نییە"}</b>
-          {filter === "unanswered" ? "هیچ کڕیارێک چاوەڕێ ناکات." : <Link href={`${base}/publish`} className="gm-link">پۆستێکی نوێ بڵاو بکەرەوە</Link>}
+          {filter === "unanswered" ? (base === "/newsroom" ? "هیچ کۆمێنتێک چاوەڕێی وەڵام نییە." : "هیچ کڕیارێک چاوەڕێ ناکات.") : <Link href={`${base}/publish`} className="gm-link">پۆستێکی نوێ بڵاو بکەرەوە</Link>}
         </div>
       ) : (
         <div className="gm-stack">

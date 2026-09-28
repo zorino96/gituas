@@ -26,6 +26,7 @@ export function MessagesClient({
 }) {
   const router = useRouter();
   const base = useBase();
+  const who = base === "/newsroom" ? "بینەر" : "کڕیار";
   const [convs, setConvs] = useState(initial);
   const [openId, setOpenId] = useState<string | null>(null);
   const [refreshing, startRefresh] = useTransition();
@@ -46,7 +47,7 @@ export function MessagesClient({
             <ArrowRight size={15} aria-hidden="true" />
           </button>
           <div>
-            <div className="gm-who" dir="auto">{open.participantName || "کڕیار"}</div>
+            <div className="gm-who" dir="auto">{open.participantName || who}</div>
             <span className={`gm-plat ${open.platform}`}>{PLATFORM_NAME[open.platform]}</span>
           </div>
         </div>
@@ -84,7 +85,7 @@ export function MessagesClient({
           />
         ) : (
           <p className="gm-note" style={{ marginTop: 10 }}>
-            مێتا تەنیا لە ماوەی ٢٤ کاتژمێر دوای دوایین نامەی کڕیار ڕێگە بە وەڵامدانەوە دەدات. ئەم گفتوگۆیە لەو ماوەیە دەرچووە.
+            مێتا تەنیا لە ماوەی ٢٤ کاتژمێر دوای دوایین نامەی {who} ڕێگە بە وەڵامدانەوە دەدات. ئەم گفتوگۆیە لەو ماوەیە دەرچووە.
           </p>
         )}
       </div>
@@ -124,7 +125,7 @@ export function MessagesClient({
       {convs.length === 0 ? (
         <div className="gm-empty">
           <b className="kufi">هیچ نامەیەک نییە</b>
-          کاتێک کڕیارێک نامە دەنێرێت، لێرە دەردەکەوێت.
+          کاتێک {who}ێک نامە دەنێرێت، لێرە دەردەکەوێت.
         </div>
       ) : (
         <div className="gm-stack">
@@ -134,7 +135,7 @@ export function MessagesClient({
             return (
               <button key={`${c.platform}-${c.id}`} type="button" className="gm-card gm-conv" onClick={() => setOpenId(c.id)}>
                 <div className="gm-between">
-                  <span className="gm-who" dir="auto">{c.participantName || "کڕیار"}</span>
+                  <span className="gm-who" dir="auto">{c.participantName || who}</span>
                   <span className="gm-time">{ago(c.updatedAt)}</span>
                 </div>
                 <p className="gm-text" dir="auto" style={{ color: "var(--muted)", margin: "4px 0 8px" }}>

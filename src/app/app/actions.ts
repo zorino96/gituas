@@ -114,9 +114,21 @@ export async function draftReplyAction(
   if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
   if (!can(ws.role, "engage")) return { ok: false, error: NOT_ALLOWED };
   if (!incoming.trim()) return { ok: false, error: "هیچ دەقێک نییە بۆ وەڵامدانەوە." };
-  try {
-    const reply = await gemini(
-      `You are replying for a small shop in Iraqi Kurdistan to a customer's ${kind === "dm" ? "private message" : "public comment"}.
+  const where = kind === "dm" ? "private message" : "public comment";
+  // A newsroom answers readers, not customers: no sales talk, no new facts, no sides.
+  const prompt =
+    ws.kind === "NEWS"
+      ? `You are replying on behalf of a news page in Iraqi Kurdistan to a reader's ${where}.
+Rules:
+- Reply in exactly the language and script the reader used: Sorani Kurdish, Badini Kurdish, Arabic, or Kurdish in Latin letters.
+- Short, polite and neutral: one or two sentences.
+- Never add facts, figures, names or claims that are not in the reader's message, and never take a political side or argue.
+- If the reader sends a tip or reports something, thank them and say the newsroom will look into it.
+- No hashtags, no more than one emoji.
+- Output only the reply text.
+
+Reader: """${incoming.slice(0, 1000)}"""`
+      : `You are replying for a small shop in Iraqi Kurdistan to a customer's ${where}.
 Rules:
 - Reply in exactly the language and script the customer used: Sorani Kurdish, Badini Kurdish, Arabic, or Kurdish in Latin letters.
 - Short and warm: one or two sentences.
@@ -124,8 +136,9 @@ Rules:
 - No hashtags, no more than one emoji.
 - Output only the reply text.
 
-Customer: """${incoming.slice(0, 1000)}"""`,
-    );
+Customer: """${incoming.slice(0, 1000)}"""`;
+  try {
+    const reply = await gemini(prompt);
     if (!reply) return { ok: false, error: "AI هیچ وەڵامێکی نەدایەوە." };
     return { ok: true, reply };
   } catch (e) {
@@ -197,6 +210,7 @@ export async function saveWhatsAppAction(raw: string): Promise<{ ok: true; digit
   const ws = await currentWorkspace();
   if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
   if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
+  if (ws.kind !== "MERCHANT") return { ok: false, error: "ژمارەی وەتسئەپ تەنها بۆ دووکانە." };
   if (!raw.trim()) {
     await db.tenant.update({ where: { id: ws.id }, data: { whatsappNumber: null } });
     revalidatePath(baseFor(ws.kind), "layout");

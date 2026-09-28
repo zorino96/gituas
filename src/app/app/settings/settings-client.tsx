@@ -104,6 +104,8 @@ export function SettingsClient({
         Connected tools)، ئەگەرنا نامەکان نایەن.
       </p>
 
+      {base === "/app" && (
+        <>
       <p className="gm-sec">وەتسئەپ</p>
       <div className="gm-card">
         <div className="gm-field">
@@ -143,6 +145,8 @@ export function SettingsClient({
           </p>
         )}
       </div>
+        </>
+      )}
 
       {account.email && (
         <>
