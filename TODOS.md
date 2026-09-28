@@ -95,6 +95,21 @@ Deferred work, with the context needed to pick it up cold.
   - **Invites.** They go out by email and as an on-screen link, and accepting needs the same verified email. Seats
     are enforced at accept time under a lock. Google sign-ins now mark the email verified.
   - **Desks.** The top-bar switcher changes desks and adds new ones; a new desk reuses the sign-up placeholder.
+  **Sources catalog, categories and filters shipped — 2026-09-28** (plan
+  `docs/superpowers/plans/2026-09-28-news-sources-catalog.md`).
+  - **Catalog.** 28 checked outlet feeds in four groups (world, Middle East, Kurdistan, official), plus GDELT and
+    NewsData. Stories are classified into category, subcategory and region by DeepSeek's non-thinking model, 20
+    headlines per call, after the response. A desk keeps the categories it chooses, and the news page filters by
+    category, region, language and source.
+  - **Behaviour change.** The RSS keyword filter is now an opt-in switch. Before, every page-added RSS story had
+    to match the keywords.
+  - **Not in the catalog.** Rudaw, NRT, Kurdsat, Speda, Kanal 8, AVA, BasNews and Waar have no public RSS. Al
+    Arabiya, the KRG site and INA answer 403. GDELT has nothing for rudaw.net. Ways to reach them later:
+    - Facebook Pages via Meta's Page Public Content Access, which needs a review;
+    - Telegram;
+    - asking the outlets for a feed.
+  - **Terms.** Reading feeds for monitoring is standard, and publishing stays in the page's own words, with no
+    source media. If an outlet asks to be removed, delete its catalog entry.
   - **Test accounts.** `newsroom-writer@gituas.app` is a local test writer (password in gituas-private); it owns
     «مێزی نووسەر» and was removed from the test desk.
   - **Out of scope.** The operator `/dashboard` still finds its tenant by `ownerId` with no `orderBy`. Revisit if an
