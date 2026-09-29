@@ -137,7 +137,7 @@ export async function fetchFeed(url: string, sourceName: string): Promise<RawIte
 
     const res = await fetch(current, {
       headers: {
-        "User-Agent": "GituasNewsDesk/1.0 (+https://gituas.vercel.app)",
+        "User-Agent": "HawalnoosNewsDesk/1.0 (+https://hawalnoos.com)",
         Accept: "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8",
       },
       redirect: "manual",
