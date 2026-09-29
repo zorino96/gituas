@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import type { Prisma } from "@/generated/prisma/client";
 
 import { auth } from "@/auth";
+import { NEWSROOM_ORIGIN } from "@/lib/hosts";
 import { db } from "@/lib/db";
 import { currentWorkspace, type Workspace } from "@/app/app/data";
 import { NEWS_LIMITS, seatsLeft } from "@/lib/billing/plans";
@@ -13,7 +15,13 @@ import { can, isInvitableRole, OWNER_ONLY, ROLE_LABEL, type InvitableRole } from
 
 export type TeamResult = { ok: true; link?: string; emailed?: boolean } | { ok: false; error: string };
 
-const APP_ORIGIN = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://gituas.vercel.app";
+/** Invites always open on the newsroom's own domain (the address the page was opened on, in development). */
+async function inviteOrigin(): Promise<string> {
+  if (process.env.NODE_ENV === "production") return NEWSROOM_ORIGIN;
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  return host ? `${h.get("x-forwarded-proto") ?? "http"}://${host}` : NEWSROOM_ORIGIN;
+}
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** The current newsroom desk, only when the signed-in person owns it. */
@@ -36,7 +44,7 @@ async function invitesToday(tenantId: string): Promise<number> {
 async function deliver(ws: Workspace, email: string, role: InvitableRole, token: string): Promise<{ link: string; emailed: boolean }> {
   const session = await auth();
   const inviter = session?.user?.name || session?.user?.email || "گیتواس";
-  const link = inviteLink(APP_ORIGIN, token);
+  const link = inviteLink(await inviteOrigin(), token);
   const emailed = emailEnabled && (await sendEmail({ to: email, ...inviteEmail({ desk: ws.name, inviter, role: ROLE_LABEL[role], link }) })).ok;
   return { link, emailed };
 }

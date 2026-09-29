@@ -3,16 +3,18 @@
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
+import { isAppOrigin } from "@/lib/hosts";
 import { cancelFacebookPageChoice, completeFacebookPageChoice } from "@/lib/oauth/flow";
 
-/** Back to where the connect started — only ever one of our own surfaces. */
+/** Back to where the connect started — only ever one of our own surfaces, on one of our own domains. */
 function withParam(path: string, key: string, value: string): string {
   const url = new URL(path, "https://x");
-  if (url.origin !== "https://x" || !/^\/(app|newsroom|dashboard)(\/|$)/.test(url.pathname)) {
+  const ownOrigin = url.origin === "https://x" || isAppOrigin(url.origin);
+  if (!ownOrigin || !/^\/(app|newsroom|dashboard)(\/|$)/.test(url.pathname)) {
     return `/dashboard/integrations?${key}=${encodeURIComponent(value)}`;
   }
   url.searchParams.set(key, value);
-  return url.pathname + url.search;
+  return url.origin === "https://x" ? url.pathname + url.search : url.toString();
 }
 
 /** Connect the Page the person picked, then return them where the connect started. */

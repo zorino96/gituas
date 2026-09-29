@@ -351,7 +351,9 @@ export async function completeOAuth(provider: OAuthProvider, code: string, state
       select: { id: true },
     });
     await db.oAuthState.delete({ where: { state } });
-    return { redirectTo: `/connect/facebook?c=${choice.id}` };
+    // The chooser needs the person's session, so it opens on the domain the connect started from.
+    const from = /^https?:\/\//.test(redirectTo) ? new URL(redirectTo).origin : "";
+    return { redirectTo: `${from}/connect/facebook?c=${choice.id}` };
   }
 
   const account = await fetchProviderAccount(cfg, token.access_token);

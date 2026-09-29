@@ -8,6 +8,8 @@ import { claimKind, currentWorkspace, listWorkspaces } from "./data";
 import { gmFontVars } from "./fonts";
 import { Tabs } from "./nav";
 import { switchWorkspaceAction } from "@/app/newsroom/desk-actions";
+import { NEWSROOM_ORIGIN } from "@/lib/hosts";
+import { createShopAction } from "./shop-actions";
 
 export const metadata: Metadata = { title: "گیتواس", description: "وەڵامدانەوە و بڵاوکردنەوە بۆ دووکانەکەت" };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
@@ -19,7 +21,27 @@ export default async function MerchantLayout({ children }: { children: React.Rea
   if (!ws.kindChosen) ws = await claimKind(ws, "MERCHANT");
   if (ws.kind === "NEWS") {
     const shops = (await listWorkspaces()).filter((w) => w.kind === "MERCHANT" && w.kindChosen);
-    if (shops.length === 0) redirect("/newsroom/news");
+    if (shops.length === 0) {
+      // A newsroom account opening the shop: offer it a shop of its own instead of bouncing to the newsroom.
+      return (
+        <div className={`gm ${gmFontVars}`} dir="rtl" lang="ckb">
+          <div className="gm-auth">
+            <p className="gm-brand kufi">گیتواس</p>
+            <div className="gm-card" style={{ marginTop: 18 }}>
+              <p style={{ margin: 0 }}>ئەم هەژمارە تا ئێستا تەنها بۆ نیوزڕووم بەکارهاتووە. دووکانێکیش بۆ هەمان هەژمار دروست بکە:</p>
+            </div>
+            <form action={createShopAction}>
+              <button type="submit" className="gm-btn block" style={{ marginTop: 12 }}>
+                دووکانەکەم دروست بکە
+              </button>
+            </form>
+            <a href={`${NEWSROOM_ORIGIN}/newsroom/news`} className="gm-btn quiet block" style={{ marginTop: 10 }}>
+              بچۆ نیوزڕووم
+            </a>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className={`gm ${gmFontVars}`} dir="rtl" lang="ckb">
         <div className="gm-auth">

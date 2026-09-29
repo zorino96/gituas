@@ -7,6 +7,7 @@ import type { OAuthProvider } from "@/generated/prisma/client";
 import { currentWorkspace } from "@/app/app/data";
 import { can } from "@/lib/newsroom/roles";
 import { safeNext } from "@/lib/safe-next";
+import { isAppOrigin } from "@/lib/hosts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,8 +45,14 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
     tenantId = tenant.id;
   }
 
+  // The provider always calls back on the app's registered address; remember
+  // which of our domains this started on (gituas.com or hawalnoos.com), so the
+  // person lands back where their session is.
+  const origin = new URL(req.url).origin;
+  const backTo = isAppOrigin(origin) ? `${origin}${returnTo}` : returnTo;
+
   try {
-    const url = await buildAuthorizeUrl(upper, tenantId, returnTo);
+    const url = await buildAuthorizeUrl(upper, tenantId, backTo);
     return NextResponse.redirect(url);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed";
