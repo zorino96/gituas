@@ -1,8 +1,9 @@
 export type Metric = "draft" | "improve" | "publish";
-export type Plan = "MANUAL" | "AUTO" | "ENTERPRISE";
+export type Plan = "LITE" | "MANUAL" | "AUTO" | "ENTERPRISE";
 
 /** Monthly quotas plus team size (seats, owner included) and desks a person may own. */
 export const NEWS_LIMITS: Record<Plan, Record<Metric, number> & { sources: number; seats: number; desks: number }> = {
+  LITE: { draft: 100, improve: 10, publish: 100, sources: 5, seats: 1, desks: 1 },
   MANUAL: { draft: 300, improve: 30, publish: 300, sources: 10, seats: 2, desks: 1 },
   AUTO: { draft: 3000, improve: 300, publish: 3000, sources: 30, seats: 5, desks: 3 },
   ENTERPRISE: { draft: 20000, improve: 2000, publish: 20000, sources: 100, seats: 1000, desks: 20 },

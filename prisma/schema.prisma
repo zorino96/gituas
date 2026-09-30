@@ -398,6 +398,8 @@ model Tenant {
   subscriptionStatus    String?
   subscriptionTier      String?
   currentPeriodEnd      DateTime?
+  /// When the paid newsroom plan lapses (Wayl billing); null = never paid.
+  planPaidUntil         DateTime?
   discordWebhookUrl     String?
   telegramBotToken      String?
   telegramChatId        String?
@@ -422,6 +424,7 @@ model Tenant {
   stores                Store[]
   projects              Project[]
   wallet                Wallet?
+  invoices              Invoice[]
 }
 
 model User {
@@ -621,6 +624,7 @@ enum ProjectStatus {
 }
 
 enum TenantPlan {
+  LITE
   MANUAL
   AUTO
   ENTERPRISE
@@ -825,6 +829,8 @@ model Store {
   igUserId          String?              @unique
   igUsername        String?
   plan              StorePlan            @default(FREE)
+  /// When the paid shop plan lapses (Wayl billing); null = never paid.
+  planPaidUntil     DateTime?
   automationEnabled Boolean              @default(false)
   expiryDays        Int                  @default(30)
   /// Lower than the plan's daily reply cap, when the merchant wants that.
@@ -850,6 +856,7 @@ model Store {
   posts             PostAutomation[]
   jobs              OutboxJob[]
   messages          ConversationMessage[]
+  invoices          Invoice[]
 
   @@index([tenantId])
 }
@@ -950,4 +957,38 @@ model ThreadPause {
   createdAt DateTime @default(now())
 
   @@unique([tenantId, platform, threadKey])
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  EXPIRED
+  CANCELLED
+}
+
+/// One Wayl payment for one plan period. Its id is the Wayl referenceId.
+model Invoice {
+  id            String        @id @default(cuid())
+  tenantId      String
+  /// Shop invoices pay for one store (page); newsroom invoices for the workspace.
+  storeId       String?
+  /// "SHOP" | "NEWS"
+  product       String
+  plan          String
+  amountIqd     Int
+  status        InvoiceStatus @default(PENDING)
+  /// "test" | "live"
+  env           String        @default("test")
+  webhookSecret String
+  waylLinkId    String?
+  url           String?
+  lastError     String?
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store         Store?        @relation(fields: [storeId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([status, createdAt])
 }
