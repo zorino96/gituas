@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { SHOP_ORIGIN } from "@/lib/hosts";
+import { openOrder } from "@/lib/orders/auto";
 import { classifyText } from "./classify";
 import { answerText, COPY, DEFAULT_SAMPLES, dmText, fbCardElements, waText, type CardProduct } from "./compose";
 import { gate, gateDm } from "./gate";
@@ -205,6 +206,8 @@ async function planComment(msg: Msg): Promise<string[]> {
   await finish(msg.id, replied ? "AUTO_REPLIED" : "FLAGGED", decision.flag ?? (replied ? null : "no_action"), {
     commentType: c.type, intent: c.intent, language: c.language, confidence: c.confidence, boundProductId: product?.id ?? null,
   });
+  // A buyer asking to order is an order whatever the shop answered, even when it only flagged the comment for the merchant.
+  if (c.type === "ORDER") await openOrder(msg, product);
   return ids;
 }
 
@@ -251,5 +254,6 @@ async function planDm(msg: Msg): Promise<string[]> {
   await finish(msg.id, specs.length ? "AUTO_REPLIED" : "FLAGGED", flag, {
     commentType: c?.type ?? null, intent: c?.intent ?? null, language: c?.language ?? null, confidence: c?.confidence ?? null, boundProductId: product?.id ?? null,
   });
+  if (c?.type === "ORDER") await openOrder(msg, product);
   return ids;
 }
