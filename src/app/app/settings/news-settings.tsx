@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 
+import { useT } from "@/lib/i18n/client";
+
 import { NewsCard, CARD_H, CARD_W } from "@/lib/cards/templates";
 import { brandFrom, mediaSrc } from "@/lib/cards/brand";
 import { ReferencePicker } from "./color-picker";
@@ -34,6 +36,8 @@ const PREVIEW_W = 180;
 
 export function NewsSettings(p: NewsSettingsProps) {
   const router = useRouter();
+  const t = useT();
+  const tn = t.settings.news;
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [keywords, setKeywords] = useState(p.keywords.join("، "));
@@ -46,12 +50,12 @@ export function NewsSettings(p: NewsSettingsProps) {
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, okText: string) =>
     start(async () => {
       const r = await fn();
-      setMsg(r.ok ? { ok: true, text: okText } : { ok: false, text: r.error ?? "هەڵە" });
+      setMsg(r.ok ? { ok: true, text: okText } : { ok: false, text: r.error ?? t.common.error });
       if (r.ok) router.refresh();
     });
 
   async function pickLogo(file: File) {
-    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) return setMsg({ ok: false, text: "تەنها PNG/JPG/WEBP." });
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) return setMsg({ ok: false, text: tn.onlyImages });
     setMsg(null);
     setUploadingLogo(true);
     try {
@@ -61,9 +65,9 @@ export function NewsSettings(p: NewsSettingsProps) {
         contentType: file.type,
       });
       setKit((k) => ({ ...k, logoPath: blob.pathname }));
-      setMsg({ ok: true, text: "لۆگۆ بارکرا. پاشەکەوتی براند بکە تا پاشەکەوت بێت." });
+      setMsg({ ok: true, text: tn.logoUploaded });
     } catch (e) {
-      setMsg({ ok: false, text: `بارکردنی لۆگۆ سەرکەوتوو نەبوو: ${e instanceof Error ? e.message : "هەڵە"}` });
+      setMsg({ ok: false, text: tn.logoFailed(e instanceof Error ? e.message : t.common.error) });
     } finally {
       setUploadingLogo(false);
     }
@@ -71,28 +75,28 @@ export function NewsSettings(p: NewsSettingsProps) {
 
   return (
     <>
-      <p className="gm-sec">وشە سەرەکییەکان</p>
+      <p className="gm-sec">{tn.keywordsSec}</p>
       <div className="gm-card gm-stack">
-        <textarea className="gm-textarea" value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="هەولێر، Erbil، أربيل، ئابووری" />
-        <p className="gm-hint" style={{ margin: 0 }}>بە کۆما جیایان بکەرەوە. بە چەند زمانێک بنووسە تا هەواڵی زیاتر بدۆزرێتەوە.</p>
-        <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => saveKeywordsAction(keywords), "پاشەکەوت کرا.")}>پاشەکەوت</button>
+        <textarea className="gm-textarea" value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder={tn.keywordsPlaceholder} />
+        <p className="gm-hint" style={{ margin: 0 }}>{tn.keywordsHint}</p>
+        <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => saveKeywordsAction(keywords), tn.saved)}>{tn.save}</button>
         <div className="gm-between" style={{ marginTop: 4 }}>
-          <small className="gm-sub" style={{ margin: 0 }}>تەنها ئەو هەواڵانەی RSS کە یەکێک لە وشە سەرەکییەکانیان تێدایە</small>
+          <small className="gm-sub" style={{ margin: 0 }}>{tn.keywordFilterLabel}</small>
           <button
             type="button"
             role="switch"
             aria-checked={p.keywordFilter}
-            aria-label="فلتەری وشە سەرەکی بۆ RSS"
+            aria-label={tn.keywordFilterAria}
             className="gm-knob"
             disabled={pending}
-            onClick={() => run(() => setKeywordFilterAction(!p.keywordFilter), "گۆڕدرا.")}
+            onClick={() => run(() => setKeywordFilterAction(!p.keywordFilter), tn.changed)}
           >
             <i />
           </button>
         </div>
       </div>
 
-      <p className="gm-sec">سەرچاوەکان</p>
+      <p className="gm-sec">{tn.sourcesSec}</p>
       <div className="gm-card">
         {GROUPS.map((g) => {
           const entries = p.catalog.filter((c) => c.group === g.id);
@@ -106,7 +110,7 @@ export function NewsSettings(p: NewsSettingsProps) {
                     <p>
                       {c.name} {c.lang && <span className="gm-badge ghost">{LANG_LABEL[c.lang]}</span>}
                     </p>
-                    <small>{c.lastError ? `هەڵە: ${c.lastError}` : c.description ?? ""}</small>
+                    <small>{c.lastError ? tn.sourceError(c.lastError) : c.description ?? ""}</small>
                   </div>
                   <button
                     type="button"
@@ -115,7 +119,7 @@ export function NewsSettings(p: NewsSettingsProps) {
                     aria-label={c.name}
                     className="gm-knob"
                     disabled={pending}
-                    onClick={() => run(() => toggleCatalogSourceAction(c.id, !c.enabled), "گۆڕدرا.")}
+                    onClick={() => run(() => toggleCatalogSourceAction(c.id, !c.enabled), tn.changed)}
                   >
                     <i />
                   </button>
@@ -130,14 +134,14 @@ export function NewsSettings(p: NewsSettingsProps) {
               <p>{f.name}</p>
               <small className="gm-ltr" dir="ltr">{f.lastError ? `error: ${f.lastError}` : f.url}</small>
             </div>
-            <button type="button" className="gm-btn quiet small" disabled={pending} onClick={() => run(() => removeSourceAction(f.id), "لابرا.")}>لابردن</button>
+            <button type="button" className="gm-btn quiet small" disabled={pending} onClick={() => run(() => removeSourceAction(f.id), tn.removed)}>{tn.remove}</button>
           </div>
         ))}
       </div>
       <div className="gm-card gm-stack">
-        <input className="gm-input" value={feedName} onChange={(e) => setFeedName(e.target.value)} placeholder="ناوی سەرچاوە" />
+        <input className="gm-input" value={feedName} onChange={(e) => setFeedName(e.target.value)} placeholder={tn.sourceName} />
         <input className="gm-input gm-ltr" dir="ltr" value={feedUrl} onChange={(e) => setFeedUrl(e.target.value)} placeholder="https://…/rss.xml" />
-        <p className="gm-hint" style={{ margin: 0 }}>تەنها ئەو RSSـانە زیاد بکە کە مافی بەکارهێنانیانت هەیە. گیتواس هەرگیز دەق یان وێنەی سەرچاوەکە بڵاو ناکاتەوە.</p>
+        <p className="gm-hint" style={{ margin: 0 }}>{tn.rssRights}</p>
         <button
           type="button"
           className="gm-btn quiet"
@@ -146,16 +150,16 @@ export function NewsSettings(p: NewsSettingsProps) {
             const r = await addRssSourceAction(feedUrl, feedName);
             if (r.ok) { setFeedUrl(""); setFeedName(""); }
             return r;
-          }, "زیاد کرا.")}
+          }, tn.added)}
         >
-          زیادکردنی RSS
+          {tn.addRss}
         </button>
       </div>
 
-      <p className="gm-sec">بابەتەکان</p>
+      <p className="gm-sec">{tn.topicsSec}</p>
       <div className="gm-card gm-stack">
         <p className="gm-hint" style={{ margin: 0 }}>
-          کام بابەتانە بهێنرێن؟ ئەگەر هیچ هەڵنەبژێریت، هەموو بابەتەکان دێن. هەواڵەکان بە زیرەکیی دەستکرد پۆلێن دەکرێن.
+          {tn.topicsHint}
         </p>
         {TAXONOMY.map((c) => {
           const whole = cats.includes(c.id);
@@ -191,18 +195,18 @@ export function NewsSettings(p: NewsSettingsProps) {
             </div>
           );
         })}
-        <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => saveCategoriesAction(cats), "پاشەکەوت کرا.")}>
-          پاشەکەوتی بابەتەکان
+        <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => saveCategoriesAction(cats), tn.saved)}>
+          {tn.saveTopics}
         </button>
       </div>
 
-      <p className="gm-sec">براند</p>
+      <p className="gm-sec">{tn.brandSec}</p>
       <div className="gm-card gm-stack">
         <div className="gm-row" style={{ gap: 12, flexWrap: "wrap" }}>
           {(["primary", "accent", "text"] as const).map((key) => (
             <label key={key} className="gm-row" style={{ gap: 6 }}>
               <input type="color" value={kit[key]} onChange={(e) => setKit((k) => ({ ...k, [key]: e.target.value }))} />
-              <small>{key === "primary" ? "ڕەنگی سەرەکی" : key === "accent" ? "ڕەنگی دووەم" : "ڕەنگی نووسین"}</small>
+              <small>{t.settings.colors[key]}</small>
             </label>
           ))}
         </div>
@@ -214,12 +218,12 @@ export function NewsSettings(p: NewsSettingsProps) {
         <div className="gm-chips">
           {(["kufi", "sans"] as const).map((f) => (
             <button key={f} type="button" className="gm-chip" aria-pressed={kit.headingFont === f} onClick={() => setKit((k) => ({ ...k, headingFont: f }))}>
-              {f === "kufi" ? "کوفی" : "ئاسایی"}
+              {f === "kufi" ? tn.fontKufi : tn.fontSans}
             </button>
           ))}
         </div>
         <label className="gm-btn quiet small" style={{ alignSelf: "flex-start", opacity: uploadingLogo ? 0.6 : 1, pointerEvents: uploadingLogo ? "none" : "auto" }}>
-          {uploadingLogo ? "بارکردن…" : kit.logoPath ? "گۆڕینی لۆگۆ" : "لۆگۆ"}
+          {uploadingLogo ? tn.uploading : kit.logoPath ? tn.changeLogo : tn.logo}
           <input
             type="file"
             accept="image/png,image/jpeg,image/webp"
@@ -233,11 +237,11 @@ export function NewsSettings(p: NewsSettingsProps) {
             <NewsCard
               kind="BREAKING"
               brand={brandFrom(kit, p.pageName)}
-              content={{ headline: "نموونەی سەردێڕێکی هەواڵ لەسەر کارتەکەت", stat: null, quote: null, speaker: null, stamp: "١٠:٤٢", photoSrc: null }}
+              content={{ headline: tn.cardSample, stat: null, quote: null, speaker: null, stamp: "١٠:٤٢", photoSrc: null }}
             />
           </div>
         </div>
-        <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => saveBrandKitAction(kit), "براند پاشەکەوت کرا.")}>پاشەکەوتی براند</button>
+        <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => saveBrandKitAction(kit), tn.brandSaved)}>{tn.saveBrand}</button>
       </div>
       {msg && <p className={msg.ok ? "gm-ok" : "gm-err"}>{msg.text}</p>}
     </>

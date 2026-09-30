@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extendPaidUntil, nextPaidUntil, PLAN_LABEL, priceFor } from "@/lib/billing/prices";
+import { extendPaidUntil, nextPaidUntil, PLAN_LABEL, PLAN_LABEL_AR, planLabel, priceFor } from "@/lib/billing/prices";
 
 describe("priceFor", () => {
   it("prices shop and newsroom plans in IQD", () => {
@@ -18,6 +18,18 @@ describe("priceFor", () => {
   });
   it("labels every plan in Sorani", () => {
     for (const p of ["FREE", "MERCHANT", "PRO", "LITE", "MANUAL", "AUTO", "ENTERPRISE"]) expect(PLAN_LABEL[p]).toBeTruthy();
+  });
+  it("labels every plan in Arabic, with no Kurdish-only letters", () => {
+    for (const p of Object.keys(PLAN_LABEL)) {
+      expect(PLAN_LABEL_AR[p], p).toBeTruthy();
+      expect(PLAN_LABEL_AR[p], p).not.toMatch(/[کیەێۆڕڵڤپچژگ]/);
+    }
+  });
+  it("planLabel picks by language and shows an unknown code as it is", () => {
+    expect(planLabel("MERCHANT")).toBe(PLAN_LABEL.MERCHANT);
+    expect(planLabel("MERCHANT", "ckb")).toBe(PLAN_LABEL.MERCHANT);
+    expect(planLabel("MERCHANT", "ar")).toBe("تاجر");
+    expect(planLabel("WHATEVER", "ar")).toBe("WHATEVER");
   });
 });
 

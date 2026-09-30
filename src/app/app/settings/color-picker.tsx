@@ -4,10 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { Pipette } from "lucide-react";
 
 import { dominantColors, readableOn, toHex } from "@/lib/cards/palette";
+import { useT } from "@/lib/i18n/client";
 
 export type ColorSlot = "primary" | "accent" | "text";
 
-const SLOT_LABEL: Record<ColorSlot, string> = { primary: "ڕەنگی سەرەکی", accent: "ڕەنگی دووەم", text: "ڕەنگی نووسین" };
+const SLOTS: readonly ColorSlot[] = ["primary", "accent", "text"];
 const MAX_W = 520;
 
 // The browser's own screen eyedropper (Chrome and Edge), where there is one.
@@ -30,6 +31,7 @@ export function ReferencePicker({
   values: Record<ColorSlot, string>;
   onPick: (slot: ColorSlot, hex: string) => void;
 }) {
+  const tc = useT().settings.colors;
   const canvas = useRef<HTMLCanvasElement>(null);
   const [src, setSrc] = useState<string | null>(null);
   const [slot, setSlot] = useState<ColorSlot>("primary");
@@ -59,12 +61,12 @@ export function ReferencePicker({
         setError(null);
       } catch {
         setPalette([]);
-        setError("ڕەنگەکانی ئەم وێنەیە ناخوێنرێنەوە. وێنەیەکی تر تاقی بکەرەوە.");
+        setError(tc.cantRead);
       }
     };
-    img.onerror = () => setError("وێنەکە نەکرایەوە.");
+    img.onerror = () => setError(tc.loadFailed);
     img.src = src;
-  }, [src]);
+  }, [src, tc]);
 
   // Free a picked file's temporary address when it's replaced or the picker closes.
   useEffect(() => () => void (src?.startsWith("blob:") && URL.revokeObjectURL(src)), [src]);
@@ -101,7 +103,7 @@ export function ReferencePicker({
     <div className="gm-stack" style={{ gap: 10 }}>
       <div className="gm-row" style={{ gap: 8, flexWrap: "wrap" }}>
         <label className="gm-btn quiet small">
-          وێنەی ڕیفرێنس
+          {tc.refImage}
           <input
             type="file"
             accept="image/*"
@@ -115,24 +117,24 @@ export function ReferencePicker({
         </label>
         {logoSrc && (
           <button type="button" className="gm-btn quiet small" onClick={() => setSrc(logoSrc)}>
-            لۆگۆکەم
+            {tc.myLogo}
           </button>
         )}
         {canEyedrop && (
           <button type="button" className="gm-btn quiet small" onClick={fromScreen}>
-            <Pipette size={14} aria-hidden="true" /> لە شاشەوە
+            <Pipette size={14} aria-hidden="true" /> {tc.fromScreen}
           </button>
         )}
       </div>
 
-      <div className="gm-chips" role="radiogroup" aria-label="کام ڕەنگ دابنرێت">
-        {(Object.keys(SLOT_LABEL) as ColorSlot[]).map((s) => (
+      <div className="gm-chips" role="radiogroup" aria-label={tc.whichColorAria}>
+        {SLOTS.map((s) => (
           <button key={s} type="button" role="radio" aria-checked={slot === s} className="gm-chip" aria-pressed={slot === s} onClick={() => setSlot(s)}>
             <span
               aria-hidden="true"
               style={{ display: "inline-block", width: 12, height: 12, borderRadius: 3, background: values[s], border: "1px solid var(--line)", marginInlineEnd: 6, verticalAlign: "-1px" }}
             />
-            {SLOT_LABEL[s]}
+            {tc[s]}
           </button>
         ))}
       </div>
@@ -140,7 +142,7 @@ export function ReferencePicker({
       {src ? (
         <>
           <p className="gm-hint" style={{ margin: 0 }}>
-            کلیک لەسەر هەر شوێنێکی وێنەکە بکە بۆ «{SLOT_LABEL[slot]}»، یان یەکێک لە ڕەنگە سەرەکییەکانی خوارەوە هەڵبژێرە.
+            {tc.clickHint(tc[slot])}
           </p>
           <div style={{ position: "relative", maxWidth: MAX_W }}>
             <canvas
@@ -179,13 +181,13 @@ export function ReferencePicker({
             )}
           </div>
           {palette.length > 0 && (
-            <div className="gm-row" style={{ gap: 8, flexWrap: "wrap" }} aria-label="ڕەنگە سەرەکییەکانی وێنەکە">
+            <div className="gm-row" style={{ gap: 8, flexWrap: "wrap" }} aria-label={tc.paletteAria}>
               {palette.map((hex) => (
                 <button
                   key={hex}
                   type="button"
                   title={hex}
-                  aria-label={`${hex} بۆ ${SLOT_LABEL[slot]}`}
+                  aria-label={tc.swatchAria(hex, tc[slot])}
                   onClick={() => onPick(slot, hex)}
                   style={{ width: 34, height: 34, borderRadius: 8, background: hex, border: "2px solid var(--line)", cursor: "pointer" }}
                 />
@@ -195,12 +197,12 @@ export function ReferencePicker({
         </>
       ) : (
         <p className="gm-hint" style={{ margin: 0 }}>
-          وێنەیەکی کەناڵەکەت یان لۆگۆکەت بکەرەوە و ڕەنگەکان ڕاستەوخۆ لێیەوە هەڵبگرە. وێنەکە بار ناکرێت، تەنها لە وێبگەڕەکەتدا دەخوێنرێتەوە.
+          {tc.emptyHint}
         </p>
       )}
 
       <button type="button" className="gm-linkbtn gm-link" style={{ alignSelf: "flex-start", fontSize: 12.5 }} onClick={() => onPick("text", readableOn(values.primary))}>
-        ڕەنگی نووسینی گونجاو بۆ ڕەنگی سەرەکی
+        {tc.matchText}
       </button>
       {error && <p className="gm-err" style={{ margin: 0 }}>{error}</p>}
     </div>

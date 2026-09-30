@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { dict, getLang } from "@/lib/i18n";
 import { catalogAvailable } from "@/lib/news/catalog";
 import { currentWorkspace, loadConnections } from "../data";
 import { SettingsClient } from "./settings-client";
@@ -11,6 +12,7 @@ export default async function SettingsPage({
   searchParams: Promise<{ connected?: string; error?: string }>;
 }) {
   const sp = await searchParams;
+  const t = dict(await getLang());
   const ws = (await currentWorkspace())!;
   const session = await auth();
   const [conns, me] = await Promise.all([
@@ -63,10 +65,10 @@ export default async function SettingsPage({
       account={{ email: me?.email ?? null, hasPassword: !!me?.passwordHash }}
       news={news}
       connections={[
-        { provider: "META_FACEBOOK", label: "فەیسبووک", note: "کۆمێنت، مەسنجەر، بڵاوکردنەوە و ئامار", ...conns.META_FACEBOOK },
-        { provider: "META_INSTAGRAM", label: "ئینستاگرام", note: "کۆمێنت، دایرێکت، بڵاوکردنەوە و ئامار", ...conns.META_INSTAGRAM },
-        { provider: "TIKTOK", label: "تیکتۆک", note: "بڵاوکردنەوەی ڤیدیۆ و وێنە", ...conns.TIKTOK },
-        { provider: "YOUTUBE", label: "یوتیوب", note: "بڵاوکردنەوەی ڤیدیۆ و ئامار", ...conns.YOUTUBE },
+        { provider: "META_FACEBOOK", label: t.platform.FB, note: t.settings.connNote.META_FACEBOOK, ...conns.META_FACEBOOK },
+        { provider: "META_INSTAGRAM", label: t.platform.IG, note: t.settings.connNote.META_INSTAGRAM, ...conns.META_INSTAGRAM },
+        { provider: "TIKTOK", label: t.platform.TT, note: t.settings.connNote.TIKTOK, ...conns.TIKTOK },
+        { provider: "YOUTUBE", label: t.platform.YT, note: t.settings.connNote.YOUTUBE, ...conns.YOUTUBE },
       ]}
     />
   );

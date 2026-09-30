@@ -4,6 +4,7 @@ import { useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 
+import { useLang, useT } from "@/lib/i18n/client";
 import { exponentOf, formatMoney } from "@/lib/shop/money";
 import { archiveProductAction, saveProductAction } from "../automation/actions";
 import { SaveMessage, useSaver } from "../automation/shared";
@@ -46,6 +47,8 @@ function ProductEditor({
   onDone: () => void;
 }) {
   const uid = useId();
+  const t = useT();
+  const pr = t.products;
   const { pending, message, run } = useSaver();
   const nextKey = useRef(0);
   const newRow = (): VariantRow => ({ key: nextKey.current++, label: "", price: "", currency: "IQD", inStock: true });
@@ -66,7 +69,7 @@ function ProductEditor({
     setPhotoError(null);
     const room = MAX_PHOTOS - photos.length;
     if (room <= 0) {
-      setPhotoError("زیاتر لە ٥ وێنە ناکرێت.");
+      setPhotoError(pr.maxPhotos);
       return;
     }
     setUploading(true);
@@ -83,10 +86,10 @@ function ProductEditor({
         added.push(blob.url);
         setPhotos((p) => [...p, blob.url]);
       }
-      if (files.length > room) setPhotoError("زیاتر لە ٥ وێنە ناکرێت.");
-      else if (!added.length) setPhotoError("هیچ وێنەیەک نەبارکرا.");
+      if (files.length > room) setPhotoError(pr.maxPhotos);
+      else if (!added.length) setPhotoError(pr.noneUploaded);
     } catch (e) {
-      setPhotoError(`بارکردن سەرکەوتوو نەبوو: ${e instanceof Error ? e.message : "هەڵە"}`);
+      setPhotoError(pr.uploadFailed(e instanceof Error ? e.message : t.common.error));
     } finally {
       setUploading(false);
       if (fileInput.current) fileInput.current.value = "";
@@ -113,23 +116,23 @@ function ProductEditor({
   return (
     <div className="gm-stack">
       <div className="gm-field">
-        <label htmlFor={`${uid}-name`}>ناو</label>
+        <label htmlFor={`${uid}-name`}>{pr.name}</label>
         <input id={`${uid}-name`} className="gm-input" value={name} maxLength={80} required onChange={(e) => setName(e.target.value)} />
       </div>
       <div className="gm-field">
-        <label htmlFor={`${uid}-desc`}>وەسف (ئارەزوومەندانە)</label>
+        <label htmlFor={`${uid}-desc`}>{pr.description}</label>
         <textarea id={`${uid}-desc`} className="gm-textarea" value={description} maxLength={500} onChange={(e) => setDescription(e.target.value)} />
       </div>
 
       <div className="gm-field">
-        <label htmlFor={`${uid}-photos`}>وێنەکان (تا ٥)</label>
+        <label htmlFor={`${uid}-photos`}>{pr.photos}</label>
         {photos.length > 0 && (
           <div className="gm-row" style={{ flexWrap: "wrap", marginBottom: 8 }}>
             {photos.map((url) => (
               <div key={url} className="gm-row" style={{ gap: 4 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt="" className="gm-thumb" />
-                <button type="button" className="gm-btn quiet small" aria-label="لابردنی وێنە" disabled={pending} onClick={() => setPhotos((p) => p.filter((u) => u !== url))}>
+                <button type="button" className="gm-btn quiet small" aria-label={pr.removePhoto} disabled={pending} onClick={() => setPhotos((p) => p.filter((u) => u !== url))}>
                   ✕
                 </button>
               </div>
@@ -149,39 +152,39 @@ function ProductEditor({
             if (files.length) void addPhotos(files);
           }}
         />
-        {uploading && <p className="gm-hint">بارکردن…</p>}
+        {uploading && <p className="gm-hint">{pr.uploading}</p>}
         {photoError && <p className="gm-err">{photoError}</p>}
       </div>
 
-      <p className="gm-sec" style={{ margin: 0 }}>جۆرەکان</p>
+      <p className="gm-sec" style={{ margin: 0 }}>{pr.variantsSec}</p>
       {rows.map((r, i) => (
         <div key={r.key} className="gm-stack" style={{ borderTop: i ? "1px solid var(--line-soft)" : undefined, paddingTop: i ? 12 : 0 }}>
           <div className="gm-field">
-            <label htmlFor={`${uid}-label-${r.key}`}>جۆر (قیاس/ڕەنگ)</label>
+            <label htmlFor={`${uid}-label-${r.key}`}>{pr.variantLabel}</label>
             <input id={`${uid}-label-${r.key}`} className="gm-input" value={r.label} maxLength={40} onChange={(e) => patchRow(r.key, { label: e.target.value })} />
           </div>
           <div className="gm-row" style={{ gap: 8, alignItems: "flex-end" }}>
             <div className="gm-field" style={{ flex: 1 }}>
-              <label htmlFor={`${uid}-price-${r.key}`}>نرخ</label>
+              <label htmlFor={`${uid}-price-${r.key}`}>{pr.price}</label>
               <input id={`${uid}-price-${r.key}`} className="gm-input gm-ltr" inputMode="decimal" value={r.price} onChange={(e) => patchRow(r.key, { price: e.target.value })} />
             </div>
             <div className="gm-field">
-              <label htmlFor={`${uid}-cur-${r.key}`}>دراو</label>
+              <label htmlFor={`${uid}-cur-${r.key}`}>{pr.currency}</label>
               <select id={`${uid}-cur-${r.key}`} className="gm-input" value={r.currency} onChange={(e) => patchRow(r.key, { currency: e.target.value })}>
-                <option value="IQD">دینار</option>
-                <option value="USD">دۆلار</option>
+                <option value="IQD">{pr.iqd}</option>
+                <option value="USD">{pr.usd}</option>
               </select>
             </div>
           </div>
           <div className="gm-between">
             <label className="gm-radio">
               <input type="checkbox" checked={r.inStock} onChange={(e) => patchRow(r.key, { inStock: e.target.checked })} />
-              بەردەستە
+              {pr.inStock}
             </label>
             <button
               type="button"
               className="gm-btn quiet small"
-              aria-label="لابردنی جۆر"
+              aria-label={pr.removeVariant}
               disabled={rows.length === 1 || pending}
               onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
             >
@@ -192,16 +195,16 @@ function ProductEditor({
       ))}
       <div>
         <button type="button" className="gm-btn quiet small" disabled={rows.length >= 20 || pending} onClick={() => setRows((rs) => [...rs, newRow()])}>
-          + جۆری تر
+          {pr.addVariant}
         </button>
       </div>
 
       <div className="gm-row" style={{ gap: 8 }}>
         <button type="button" className="gm-btn" disabled={pending || uploading} onClick={save}>
-          پاشەکەوت
+          {pr.save}
         </button>
         <button type="button" className="gm-btn quiet" disabled={pending} onClick={onDone}>
-          پاشگەزبوونەوە
+          {pr.cancel}
         </button>
       </div>
       <SaveMessage message={message} />
@@ -211,6 +214,9 @@ function ProductEditor({
 
 export function ProductsClient({ workspaceId, storeId, stores, products }: { workspaceId: string; storeId: string; stores: { id: string; name: string }[]; products: ProductView[] }) {
   const router = useRouter();
+  const lang = useLang();
+  const t = useT();
+  const pr = t.products;
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const { pending, message, setMessage, run } = useSaver();
 
@@ -221,11 +227,11 @@ export function ProductsClient({ workspaceId, storeId, stores, products }: { wor
 
   return (
     <div>
-      <h2 className="gm-title kufi">بەرهەمەکان</h2>
-      <p className="gm-sub">نرخ و وێنەکان لێرە دادەنرێن — ژمارەکان هەرگیز لە AIیەوە نایەن</p>
+      <h2 className="gm-title kufi">{pr.title}</h2>
+      <p className="gm-sub">{pr.sub}</p>
 
       {stores.length > 1 && (
-        <select className="gm-input" aria-label="پەیج" style={{ marginBottom: 12 }} value={storeId} onChange={(e) => router.push(`/app/products?store=${encodeURIComponent(e.target.value)}`)}>
+        <select className="gm-input" aria-label={t.automation.pageAria} style={{ marginBottom: 12 }} value={storeId} onChange={(e) => router.push(`/app/products?store=${encodeURIComponent(e.target.value)}`)}>
           {stores.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -236,7 +242,7 @@ export function ProductsClient({ workspaceId, storeId, stores, products }: { wor
 
       <div style={{ margin: "12px 0" }}>
         <button type="button" className="gm-btn" disabled={editing === "new"} onClick={() => open("new")}>
-          بەرهەمی نوێ
+          {pr.newProduct}
         </button>
       </div>
 
@@ -250,8 +256,8 @@ export function ProductsClient({ workspaceId, storeId, stores, products }: { wor
 
       {products.length === 0 && editing !== "new" ? (
         <div className="gm-empty">
-          <b className="kufi">هێشتا هیچ بەرهەمێک نییە</b>
-          بەرهەمێک زیاد بکە، ئینجا لە پەڕەی ئۆتۆمەیشن بیبەستەوە بە پۆستەکانەوە.
+          <b className="kufi">{pr.emptyTitle}</b>
+          {pr.emptyBody}
         </div>
       ) : (
         products.map((p) => (
@@ -271,7 +277,7 @@ export function ProductsClient({ workspaceId, storeId, stores, products }: { wor
                       {p.variants.map((v, i) => (
                         <span key={i} className="gm-chip" style={{ cursor: "default" }}>
                           {v.label ? `${v.label}: ` : ""}
-                          {formatMoney(v.amountMinor, v.currency, "ckb")}
+                          {formatMoney(v.amountMinor, v.currency, lang)}
                         </span>
                       ))}
                     </div>
@@ -279,17 +285,17 @@ export function ProductsClient({ workspaceId, storeId, stores, products }: { wor
                 </div>
                 <div className="gm-row" style={{ gap: 6 }}>
                   <button type="button" className="gm-btn small quiet" disabled={pending} onClick={() => open(p.id)}>
-                    دەستکاری
+                    {pr.edit}
                   </button>
                   <button
                     type="button"
                     className="gm-btn small danger"
                     disabled={pending}
                     onClick={() => {
-                      if (window.confirm("ئەم بەرهەمە بسڕدرێتەوە؟")) run(() => archiveProductAction(storeId, p.id));
+                      if (window.confirm(pr.confirmDelete)) run(() => archiveProductAction(storeId, p.id));
                     }}
                   >
-                    سڕینەوە
+                    {pr.delete}
                   </button>
                 </div>
               </div>

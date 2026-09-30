@@ -2,11 +2,11 @@
 
 import { useId, useState } from "react";
 
+import { useLang, useT } from "@/lib/i18n/client";
 import { CITIES, cityLabel } from "@/lib/orders/cities";
 import type { CityRow } from "@/lib/orders/stats";
 import { formatMoney } from "@/lib/shop/money";
 import { SaveMessage, useSaver } from "../automation/shared";
-import { num } from "../format";
 import { priceText } from "../products/products-client";
 import { saveOrderAction, setOrderStatusAction } from "./actions";
 
@@ -39,20 +39,13 @@ export interface CityCard {
   rows: CityRow[];
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  NEW: "نوێ",
-  CONFIRMED: "پشتڕاستکراوە",
-  SENT: "نێردراوە",
-  DELIVERED: "گەیەندراوە",
-  RETURNED: "گەڕاوەتەوە",
-  CANCELLED: "هەڵوەشاوە",
-};
-const STATUSES = Object.keys(STATUS_LABEL);
-
-const SOURCE_LABEL: Record<string, string> = { COMMENT: "لە کۆمێنت", DM: "لە نامە" };
+/** The order statuses, in the order the filter and the status menu list them. Their names are in the dictionary. */
+const STATUSES = ["NEW", "CONFIRMED", "SENT", "DELIVERED", "RETURNED", "CANCELLED"];
 
 function OrderEditor({ order, products, onDone }: { order: OrderView | null; products: OrderProduct[]; onDone: () => void }) {
   const uid = useId();
+  const lang = useLang();
+  const od = useT().orders;
   const { pending, message, run } = useSaver();
 
   const [customerName, setCustomerName] = useState(order?.customerName ?? "");
@@ -111,32 +104,32 @@ function OrderEditor({ order, products, onDone }: { order: OrderView | null; pro
   return (
     <div className="gm-stack">
       <div className="gm-field">
-        <label htmlFor={`${uid}-name`}>ناوی کڕیار</label>
+        <label htmlFor={`${uid}-name`}>{od.customerName}</label>
         <input id={`${uid}-name`} className="gm-input" value={customerName} maxLength={80} required onChange={(e) => setCustomerName(e.target.value)} />
       </div>
       <div className="gm-field">
-        <label htmlFor={`${uid}-phone`}>ژمارەی مۆبایل</label>
+        <label htmlFor={`${uid}-phone`}>{od.phone}</label>
         <input id={`${uid}-phone`} className="gm-input gm-ltr" inputMode="tel" value={phone} maxLength={24} onChange={(e) => setPhone(e.target.value)} />
       </div>
       <div className="gm-field">
-        <label htmlFor={`${uid}-city`}>شار</label>
+        <label htmlFor={`${uid}-city`}>{od.city}</label>
         <select id={`${uid}-city`} className="gm-input" value={city} onChange={(e) => setCity(e.target.value)}>
           <option value="">—</option>
           {CITIES.map((c) => (
             <option key={c.code} value={c.code}>
-              {c.ckb}
+              {c[lang]}
             </option>
           ))}
         </select>
       </div>
       <div className="gm-field">
-        <label htmlFor={`${uid}-addr`}>ناونیشان</label>
+        <label htmlFor={`${uid}-addr`}>{od.address}</label>
         <input id={`${uid}-addr`} className="gm-input" value={address} maxLength={300} onChange={(e) => setAddress(e.target.value)} />
       </div>
       <div className="gm-field">
-        <label htmlFor={`${uid}-product`}>بەرهەم</label>
+        <label htmlFor={`${uid}-product`}>{od.product}</label>
         <select id={`${uid}-product`} className="gm-input" value={productId} onChange={(e) => pickProduct(e.target.value)}>
-          <option value="">تر</option>
+          <option value="">{od.otherProduct}</option>
           {options.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -145,7 +138,7 @@ function OrderEditor({ order, products, onDone }: { order: OrderView | null; pro
         </select>
       </div>
       <div className="gm-field">
-        <label htmlFor={`${uid}-variant`}>جۆر</label>
+        <label htmlFor={`${uid}-variant`}>{od.variant}</label>
         <input id={`${uid}-variant`} className="gm-input" list={`${uid}-variants`} value={variantLabel} maxLength={40} onChange={(e) => setVariantLabel(e.target.value)} />
         <datalist id={`${uid}-variants`}>
           {(chosen?.variants ?? [])
@@ -157,36 +150,36 @@ function OrderEditor({ order, products, onDone }: { order: OrderView | null; pro
       </div>
       <div className="gm-row" style={{ gap: 8, alignItems: "flex-end" }}>
         <div className="gm-field" style={{ flex: 1 }}>
-          <label htmlFor={`${uid}-price`}>نرخ</label>
+          <label htmlFor={`${uid}-price`}>{od.price}</label>
           <input id={`${uid}-price`} className="gm-input gm-ltr" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
         </div>
         <div className="gm-field">
-          <label htmlFor={`${uid}-cur`}>دراو</label>
+          <label htmlFor={`${uid}-cur`}>{od.currency}</label>
           <select id={`${uid}-cur`} className="gm-input" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-            <option value="IQD">دینار</option>
-            <option value="USD">دۆلار</option>
+            <option value="IQD">{od.iqd}</option>
+            <option value="USD">{od.usd}</option>
           </select>
         </div>
       </div>
       <div className="gm-field">
-        <label htmlFor={`${uid}-fee`}>کرێی گەیاندن</label>
+        <label htmlFor={`${uid}-fee`}>{od.deliveryFee}</label>
         <input id={`${uid}-fee`} className="gm-input gm-ltr" inputMode="decimal" value={deliveryFee} onChange={(e) => setDeliveryFee(e.target.value)} />
       </div>
       <label className="gm-radio">
         <input type="checkbox" checked={cod} onChange={(e) => setCod(e.target.checked)} />
-        پارەدان لە کاتی گەیاندن
+        {od.cod}
       </label>
       <div className="gm-field">
-        <label htmlFor={`${uid}-note`}>تێبینی</label>
+        <label htmlFor={`${uid}-note`}>{od.note}</label>
         <textarea id={`${uid}-note`} className="gm-textarea" value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} />
       </div>
 
       <div className="gm-row" style={{ gap: 8 }}>
         <button type="button" className="gm-btn" disabled={pending} onClick={save}>
-          پاشەکەوت
+          {od.save}
         </button>
         <button type="button" className="gm-btn quiet" disabled={pending} onClick={onDone}>
-          پاشگەزبوونەوە
+          {od.cancel}
         </button>
       </div>
       <SaveMessage message={message} />
@@ -195,6 +188,10 @@ function OrderEditor({ order, products, onDone }: { order: OrderView | null; pro
 }
 
 export function OrdersClient({ orders, cityCards, products }: { orders: OrderView[]; cityCards: CityCard[]; products: OrderProduct[] }) {
+  const lang = useLang();
+  const od = useT().orders;
+  const statusLabel: Record<string, string> = od.status;
+  const sourceLabel: Record<string, string> = od.source;
   const [filter, setFilter] = useState<string>("ALL");
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const { pending, message, setMessage, run } = useSaver();
@@ -208,20 +205,20 @@ export function OrdersClient({ orders, cityCards, products }: { orders: OrderVie
 
   return (
     <div>
-      <h2 className="gm-title kufi">داواکارییەکان</h2>
-      <p className="gm-sub">داواکارییەکانی کۆمێنت و نامە لێرە دەردەکەون، یان خۆت تۆماریان بکە</p>
+      <h2 className="gm-title kufi">{od.title}</h2>
+      <p className="gm-sub">{od.sub}</p>
 
       <div className="gm-chips" style={{ marginBottom: 12 }}>
         {["ALL", ...STATUSES].map((s) => (
           <button key={s} type="button" className="gm-chip" aria-pressed={filter === s} onClick={() => setFilter(s)}>
-            {s === "ALL" ? "هەموو" : STATUS_LABEL[s]}
+            {s === "ALL" ? od.filterAll : statusLabel[s]}
           </button>
         ))}
       </div>
 
       <div style={{ margin: "12px 0" }}>
         <button type="button" className="gm-btn" disabled={editing === "new"} onClick={() => open("new")}>
-          داواکاری نوێ
+          {od.newOrder}
         </button>
       </div>
 
@@ -236,22 +233,22 @@ export function OrdersClient({ orders, cityCards, products }: { orders: OrderVie
       {cityCards.length > 0 && (
         <div className="gm-card" style={{ marginBottom: 12 }}>
           <p className="gm-sec" style={{ margin: 0 }}>
-            بە پێی شار
+            {od.byCity}
           </p>
           {cityCards.map((card) => (
             <div key={card.currency}>
               {cityCards.length > 1 && (
                 <p className="gm-hint" style={{ marginTop: 10 }}>
-                  {card.currency === "USD" ? "دۆلار" : "دینار"}
+                  {card.currency === "USD" ? od.usd : od.iqd}
                 </p>
               )}
               {card.rows.map((r) => (
                 <div key={r.city} className="gm-target">
                   <div>
                     <p>{r.city}</p>
-                    <small>{num(r.count)} داواکاری</small>
+                    <small>{od.count(r.count)}</small>
                   </div>
-                  <span>{formatMoney(r.totalMinor, card.currency, "ckb")}</span>
+                  <span>{formatMoney(r.totalMinor, card.currency, lang)}</span>
                 </div>
               ))}
             </div>
@@ -261,11 +258,11 @@ export function OrdersClient({ orders, cityCards, products }: { orders: OrderVie
 
       {orders.length === 0 && editing !== "new" ? (
         <div className="gm-empty">
-          <b className="kufi">هێشتا هیچ داواکارییەک نییە</b>
-          کاتێک کڕیارێک بە کۆمێنت یان نامە داوای شتێک بکات، لێرە دەردەکەوێت.
+          <b className="kufi">{od.emptyTitle}</b>
+          {od.emptyBody}
         </div>
       ) : shown.length === 0 ? (
-        <p className="gm-note">هیچ داواکارییەک لەم دۆخەدا نییە.</p>
+        <p className="gm-note">{od.noneInStatus}</p>
       ) : (
         <div className="gm-card">
           {shown.map((o) =>
@@ -277,12 +274,12 @@ export function OrdersClient({ orders, cityCards, products }: { orders: OrderVie
               <div key={o.id} className="gm-target">
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p>
-                    {o.customerName || "—"} {SOURCE_LABEL[o.source] && <span className="gm-badge ghost">{SOURCE_LABEL[o.source]}</span>}
+                    {o.customerName || "—"} {sourceLabel[o.source] && <span className="gm-badge ghost">{sourceLabel[o.source]}</span>}
                   </p>
-                  <small>{[cityLabel(o.city, "ckb"), [o.productName, o.variantLabel].filter(Boolean).join(" — ")].filter(Boolean).join(" · ") || "—"}</small>
+                  <small>{[cityLabel(o.city, lang), [o.productName, o.variantLabel].filter(Boolean).join(" — ")].filter(Boolean).join(" · ") || "—"}</small>
                   <small>
-                    {o.amountMinor > 0 ? formatMoney(o.amountMinor, o.currency, "ckb") : "—"}
-                    {o.cod ? " · پارەدان لە کاتی گەیاندن" : ""}
+                    {o.amountMinor > 0 ? formatMoney(o.amountMinor, o.currency, lang) : "—"}
+                    {o.cod ? ` · ${od.cod}` : ""}
                   </small>
                   {o.phone && (
                     <small className="gm-ltr" dir="ltr">
@@ -291,15 +288,15 @@ export function OrdersClient({ orders, cityCards, products }: { orders: OrderVie
                   )}
                 </div>
                 <div className="gm-stack" style={{ alignItems: "stretch", gap: 6 }}>
-                  <select className="gm-input" aria-label="دۆخی داواکاری" value={o.status} disabled={pending} onChange={(e) => run(() => setOrderStatusAction(o.id, e.target.value))}>
+                  <select className="gm-input" aria-label={od.statusAria} value={o.status} disabled={pending} onChange={(e) => run(() => setOrderStatusAction(o.id, e.target.value))}>
                     {STATUSES.map((s) => (
                       <option key={s} value={s}>
-                        {STATUS_LABEL[s]}
+                        {statusLabel[s]}
                       </option>
                     ))}
                   </select>
                   <button type="button" className="gm-btn small quiet" disabled={pending} onClick={() => open(o.id)}>
-                    دەستکاری
+                    {od.edit}
                   </button>
                 </div>
               </div>

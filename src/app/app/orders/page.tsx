@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { getLang } from "@/lib/i18n";
 import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
 import { ordersByCity } from "@/lib/orders/stats";
 import { currentWorkspace } from "../data";
@@ -13,6 +14,7 @@ export default async function OrdersPage() {
   const ws = (await currentWorkspace())!;
   if (!can(ws.role, "engage")) return <p className="gm-note warn">{NOT_ALLOWED}</p>;
 
+  const lang = await getLang();
   const [orders, forStats, products] = await Promise.all([
     db.order.findMany({ where: { tenantId: ws.id }, orderBy: { createdAt: "desc" }, take: LIST_LIMIT }),
     db.order.findMany({ where: { tenantId: ws.id }, select: { city: true, amountMinor: true, status: true, currency: true } }),
@@ -21,7 +23,7 @@ export default async function OrdersPage() {
 
   // Dinars and dollars are never added together: one card section per currency.
   const currencies = [...new Set(forStats.map((o) => o.currency))].sort();
-  const cityCards: CityCard[] = currencies.map((currency) => ({ currency, rows: ordersByCity(forStats.filter((o) => o.currency === currency)) })).filter((c) => c.rows.length > 0);
+  const cityCards: CityCard[] = currencies.map((currency) => ({ currency, rows: ordersByCity(forStats.filter((o) => o.currency === currency), lang) })).filter((c) => c.rows.length > 0);
 
   const views: OrderView[] = orders.map((o) => ({
     id: o.id,

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { useT } from "@/lib/i18n/client";
 import { friendlyError } from "../format";
 import type { ActionResult } from "./actions";
 
@@ -64,6 +65,7 @@ export type Message = { ok: boolean; text: string } | null;
 /** One save at a time: pending flag, inline gm-ok / gm-err message, and a refresh of the server data on success. */
 export function useSaver() {
   const router = useRouter();
+  const t = useT();
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<Message>(null);
 
@@ -74,10 +76,10 @@ export function useSaver() {
       try {
         r = await fn();
       } catch {
-        r = { ok: false, error: friendlyError(undefined) };
+        r = { ok: false, error: friendlyError(undefined, t) };
       }
       if (r.ok) {
-        setMessage({ ok: true, text: "پاشەکەوت کرا" });
+        setMessage({ ok: true, text: t.automation.saved });
         onOk?.();
         router.refresh();
       } else {

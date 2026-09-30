@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { Eye, EyeOff } from "lucide-react";
 
 import { useBase } from "../use-base";
+import { useT } from "@/lib/i18n/client";
 import { changePasswordAction } from "../actions";
 
 /**
@@ -13,6 +14,7 @@ import { changePasswordAction } from "../actions";
  */
 export function PasswordCard({ email, hasPassword: initial }: { email: string; hasPassword: boolean }) {
   const base = useBase();
+  const tp = useT().settings.password;
   const [hasPassword, setHasPassword] = useState(initial);
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -39,8 +41,8 @@ export function PasswordCard({ email, hasPassword: initial }: { email: string; h
       setMessage({
         ok: true,
         text: hasPassword
-          ? "وشەی نهێنی گۆڕدرا. ئامێرەکانی تر لە هەژمارەکەت دەرکران."
-          : "وشەی نهێنی زیاد کرا. ئێستا بە ئیمەیڵیش دەتوانیت بچیتە ژوورەوە.",
+          ? tp.changed
+          : tp.added,
       });
       setHasPassword(true);
       setCurrent("");
@@ -53,7 +55,7 @@ export function PasswordCard({ email, hasPassword: initial }: { email: string; h
       <form onSubmit={save} noValidate style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {hasPassword ? (
           <div className="gm-field">
-            <label htmlFor="pw-current">وشەی نهێنیی ئێستا</label>
+            <label htmlFor="pw-current">{tp.current}</label>
             <input
               id="pw-current"
               type={show ? "text" : "password"}
@@ -67,11 +69,11 @@ export function PasswordCard({ email, hasPassword: initial }: { email: string; h
           </div>
         ) : (
           <p className="gm-hint" style={{ margin: 0 }}>
-            هەژمارەکەت بە گووگڵ یان GitHub دروست کراوە. وشەی نهێنییەک زیاد بکە تا بە ئیمەیڵیش بتوانیت بچیتە ژوورەوە.
+            {tp.noPasswordHint}
           </p>
         )}
         <div className="gm-field">
-          <label htmlFor="pw-next">وشەی نهێنیی نوێ (لانیکەم ٨ پیت)</label>
+          <label htmlFor="pw-next">{tp.next}</label>
           <div className="gm-row" style={{ gap: 6 }}>
             <input
               id="pw-next"
@@ -84,14 +86,14 @@ export function PasswordCard({ email, hasPassword: initial }: { email: string; h
               minLength={8}
               required
             />
-            <button type="button" className="gm-btn quiet small" onClick={() => setShow((s) => !s)} aria-label={show ? "شاردنەوەی وشەی نهێنی" : "پیشاندانی وشەی نهێنی"}>
+            <button type="button" className="gm-btn quiet small" onClick={() => setShow((s) => !s)} aria-label={show ? tp.hide : tp.show}>
               {show ? <EyeOff size={15} aria-hidden="true" /> : <Eye size={15} aria-hidden="true" />}
             </button>
           </div>
         </div>
         <div>
           <button type="submit" className="gm-btn" disabled={pending || !next || (hasPassword && !current)}>
-            {pending ? "پاشەکەوت دەکرێت…" : hasPassword ? "گۆڕینی وشەی نهێنی" : "زیادکردنی وشەی نهێنی"}
+            {pending ? tp.saving : hasPassword ? tp.change : tp.add}
           </button>
         </div>
         {message && (

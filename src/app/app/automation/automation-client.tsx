@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { useT } from "@/lib/i18n/client";
+
 import { num } from "../format";
 import { saveStoreSettingsAction } from "./actions";
 import { PostsSection } from "./posts-section";
@@ -39,6 +41,7 @@ function Check({ done, label, hint, action }: { done: boolean; label: string; hi
 
 export function AutomationClient({ store, stores, templates, products, postAutomations, posts, postErrors, usage }: AutomationProps) {
   const router = useRouter();
+  const a = useT().automation;
   const status = useSaver();
   // The last saved settings, for display. A save sends only the fields its own control or section owns.
   const [settings, setSettings] = useState<StoreSettings>(() => ({
@@ -63,11 +66,11 @@ export function AutomationClient({ store, stores, templates, products, postAutom
 
   return (
     <div>
-      <h2 className="gm-title kufi">ئۆتۆمەیشن</h2>
-      <p className="gm-sub">وەڵامدانەوەی خۆکار بۆ کۆمێنت و نامە</p>
+      <h2 className="gm-title kufi">{a.title}</h2>
+      <p className="gm-sub">{a.sub}</p>
 
       {stores.length > 1 && (
-        <select className="gm-input" aria-label="پەیج" style={{ marginBottom: 12 }} value={store.id} onChange={(e) => router.push(`/app/automation?store=${encodeURIComponent(e.target.value)}`)}>
+        <select className="gm-input" aria-label={a.pageAria} style={{ marginBottom: 12 }} value={store.id} onChange={(e) => router.push(`/app/automation?store=${encodeURIComponent(e.target.value)}`)}>
           {stores.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -76,61 +79,61 @@ export function AutomationClient({ store, stores, templates, products, postAutom
         </select>
       )}
 
-      <p className="gm-sec">دۆخ</p>
+      <p className="gm-sec">{a.statusSec}</p>
       <div className="gm-card">
         <SwitchRow
-          label="ئۆتۆمەیشن"
-          hint={on ? "چالاکە — وەڵام دەدرێتەوە" : "کوژاوەتەوە — هیچ شتێک نانێردرێت"}
+          label={a.switchLabel}
+          hint={on ? a.switchOn : a.switchOff}
           checked={on}
           disabled={status.pending}
           onToggle={() => status.run(() => save({ automationEnabled: !on }))}
         />
-        {store.pausedReason && <p className="gm-note warn" style={{ marginTop: 8 }}>پەیجەکەت دووبارە پەیوەست بکەرەوە — تۆکنەکەی بەسەرچووە.</p>}
+        {store.pausedReason && <p className="gm-note warn" style={{ marginTop: 8 }}>{a.paused}</p>}
         <SaveMessage message={status.message} />
       </div>
 
-      <p className="gm-sec">بەکارهێنان</p>
+      <p className="gm-sec">{a.usageSec}</p>
       <div className="gm-card">
         <div className="gm-target">
-          <p>پۆستی چالاک</p>
+          <p>{a.activePosts}</p>
           <span className="gm-ltr">
-            {num(usage.activePosts)} / {usage.postSlots == null ? "هەموو" : num(usage.postSlots)}
+            {num(usage.activePosts)} / {usage.postSlots == null ? a.allPosts : num(usage.postSlots)}
           </span>
         </div>
         <div className="gm-target">
-          <p>وەڵامی ئەمڕۆ</p>
+          <p>{a.sentToday}</p>
           <span className="gm-ltr">
             {num(usage.sentToday)} / {num(usage.cap)}
           </span>
         </div>
         <div className="gm-target">
-          <p>گۆڕینی AI ئەم مانگە</p>
+          <p>{a.aiVaried}</p>
           <span className="gm-ltr">
             {num(usage.aiUsed)} / {num(usage.aiLimit)}
           </span>
         </div>
         <small className="gm-hint" style={{ display: "block" }}>
           <Link href="/app/billing" className="gm-link">
-            پلان: {usage.plan}
+            {a.plan(usage.plan)}
           </Link>
         </small>
       </div>
 
-      <p className="gm-sec">ئامادەکاری</p>
+      <p className="gm-sec">{a.readySec}</p>
       <div className="gm-card">
-        <Check done label="پەیج پەیوەستە" />
-        <Check done={!!store.webhooksAt} label="ئاگادارکردنەوەکانی Meta تۆمار کراون" />
+        <Check done label={a.pageConnected} />
+        <Check done={!!store.webhooksAt} label={a.webhooks} />
         <Check
           done={products.length > 0}
-          label="لانیکەم یەک بەرهەم"
+          label={a.oneProduct}
           action={
             <Link href={`/app/products?store=${encodeURIComponent(store.id)}`} className="gm-link">
-              بەرهەمەکان
+              {a.productsLink}
             </Link>
           }
         />
-        <Check done={!!defaultTemplate && defaultTemplate.publicSamples.length > 0} label="نموونەی وەڵام نووسراوە" hint="ئەگەر ننووسیت، نموونەی ئامادە بەکاردێت" />
-        <p className="gm-hint">ئینستاگرام: Settings ← Messages and story replies ← Connected tools ← Allow access to messages چالاک بکە، ئەگینا نامە ناگات.</p>
+        <Check done={!!defaultTemplate && defaultTemplate.publicSamples.length > 0} label={a.sampleWritten} hint={a.sampleHint} />
+        <p className="gm-hint">{a.igHint}</p>
       </div>
 
       <TemplatesSection storeId={store.id} templates={templates} defaultTemplateId={store.defaultTemplateId} />

@@ -2,6 +2,8 @@
 
 import { useId, useState } from "react";
 
+import { useT } from "@/lib/i18n/client";
+
 import { deleteTemplateAction, saveTemplateAction } from "./actions";
 import { SaveMessage, useSaver, type TemplateView } from "./shared";
 
@@ -20,6 +22,7 @@ function TemplateEditor({
   onSaved?: () => void;
 }) {
   const uid = useId();
+  const a = useT().automation;
   const { pending, message, run } = useSaver();
   const [name, setName] = useState(template?.name ?? "");
   const [questions, setQuestions] = useState((template?.publicSamples ?? []).join("\n"));
@@ -31,7 +34,7 @@ function TemplateEditor({
     run(
       () =>
         saveTemplateAction(storeId, template?.id ?? null, {
-          name: withName ? name : (template?.name ?? "بنەڕەت"),
+          name: withName ? name : (template?.name ?? a.defaultName),
           publicSamples: questions.split("\n"),
           thanksSamples: thanks.split("\n"),
           dmGreeting,
@@ -46,34 +49,34 @@ function TemplateEditor({
     <div className="gm-stack">
       {withName && (
         <div className="gm-field">
-          <label htmlFor={`${uid}-name`}>ناو</label>
+          <label htmlFor={`${uid}-name`}>{a.templateName}</label>
           <input id={`${uid}-name`} className="gm-input" value={name} maxLength={40} onChange={(e) => setName(e.target.value)} />
         </div>
       )}
       <div className="gm-field">
-        <label htmlFor={`${uid}-q`}>نموونەی وەڵام بۆ پرسیار (هەر دێڕێک یەک نموونە، تا ٥)</label>
+        <label htmlFor={`${uid}-q`}>{a.questionSamples}</label>
         <textarea id={`${uid}-q`} className="gm-textarea" value={questions} onChange={(e) => setQuestions(e.target.value)} />
       </div>
       <div className="gm-field">
-        <label htmlFor={`${uid}-t`}>نموونەی سوپاس (تا ٥)</label>
+        <label htmlFor={`${uid}-t`}>{a.thanksSamples}</label>
         <textarea id={`${uid}-t`} className="gm-textarea" value={thanks} onChange={(e) => setThanks(e.target.value)} />
       </div>
       <p className="gm-hint" style={{ margin: 0 }}>
-        AI هەر جارێک بە زمانی کڕیار دەیگۆڕێت و هیچ ژمارەیەک ناخاتە سەری. وەڵامی گشتی تەنها کاتێک دەچێت کە نامەی تایبەتیش بچێت.
+        {a.aiHint}
       </p>
       <div>
         <label className="gm-radio">
           <input type="checkbox" checked={dmGreeting} onChange={(e) => setDmGreeting(e.target.checked)} />
-          سڵاوی AI لە سەرەتای نامەدا
+          {a.dmGreeting}
         </label>
         <label className="gm-radio">
           <input type="checkbox" checked={whatsappAlways} onChange={(e) => setWhatsappAlways(e.target.checked)} />
-          لینکی واتسئەپ هەمیشە لە نامەکەدا بێت
+          {a.whatsappAlways}
         </label>
       </div>
       <div>
         <button type="button" className="gm-btn" disabled={pending} onClick={save}>
-          پاشەکەوت
+          {a.save}
         </button>
         <SaveMessage message={message} />
       </div>
@@ -83,6 +86,7 @@ function TemplateEditor({
 
 /** Sections "وەڵامەکان" (the default template) and "تێمپلەیتەکانی تر". */
 export function TemplatesSection({ storeId, templates, defaultTemplateId }: { storeId: string; templates: TemplateView[]; defaultTemplateId: string | null }) {
+  const a = useT().automation;
   const defaultTemplate = templates.find((t) => t.id === defaultTemplateId) ?? null;
   const others = templates.filter((t) => t.id !== defaultTemplate?.id);
   const [editing, setEditing] = useState<string | "new" | null>(null);
@@ -90,7 +94,7 @@ export function TemplatesSection({ storeId, templates, defaultTemplateId }: { st
 
   function saved() {
     setEditing(null);
-    setMessage({ ok: true, text: "پاشەکەوت کرا" });
+    setMessage({ ok: true, text: a.saved });
   }
 
   function toggle(key: string | "new") {
@@ -100,12 +104,12 @@ export function TemplatesSection({ storeId, templates, defaultTemplateId }: { st
 
   return (
     <>
-      <p className="gm-sec">وەڵامەکان</p>
+      <p className="gm-sec">{a.repliesSec}</p>
       <div className="gm-card">
         <TemplateEditor key={defaultTemplate?.id ?? "none"} storeId={storeId} template={defaultTemplate} withName={false} makeDefault />
       </div>
 
-      <p className="gm-sec">تێمپلەیتەکانی تر</p>
+      <p className="gm-sec">{a.othersSec}</p>
       <div className="gm-card">
         {others.map((t) => (
           <div key={t.id}>
@@ -113,7 +117,7 @@ export function TemplatesSection({ storeId, templates, defaultTemplateId }: { st
               <p>{t.name}</p>
               <div className="gm-row" style={{ gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
                 <button type="button" className="gm-btn small quiet" aria-expanded={editing === t.id} disabled={pending} onClick={() => toggle(t.id)}>
-                  دەستکاری
+                  {a.edit}
                 </button>
                 <button
                   type="button"
@@ -132,17 +136,17 @@ export function TemplatesSection({ storeId, templates, defaultTemplateId }: { st
                     )
                   }
                 >
-                  بیکە بە بنەڕەت
+                  {a.makeDefault}
                 </button>
                 <button
                   type="button"
                   className="gm-btn small danger"
                   disabled={pending}
                   onClick={() => {
-                    if (window.confirm("ئەم تێمپلەیتە بسڕدرێتەوە؟")) run(() => deleteTemplateAction(storeId, t.id), () => setEditing((cur) => (cur === t.id ? null : cur)));
+                    if (window.confirm(a.confirmDeleteTemplate)) run(() => deleteTemplateAction(storeId, t.id), () => setEditing((cur) => (cur === t.id ? null : cur)));
                   }}
                 >
-                  سڕینەوە
+                  {a.delete}
                 </button>
               </div>
             </div>
@@ -156,7 +160,7 @@ export function TemplatesSection({ storeId, templates, defaultTemplateId }: { st
         {editing === "new" && <TemplateEditor storeId={storeId} template={null} withName makeDefault={false} onSaved={saved} />}
         <div style={{ marginTop: others.length || editing === "new" ? 12 : 0 }}>
           <button type="button" className="gm-btn quiet" aria-expanded={editing === "new"} disabled={pending} onClick={() => toggle("new")}>
-            تێمپلەیتی نوێ
+            {a.newTemplate}
           </button>
         </div>
         <SaveMessage message={message} />

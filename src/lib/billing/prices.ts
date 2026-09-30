@@ -17,6 +17,22 @@ export const PLAN_LABEL: Record<string, string> = {
   ENTERPRISE: "دامەزراوە",
 };
 
+/** The same names in Arabic, for the Arabic UI (they read after "باقة": "شراء باقة تاجر"). */
+export const PLAN_LABEL_AR: Record<string, string> = {
+  FREE: "مجانية",
+  MERCHANT: "تاجر",
+  PRO: "احترافية",
+  LITE: "صفحة صغيرة",
+  MANUAL: "أساسية",
+  AUTO: "احترافية",
+  ENTERPRISE: "مؤسسات",
+};
+
+/** A plan's display name in `lang`; an unknown plan code is shown as it is. */
+export function planLabel(plan: string, lang: "ckb" | "ar" = "ckb"): string {
+  return (lang === "ar" ? PLAN_LABEL_AR : PLAN_LABEL)[plan] ?? plan;
+}
+
 /** The price of a plan that is for sale, or null. */
 export function priceFor(product: BillingProduct, plan: string): number | null {
   const table = product === "SHOP" ? SHOP_PRICES : NEWS_PRICES;

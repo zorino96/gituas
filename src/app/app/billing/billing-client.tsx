@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from "react";
 
-import { PLAN_LABEL, priceFor, type BillingProduct } from "@/lib/billing/prices";
+import { planLabel, priceFor, type BillingProduct } from "@/lib/billing/prices";
+import { useLang, useT } from "@/lib/i18n/client";
 import { formatMoney } from "@/lib/shop/money";
 import { kuDate } from "../format";
-import { CHIP_LABEL, type PlatformChip } from "./chips";
+import type { PlatformChip } from "./chips";
 import { startNewsCheckoutAction, startShopCheckoutAction } from "./actions";
 
 /** What can be bought for each product, in the order the buttons appear. */
@@ -48,12 +49,16 @@ export interface BillingProps {
 }
 
 function StatusBadge({ status }: { status: InvoiceRow["status"] }) {
-  if (status === "PAID") return <span className="gm-badge">دراوە</span>;
-  if (status === "PENDING") return <span className="gm-badge warn">چاوەڕوان</span>;
-  return <span className="gm-badge ghost">{status === "EXPIRED" ? "بەسەرچوو" : "هەڵوەشاوە"}</span>;
+  const s = useT().billing.status;
+  if (status === "PAID") return <span className="gm-badge">{s.PAID}</span>;
+  if (status === "PENDING") return <span className="gm-badge warn">{s.PENDING}</span>;
+  return <span className="gm-badge ghost">{status === "EXPIRED" ? s.EXPIRED : s.CANCELLED}</span>;
 }
 
 export function BillingClient({ product, configured, env, result, targets, invoices }: BillingProps) {
+  const tr = useT();
+  const b = tr.billing;
+  const lang = useLang();
   const [pending, start] = useTransition();
   // Stays true after a successful checkout so the buttons stay off while the browser leaves for Wayl.
   const [leaving, setLeaving] = useState(false);
@@ -77,45 +82,47 @@ export function BillingClient({ product, configured, env, result, targets, invoi
 
   return (
     <div>
-      <h2 className="gm-title kufi">پلان و پارەدان</h2>
-      <p className="gm-sub">بە FIB، ZainCash، QiCard، FastPay یان کارت — لە ڕێگەی Wayl</p>
+      <h2 className="gm-title kufi">{b.title}</h2>
+      <p className="gm-sub">{b.sub}</p>
 
-      {env === "test" && <p className="gm-note warn" style={{ marginBottom: 10 }}>مۆدی تاقیکردنەوە — هیچ پارەیەکی ڕاستەقینە وەرناگیرێت.</p>}
-      {!configured && <p className="gm-note warn" style={{ marginBottom: 10 }}>پارەدان هێشتا ئامادە نییە.</p>}
+      {env === "test" && <p className="gm-note warn" style={{ marginBottom: 10 }}>{b.testMode}</p>}
+      {!configured && <p className="gm-note warn" style={{ marginBottom: 10 }}>{b.notReady}</p>}
 
-      {result === "paid" && <p className="gm-ok">پارەدان سەرکەوتوو بوو — پلانەکەت چالاک کرا.</p>}
-      {result === "paid_test" && <p className="gm-note">تاقیکردنەوەی پارەدان سەرکەوتوو بوو — لە مۆدی تاقیکردنەوەدا پلان ناگۆڕدرێت.</p>}
-      {result === "pending" &&<p className="gm-hint">پارەدانەکە هێشتا تەواو نەبووە. ئەگەر پارەت داوە، چەند خولەکێکی تر ئەم پەڕەیە نوێ بکەرەوە.</p>}
+      {result === "paid" && <p className="gm-ok">{b.result.paid}</p>}
+      {result === "paid_test" && <p className="gm-note">{b.result.paidTest}</p>}
+      {result === "pending" && <p className="gm-hint">{b.result.pending}</p>}
 
-      {targets.length === 0 && <p className="gm-note">هێشتا پەیجێکت پەیوەست نەکردووە.</p>}
+      {targets.length === 0 && <p className="gm-note">{b.noPage}</p>}
 
       {targets.map((t) => (
         <div key={t.id} className="gm-card" style={{ marginTop: 12 }}>
           <div className="gm-target">
             <div>
               <p>{t.name}</p>
-              <small>پلان: {PLAN_LABEL[t.plan] ?? t.plan}</small>
-              {t.paidUntil && <small>چالاکە تا {kuDate(t.paidUntil)}</small>}
+              <small>{b.plan(planLabel(t.plan, lang))}</small>
+              {t.paidUntil && <small>{b.activeUntil(kuDate(t.paidUntil, tr))}</small>}
             </div>
           </div>
           {t.chips.length > 0 && (
             <div className="gm-chips" style={{ marginTop: 8 }}>
               {t.chips.map((c) => (
                 <span key={c.platform} className="gm-chip" style={{ cursor: "default" }}>
-                  {CHIP_LABEL[c.platform]} · {c.name}
+                  {tr.platform[c.platform]} · {c.name}
                 </span>
               ))}
             </div>
           )}
-          <p className="gm-hint">یەک پلان هەموو پلاتفۆرمەکانی ئەم کارە دەگرێتەوە.</p>
-          {product === "NEWS" && t.trialDaysLeft != null && <p className="gm-hint">تاقیکردنەوە: {t.trialDaysLeft} ڕۆژ ماوە</p>}
+          <p className="gm-hint">{b.coversAll}</p>
+          {product === "NEWS" && t.trialDaysLeft != null && <p className="gm-hint">{b.trialLeft(t.trialDaysLeft)}</p>}
           {PLANS[product].map((plan) => {
             const price = priceFor(product, plan);
             if (price == null) return null;
+            const name = planLabel(plan, lang);
+            const amount = formatMoney(price, "IQD", lang);
             const renewing = t.plan === plan && !!t.paidUntil;
             return (
               <button key={plan} type="button" className="gm-btn block" style={{ marginTop: 8 }} disabled={!configured || busy} onClick={() => buy(t, plan)}>
-                {renewing ? "نوێکردنەوە" : "کڕین"} {PLAN_LABEL[plan]} — {formatMoney(price, "IQD", "ckb")} بۆ مانگێک
+                {renewing ? b.renew(name, amount) : b.buy(name, amount)}
               </button>
             );
           })}
@@ -125,21 +132,21 @@ export function BillingClient({ product, configured, env, result, targets, invoi
 
       {invoices.length > 0 && (
         <>
-          <p className="gm-sec">مێژووی پارەدان</p>
+          <p className="gm-sec">{b.historySec}</p>
           <div className="gm-card">
             {invoices.map((inv) => {
               const store = targets.length > 1 ? storeName(inv.storeId) : undefined;
               return (
                 <div key={inv.id} className="gm-target">
                   <div>
-                    <p>{PLAN_LABEL[inv.plan] ?? inv.plan}</p>
+                    <p>{planLabel(inv.plan, lang)}</p>
                     <small>
-                      {kuDate(inv.createdAt)}
+                      {kuDate(inv.createdAt, tr)}
                       {store ? ` · ${store}` : ""}
                     </small>
                   </div>
                   <div style={{ textAlign: "end" }}>
-                    <p>{formatMoney(inv.amountIqd, "IQD", "ckb")}</p>
+                    <p>{formatMoney(inv.amountIqd, "IQD", lang)}</p>
                     <StatusBadge status={inv.status} />
                   </div>
                 </div>

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 
-import { PLATFORM_NAME, friendlyError } from "../format";
+import { useT } from "@/lib/i18n/client";
+import { friendlyError } from "../format";
 import { setPostAutomationAction } from "./actions";
 import { Knob, SaveMessage, useSaver, type PostAutoView, type PostView, type TemplateView } from "./shared";
 
@@ -25,6 +26,8 @@ function PostRow({
   products: { id: string; name: string }[];
   templates: TemplateView[];
 }) {
+  const t = useT();
+  const a = t.automation;
   const { pending, message, run } = useSaver();
   const [row, setRow] = useState<Row>({ enabled: auto?.enabled ?? true, productId: auto?.productId ?? null, templateId: auto?.templateId ?? null });
 
@@ -45,7 +48,7 @@ function PostRow({
   }
 
   return (
-    <section className="gm-card" aria-label={`پۆستی ${PLATFORM_NAME[post.platform]}`}>
+    <section className="gm-card" aria-label={t.comments.postAria(t.platform[post.platform])}>
       <div className="gm-post">
         {post.thumbUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -54,34 +57,34 @@ function PostRow({
           <div className="gm-thumb" aria-hidden="true" />
         )}
         <div style={{ minWidth: 0, flex: 1 }}>
-          <span className={`gm-plat ${post.platform}`}>{PLATFORM_NAME[post.platform]}</span>
+          <span className={`gm-plat ${post.platform}`}>{t.platform[post.platform]}</span>
           {caption && <p>{caption}</p>}
           <small className="gm-time">
             {live ? (
               <>
-                چالاکە تا {until && <span className="gm-ltr" style={{ display: "inline-block" }}>{until.slice(0, 10)}</span>}
+                {a.activeUntil} {until && <span className="gm-ltr" style={{ display: "inline-block" }}>{until.slice(0, 10)}</span>}
               </>
             ) : (
-              "کوژاوەتەوە"
+              a.off
             )}
           </small>
         </div>
-        <Knob checked={row.enabled} label="ئۆتۆمەیشن" disabled={pending} onClick={() => change({ enabled: !row.enabled })} />
+        <Knob checked={row.enabled} label={a.switchLabel} disabled={pending} onClick={() => change({ enabled: !row.enabled })} />
       </div>
       <div className="gm-row" style={{ gap: 8, marginTop: 10 }}>
-        <select className="gm-input" aria-label="بەرهەم" value={row.productId ?? ""} disabled={pending} onChange={(e) => change({ productId: e.target.value || null })}>
-          <option value="">بێ کارتی بەرهەم</option>
+        <select className="gm-input" aria-label={a.productAria} value={row.productId ?? ""} disabled={pending} onChange={(e) => change({ productId: e.target.value || null })}>
+          <option value="">{a.noCard}</option>
           {products.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
             </option>
           ))}
         </select>
-        <select className="gm-input" aria-label="تێمپلەیت" value={row.templateId ?? ""} disabled={pending} onChange={(e) => change({ templateId: e.target.value || null })}>
-          <option value="">بنەڕەت</option>
-          {templates.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
+        <select className="gm-input" aria-label={a.templateAria} value={row.templateId ?? ""} disabled={pending} onChange={(e) => change({ templateId: e.target.value || null })}>
+          <option value="">{a.defaultTemplate}</option>
+          {templates.map((tpl) => (
+            <option key={tpl.id} value={tpl.id}>
+              {tpl.name}
             </option>
           ))}
         </select>
@@ -109,17 +112,18 @@ export function PostsSection({
   products: { id: string; name: string }[];
   templates: TemplateView[];
 }) {
+  const t = useT();
   return (
     <>
-      <p className="gm-sec">پۆستەکان</p>
+      <p className="gm-sec">{t.automation.postsSec}</p>
       {postErrors.map((e) => (
         <p key={e.platform} className="gm-note warn" style={{ marginBottom: 10 }}>
-          {PLATFORM_NAME[e.platform]}: {friendlyError(e.message)}
+          {t.platform[e.platform]}: {friendlyError(e.message, t)}
         </p>
       ))}
       {posts.length === 0 ? (
         <div className="gm-empty">
-          <b className="kufi">هیچ پۆستێک نەدۆزرایەوە</b>
+          <b className="kufi">{t.automation.noPosts}</b>
         </div>
       ) : (
         <div className="gm-stack">

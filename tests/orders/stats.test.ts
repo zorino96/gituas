@@ -30,6 +30,15 @@ describe("ordersByCity", () => {
     expect(rows.map((r) => r.city)).toEqual(["کەرکووک", "بەسرە"]);
   });
 
+  it("names cities in Arabic when asked", () => {
+    const rows = ordersByCity([o("erbil", 10_000), o("baghdad", 5_000), o("erbil", 500), o(null, 1_000)], "ar");
+    expect(rows).toEqual([
+      { city: "أربيل", count: 2, totalMinor: 10_500 },
+      { city: "بغداد", count: 1, totalMinor: 5_000 },
+      { city: "غير معروف", count: 1, totalMinor: 1_000 },
+    ]);
+  });
+
   it("returns nothing for no orders", () => {
     expect(ordersByCity([])).toEqual([]);
   });
