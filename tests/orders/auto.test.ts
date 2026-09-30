@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const db = { order: { upsert: vi.fn() } };
+const db = { order: { upsert: vi.fn(), findFirst: vi.fn() } };
 vi.mock("@/lib/db", () => ({ db }));
 
-const { autoOrderData, openOrder } = await import("@/lib/orders/auto");
+const { autoOrderData, buyerKeyOf, duplicateOrderWhere, openOrder, DUPLICATE_WINDOW_MS } = await import("@/lib/orders/auto");
 
-const msg = { id: "m1", authorHandle: "ari.shop", channelType: "COMMENT", store: { id: "s1", tenantId: "t1" } };
+const msg = { id: "m1", authorId: "u1", externalThreadId: "post9", authorHandle: "ari.shop", channelType: "COMMENT", store: { id: "s1", tenantId: "t1" } };
 const product = {
   id: "p1",
   name: "عەبا",
@@ -19,6 +19,7 @@ const product = {
 beforeEach(() => {
   vi.clearAllMocks();
   db.order.upsert.mockResolvedValue({});
+  db.order.findFirst.mockResolvedValue(null);
 });
 
 describe("autoOrderData", () => {
@@ -34,6 +35,7 @@ describe("autoOrderData", () => {
       currency: "IQD",
       source: "COMMENT",
       sourceMessageId: "m1",
+      buyerKey: "u1",
       status: "NEW",
     });
   });
@@ -53,6 +55,45 @@ describe("autoOrderData", () => {
   });
 });
 
+describe("buyerKeyOf", () => {
+  it("is the author id", () => {
+    expect(buyerKeyOf(msg)).toBe("u1");
+    expect(buyerKeyOf({ ...msg, channelType: "DM" })).toBe("u1");
+  });
+
+  it("falls back to the thread id for a DM only, because a comment's thread is the post, not the buyer", () => {
+    expect(buyerKeyOf({ ...msg, authorId: null, channelType: "DM" })).toBe("post9");
+    expect(buyerKeyOf({ ...msg, authorId: null })).toBeNull();
+  });
+
+  it("is null when nothing identifies the buyer, never an empty string", () => {
+    expect(buyerKeyOf({ ...msg, authorId: "", externalThreadId: "", channelType: "DM" })).toBeNull();
+    const { authorId: _a, externalThreadId: _t, ...bare } = msg;
+    expect(buyerKeyOf(bare)).toBeNull();
+  });
+});
+
+describe("duplicateOrderWhere", () => {
+  const now = new Date("2026-10-01T12:00:00Z");
+
+  it("matches the same buyer, the same product, open orders, from the last day", () => {
+    const w = duplicateOrderWhere({ tenantId: "t1", buyerKey: "u1", productId: "p1" }, now);
+    expect(w).toEqual({
+      tenantId: "t1",
+      buyerKey: "u1",
+      productId: "p1",
+      status: { in: ["NEW", "CONFIRMED"] },
+      createdAt: { gt: new Date(now.getTime() - DUPLICATE_WINDOW_MS) },
+    });
+    expect(DUPLICATE_WINDOW_MS).toBe(24 * 60 * 60 * 1000);
+  });
+
+  it("matches orders with no product by IS NULL, never by 'any product'", () => {
+    expect(duplicateOrderWhere({ tenantId: "t1", buyerKey: "u1", productId: null }, now).productId).toBeNull();
+    expect(duplicateOrderWhere({ tenantId: "t1", buyerKey: "u1", productId: undefined }, now).productId).toBeNull();
+  });
+});
+
 describe("openOrder", () => {
   it("upserts by the message id and never touches an existing order", async () => {
     await openOrder(msg, product);
@@ -61,6 +102,19 @@ describe("openOrder", () => {
     expect(arg.where).toEqual({ sourceMessageId: "m1" });
     expect(arg.update).toEqual({});
     expect(arg.create).toMatchObject({ tenantId: "t1", storeId: "s1", sourceMessageId: "m1" });
+  });
+
+  it("opens no second order for the same buyer and product within a day", async () => {
+    db.order.findFirst.mockResolvedValue({ id: "o1" });
+    await openOrder({ ...msg, id: "m2" }, product);
+    expect(db.order.findFirst.mock.calls[0][0].where).toMatchObject({ tenantId: "t1", buyerKey: "u1", productId: "p1", status: { in: ["NEW", "CONFIRMED"] } });
+    expect(db.order.upsert).not.toHaveBeenCalled();
+  });
+
+  it("does not look for a duplicate when the buyer is unknown", async () => {
+    await openOrder({ ...msg, authorId: null }, product);
+    expect(db.order.findFirst).not.toHaveBeenCalled();
+    expect(db.order.upsert).toHaveBeenCalledTimes(1);
   });
 
   it("swallows a database failure", async () => {

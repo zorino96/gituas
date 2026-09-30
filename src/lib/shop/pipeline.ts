@@ -9,7 +9,7 @@ import { buildCommentJobs, buildDmJobs, type JobSpec } from "./jobs";
 import { accountFor, fetchPostCreatedAt, type MetaPlatform } from "./meta-client";
 import type { Lang } from "./money";
 import { dailyCap, SHOP_LIMITS, type StorePlan } from "./plans";
-import { decideComment, decideDm, limitDecision } from "./policy";
+import { decideComment, decideDm, limitDecision, MIN_CONFIDENCE } from "./policy";
 import { runJob } from "./outbox";
 import { aiVaryUsed, countAiVary } from "./quota";
 import { varySample } from "./vary";
@@ -207,7 +207,8 @@ async function planComment(msg: Msg): Promise<string[]> {
     commentType: c.type, intent: c.intent, language: c.language, confidence: c.confidence, boundProductId: product?.id ?? null,
   });
   // A buyer asking to order is an order whatever the shop answered, even when it only flagged the comment for the merchant.
-  if (c.type === "ORDER") await openOrder(msg, product);
+  // Low confidence is a guess, and a guess must not open an order the merchant then has to sort out.
+  if (c.type === "ORDER" && c.confidence >= MIN_CONFIDENCE) await openOrder(msg, product);
   return ids;
 }
 
@@ -254,6 +255,6 @@ async function planDm(msg: Msg): Promise<string[]> {
   await finish(msg.id, specs.length ? "AUTO_REPLIED" : "FLAGGED", flag, {
     commentType: c?.type ?? null, intent: c?.intent ?? null, language: c?.language ?? null, confidence: c?.confidence ?? null, boundProductId: product?.id ?? null,
   });
-  if (c?.type === "ORDER") await openOrder(msg, product);
+  if (c?.type === "ORDER" && c.confidence >= MIN_CONFIDENCE) await openOrder(msg, product);
   return ids;
 }

@@ -2,6 +2,25 @@
 export const CAPTION_LIMITS = { FB: 63206, IG: 2200, TT: 2200, YT: 5000 } as const;
 export type Target = keyof typeof CAPTION_LIMITS;
 
+/** True only for a platform we publish to. A plain `in` check would also let "toString" through. */
+export function isKnownTarget(t: unknown): t is Target {
+  return typeof t === "string" && Object.prototype.hasOwnProperty.call(CAPTION_LIMITS, t);
+}
+
+/**
+ * A file this workspace uploaded to Vercel Blob: https, a Blob host, and this workspace's own folder.
+ * The URL is parsed, so dot-segments are resolved before the folder is checked. Used wherever the
+ * server fetches or republishes a URL the browser sent.
+ */
+export function isOwnBlobUrl(raw: string, workspaceId: string): boolean {
+  try {
+    const u = new URL(raw);
+    return u.protocol === "https:" && u.hostname.endsWith(".public.blob.vercel-storage.com") && u.pathname.startsWith(`/merchant/${workspaceId}/`);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The composite city tags Kurdish sellers use for region-wide discovery: one in
  * Kurdish script, one in Latin, so a buyer searching in either script finds it.

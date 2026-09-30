@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
+import { isOwnBlobUrl } from "@/lib/merchant/caption";
 import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
 import { cleanSamples, parsePrice, toWesternDigits } from "@/lib/shop/forms";
 import { accountFor, fetchPostCreatedAt } from "@/lib/shop/meta-client";
@@ -22,16 +23,6 @@ async function ownedStore(storeId: string) {
   const store = await db.store.findFirst({ where: { id: storeId, tenantId: ws.id }, select: { id: true, tenantId: true, expiryDays: true, defaultTemplateId: true, fbPageId: true, igUserId: true } });
   if (!store) return { error: "دووکانەکە نەدۆزرایەوە." } as const;
   return { ws, store } as const;
-}
-
-/** A product photo must be a file this workspace uploaded to Vercel Blob. */
-function isOwnBlobUrl(raw: string, workspaceId: string): boolean {
-  try {
-    const u = new URL(raw);
-    return u.protocol === "https:" && u.hostname.endsWith(".public.blob.vercel-storage.com") && u.pathname.startsWith(`/merchant/${workspaceId}/`);
-  } catch {
-    return false;
-  }
 }
 
 const done = (id?: string): ActionResult => {

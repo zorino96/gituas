@@ -5,8 +5,8 @@
 
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { assertWithin, LimitReached, limitMessage } from "@/lib/billing/limits";
-import { captionProblems, isJpegPath, youtubeProblem, youtubeTitle, type Target } from "@/lib/merchant/caption";
+import { assertWithin, LimitReached, limitMessage, newsroomFrozenError } from "@/lib/billing/limits";
+import { captionProblems, isJpegPath, isKnownTarget, isOwnBlobUrl, youtubeProblem, youtubeTitle, type Target } from "@/lib/merchant/caption";
 import { tiktokProblems } from "@/lib/merchant/tiktok-rules";
 import { recordNewsPublish } from "@/lib/news/publish-record";
 import { checkDraft } from "@/lib/news/rules";
@@ -66,6 +66,12 @@ export async function publishForWorkspace(
 ): Promise<PublishOutcome[] | { error: string }> {
   const targets = [...new Set(input.targets)];
   if (!targets.length) return { error: "لانیکەم یەک شوێن هەڵبژێرە." };
+  if (!targets.every(isKnownTarget)) return { error: "ئامانجێکی نەناسراو." };
+  // A frozen newsroom may not post at all — not only drafts from the news desk.
+  if (ws.kind === "NEWS") {
+    const frozen = await newsroomFrozenError(ws.id);
+    if (frozen) return { error: frozen };
+  }
   if (input.newsDraftId) {
     try {
       await assertWithin(ws.id, "publish");
@@ -85,6 +91,10 @@ export async function publishForWorkspace(
   if (input.media) {
     const expected = `merchant/${ws.id}/`;
     if (!input.media.pathname.startsWith(expected) || !/^https:\/\//.test(input.media.url)) {
+      return { error: "فایلەکە ناناسرێتەوە. دووبارە بارکردنی بکە." };
+    }
+    // Our server downloads the YouTube video from this URL, so it must be one of this workspace's own Blob files.
+    if (targets.includes("YT") && !isOwnBlobUrl(input.media.url, ws.id)) {
       return { error: "فایلەکە ناناسرێتەوە. دووبارە بارکردنی بکە." };
     }
     if (input.media.type === "IMAGE" && (targets.includes("IG") || targets.includes("TT")) && !isJpegPath(input.media.pathname)) {

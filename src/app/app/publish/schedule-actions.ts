@@ -3,8 +3,8 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
-import { assertWithin, LimitReached, limitMessage } from "@/lib/billing/limits";
-import { captionProblems, isJpegPath, youtubeProblem, type Target } from "@/lib/merchant/caption";
+import { assertWithin, LimitReached, limitMessage, newsroomFrozenError } from "@/lib/billing/limits";
+import { captionProblems, isJpegPath, isKnownTarget, isOwnBlobUrl, youtubeProblem, type Target } from "@/lib/merchant/caption";
 import type { PublishInput } from "@/lib/merchant/publish-core";
 import { baghdadLocalToUtc, scheduleProblem } from "@/lib/merchant/schedule";
 import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
@@ -38,6 +38,12 @@ export async function schedulePublishAction(
 
   const targets = [...new Set(input.targets)];
   if (!targets.length) return { ok: false, error: "لانیکەم یەک شوێن هەڵبژێرە." };
+  if (!targets.every(isKnownTarget)) return { ok: false, error: "ئامانجێکی نەناسراو." };
+  // A frozen newsroom may not schedule anything, not only drafts from the news desk.
+  if (ws.kind === "NEWS") {
+    const frozen = await newsroomFrozenError(ws.id);
+    if (frozen) return { ok: false, error: frozen };
+  }
   const runAt = baghdadLocalToUtc(runAtLocal);
   const problem = scheduleProblem(targets, runAt, new Date());
   if (problem) return { ok: false, error: problem };
@@ -59,6 +65,9 @@ export async function schedulePublishAction(
   if (input.media) {
     const expected = `merchant/${ws.id}/`;
     if (!input.media.pathname.startsWith(expected) || !/^https:\/\//.test(input.media.url)) {
+      return { ok: false, error: "فایلەکە ناناسرێتەوە. دووبارە بارکردنی بکە." };
+    }
+    if (targets.includes("YT") && !isOwnBlobUrl(input.media.url, ws.id)) {
       return { ok: false, error: "فایلەکە ناناسرێتەوە. دووبارە بارکردنی بکە." };
     }
     if (input.media.type === "IMAGE" && targets.includes("IG") && !isJpegPath(input.media.pathname)) {

@@ -25,6 +25,11 @@ describe("newsroomAccess", () => {
     expect(newsroomAccess(news({ planPaidUntil: at(DAY), trialEndsAt: at(-DAY) }), NOW)).toEqual({ active: true, reason: "paid", daysLeft: null });
   });
 
+  it("is frozen when a paid plan lapsed and there never was a trial", () => {
+    expect(newsroomAccess(news({ planPaidUntil: at(-DAY), trialEndsAt: null }), NOW)).toEqual({ active: false, reason: "frozen", daysLeft: null });
+    expect(newsroomAccess(news({ planPaidUntil: NOW, trialEndsAt: null }), NOW)).toMatchObject({ active: false, reason: "frozen" });
+  });
+
   it("is active and legacy when there is no trial and no paid plan", () => {
     expect(newsroomAccess(news(), NOW)).toEqual({ active: true, reason: "legacy", daysLeft: null });
   });
@@ -35,8 +40,8 @@ describe("newsroomAccess", () => {
     expect(newsroomAccess(news({ trialEndsAt: at(1) }), NOW)).toEqual({ active: true, reason: "trial", daysLeft: 1 });
   });
 
-  it("is a trial when an old paid plan already lapsed but the trial is running", () => {
-    expect(newsroomAccess(news({ planPaidUntil: at(-DAY), trialEndsAt: at(3 * DAY) }), NOW)).toMatchObject({ active: true, reason: "trial", daysLeft: 3 });
+  it("is frozen once a paid plan lapsed, even if the trial date is still ahead", () => {
+    expect(newsroomAccess(news({ planPaidUntil: at(-DAY), trialEndsAt: at(3 * DAY) }), NOW)).toMatchObject({ active: false, reason: "frozen" });
   });
 
   it("is frozen once the trial is over and nothing is paid", () => {

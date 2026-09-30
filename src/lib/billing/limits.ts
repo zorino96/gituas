@@ -20,8 +20,10 @@ export class LimitReached extends Error {
 
 const LABEL: Record<Metric, string> = { draft: "ئامادەکردنی هەواڵ", improve: "باشترکردن", publish: "بڵاوکردنەوە" };
 
+export const FROZEN_MESSAGE = "ماوەی تاقیکردنەوە تەواو بووە — بۆ بەردەوامبوون لە «پلان و پارەدان» پلانێک هەڵبژێرە.";
+
 export function limitMessage(e: LimitReached): string {
-  if (e.frozen) return "ماوەی تاقیکردنەوە تەواو بووە — بۆ بەردەوامبوون لە «پلان و پارەدان» پلانێک هەڵبژێرە.";
+  if (e.frozen) return FROZEN_MESSAGE;
   return `سنووری ${LABEL[e.metric]}ی ئەم مانگە (${new Intl.NumberFormat("ar-IQ").format(e.limit)}) تەواو بوو. بۆ زیاتر، پاکێجەکەت بەرز بکەرەوە.`;
 }
 
@@ -38,6 +40,16 @@ export async function assertWithin(tenantId: string, metric: Metric): Promise<vo
   if (!newsroomAccess(tenant, new Date()).active) throw new LimitReached(metric, 0, true);
   const limit = NEWS_LIMITS[tenant.plan][metric];
   if ((row?.count ?? 0) >= limit) throw new LimitReached(metric, limit);
+}
+
+/**
+ * The error to show when a newsroom is frozen (trial over, nothing paid), or null when it may still
+ * write. Only the freeze: no quota is checked. Call it for every write path of a NEWS workspace —
+ * publishing, scheduling, AI — not only the ones that count usage. A missing tenant reads as frozen.
+ */
+export async function newsroomFrozenError(tenantId: string): Promise<string | null> {
+  const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { kind: true, plan: true, planPaidUntil: true, trialEndsAt: true } });
+  return tenant && newsroomAccess(tenant, new Date()).active ? null : FROZEN_MESSAGE;
 }
 
 /** Counted after the action succeeds. Two parallel actions can pass one over the quota; that is accepted. */

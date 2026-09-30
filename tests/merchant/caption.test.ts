@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { captionProblems, isJpegPath, mergeHashtags, youtubeProblem, youtubeTitle, CAPTION_LIMITS, CITY_TAGS, YT_VIDEO_ONLY } from "@/lib/merchant/caption";
+import { captionProblems, isJpegPath, isKnownTarget, isOwnBlobUrl, mergeHashtags, youtubeProblem, youtubeTitle, CAPTION_LIMITS, CITY_TAGS, YT_VIDEO_ONLY } from "@/lib/merchant/caption";
 
 describe("captionProblems", () => {
   it("passes a normal caption everywhere", () => {
@@ -68,5 +68,37 @@ describe("mergeHashtags", () => {
   it("ships the dual-script multi-city tags", () => {
     expect(CITY_TAGS).toContain("#کوردستان_هەولێر_سلێمانی");
     expect(CITY_TAGS).toContain("#hawler_slemani_dhok_karkuk_hallabja");
+  });
+});
+
+describe("isKnownTarget", () => {
+  it("accepts exactly the platforms we publish to", () => {
+    for (const t of ["FB", "IG", "TT", "YT"]) expect(isKnownTarget(t)).toBe(true);
+  });
+  it("rejects anything else, including Object.prototype names", () => {
+    for (const t of ["", "fb", "X", "toString", "__proto__", "constructor", 1, null, undefined]) expect(isKnownTarget(t)).toBe(false);
+  });
+});
+
+describe("isOwnBlobUrl", () => {
+  const ok = "https://abc123.public.blob.vercel-storage.com/merchant/ws1/video.mp4";
+  it("accepts a file in this workspace's folder on Vercel Blob", () => {
+    expect(isOwnBlobUrl(ok, "ws1")).toBe(true);
+  });
+  it("rejects another workspace's folder", () => {
+    expect(isOwnBlobUrl(ok, "ws2")).toBe(false);
+    expect(isOwnBlobUrl("https://abc123.public.blob.vercel-storage.com/merchant/ws10/video.mp4", "ws1")).toBe(false);
+  });
+  it("rejects http, other hosts and look-alike hosts", () => {
+    expect(isOwnBlobUrl(ok.replace("https:", "http:"), "ws1")).toBe(false);
+    expect(isOwnBlobUrl("https://evil.example/merchant/ws1/video.mp4", "ws1")).toBe(false);
+    expect(isOwnBlobUrl("https://x.public.blob.vercel-storage.com.evil.example/merchant/ws1/video.mp4", "ws1")).toBe(false);
+    expect(isOwnBlobUrl("https://public.blob.vercel-storage.com/merchant/ws1/video.mp4", "ws1")).toBe(false);
+    expect(isOwnBlobUrl("https://evil.example/x.public.blob.vercel-storage.com/merchant/ws1/a.mp4", "ws1")).toBe(false);
+  });
+  it("rejects a path that only reaches the folder by dot-segments and junk that is not a URL", () => {
+    expect(isOwnBlobUrl("https://abc123.public.blob.vercel-storage.com/merchant/ws1/../ws2/a.mp4", "ws1")).toBe(false);
+    expect(isOwnBlobUrl("not a url", "ws1")).toBe(false);
+    expect(isOwnBlobUrl("", "ws1")).toBe(false);
   });
 });

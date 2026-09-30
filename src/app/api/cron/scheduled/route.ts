@@ -11,6 +11,10 @@ export const maxDuration = 60;
 
 const BATCH = 5;
 
+/** A post that has been RUNNING this long was abandoned (the function was killed mid-publish). */
+const STUCK_AFTER_MS = 15 * 60 * 1000;
+const STUCK_ERROR = "کاتی تەواو بوو — پێش دووبارە بڵاوکردنەوە سەیری پلاتفۆرمەکە بکە.";
+
 type Outcome = { status: "DONE" | "FAILED"; result?: Prisma.InputJsonValue; lastError: string | null };
 
 async function run(tenantId: string, raw: unknown): Promise<Outcome> {
@@ -40,6 +44,13 @@ export async function GET(req: Request) {
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  // A run that never finished may already have posted, so it is failed, never returned to
+  // PENDING: the owner checks the platform and reschedules by hand, and nothing posts twice.
+  await db.scheduledPost.updateMany({
+    where: { status: "RUNNING", updatedAt: { lt: new Date(Date.now() - STUCK_AFTER_MS) } },
+    data: { status: "FAILED", lastError: STUCK_ERROR },
+  });
+
   const due = await db.scheduledPost.findMany({
     where: { status: "PENDING", runAt: { lte: new Date() } },
     orderBy: { runAt: "asc" },

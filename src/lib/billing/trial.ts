@@ -19,7 +19,13 @@ export function newsroomAccess(
   now: Date,
 ): NewsroomAccess {
   if (t.kind !== "NEWS") return { active: true, reason: "paid", daysLeft: null };
-  if (t.planPaidUntil && t.planPaidUntil.getTime() > now.getTime()) return { active: true, reason: "paid", daysLeft: null };
+  if (t.planPaidUntil) {
+    // A plan that was paid for and ran out is frozen whatever the trial says: only a newsroom that
+    // never paid and never had a trial (created before trials existed) reads as legacy.
+    return t.planPaidUntil.getTime() > now.getTime()
+      ? { active: true, reason: "paid", daysLeft: null }
+      : { active: false, reason: "frozen", daysLeft: null };
+  }
   if (!t.trialEndsAt) return { active: true, reason: "legacy", daysLeft: null };
   const left = t.trialEndsAt.getTime() - now.getTime();
   if (left > 0) return { active: true, reason: "trial", daysLeft: Math.ceil(left / DAY_MS) };

@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { hashPassword, passwordProblem, verifyPassword } from "@/lib/password";
 import type { Prisma } from "@/generated/prisma/client";
 import { getGemini } from "@/lib/gemini";
+import { newsroomFrozenError } from "@/lib/billing/limits";
 import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
 import { baseFor, currentWorkspace } from "./data";
 import {
@@ -109,6 +110,10 @@ export async function draftReplyAction(
   if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
   if (!can(ws.role, "engage")) return { ok: false, error: NOT_ALLOWED };
   if (!incoming.trim()) return { ok: false, error: "هیچ دەقێک نییە بۆ وەڵامدانەوە." };
+  if (ws.kind === "NEWS") {
+    const frozen = await newsroomFrozenError(ws.id);
+    if (frozen) return { ok: false, error: frozen };
+  }
   const where = kind === "dm" ? "private message" : "public comment";
   // A newsroom answers readers, not customers: no sales talk, no new facts, no sides.
   const prompt =
@@ -147,6 +152,10 @@ export async function suggestCaptionAction(
   const ws = await currentWorkspace();
   if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
   if (!can(ws.role, "draft")) return { ok: false, error: NOT_ALLOWED };
+  if (ws.kind === "NEWS") {
+    const frozen = await newsroomFrozenError(ws.id);
+    if (frozen) return { ok: false, error: frozen };
+  }
   try {
     const caption = await gemini(
       `Write a social media caption in Sorani Kurdish (Arabic script) for a small shop in Iraqi Kurdistan.

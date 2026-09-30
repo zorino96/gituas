@@ -1055,6 +1055,8 @@ model Order {
   /// "MANUAL" | "COMMENT" | "DM"
   source           String      @default("MANUAL")
   sourceMessageId  String?     @unique
+  /// Who asked, from the message's author id (a DM's sender id): lets one buyer's repeat messages share one order.
+  buyerKey         String?
   note             String?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
@@ -1063,4 +1065,5 @@ model Order {
   @@index([tenantId, createdAt])
   @@index([tenantId, city])
   @@index([tenantId, status])
+  @@index([tenantId, buyerKey])
 }
