@@ -8,7 +8,7 @@ import { buildCommentJobs, buildDmJobs, type JobSpec } from "./jobs";
 import { accountFor, fetchPostCreatedAt, type MetaPlatform } from "./meta-client";
 import type { Lang } from "./money";
 import { dailyCap, SHOP_LIMITS, type StorePlan } from "./plans";
-import { decideComment, decideDm } from "./policy";
+import { decideComment, decideDm, limitDecision } from "./policy";
 import { runJob } from "./outbox";
 import { aiVaryUsed, countAiVary } from "./quota";
 import { varySample } from "./vary";
@@ -153,10 +153,12 @@ async function planComment(msg: Msg): Promise<string[]> {
     sentToday: sent,
     dailyCap: dailyCap(plan, store.dailyCap),
   });
-  if (!g.ok) {
+  if (!g.ok && g.reason !== "author_limit") {
     await finish(msg.id, "SKIPPED", g.reason);
     return [];
   }
+  // Already answered this author on this post today: classify anyway, so spam is still hidden and complaints still flagged.
+  const limited = !g.ok;
 
   const product = await loadProduct(post.productId);
   const c = await classifyText(msg.content ?? "", { channel: "comment", productName: product?.name });
@@ -166,7 +168,7 @@ async function planComment(msg: Msg): Promise<string[]> {
   }
   const templateId = post.templateId ?? store.defaultTemplateId;
   const template = templateId ? await db.automationTemplate.findUnique({ where: { id: templateId } }) : null;
-  const decision = decideComment(c, {
+  const full = decideComment(c, {
     hasProduct: !!product && product.variants.length > 0,
     hasDefaultDm: !!store.defaultDm?.trim(),
     likeComments: store.likeComments,
@@ -175,6 +177,7 @@ async function planComment(msg: Msg): Promise<string[]> {
     whatsappAlways: template?.whatsappAlways ?? false,
     canPrivateReply: now.getTime() - msg.createdAt.getTime() < PRIVATE_REPLY_WINDOW,
   });
+  const decision = limited ? limitDecision(full) : full;
 
   let publicText: string | null = null;
   const pub = decision.actions.find((a) => a.kind === "PUBLIC_REPLY");
@@ -194,6 +197,10 @@ async function planComment(msg: Msg): Promise<string[]> {
 
   const specs = buildCommentJobs({ decision, platform, commentId, authorName: msg.authorHandle, publicText, card, defaultDm: store.defaultDm });
   const ids = await createJobs(store.id, msg.id, specs);
+  if (limited && !decision.flag && !specs.length) {
+    await finish(msg.id, "SKIPPED", "author_limit", { commentType: c.type, intent: c.intent, language: c.language, confidence: c.confidence });
+    return [];
+  }
   const replied = specs.some((s) => s.kind === "PUBLIC_REPLY" || s.kind === "PRIVATE_REPLY");
   await finish(msg.id, replied ? "AUTO_REPLIED" : "FLAGGED", decision.flag ?? (replied ? null : "no_action"), {
     commentType: c.type, intent: c.intent, language: c.language, confidence: c.confidence, boundProductId: product?.id ?? null,

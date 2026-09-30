@@ -68,3 +68,13 @@ describe("decideDm", () => {
     expect(decideDm(c("QUESTION", "price"), { ...dctx, boundProduct: false })).toEqual({ actions: [], flag: "no_product" });
   });
 });
+
+import { limitDecision } from "@/lib/shop/policy";
+
+describe("limitDecision", () => {
+  it("keeps only hiding and the flag for an author already answered on this post", () => {
+    expect(limitDecision({ actions: [{ kind: "PUBLIC_REPLY", style: "thanks" }, { kind: "LIKE" }], flag: null })).toEqual({ actions: [], flag: null });
+    expect(limitDecision({ actions: [{ kind: "HIDE" }], flag: "spam" })).toEqual({ actions: [{ kind: "HIDE" }], flag: "spam" });
+    expect(limitDecision({ actions: [], flag: "complaint" })).toEqual({ actions: [], flag: "complaint" });
+  });
+});

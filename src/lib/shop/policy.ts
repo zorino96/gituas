@@ -88,3 +88,8 @@ export function decideDm(c: Classification | null, ctx: DmContext): { actions: D
   if (c.type === "PRAISE") return { actions: photos, flag: null };
   return { actions: photos, flag: c.type.toLowerCase() };
 }
+
+/** An author already answered on this post today: never reply again, but still hide spam and flag what needs the merchant. */
+export function limitDecision(d: CommentDecision): CommentDecision {
+  return { actions: d.actions.filter((a) => a.kind === "HIDE"), flag: d.flag };
+}
