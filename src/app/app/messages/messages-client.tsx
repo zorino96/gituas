@@ -6,10 +6,11 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, RefreshCw } from "lucide-react";
 
 import type { MConversation, Platform } from "@/lib/merchant/types";
+import { useT } from "@/lib/i18n/client";
 import { useBase } from "../use-base";
 import { sendMessageAction } from "../actions";
 import { ReplyComposer } from "../reply-composer";
-import { PLATFORM_NAME, ago, friendlyError, num } from "../format";
+import { ago, friendlyError, num } from "../format";
 
 export function MessagesClient({
   initial,
@@ -26,7 +27,9 @@ export function MessagesClient({
 }) {
   const router = useRouter();
   const base = useBase();
-  const who = base === "/newsroom" ? "بینەر" : "کڕیار";
+  const t = useT();
+  const isNews = base === "/newsroom";
+  const who = isNews ? t.messages.viewer : t.messages.customer;
   const [convs, setConvs] = useState(initial);
   const [openId, setOpenId] = useState<string | null>(null);
   const [refreshing, startRefresh] = useTransition();
@@ -43,21 +46,21 @@ export function MessagesClient({
     return (
       <div>
         <div className="gm-row" style={{ marginBottom: 12 }}>
-          <button type="button" className="gm-btn quiet small" onClick={() => setOpenId(null)} aria-label="گەڕانەوە">
+          <button type="button" className="gm-btn quiet small" onClick={() => setOpenId(null)} aria-label={t.messages.back}>
             <ArrowRight size={15} aria-hidden="true" />
           </button>
           <div>
             <div className="gm-who" dir="auto">{open.participantName || who}</div>
-            <span className={`gm-plat ${open.platform}`}>{PLATFORM_NAME[open.platform]}</span>
+            <span className={`gm-plat ${open.platform}`}>{t.platform[open.platform]}</span>
           </div>
         </div>
 
         <div className="gm-card">
-          {open.messages.length === 0 && <p className="gm-sub">هیچ نامەیەک نییە.</p>}
+          {open.messages.length === 0 && <p className="gm-sub">{t.messages.noMessages}</p>}
           {open.messages.map((m) => (
             <div key={m.id} className={`gm-bubble ${m.fromUs ? "us" : "them"}`} dir="auto">
-              {m.text || "(وێنە یان فایل)"}
-              <div className="gm-time" style={{ marginTop: 3 }}>{ago(m.createdAt)}</div>
+              {m.text || t.common.mediaOrFile}
+              <div className="gm-time" style={{ marginTop: 3 }}>{ago(m.createdAt, t)}</div>
             </div>
           ))}
         </div>
@@ -85,7 +88,7 @@ export function MessagesClient({
           />
         ) : (
           <p className="gm-note" style={{ marginTop: 10 }}>
-            مێتا تەنیا لە ماوەی ٢٤ کاتژمێر دوای دوایین نامەی {who} ڕێگە بە وەڵامدانەوە دەدات. ئەم گفتوگۆیە لەو ماوەیە دەرچووە.
+            {t.messages.windowClosed(who)}
           </p>
         )}
       </div>
@@ -96,36 +99,36 @@ export function MessagesClient({
     <div>
       <div className="gm-between">
         <div>
-          <h2 className="gm-title kufi">نامەکان</h2>
-          <p className="gm-sub">{num(waiting)} گفتوگۆ چاوەڕێی وەڵامی تۆن</p>
+          <h2 className="gm-title kufi">{t.messages.title}</h2>
+          <p className="gm-sub">{t.messages.sub(waiting)}</p>
         </div>
         <button type="button" className="gm-btn quiet small" onClick={() => startRefresh(() => router.refresh())} disabled={refreshing}>
           <RefreshCw size={14} aria-hidden="true" />
-          {refreshing ? "…" : "نوێ"}
+          {refreshing ? "…" : t.common.refresh}
         </button>
       </div>
 
       {(!connected.FB || !connected.IG) && (
         <p className="gm-note" style={{ marginBottom: 12 }}>
-          {!connected.FB && !connected.IG ? "هیچ پەیجێک پەیوەست نەکراوە." : `${!connected.FB ? "مەسنجەر" : "ئینستاگرام"} پەیوەست نەکراوە.`}{" "}
-          <Link href={`${base}/settings`} className="gm-link">پەیوەستی بکە</Link>
+          {!connected.FB && !connected.IG ? t.common.noneConnected : t.common.notConnected(!connected.FB ? t.messages.messenger : t.platform.IG)}{" "}
+          <Link href={`${base}/settings`} className="gm-link">{t.common.connectIt}</Link>
         </p>
       )}
       {errors.map((e) => (
         <p key={e.platform} className="gm-note warn" style={{ marginBottom: 12 }}>
-          {PLATFORM_NAME[e.platform]}: {friendlyError(e.message)}
+          {t.platform[e.platform]}: {friendlyError(e.message, t)}
         </p>
       ))}
 
       {unreadable > 0 && (
         <p className="gm-hint" style={{ marginBottom: 10 }}>
-          {num(unreadable)} گفتوگۆی کۆن هەیە کە ئینستاگرام ڕێگە نادات لێرەوە بخوێنرێنەوە — لە ئەپی ئینستاگرام دەبینرێن.
+          {t.messages.unreadable(unreadable)}
         </p>
       )}
       {convs.length === 0 ? (
         <div className="gm-empty">
-          <b className="kufi">هیچ نامەیەک نییە</b>
-          کاتێک {who}ێک نامە دەنێرێت، لێرە دەردەکەوێت.
+          <b className="kufi">{t.messages.emptyTitle}</b>
+          {isNews ? t.messages.emptyNews : t.messages.emptyShop}
         </div>
       ) : (
         <div className="gm-stack">
@@ -136,15 +139,15 @@ export function MessagesClient({
               <button key={`${c.platform}-${c.id}`} type="button" className="gm-card gm-conv" onClick={() => setOpenId(c.id)}>
                 <div className="gm-between">
                   <span className="gm-who" dir="auto">{c.participantName || who}</span>
-                  <span className="gm-time">{ago(c.updatedAt)}</span>
+                  <span className="gm-time">{ago(c.updatedAt, t)}</span>
                 </div>
                 <p className="gm-text" dir="auto" style={{ color: "var(--muted)", margin: "4px 0 8px" }}>
-                  {last ? `${last.fromUs ? "تۆ: " : ""}${last.text || "(وێنە یان فایل)"}` : "—"}
+                  {last ? `${last.fromUs ? t.messages.youPrefix : ""}${last.text || t.common.mediaOrFile}` : "—"}
                 </p>
                 <div className="gm-row" style={{ gap: 6 }}>
-                  <span className={`gm-plat ${c.platform}`}>{PLATFORM_NAME[c.platform]}</span>
-                  {needsYou && <span className="gm-badge warn">چاوەڕێی تۆیە</span>}
-                  {!c.withinWindow && <span className="gm-badge ghost">دەرەوەی ٢٤ کاتژمێر</span>}
+                  <span className={`gm-plat ${c.platform}`}>{t.platform[c.platform]}</span>
+                  {needsYou && <span className="gm-badge warn">{t.messages.needsYou}</span>}
+                  {!c.withinWindow && <span className="gm-badge ghost">{t.messages.outsideWindow}</span>}
                 </div>
               </button>
             );

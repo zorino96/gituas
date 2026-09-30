@@ -1,12 +1,14 @@
 import Link from "next/link";
 
 import { currentWorkspace, loadConnections, loadConversations, loadInsights, loadPosts } from "./data";
+import { dict, getLang } from "@/lib/i18n";
 import { commentState, countStates } from "@/lib/merchant/state";
-import { PLATFORM_NAME, ago, num } from "./format";
+import { ago, num } from "./format";
 
 export const maxDuration = 60;
 
 export default async function TodayPage() {
+  const t = dict(await getLang());
   const ws = (await currentWorkspace())!;
   const conns = await loadConnections(ws.id);
   const anyConnected = conns.META_FACEBOOK.connected || conns.META_INSTAGRAM.connected;
@@ -30,70 +32,70 @@ export default async function TodayPage() {
 
   return (
     <div>
-      <h2 className="gm-title kufi">ئەمڕۆ</h2>
-      <p className="gm-sub">ئەوەی چاوەڕێی تۆیە، لە یەک شوێندا.</p>
+      <h2 className="gm-title kufi">{t.home.title}</h2>
+      <p className="gm-sub">{t.home.sub}</p>
 
       {!anyConnected && (
         <div className="gm-card" style={{ marginBottom: 14 }}>
-          <b className="kufi">سەرەتا پەیجەکانت پەیوەست بکە</b>
-          <p className="gm-sub" style={{ margin: "4px 0 10px" }}>فەیسبووک، ئینستاگرام و تیکتۆک — پاشان کۆمێنت و نامەکانت لێرە دەبینیت.</p>
-          <Link href="/app/settings" className="gm-btn">پەیوەستیان بکە</Link>
+          <b className="kufi">{t.home.connectFirst}</b>
+          <p className="gm-sub" style={{ margin: "4px 0 10px" }}>{t.home.connectHint}</p>
+          <Link href="/app/settings" className="gm-btn">{t.home.connectBtn}</Link>
         </div>
       )}
 
       <div className="gm-strip">
         <Link href="/app/comments" className={`gm-cell ${counts.unanswered ? "hot" : ""}`}>
           <b>{num(counts.unanswered)}</b>
-          <span>کۆمێنتی بێوەڵام</span>
+          <span>{t.home.unansweredComments}</span>
         </Link>
         <Link href="/app/messages" className={`gm-cell ${waitingConvs.length ? "hot" : ""}`}>
           <b>{num(waitingConvs.length)}</b>
-          <span>نامەی چاوەڕوان</span>
+          <span>{t.home.waitingMessages}</span>
         </Link>
         <Link href="/app/publish" className="gm-cell">
           <b>{num(postsThisWeek)}</b>
-          <span>پۆستی ئەم هەفتەیە</span>
+          <span>{t.home.postsThisWeek}</span>
         </Link>
         <Link href="/app/insights" className="gm-cell">
           <b>{num(insights.waTaps7d)}</b>
-          <span>چوونە وەتسئەپ</span>
+          <span>{t.home.whatsappTaps}</span>
         </Link>
       </div>
 
-      <p className="gm-sec">کۆمێنتی بێوەڵام</p>
+      <p className="gm-sec">{t.home.unansweredComments}</p>
       {unanswered.length === 0 ? (
-        <p className="gm-note">{anyConnected ? "هیچ کۆمێنتێک چاوەڕێی وەڵام نییە." : "دوای پەیوەستکردن لێرە دەردەکەون."}</p>
+        <p className="gm-note">{anyConnected ? t.home.noCommentsWaiting : t.home.appearAfterConnect}</p>
       ) : (
         <div className="gm-stack">
           {unanswered.map(({ c, p }) => (
             <Link key={`${c.platform}-${c.id}`} href="/app/comments" className="gm-card" style={{ textDecoration: "none", color: "inherit" }}>
               <div className="gm-between">
-                <span className="gm-who" dir="auto">{c.author || "بەکارهێنەر"}</span>
-                <span className="gm-time">{ago(c.createdAt)}</span>
+                <span className="gm-who" dir="auto">{c.author || t.common.user}</span>
+                <span className="gm-time">{ago(c.createdAt, t)}</span>
               </div>
               <p className="gm-text" dir="auto">{c.text}</p>
               <div className="gm-row" style={{ gap: 6 }}>
-                <span className={`gm-plat ${p.platform}`}>{PLATFORM_NAME[p.platform]}</span>
-                <span className="gm-badge warn">چاوەڕێی وەڵامە</span>
+                <span className={`gm-plat ${p.platform}`}>{t.platform[p.platform]}</span>
+                <span className="gm-badge warn">{t.home.waitingBadge}</span>
               </div>
             </Link>
           ))}
         </div>
       )}
 
-      <p className="gm-sec">نامەی چاوەڕوان</p>
+      <p className="gm-sec">{t.home.waitingMessages}</p>
       {waitingConvs.length === 0 ? (
-        <p className="gm-note">هیچ نامەیەک چاوەڕێت ناکات.</p>
+        <p className="gm-note">{t.home.noMessagesWaiting}</p>
       ) : (
         <div className="gm-stack">
           {waitingConvs.slice(0, 5).map((c) => (
             <Link key={`${c.platform}-${c.id}`} href="/app/messages" className="gm-card" style={{ textDecoration: "none", color: "inherit" }}>
               <div className="gm-between">
-                <span className="gm-who" dir="auto">{c.participantName || "کڕیار"}</span>
-                <span className="gm-time">{ago(c.updatedAt)}</span>
+                <span className="gm-who" dir="auto">{c.participantName || t.home.customer}</span>
+                <span className="gm-time">{ago(c.updatedAt, t)}</span>
               </div>
-              <p className="gm-text" dir="auto">{c.messages[c.messages.length - 1]?.text || "(وێنە یان فایل)"}</p>
-              <span className={`gm-plat ${c.platform}`}>{PLATFORM_NAME[c.platform]}</span>
+              <p className="gm-text" dir="auto">{c.messages[c.messages.length - 1]?.text || t.common.mediaOrFile}</p>
+              <span className={`gm-plat ${c.platform}`}>{t.platform[c.platform]}</span>
             </Link>
           ))}
         </div>

@@ -4,6 +4,8 @@ import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { BarChart3, Bot, Home, MessageCircle, MessagesSquare, Newspaper, Package, SquarePlus } from "lucide-react";
 
+import { useT } from "@/lib/i18n/client";
+
 type Kind = "MERCHANT" | "NEWS";
 
 // Kept local (not imported from "./data") so this client component never
@@ -14,21 +16,22 @@ function baseFor(kind: Kind): "/app" | "/newsroom" {
 
 export function Tabs({ kind }: { kind: Kind }) {
   const path = usePathname();
+  const t = useT();
   const base = baseFor(kind);
   const shared = [
-    { href: `${base}/comments`, label: "کۆمێنت", Icon: MessagesSquare },
-    { href: `${base}/messages`, label: "نامە", Icon: MessageCircle },
-    { href: `${base}/publish`, label: "بڵاوکردنەوە", Icon: SquarePlus },
-    { href: `${base}/insights`, label: "ئامار", Icon: BarChart3 },
+    { href: `${base}/comments`, label: t.nav.comments, Icon: MessagesSquare },
+    { href: `${base}/messages`, label: t.nav.messages, Icon: MessageCircle },
+    { href: `${base}/publish`, label: t.nav.publish, Icon: SquarePlus },
+    { href: `${base}/insights`, label: t.nav.insights, Icon: BarChart3 },
   ];
   const tabs =
     kind === "MERCHANT"
-      ? [{ href: base, label: "ئەمڕۆ", Icon: Home }, { href: `${base}/automation`, label: "ئۆتۆمەیشن", Icon: Bot }, { href: `${base}/orders`, label: "داواکاری", Icon: Package }, ...shared]
-      : [{ href: `${base}/news`, label: "هەواڵ", Icon: Newspaper }, ...shared];
+      ? [{ href: base, label: t.nav.today, Icon: Home }, { href: `${base}/automation`, label: t.nav.automation, Icon: Bot }, { href: `${base}/orders`, label: t.nav.orders, Icon: Package }, ...shared]
+      : [{ href: `${base}/news`, label: t.nav.news, Icon: Newspaper }, ...shared];
 
   return (
     <div className="gm-tabs">
-      <nav aria-label="بەشەکان">
+      <nav aria-label={t.nav.label}>
         {tabs.map(({ href, label, Icon }) => {
           const active = href === base ? path === base : path.startsWith(href);
           return (
@@ -51,5 +54,6 @@ export function Tabs({ kind }: { kind: Kind }) {
  */
 export function Pending() {
   const { pending } = useLinkStatus();
-  return pending ? <span className="gm-pending" role="status" aria-label="چاوەڕێ بکە" /> : null;
+  const t = useT();
+  return pending ? <span className="gm-pending" role="status" aria-label={t.common.wait} /> : null;
 }

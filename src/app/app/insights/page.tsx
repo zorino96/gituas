@@ -2,71 +2,64 @@ import Link from "next/link";
 
 import { baseFor, currentWorkspace, loadConnections, loadInsights, loadPosts, loadYouTube } from "../data";
 import { rankPosts } from "@/lib/merchant/state";
-import { PLATFORM_NAME, ago, num } from "../format";
+import { dict, getLang } from "@/lib/i18n";
+import { ago, num } from "../format";
 
 export const maxDuration = 60;
 
-// The metric names the engage clients return → what a merchant calls them.
-// Order here is the order the tiles appear in.
-const IG_LABEL: Record<string, string> = {
-  followers: "شوێنکەوتووی ئینستاگرام",
-  reach_7d: "گەیشتنی ئینستاگرام · ٧ ڕۆژ",
-  reach_28d: "گەیشتنی ئینستاگرام · ٢٨ ڕۆژ",
-  posts: "پۆستی ئینستاگرام",
-};
-const FB_LABEL: Record<string, string> = {
-  page_post_engagements: "کارلێک لەگەڵ پۆستەکانی فەیسبووک",
-  page_views_total: "سەردانی پەیجی فەیسبووک",
-  page_total_actions: "کلیک لەسەر پەیجی فەیسبووک",
-};
+// The metric names the engage clients return, in the order the tiles appear in.
+// What a merchant calls them comes from the dictionary (t.insights.ig / t.insights.fb).
+const IG_KEYS = ["followers", "reach_7d", "reach_28d", "posts"];
+const FB_KEYS = ["page_post_engagements", "page_views_total", "page_total_actions"];
 
 export default async function InsightsPage() {
+  const t = dict(await getLang());
   const ws = (await currentWorkspace())!;
   const conns = await loadConnections(ws.id);
   const [insights, { posts }, youtube] = await Promise.all([loadInsights(ws.id, conns), loadPosts(ws.id, conns), loadYouTube(ws.id, conns)]);
   const top = rankPosts(posts, 5).filter((p) => p.commentCount > 0);
-  const pick = (list: { name: string; value: number }[], labels: Record<string, string>) =>
-    Object.keys(labels).flatMap((k) => {
+  const pick = (list: { name: string; value: number }[], keys: string[], labels: Record<string, string>) =>
+    keys.flatMap((k) => {
       const m = list.find((x) => x.name === k);
       return m ? [{ key: k, label: labels[k], value: m.value }] : [];
     });
   const tiles = [
-    ...(conns.META_FACEBOOK.connected ? [{ key: "fb-followers", label: "شوێنکەوتووی فەیسبووک", value: insights.fbFollowers }] : []),
-    ...pick(insights.igMetrics, IG_LABEL),
-    ...pick(insights.fbMetrics, FB_LABEL),
-    ...(ws.kind === "MERCHANT" ? [{ key: "wa", label: "چوونە وەتسئەپ · ٧ ڕۆژ", value: insights.waTaps7d }] : []),
+    ...(conns.META_FACEBOOK.connected ? [{ key: "fb-followers", label: t.insights.fbFollowers, value: insights.fbFollowers }] : []),
+    ...pick(insights.igMetrics, IG_KEYS, t.insights.ig),
+    ...pick(insights.fbMetrics, FB_KEYS, t.insights.fb),
+    ...(ws.kind === "MERCHANT" ? [{ key: "wa", label: t.insights.whatsapp7d, value: insights.waTaps7d }] : []),
   ];
 
   return (
     <div>
-      <h2 className="gm-title kufi">ئامار</h2>
+      <h2 className="gm-title kufi">{t.insights.title}</h2>
       <p className="gm-sub">
-        {ws.kind === "NEWS" ? "کام پۆست زۆرترین کارلێکی هەبووە." : "کام پۆست کڕیاری بۆ هێنایت، و چەند کەس چوونە وەتسئەپ."}
+        {ws.kind === "NEWS" ? t.insights.subNews : t.insights.subShop}
       </p>
 
       <div className="gm-kpis">
-        {tiles.map((t) => (
-          <div key={t.key} className="gm-kpi">
-            <b>{num(t.value)}</b>
-            <span>{t.label}</span>
+        {tiles.map((tile) => (
+          <div key={tile.key} className="gm-kpi">
+            <b>{num(tile.value)}</b>
+            <span>{tile.label}</span>
           </div>
         ))}
       </div>
 
       {youtube && (
         <>
-          <p className="gm-sec">یوتیوب</p>
+          <p className="gm-sec">{t.platform.YT}</p>
           {youtube.error ? (
             <p className="gm-note">
-              ئاماری یوتیوب نەهات. <Link href={`${baseFor(ws.kind)}/settings`} className="gm-link">لە ڕێکخستن دووبارە پەیوەستی بکەوە</Link>
+              {t.insights.ytFailed} <Link href={`${baseFor(ws.kind)}/settings`} className="gm-link">{t.insights.ytReconnect}</Link>
             </p>
           ) : (
             <>
               <div className="gm-kpis">
-                {youtube.tiles.map((t) => (
-                  <div key={t.key} className="gm-kpi">
-                    <b>{num(t.value)}</b>
-                    <span>{t.label}</span>
+                {youtube.tiles.map((tile) => (
+                  <div key={tile.key} className="gm-kpi">
+                    <b>{num(tile.value)}</b>
+                    <span>{(t.insights.yt as Record<string, string>)[tile.key] ?? tile.label}</span>
                   </div>
                 ))}
               </div>
@@ -88,10 +81,10 @@ export default async function InsightsPage() {
                         dir="auto"
                         style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "52vw" }}
                       >
-                        {v.title || "(بێ ناونیشان)"}
+                        {v.title || t.insights.noTitle}
                       </a>
                       <b>
-                        {num(v.views)} <span className="gm-time">بینین</span>
+                        {num(v.views)} <span className="gm-time">{t.common.views}</span>
                       </b>
                     </div>
                   ))}
@@ -102,11 +95,11 @@ export default async function InsightsPage() {
         </>
       )}
 
-      <p className="gm-sec">پۆستەکانی زۆرترین کۆمێنت</p>
+      <p className="gm-sec">{t.insights.topSec}</p>
       <div className="gm-card">
         {top.length === 0 ? (
           <p className="gm-sub" style={{ margin: 0 }}>
-            هێشتا هیچ پۆستێک کۆمێنتی نییە. <Link href={`${baseFor(ws.kind)}/publish`} className="gm-link">پۆستێک بڵاو بکەرەوە</Link>
+            {t.insights.topEmpty} <Link href={`${baseFor(ws.kind)}/publish`} className="gm-link">{t.insights.topPublish}</Link>
           </p>
         ) : (
           top.map((p) => (
@@ -119,11 +112,11 @@ export default async function InsightsPage() {
               )}
               <div style={{ minWidth: 0 }}>
                 <div className="gm-row" style={{ gap: 6 }}>
-                  <span className={`gm-plat ${p.platform}`}>{PLATFORM_NAME[p.platform]}</span>
-                  <span className="gm-time">{ago(p.createdAt)}</span>
+                  <span className={`gm-plat ${p.platform}`}>{t.platform[p.platform]}</span>
+                  <span className="gm-time">{ago(p.createdAt, t)}</span>
                 </div>
                 <div className="gm-time" dir="auto" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "52vw" }}>
-                  {p.caption || "(بێ دەق)"}
+                  {p.caption || t.common.noText}
                 </div>
               </div>
               <b>{num(p.commentCount)}</b>
@@ -134,7 +127,7 @@ export default async function InsightsPage() {
 
       {insights.notes.length > 0 && (
         <p className="gm-note" style={{ marginTop: 14 }}>
-          هەندێک ئامار نەهات: مێتا ئامار بۆ پەیجی نوێ یان بچووک هەمیشە نادات. ئەوانەی سەرەوە ئەوەن کە هاتن.
+          {t.insights.notes}
         </p>
       )}
     </div>

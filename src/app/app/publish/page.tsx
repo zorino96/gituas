@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { db } from "@/lib/db";
+import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
 import { baseFor, currentWorkspace, loadConnections } from "../data";
 import { PublishClient } from "./publish-client";
@@ -10,11 +11,12 @@ import { listScheduled } from "./schedule-actions";
 export const maxDuration = 60;
 
 export default async function PublishPage({ searchParams }: { searchParams: Promise<{ draft?: string }> }) {
+  const t = dict(await getLang());
   const ws = (await currentWorkspace())!;
   if (!can(ws.role, "publish")) {
     return (
       <p className="gm-note">
-        تەنها خاوەن و سەرنووسەر دەتوانن بڵاو بکەنەوە. کارتەکە ئامادە بکە و سەرنووسەرەکەت ئاگادار بکەرەوە.
+        {t.publish.notAllowed}
       </p>
     );
   }
@@ -37,8 +39,8 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
     <>
       {draft && !hasCard && (
         <p className="gm-note warn" style={{ marginBottom: 12 }}>
-          کارتی ئەم هەواڵە کۆن بووە. لە مێزی هەواڵ دووبارە ئامادەی بکەوە.{" "}
-          <Link href={`${baseFor(ws.kind)}/news/${draft.itemId}`} className="gm-link">کردنەوە</Link>
+          {t.publish.draftStale}{" "}
+          <Link href={`${baseFor(ws.kind)}/news/${draft.itemId}`} className="gm-link">{t.common.open}</Link>
         </p>
       )}
       <PublishClient
@@ -47,10 +49,10 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
         initial={initial}
         scheduled={scheduled}
         accounts={{
-          FB: conns.META_FACEBOOK.connected ? (conns.META_FACEBOOK.name ?? "پەیجی فەیسبووک") : null,
-          IG: conns.META_INSTAGRAM.connected ? (conns.META_INSTAGRAM.name ?? "ئینستاگرام") : null,
-          TT: conns.TIKTOK.connected ? (conns.TIKTOK.name ?? "تیکتۆک") : null,
-          YT: conns.YOUTUBE.connected ? (conns.YOUTUBE.name ?? "یوتیوب") : null,
+          FB: conns.META_FACEBOOK.connected ? (conns.META_FACEBOOK.name ?? t.publish.fbPage) : null,
+          IG: conns.META_INSTAGRAM.connected ? (conns.META_INSTAGRAM.name ?? t.platform.IG) : null,
+          TT: conns.TIKTOK.connected ? (conns.TIKTOK.name ?? t.platform.TT) : null,
+          YT: conns.YOUTUBE.connected ? (conns.YOUTUBE.name ?? t.platform.YT) : null,
         }}
       />
     </>

@@ -10,10 +10,13 @@ import { Tabs } from "./nav";
 import { switchWorkspaceAction } from "@/app/newsroom/desk-actions";
 import { NEWSROOM_ORIGIN } from "@/lib/hosts";
 import { createShopAction } from "./shop-actions";
-import { getLang, type Lang } from "@/lib/i18n";
+import { dict, getLang, type Lang } from "@/lib/i18n";
 import { LangProvider } from "@/lib/i18n/client";
 
-export const metadata: Metadata = { title: "گیتواس", description: "وەڵامدانەوە و بڵاوکردنەوە بۆ دووکانەکەت" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = dict(await getLang());
+  return { title: t.brand, description: t.layout.metaDescription };
+}
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 export const dynamic = "force-dynamic";
 
@@ -27,6 +30,7 @@ export default async function MerchantLayout({ children }: { children: React.Rea
 }
 
 async function Shell({ lang, children }: { lang: Lang; children: React.ReactNode }) {
+  const t = dict(lang);
   let ws = await currentWorkspace();
   if (!ws) redirect("/login?next=/app");
   if (!ws.kindChosen) ws = await claimKind(ws, "MERCHANT");
@@ -37,17 +41,17 @@ async function Shell({ lang, children }: { lang: Lang; children: React.ReactNode
       return (
         <div className={`gm ${gmFontVars}`} dir="rtl" lang={lang}>
           <div className="gm-auth">
-            <p className="gm-brand kufi">گیتواس</p>
+            <p className="gm-brand kufi">{t.brand}</p>
             <div className="gm-card" style={{ marginTop: 18 }}>
-              <p style={{ margin: 0 }}>ئەم هەژمارە تا ئێستا تەنها بۆ نیوزڕووم بەکارهاتووە. دووکانێکیش بۆ هەمان هەژمار دروست بکە:</p>
+              <p style={{ margin: 0 }}>{t.layout.newsOnly}</p>
             </div>
             <form action={createShopAction}>
               <button type="submit" className="gm-btn block" style={{ marginTop: 12 }}>
-                دووکانەکەم دروست بکە
+                {t.layout.createShop}
               </button>
             </form>
             <a href={`${NEWSROOM_ORIGIN}/newsroom/news`} className="gm-btn quiet block" style={{ marginTop: 10 }}>
-              بچۆ نیوزڕووم
+              {t.layout.goNewsroom}
             </a>
           </div>
         </div>
@@ -56,21 +60,21 @@ async function Shell({ lang, children }: { lang: Lang; children: React.ReactNode
     return (
       <div className={`gm ${gmFontVars}`} dir="rtl" lang={lang}>
         <div className="gm-auth">
-          <p className="gm-brand kufi">گیتواس</p>
+          <p className="gm-brand kufi">{t.brand}</p>
           <div className="gm-card" style={{ marginTop: 18 }}>
-            <p style={{ margin: 0 }}>ئێستا لە مێزی هەواڵی «{ws.name}»یت.</p>
+            <p style={{ margin: 0 }}>{t.layout.inDesk(ws.name)}</p>
           </div>
           {shops.map((s) => (
             <form key={s.id} action={switchWorkspaceAction}>
               <input type="hidden" name="id" value={s.id} />
               <input type="hidden" name="next" value="/app" />
               <button type="submit" className="gm-btn block" style={{ marginTop: 10 }}>
-                بچۆ دووکانی «{s.name}»
+                {t.layout.goShop(s.name)}
               </button>
             </form>
           ))}
           <Link href="/newsroom/news" className="gm-btn quiet block" style={{ marginTop: 10 }}>
-            بگەڕێوە بۆ نیوزڕووم
+            {t.layout.backNewsroom}
           </Link>
         </div>
       </div>
@@ -83,11 +87,11 @@ async function Shell({ lang, children }: { lang: Lang; children: React.ReactNode
         <header className="gm-head">
           <div>
             <h1 className="kufi">{ws.name}</h1>
-            <small>گیتواس</small>
+            <small>{t.brand}</small>
           </div>
           <Link href="/app/settings" className="gm-btn quiet small">
             <Settings size={15} aria-hidden="true" />
-            ڕێکخستن
+            {t.layout.settings}
           </Link>
         </header>
         <main className="gm-main">{children}</main>

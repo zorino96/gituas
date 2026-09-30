@@ -6,8 +6,9 @@ import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import { ImagePlus, Sparkles, X } from "lucide-react";
 
-import { CAPTION_LIMITS, CITY_TAGS, YT_VIDEO_ONLY, captionProblems, mergeHashtags, type Target } from "@/lib/merchant/caption";
+import { CAPTION_LIMITS, CITY_TAGS, captionProblems, mergeHashtags, type Target } from "@/lib/merchant/caption";
 import { tiktokProblems } from "@/lib/merchant/tiktok-rules";
+import { useT } from "@/lib/i18n/client";
 import { useBase } from "../use-base";
 import {
   publishAction,
@@ -17,7 +18,7 @@ import {
   type PublishOutcome,
   type TikTokContext,
 } from "../actions";
-import { PLATFORM_NAME, PRIVACY_LABEL, friendlyError, kuDateTime, num } from "../format";
+import { friendlyError, kuDateTime, num } from "../format";
 import { cancelScheduledAction, listScheduled, schedulePublishAction, type ScheduledRow } from "./schedule-actions";
 import { imageToJpeg } from "./to-jpeg";
 
@@ -60,6 +61,7 @@ export function PublishClient({
 }) {
   const router = useRouter();
   const base = useBase();
+  const t = useT();
   const isNewsroom = base === "/newsroom";
 
   // media
@@ -134,12 +136,12 @@ export function PublishClient({
     tiktokContextAction().then((r) => {
       if (cancelled) return;
       if (r.ok) setTt(r.ctx);
-      else setTtError(friendlyError(r.error));
+      else setTtError(friendlyError(r.error, t));
     });
     return () => {
       cancelled = true;
     };
-  }, [on.TT, tt]);
+  }, [on.TT, tt, t]);
 
   // The composer stops being "this news draft's post" the moment its media
   // changes — its card belonged to that exact image.
@@ -153,11 +155,11 @@ export function PublishClient({
     setMediaError(null);
     setResults(null);
     if (!ACCEPT.split(",").includes(file.type)) {
-      setMediaError("تەنیا وێنەی JPG/PNG/WEBP یان ڤیدیۆی MP4/MOV.");
+      setMediaError(t.publish.badType);
       return;
     }
     if (file.size > MAX_BYTES) {
-      setMediaError("فایلەکە لە ٢٥٠ مێگابایت گەورەترە.");
+      setMediaError(t.publish.tooBig);
       return;
     }
     dropNewsDraft();
@@ -183,7 +185,7 @@ export function PublishClient({
     } catch (e) {
       setProgress(null);
       setPreview(null);
-      setMediaError(`بارکردن سەرکەوتوو نەبوو: ${e instanceof Error ? e.message : "هەڵە"}`);
+      setMediaError(t.publish.uploadFailed(e instanceof Error ? e.message : t.common.error));
     }
   }
 
@@ -201,7 +203,7 @@ export function PublishClient({
     startSuggest(async () => {
       const r = await suggestCaptionAction(caption);
       if (r.ok) setCaption(r.caption);
-      else setCaptionError(friendlyError(r.error));
+      else setCaptionError(friendlyError(r.error, t));
     });
   }
 
@@ -219,18 +221,18 @@ export function PublishClient({
   );
 
   const blockers: string[] = [];
-  if (!targets.length) blockers.push("لانیکەم یەک شوێن هەڵبژێرە.");
-  if (!caption.trim() && !media) blockers.push("دەق یان وێنە/ڤیدیۆیەک زیاد بکە.");
-  if (uploading) blockers.push("چاوەڕێ بکە تا بارکردن تەواو دەبێت.");
-  if (captionIssues.length) blockers.push("دەقەکە بۆ یەکێک لە شوێنەکان درێژە.");
-  if (on.YT && !isVideo) blockers.push(YT_VIDEO_ONLY);
-  if (on.TT && !tt) blockers.push("زانیاری تیکتۆک هێشتا نەهاتووە.");
+  if (!targets.length) blockers.push(t.publish.blockPickTarget);
+  if (!caption.trim() && !media) blockers.push(t.publish.blockNeedContent);
+  if (uploading) blockers.push(t.publish.blockUploading);
+  if (captionIssues.length) blockers.push(t.publish.blockCaptionLong);
+  if (on.YT && !isVideo) blockers.push(t.publish.ytVideoOnly);
+  if (on.TT && !tt) blockers.push(t.publish.blockTtInfo);
   if (on.TT && ttIssues.includes("privacy"))
-    blockers.push(isVideo ? "لە تیکتۆک دیاری بکە کێ ڤیدیۆکە ببینێت." : "لە تیکتۆک دیاری بکە کێ پۆستەکە ببینێت.");
-  if (on.TT && ttIssues.includes("commercial")) blockers.push("جۆری ناوەڕۆکی بازرگانی هەڵبژێرە.");
-  if (on.TT && ttIssues.includes("branded-private")) blockers.push("ناوەڕۆکی براند ناتوانێت «تەنیا خۆم» بێت.");
-  if (on.TT && ttIssues.includes("duration")) blockers.push("ڤیدیۆکە لە سنووری تیکتۆکی ئەم ئەکاونتە درێژترە.");
-  if (later && !runAtLocal) blockers.push("کاتی بڵاوکردنەوە دیاری بکە.");
+    blockers.push(isVideo ? t.publish.blockTtPrivacyVideo : t.publish.blockTtPrivacyPost);
+  if (on.TT && ttIssues.includes("commercial")) blockers.push(t.publish.blockTtCommercial);
+  if (on.TT && ttIssues.includes("branded-private")) blockers.push(t.publish.blockTtBranded);
+  if (on.TT && ttIssues.includes("duration")) blockers.push(t.publish.blockTtDuration);
+  if (later && !runAtLocal) blockers.push(t.publish.blockPickTime);
 
   function publish() {
     setPublishError(null);
@@ -269,7 +271,7 @@ export function PublishClient({
       }
       reset();
       setRunAtLocal("");
-      setScheduledMsg(`خشتە کرا — ${kuDateTime(r.runAt)} بڵاو دەکرێتەوە.`);
+      setScheduledMsg(t.publish.scheduledMsg(kuDateTime(r.runAt, t)));
       setScheduled(await listScheduled());
     });
   }
@@ -318,42 +320,42 @@ export function PublishClient({
   if (results) {
     return (
       <div>
-        <h2 className="gm-title kufi">ئەنجامی بڵاوکردنەوە</h2>
+        <h2 className="gm-title kufi">{t.publish.resultsTitle}</h2>
         <div className="gm-card" style={{ marginTop: 12 }}>
           {results.map((r) => (
             <div key={r.target} className="gm-target">
               <div>
-                <p>{PLATFORM_NAME[r.target]}</p>
+                <p>{t.platform[r.target]}</p>
                 {r.ok ? (
                   <small>
                     {r.target === "TT"
                       ? ttStatus === "PUBLISH_COMPLETE"
-                        ? "بڵاو کرایەوە لە تیکتۆک."
+                        ? t.publish.ttPosted
                         : ttStatus?.startsWith("ERROR:")
-                          ? `تیکتۆک ڕەتی کردەوە: ${friendlyError(ttStatus.slice(6))}`
+                          ? t.publish.ttRejected(friendlyError(ttStatus.slice(6), t))
                           : ttStatus === "SLOW"
                             ? isVideo
-                              ? "تیکتۆک هێشتا ڤیدیۆکە پرۆسێس دەکات — چەند خولەکێکی تر لە پرۆفایلەکەت دەردەکەوێت."
-                              : "تیکتۆک هێشتا پۆستەکە پرۆسێس دەکات — چەند خولەکێکی تر لە پرۆفایلەکەت دەردەکەوێت."
+                              ? t.publish.ttSlowVideo
+                              : t.publish.ttSlowPost
                             : isVideo
-                              ? "تیکتۆک ڤیدیۆکە وەردەگرێت و پرۆسێسی دەکات…"
-                              : "تیکتۆک پۆستەکە وەردەگرێت و پرۆسێسی دەکات…"
-                      : "بڵاو کرایەوە."}
+                              ? t.publish.ttBusyVideo
+                              : t.publish.ttBusyPost
+                      : t.publish.posted}
                   </small>
                 ) : (
-                  <small className="gm-err" style={{ margin: 0 }}>{friendlyError(r.error)}</small>
+                  <small className="gm-err" style={{ margin: 0 }}>{friendlyError(r.error, t)}</small>
                 )}
               </div>
               {r.ok && r.url ? (
-                <a href={r.url} target="_blank" rel="noreferrer" className="gm-btn quiet small">بینین</a>
+                <a href={r.url} target="_blank" rel="noreferrer" className="gm-btn quiet small">{t.common.view}</a>
               ) : (
-                <span className={`gm-badge ${r.ok ? "" : "warn"}`}>{r.ok ? "سەرکەوتوو" : "نەکرا"}</span>
+                <span className={`gm-badge ${r.ok ? "" : "warn"}`}>{r.ok ? t.publish.succeeded : t.publish.failed}</span>
               )}
             </div>
           ))}
         </div>
         <button type="button" className="gm-btn block" style={{ marginTop: 14 }} onClick={reset}>
-          پۆستێکی نوێ
+          {t.publish.newPost}
         </button>
       </div>
     );
@@ -361,13 +363,13 @@ export function PublishClient({
 
   return (
     <div>
-      <h2 className="gm-title kufi">بڵاوکردنەوە</h2>
-      <p className="gm-sub">یەک جار — بۆ فەیسبووک، ئینستاگرام و تیکتۆک پێکەوە.</p>
+      <h2 className="gm-title kufi">{t.publish.title}</h2>
+      <p className="gm-sub">{t.publish.sub}</p>
       {isNewsroom && !newsDraftId && !media && (
         <p className="gm-note">
-          بۆ بڵاوکردنەوەی هەواڵ: لە{" "}
-          <Link href="/newsroom/news" className="gm-link">بەشی هەواڵ</Link> هەواڵێک بکەرەوە و «ئامادەکردن بۆ بڵاوکردنەوە» دابگرە —
-          کارت و دەقەکە خۆکار لێرە دادەنرێن.
+          {t.publish.newsHintPre}{" "}
+          <Link href="/newsroom/news" className="gm-link">{t.publish.newsHintLink}</Link>{" "}
+          {t.publish.newsHintPost}
         </p>
       )}
 
@@ -381,24 +383,24 @@ export function PublishClient({
             <img src={preview.src} alt="" className="gm-preview" />
           )}
           {progress !== null && progress < 100 && (
-            <div className="gm-progress" aria-label="بارکردن">
+            <div className="gm-progress" aria-label={t.publish.uploadAria}>
               <i style={{ width: `${progress}%` }} />
             </div>
           )}
           <div className="gm-between" style={{ marginTop: 10 }}>
             <span className="gm-time">
-              {media ? (isVideo && media.durationSec ? `ڤیدیۆ · ${num(Math.round(media.durationSec))} چرکە` : "ئامادەیە") : `بارکردن… ${num(progress ?? 0)}٪`}
+              {media ? (isVideo && media.durationSec ? t.publish.videoSecs(Math.round(media.durationSec)) : t.publish.ready) : t.publish.uploading(progress ?? 0)}
             </span>
             <button type="button" className="gm-btn quiet small" onClick={clearMedia} disabled={uploading}>
-              <X size={14} aria-hidden="true" /> لابردن
+              <X size={14} aria-hidden="true" /> {t.publish.remove}
             </button>
           </div>
         </div>
       ) : (
         <label className="gm-drop" htmlFor="gm-media">
           <ImagePlus size={26} aria-hidden="true" />
-          <b>وێنە یان ڤیدیۆ هەڵبژێرە</b>
-          JPG، PNG، MP4 — تا ٢٥٠ مێگابایت
+          <b>{t.publish.dropTitle}</b>
+          {t.publish.dropHint}
         </label>
       )}
       <input
@@ -415,7 +417,7 @@ export function PublishClient({
       {mediaError && <p className="gm-err">{mediaError}</p>}
 
       {/* caption */}
-      <p className="gm-sec">دەق</p>
+      <p className="gm-sec">{t.publish.captionSec}</p>
       <textarea
         id="gm-caption"
         className="gm-textarea"
@@ -424,11 +426,9 @@ export function PublishClient({
         value={caption}
         onChange={(e) => setCaption(e.target.value)}
         placeholder={
-          isNewsroom
-            ? "دەقی پۆستەکە بنووسە…"
-            : "دەربارەی بەرهەمەکە بنووسە… یان چەند وشەیەک بنووسە و زیرەکیی دەستکرد دەقەکەت بۆ دەنووسێت."
+          isNewsroom ? t.publish.captionPlaceholderNews : t.publish.captionPlaceholderShop
         }
-        aria-label="دەقی پۆست"
+        aria-label={t.publish.captionAria}
       />
       <div className="gm-between" style={{ marginTop: 8, flexWrap: "wrap" }}>
         <div className="gm-row" style={{ gap: 6, flexWrap: "wrap" }}>
@@ -436,12 +436,12 @@ export function PublishClient({
           {!newsDraftId && !isNewsroom && (
             <button type="button" className="gm-btn quiet small" onClick={suggest} disabled={suggesting}>
               <Sparkles size={14} aria-hidden="true" />
-              {suggesting ? "دەنووسێت…" : "دەقێکم بۆ بنووسە"}
+              {suggesting ? t.common.writing : t.publish.writeForMe}
             </button>
           )}
           {!isNewsroom && (
             <button type="button" className="gm-btn quiet small" onClick={() => setCaption((c) => mergeHashtags(c, CITY_TAGS))}>
-              + هاشتاگی شارەکان
+              {t.publish.cityTags}
             </button>
           )}
         </div>
@@ -454,46 +454,46 @@ export function PublishClient({
       {/* product card */}
       {products.length > 0 && (
         <div className="gm-field" style={{ marginTop: 14 }}>
-          <label htmlFor="gm-product">کارتی بەرهەم (ئارەزوومەندانە)</label>
+          <label htmlFor="gm-product">{t.publish.productLabel}</label>
           <select id="gm-product" className="gm-input" value={productId} onChange={(e) => setProductId(e.target.value)}>
-            <option value="">بێ کارت</option>
+            <option value="">{t.publish.noProduct}</option>
             {products.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
             ))}
           </select>
-          <p className="gm-hint">ئەگەر هەڵیبژێریت، هەر کەسێک پرسیاری نرخ بکات، نامەیەکی تایبەت بە نرخ و وێنەکانەوە بە خۆکاری بۆی دەچێت.</p>
+          <p className="gm-hint">{t.publish.productHint}</p>
         </div>
       )}
 
       {/* targets */}
-      <p className="gm-sec">بۆ کوێ</p>
+      <p className="gm-sec">{t.publish.whereSec}</p>
       <div className="gm-card">
-        {(["FB", "IG", "TT", "YT"] as Target[]).filter((t) => t !== "YT" || accounts.YT).map((t) => {
-          const account = accounts[t];
-          const needsMedia = t === "YT" ? !isVideo : (t === "IG" || t === "TT") && !media;
-          const disabled = !account || needsMedia || (later && t === "TT");
+        {(["FB", "IG", "TT", "YT"] as Target[]).filter((tg) => tg !== "YT" || accounts.YT).map((tg) => {
+          const account = accounts[tg];
+          const needsMedia = tg === "YT" ? !isVideo : (tg === "IG" || tg === "TT") && !media;
+          const disabled = !account || needsMedia || (later && tg === "TT");
           return (
-            <Fragment key={t}>
+            <Fragment key={tg}>
             <div className="gm-target">
               <div>
-                <p>{PLATFORM_NAME[t]}</p>
+                <p>{t.platform[tg]}</p>
                 <small>
-                  {later && t === "TT" ? (
-                    "تیکتۆک تەنها ڕاستەوخۆ"
+                  {later && tg === "TT" ? (
+                    t.publish.ttLiveOnly
                   ) : !account ? (
-                    <Link href={`${base}/settings`} className="gm-link">پەیوەست نەکراوە — پەیوەستی بکە</Link>
-                  ) : needsMedia && t === "YT" && media ? (
+                    <Link href={`${base}/settings`} className="gm-link">{t.publish.notConnected}</Link>
+                  ) : needsMedia && tg === "YT" && media ? (
                     // A photo is attached: YouTube will not take it.
-                    <>{account} · {YT_VIDEO_ONLY}</>
+                    <>{account} · {t.publish.ytVideoOnly}</>
                   ) : needsMedia ? (
-                    // Connected, but Instagram and TikTok can't post text alone: say
+                    // Connected, but Instagram and TikTok can'tg post text alone: say
                     // which account it is and offer the missing step right here.
                     <>
                       {account} ·{" "}
                       <button type="button" className="gm-link gm-linkbtn" onClick={() => fileInput.current?.click()}>
-                        {t === "YT" ? "سەرەتا ڤیدیۆ زیاد بکە" : "سەرەتا وێنە یان ڤیدیۆ زیاد بکە"}
+                        {tg === "YT" ? t.publish.addVideoFirst : t.publish.addMediaFirst}
                       </button>
                     </>
                   ) : (
@@ -505,15 +505,15 @@ export function PublishClient({
                 type="button"
                 role="switch"
                 className="gm-knob"
-                aria-checked={on[t] && !disabled}
-                aria-label={PLATFORM_NAME[t]}
+                aria-checked={on[tg] && !disabled}
+                aria-label={t.platform[tg]}
                 disabled={disabled}
-                onClick={() => setOn((o) => ({ ...o, [t]: !o[t] }))}
+                onClick={() => setOn((o) => ({ ...o, [tg]: !o[tg] }))}
               >
                 <i />
               </button>
             </div>
-            {t === "YT" && <p className="gm-hint">تا Google ئەپەکە پەسەند دەکات، ڤیدیۆکان وەک تایبەت (Private) بڵاو دەبنەوە.</p>}
+            {tg === "YT" && <p className="gm-hint">{t.publish.ytPrivate}</p>}
             </Fragment>
           );
         })}
@@ -523,7 +523,7 @@ export function PublishClient({
       {on.TT && (
         <div className="gm-tt">
           {ttError && <p className="gm-err" style={{ marginTop: 0 }}>{ttError}</p>}
-          {!tt && !ttError && <p className="gm-sub" style={{ margin: 0 }}>زانیاری تیکتۆک دێت…</p>}
+          {!tt && !ttError && <p className="gm-sub" style={{ margin: 0 }}>{t.publish.ttLoading}</p>}
           {tt && (
             <>
               <div className="gm-row">
@@ -532,37 +532,37 @@ export function PublishClient({
                   <img src={tt.avatarUrl} alt="" className="gm-avatar" />
                 )}
                 <div>
-                  <div className="gm-time">بڵاو دەکرێتەوە لە</div>
-                  <div className="gm-who">{tt.nickname ?? "ئەکاونتی تیکتۆک"}</div>
+                  <div className="gm-time">{t.publish.ttPostingTo}</div>
+                  <div className="gm-who">{tt.nickname ?? t.publish.ttAccount}</div>
                 </div>
               </div>
 
-              <p className="gm-sec">{isVideo ? "کێ ڤیدیۆکە ببینێت" : "کێ پۆستەکە ببینێت"}</p>
-              <div role="radiogroup" aria-label={isVideo ? "کێ ڤیدیۆکە ببینێت" : "کێ پۆستەکە ببینێت"}>
+              <p className="gm-sec">{isVideo ? t.publish.ttWhoVideo : t.publish.ttWhoPost}</p>
+              <div role="radiogroup" aria-label={isVideo ? t.publish.ttWhoVideo : t.publish.ttWhoPost}>
                 {tt.privacyOptions.map((opt) => (
                   <label key={opt} className="gm-radio">
                     <input type="radio" name="tt-privacy" value={opt} checked={privacy === opt} onChange={() => setPrivacy(opt)} />
-                    {PRIVACY_LABEL[opt] ?? opt}
+                    {(t.privacy as Record<string, string>)[opt] ?? opt}
                   </label>
                 ))}
               </div>
-              {!privacy && <p className="gm-hint">یەکێکیان هەڵبژێرە — هیچ هەڵبژاردنێکی پێشوەختە نییە.</p>}
+              {!privacy && <p className="gm-hint">{t.publish.ttPickOne}</p>}
 
-              <p className="gm-sec">ڕێگە بە خەڵک بدە</p>
+              <p className="gm-sec">{t.publish.ttAllow}</p>
               {(
                 [
-                  ["کۆمێنت", allowComment, setAllowComment, tt.commentDisabled],
+                  [t.publish.ttComment, allowComment, setAllowComment, tt.commentDisabled],
                   ["Duet", allowDuet, setAllowDuet, tt.duetDisabled],
                   ["Stitch", allowStitch, setAllowStitch, tt.stitchDisabled],
                 ] as const
               )
                 // Duet and Stitch exist only for videos; a photo post offers comments alone.
-                .filter(([label]) => isVideo || label === "کۆمێنت")
+                .filter(([, , set]) => isVideo || set === setAllowComment)
                 .map(([label, value, set, lockedOff]) => (
                 <div key={label} className="gm-target">
                   <div>
                     <p>{label}</p>
-                    {lockedOff && <small>لە ڕێکخستنی تیکتۆکەکەتدا کوژاوەتەوە</small>}
+                    {lockedOff && <small>{t.publish.ttDisabled}</small>}
                   </div>
                   <button
                     type="button"
@@ -578,18 +578,18 @@ export function PublishClient({
                 </div>
               ))}
 
-              <p className="gm-sec">ناوەڕۆکی بازرگانی</p>
+              <p className="gm-sec">{t.publish.ttCommercialSec}</p>
               <div className="gm-target">
                 <div>
-                  <p>{isVideo ? "ئەم ڤیدیۆیە ڕیکلامە" : "ئەم پۆستە ڕیکلامە"}</p>
-                  <small>ئەگەر ڕیکلام بۆ خۆت، براندێک، بەرهەمێک یان خزمەتگوزارییەک دەکات.</small>
+                  <p>{isVideo ? t.publish.ttAdVideo : t.publish.ttAdPost}</p>
+                  <small>{t.publish.ttAdHint}</small>
                 </div>
                 <button
                   type="button"
                   role="switch"
                   className="gm-knob"
                   aria-checked={commercial}
-                  aria-label="ناوەڕۆکی بازرگانی"
+                  aria-label={t.publish.ttCommercialSec}
                   onClick={() => {
                     const v = !commercial;
                     setCommercial(v);
@@ -607,36 +607,36 @@ export function PublishClient({
                   <label className="gm-radio" style={{ alignItems: "flex-start" }}>
                     <input type="checkbox" checked={yourBrand} onChange={(e) => setYourBrand(e.target.checked)} />
                     <span>
-                      <b>Your brand — براندی خۆت</b>
+                      <b>{t.publish.ttYourBrand}</b>
                       <br />
-                      <small className="gm-time">ڕیکلام بۆ خۆت یان کاری خۆت. وەک «Promotional content» نیشان دەدرێت.</small>
+                      <small className="gm-time">{t.publish.ttYourBrandHint}</small>
                     </span>
                   </label>
                   <label className="gm-radio" style={{ alignItems: "flex-start" }}>
                     <input type="checkbox" checked={branded} onChange={(e) => setBranded(e.target.checked)} />
                     <span>
-                      <b>Branded content — ناوەڕۆکی براند</b>
+                      <b>{t.publish.ttBranded}</b>
                       <br />
-                      <small className="gm-time">هاوبەشی پارەدار لەگەڵ براندێکی تر. وەک «Paid partnership» نیشان دەدرێت.</small>
+                      <small className="gm-time">{t.publish.ttBrandedHint}</small>
                     </span>
                   </label>
                 </div>
               )}
 
               <p className="gm-hint" style={{ marginTop: 12 }}>
-                بە بڵاوکردنەوە، ڕازیت بە{" "}
+                {t.publish.ttConsentPre}{" "}
                 {branded && (
                   <>
                     <a href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noreferrer" className="gm-link">
                       Branded Content Policy
                     </a>{" "}
-                    و{" "}
+                    {t.publish.ttAnd}{" "}
                   </>
                 )}
                 <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="gm-link">
                   Music Usage Confirmation
                 </a>
-                ـی تیکتۆک.
+                {t.publish.ttConsentPost}
               </p>
             </>
           )}
@@ -646,19 +646,19 @@ export function PublishClient({
       {/* when */}
       <div className="gm-card" style={{ marginTop: 14 }}>
         <div className="gm-target">
-          <p>کات</p>
-          <div className="gm-chips" role="group" aria-label="کات">
+          <p>{t.publish.whenSec}</p>
+          <div className="gm-chips" role="group" aria-label={t.publish.whenSec}>
             <button type="button" className="gm-chip" aria-pressed={!later} onClick={() => chooseMode("now")}>
-              ئێستا
+              {t.publish.now}
             </button>
             <button type="button" className="gm-chip" aria-pressed={later} onClick={() => chooseMode("later")}>
-              کاتێکی دیاریکراو
+              {t.publish.later}
             </button>
           </div>
         </div>
         {later && (
           <div className="gm-field" style={{ marginTop: 4 }}>
-            <label htmlFor="gm-runat">کاتی بڵاوکردنەوە (کاتی عێراق)</label>
+            <label htmlFor="gm-runat">{t.publish.runAt}</label>
             <input id="gm-runat" type="datetime-local" className="gm-input" value={runAtLocal} onChange={(e) => setRunAtLocal(e.target.value)} />
           </div>
         )}
@@ -672,41 +672,43 @@ export function PublishClient({
           ))}
         </ul>
       )}
-      {publishError && <p className="gm-err">{friendlyError(publishError)}</p>}
+      {publishError && <p className="gm-err">{friendlyError(publishError, t)}</p>}
       {scheduledMsg && <p className="gm-ok">{scheduledMsg}</p>}
       <button type="button" className="gm-btn block" style={{ marginTop: 14 }} onClick={later ? schedule : publish} disabled={blockers.length > 0 || publishing}>
         {later
           ? publishing
-            ? "خشتە دەکرێت…"
-            : "خشتەکردن"
+            ? t.publish.scheduling
+            : t.publish.schedule
           : publishing
-            ? "بڵاو دەکرێتەوە…"
-            : `بڵاوی بکەرەوە${targets.length ? ` — ${targets.map((t) => PLATFORM_NAME[t]).join("، ")}` : ""}`}
+            ? t.publish.publishing
+            : targets.length
+              ? t.publish.publishTo(targets.map((x) => t.platform[x]).join("، "))
+              : t.publish.publishBtn}
       </button>
-      {publishing && !later && on.IG && isVideo && <p className="gm-hint">ڤیدیۆی ئینستاگرام تا یەک خولەک دەخایەنێت.</p>}
+      {publishing && !later && on.IG && isVideo && <p className="gm-hint">{t.publish.igVideoWait}</p>}
 
       {/* scheduled posts */}
       {scheduled.length > 0 && (
         <>
-          <p className="gm-sec">پۆستە خشتەکراوەکان</p>
+          <p className="gm-sec">{t.publish.scheduledSec}</p>
           <div className="gm-card">
             {scheduled.map((p) => (
               <div key={p.id} className="gm-target" style={{ alignItems: "flex-start" }}>
                 <div>
                   <p dir="auto">{p.caption || "—"}</p>
                   <small>
-                    {kuDateTime(p.runAt)} · {p.targets.map((t) => PLATFORM_NAME[t]).join("، ")}
+                    {kuDateTime(p.runAt, t)} · {p.targets.map((x) => t.platform[x]).join("، ")}
                   </small>
                   {p.status === "FAILED" && p.lastError && (
-                    <small className="gm-err" style={{ display: "block", margin: 0 }}>{friendlyError(p.lastError)}</small>
+                    <small className="gm-err" style={{ display: "block", margin: 0 }}>{friendlyError(p.lastError, t)}</small>
                   )}
                 </div>
                 {p.status === "PENDING" ? (
                   <button type="button" className="gm-btn quiet small" onClick={() => cancelScheduled(p.id)} disabled={cancelling}>
-                    هەڵوەشاندنەوە
+                    {t.publish.cancel}
                   </button>
                 ) : (
-                  <span className={`gm-badge ${p.status === "FAILED" ? "warn" : ""}`}>{p.status === "FAILED" ? "نەکرا" : "دەنێردرێت…"}</span>
+                  <span className={`gm-badge ${p.status === "FAILED" ? "warn" : ""}`}>{p.status === "FAILED" ? t.publish.failed : t.publish.sendingNow}</span>
                 )}
               </div>
             ))}

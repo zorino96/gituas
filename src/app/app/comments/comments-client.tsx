@@ -7,38 +7,39 @@ import { EyeOff, Eye, RefreshCw, Reply, Trash2, ExternalLink } from "lucide-reac
 
 import type { CommentState, MComment, MPost, Platform } from "@/lib/merchant/types";
 import { commentState, countStates } from "@/lib/merchant/state";
-import { needsYou, REASON_LABEL } from "@/lib/shop/forms";
+import { needsYou } from "@/lib/shop/forms";
+import { useT } from "@/lib/i18n/client";
+import type { Dict } from "@/lib/i18n/ckb";
 import { useBase } from "../use-base";
 import { deleteCommentAction, replyToCommentAction, setCommentHiddenAction } from "../actions";
 import { ReplyComposer } from "../reply-composer";
-import { PLATFORM_NAME, ago, friendlyError, num } from "../format";
+import { ago, friendlyError, num } from "../format";
 
 type Filter = "all" | "needs" | CommentState;
 
 /** What the shop automation did with a comment: `outcome` and `reason` come from its conversation message. */
 type Outcomes = Record<string, { outcome: string | null; reason: string | null }>;
 
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: "unanswered", label: "وەڵام نەدراوە" },
-  { key: "all", label: "هەموو" },
-  { key: "answered", label: "وەڵام دراوە" },
-  { key: "hidden", label: "شاردراوە" },
-  { key: "needs", label: "پێویستی بە تۆیە" },
-];
+const FILTER_KEYS: Filter[] = ["unanswered", "all", "answered", "hidden", "needs"];
 
-const STATE_BADGE: Record<CommentState, { cls: string; label: string }> = {
-  unanswered: { cls: "warn", label: "چاوەڕێی وەڵامە" },
-  answered: { cls: "", label: "وەڵام دراوە" },
-  hidden: { cls: "ghost", label: "شاردراوە" },
-};
+function filterLabel(t: Dict, key: Filter): string {
+  const c = t.comments;
+  return { unanswered: c.filterUnanswered, all: c.filterAll, answered: c.filterAnswered, hidden: c.filterHidden, needs: c.filterNeeds }[key];
+}
+
+function stateBadge(t: Dict, state: CommentState): { cls: string; label: string } {
+  const c = t.comments;
+  return { unanswered: { cls: "warn", label: c.badgeUnanswered }, answered: { cls: "", label: c.badgeAnswered }, hidden: { cls: "ghost", label: c.badgeHidden } }[state];
+}
 
 function OutcomeBadges({ outcomes, id }: { outcomes: Outcomes; id: string }) {
+  const t = useT();
   const o = outcomes[id];
   const reason = o?.reason && needsYou(o.reason) ? o.reason : null;
   return (
     <>
-      {o?.outcome === "AUTO_REPLIED" && <span className="gm-badge ghost">وەڵامی خۆکار</span>}
-      {reason && <span className="gm-badge warn">{REASON_LABEL[reason]}</span>}
+      {o?.outcome === "AUTO_REPLIED" && <span className="gm-badge ghost">{t.comments.autoReplied}</span>}
+      {reason && <span className="gm-badge warn">{(t.comments.reasons as Record<string, string>)[reason]}</span>}
     </>
   );
 }
@@ -58,6 +59,7 @@ export function CommentsClient({
 }) {
   const router = useRouter();
   const base = useBase();
+  const t = useT();
   const [posts, setPosts] = useState(initialPosts);
   const counts = useMemo(() => countStates(posts), [posts]);
   const [filter, setFilter] = useState<Filter>(counts.unanswered > 0 ? "unanswered" : "all");
@@ -97,58 +99,58 @@ export function CommentsClient({
     <div>
       <div className="gm-between">
         <div>
-          <h2 className="gm-title kufi">کۆمێنتەکان</h2>
-          <p className="gm-sub">{num(total)} کۆمێنت لە دوایین پۆستەکانی فەیسبووک و ئینستاگرام</p>
+          <h2 className="gm-title kufi">{t.comments.title}</h2>
+          <p className="gm-sub">{t.comments.sub(total)}</p>
         </div>
         <button
           type="button"
           className="gm-btn quiet small"
           onClick={() => startRefresh(() => router.refresh())}
           disabled={refreshing}
-          aria-label="نوێکردنەوە"
+          aria-label={t.common.refreshLabel}
         >
           <RefreshCw size={14} aria-hidden="true" />
-          {refreshing ? "…" : "نوێ"}
+          {refreshing ? "…" : t.common.refresh}
         </button>
       </div>
 
       {(!connected.FB || !connected.IG) && (
         <p className="gm-note" style={{ marginBottom: 12 }}>
           {!connected.FB && !connected.IG
-            ? "هیچ پەیجێک پەیوەست نەکراوە."
-            : `${!connected.FB ? "فەیسبووک" : "ئینستاگرام"} پەیوەست نەکراوە.`}{" "}
-          <Link href={`${base}/settings`} className="gm-link">پەیوەستی بکە</Link>
+            ? t.common.noneConnected
+            : t.common.notConnected(!connected.FB ? t.platform.FB : t.platform.IG)}{" "}
+          <Link href={`${base}/settings`} className="gm-link">{t.common.connectIt}</Link>
         </p>
       )}
       {errors.map((e) => (
         <p key={e.platform} className="gm-note warn" style={{ marginBottom: 12 }}>
-          {PLATFORM_NAME[e.platform]}: {friendlyError(e.message)}
+          {t.platform[e.platform]}: {friendlyError(e.message, t)}
         </p>
       ))}
 
-      <div className="gm-chips" role="group" aria-label="پاڵاوتن" style={{ marginBottom: 14 }}>
-        {FILTERS.map((f) => (
+      <div className="gm-chips" role="group" aria-label={t.comments.filterLabel} style={{ marginBottom: 14 }}>
+        {FILTER_KEYS.map((key) => (
           <button
-            key={f.key}
+            key={key}
             type="button"
             className="gm-chip"
-            aria-pressed={filter === f.key}
-            onClick={() => setFilter(f.key)}
+            aria-pressed={filter === key}
+            onClick={() => setFilter(key)}
           >
-            {f.label} {num(f.key === "all" ? total : f.key === "needs" ? needsCount : counts[f.key])}
+            {filterLabel(t, key)} {num(key === "all" ? total : key === "needs" ? needsCount : counts[key])}
           </button>
         ))}
       </div>
 
       {visible.length === 0 ? (
         <div className="gm-empty">
-          <b className="kufi">{filter === "unanswered" ? "هەموو کۆمێنتەکان وەڵام دراونەتەوە" : "هیچ کۆمێنتێک نییە"}</b>
-          {filter === "unanswered" ? (base === "/newsroom" ? "هیچ کۆمێنتێک چاوەڕێی وەڵام نییە." : "هیچ کڕیارێک چاوەڕێ ناکات.") : <Link href={`${base}/publish`} className="gm-link">پۆستێکی نوێ بڵاو بکەرەوە</Link>}
+          <b className="kufi">{filter === "unanswered" ? t.comments.emptyAllAnswered : t.comments.emptyNone}</b>
+          {filter === "unanswered" ? (base === "/newsroom" ? t.comments.nothingWaitingNews : t.comments.nothingWaitingShop) : <Link href={`${base}/publish`} className="gm-link">{t.comments.newPost}</Link>}
         </div>
       ) : (
         <div className="gm-stack">
           {visible.map(({ post, comments }) => (
-            <section key={`${post.platform}-${post.id}`} className="gm-card" aria-label={`پۆستی ${PLATFORM_NAME[post.platform]}`}>
+            <section key={`${post.platform}-${post.id}`} className="gm-card" aria-label={t.comments.postAria(t.platform[post.platform])}>
               <div className="gm-post">
                 {post.thumbUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -158,15 +160,15 @@ export function CommentsClient({
                 )}
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div className="gm-row" style={{ gap: 8 }}>
-                    <span className={`gm-plat ${post.platform}`}>{PLATFORM_NAME[post.platform]}</span>
-                    <span className="gm-time">{ago(post.createdAt)}</span>
+                    <span className={`gm-plat ${post.platform}`}>{t.platform[post.platform]}</span>
+                    <span className="gm-time">{ago(post.createdAt, t)}</span>
                     {post.permalink && (
                       <a href={post.permalink} target="_blank" rel="noreferrer" className="gm-link" style={{ marginInlineStart: "auto", fontSize: 12 }}>
-                        <ExternalLink size={13} aria-hidden="true" /> پۆستەکە
+                        <ExternalLink size={13} aria-hidden="true" /> {t.comments.postLink}
                       </a>
                     )}
                   </div>
-                  <p dir="auto">{post.caption || "(بێ دەق)"}</p>
+                  <p dir="auto">{post.caption || t.common.noText}</p>
                 </div>
               </div>
 
@@ -179,7 +181,7 @@ export function CommentsClient({
                   onReplied={(text) =>
                     patchComment(c.platform, c.id, (x) => ({
                       ...x,
-                      replies: [...x.replies, { id: `local-${Date.now()}`, author: "تۆ", text, fromUs: true, createdAt: new Date().toISOString() }],
+                      replies: [...x.replies, { id: `local-${Date.now()}`, author: t.common.you, text, fromUs: true, createdAt: new Date().toISOString() }],
                     }))
                   }
                   onHidden={(hidden) => patchComment(c.platform, c.id, (x) => ({ ...x, hidden }))}
@@ -209,8 +211,9 @@ function CommentItem({
   onHidden: (hidden: boolean) => void;
   onDeleted: () => void;
 }) {
+  const t = useT();
   const state = commentState(c);
-  const badge = c.fromUs ? { cls: "ghost", label: "کۆمێنتی تۆ" } : STATE_BADGE[state];
+  const badge = c.fromUs ? { cls: "ghost", label: t.comments.badgeOwn } : stateBadge(t, state);
   const [replying, setReplying] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -221,7 +224,7 @@ function CommentItem({
     start(async () => {
       const r = await setCommentHiddenAction(c.platform, c.id, !c.hidden);
       if (r.ok) onHidden(!c.hidden);
-      else setError(friendlyError(r.error));
+      else setError(friendlyError(r.error, t));
     });
   }
 
@@ -232,7 +235,7 @@ function CommentItem({
       if (r.ok) onDeleted();
       else {
         setConfirmDelete(false);
-        setError(friendlyError(r.error));
+        setError(friendlyError(r.error, t));
       }
     });
   }
@@ -241,31 +244,31 @@ function CommentItem({
     <div className={`gm-comment ${state === "unanswered" ? "unanswered" : ""}`}>
       <div className="gm-between">
         <span className="gm-row" style={{ gap: 8, flexWrap: "wrap" }}>
-          <span className="gm-who" dir="auto">{c.fromUs ? "تۆ" : c.author || "بەکارهێنەر"}</span>
+          <span className="gm-who" dir="auto">{c.fromUs ? t.common.you : c.author || t.common.user}</span>
           <OutcomeBadges outcomes={outcomes} id={c.id} />
         </span>
         <span className="gm-row" style={{ gap: 8 }}>
           <span className={`gm-badge ${badge.cls}`}>{badge.label}</span>
-          <span className="gm-time">{ago(c.createdAt)}</span>
+          <span className="gm-time">{ago(c.createdAt, t)}</span>
         </span>
       </div>
-      <p className="gm-text" dir="auto">{c.text || "(بێ دەق)"}</p>
+      <p className="gm-text" dir="auto">{c.text || t.common.noText}</p>
 
       {c.replies.map((r) => (
         <div key={r.id} className={`gm-reply ${r.fromUs ? "us" : ""}`}>
-          <b>{r.fromUs ? "وەڵامی تۆ" : r.author}</b> · <span dir="auto">{r.text}</span> <OutcomeBadges outcomes={outcomes} id={r.id} />
+          <b>{r.fromUs ? t.comments.yourReply : r.author}</b> · <span dir="auto">{r.text}</span> <OutcomeBadges outcomes={outcomes} id={r.id} />
         </div>
       ))}
 
       {confirmDelete ? (
         <div className="gm-note warn" style={{ marginTop: 10 }}>
-          ئەم کۆمێنتە بۆ هەمیشە دەسڕدرێتەوە. دڵنیایت؟
+          {t.comments.confirmDelete}
           <div className="gm-actions">
             <button type="button" className="gm-btn danger small" onClick={remove} disabled={pending}>
-              {pending ? "دەسڕدرێتەوە…" : "بەڵێ، بیسڕەوە"}
+              {pending ? t.comments.deleting : t.comments.confirmYes}
             </button>
             <button type="button" className="gm-btn quiet small" onClick={() => setConfirmDelete(false)} disabled={pending}>
-              نا
+              {t.comments.confirmNo}
             </button>
           </div>
         </div>
@@ -273,15 +276,15 @@ function CommentItem({
         <div className="gm-actions">
           {!replying && !c.fromUs && (
             <button type="button" className="gm-btn small" onClick={() => setReplying(true)} disabled={pending}>
-              <Reply size={14} aria-hidden="true" /> وەڵام
+              <Reply size={14} aria-hidden="true" /> {t.comments.reply}
             </button>
           )}
           <button type="button" className="gm-btn quiet small" onClick={toggleHidden} disabled={pending}>
             {c.hidden ? <Eye size={14} aria-hidden="true" /> : <EyeOff size={14} aria-hidden="true" />}
-            {c.hidden ? "دەریبخەرەوە" : "بیشارەوە"}
+            {c.hidden ? t.comments.show : t.comments.hide}
           </button>
           <button type="button" className="gm-btn quiet small" onClick={() => setConfirmDelete(true)} disabled={pending}>
-            <Trash2 size={14} aria-hidden="true" /> بیسڕەوە
+            <Trash2 size={14} aria-hidden="true" /> {t.comments.delete}
           </button>
         </div>
       )}

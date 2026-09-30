@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Sparkles, Send } from "lucide-react";
 
+import { useT } from "@/lib/i18n/client";
 import { draftReplyAction } from "./actions";
 import { friendlyError } from "./format";
 import { useBase } from "./use-base";
@@ -30,6 +31,7 @@ export function ReplyComposer({
 }) {
   // The WhatsApp order link is a shop tool; a newsroom has no orders.
   const isShop = useBase() === "/app";
+  const t = useT();
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [drafting, startDraft] = useTransition();
@@ -42,13 +44,13 @@ export function ReplyComposer({
     startDraft(async () => {
       const r = await draftReplyAction(incoming, kind);
       if (r.ok) setText(r.reply);
-      else setError(friendlyError(r.error));
+      else setError(friendlyError(r.error, t));
     });
   }
 
   function addWhatsApp() {
     if (!waUrl) return;
-    setText((t) => (t.includes(waUrl) ? t : `${t.trimEnd()}${t.trim() ? "\n" : ""}بۆ داواکردن لە وەتسئەپ: ${waUrl}`));
+    setText((prev) => (prev.includes(waUrl) ? prev : `${prev.trimEnd()}${prev.trim() ? "\n" : ""}${t.composer.whatsappLine(waUrl)}`));
   }
 
   function send() {
@@ -56,7 +58,7 @@ export function ReplyComposer({
     startSend(async () => {
       const r = await onSend(text);
       if (r.ok) setText("");
-      else setError(friendlyError(r.error));
+      else setError(friendlyError(r.error, t));
     });
   }
 
@@ -66,17 +68,17 @@ export function ReplyComposer({
         className="gm-textarea"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder={kind === "dm" ? "نامەکەت بنووسە…" : "وەڵامەکەت بنووسە…"}
+        placeholder={kind === "dm" ? t.composer.placeholderDm : t.composer.placeholderComment}
         autoFocus={autoFocus}
         dir="auto"
-        aria-label="وەڵام"
+        aria-label={t.composer.label}
         rows={3}
       />
       <div className="gm-between" style={{ marginTop: 8, flexWrap: "wrap" }}>
         <div className="gm-row" style={{ flexWrap: "wrap", gap: 6 }}>
           <button type="button" className="gm-btn quiet small" onClick={draft} disabled={drafting || sending}>
             <Sparkles size={14} aria-hidden="true" />
-            {drafting ? "دەنووسێت…" : "پێشنیاری AI"}
+            {drafting ? t.common.writing : t.composer.aiSuggest}
           </button>
           {isShop && (
             <button
@@ -84,9 +86,9 @@ export function ReplyComposer({
               className="gm-btn quiet small"
               onClick={addWhatsApp}
               disabled={!waUrl || sending}
-              title={waUrl ? undefined : "سەرەتا ژمارەی وەتسئەپ لە ڕێکخستن دابنێ"}
+              title={waUrl ? undefined : t.composer.whatsappLinkTitle}
             >
-              لینکی وەتسئەپ
+              {t.composer.whatsappLink}
             </button>
           )}
         </div>
@@ -96,16 +98,16 @@ export function ReplyComposer({
           </span>
           {onCancel && (
             <button type="button" className="gm-btn quiet small" onClick={onCancel} disabled={sending}>
-              داخستن
+              {t.composer.close}
             </button>
           )}
           <button type="button" className="gm-btn small" onClick={send} disabled={!text.trim() || tooLong || sending}>
             <Send size={14} aria-hidden="true" />
-            {sending ? "دەنێردرێت…" : "بنێرە"}
+            {sending ? t.composer.sending : t.composer.send}
           </button>
         </div>
       </div>
-      {isShop && !waUrl && <p className="gm-hint">بۆ لینکی وەتسئەپ، ژمارەکەت لە ڕێکخستن دابنێ.</p>}
+      {isShop && !waUrl && <p className="gm-hint">{t.composer.whatsappHint}</p>}
       {error && <p className="gm-err">{error}</p>}
     </div>
   );
