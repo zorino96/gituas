@@ -2,7 +2,7 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Home, MessageCircle, MessagesSquare, Newspaper, SquarePlus } from "lucide-react";
+import { BarChart3, Bot, Home, MessageCircle, MessagesSquare, Newspaper, SquarePlus } from "lucide-react";
 
 type Kind = "MERCHANT" | "NEWS";
 
@@ -23,7 +23,7 @@ export function Tabs({ kind }: { kind: Kind }) {
   ];
   const tabs =
     kind === "MERCHANT"
-      ? [{ href: base, label: "ئەمڕۆ", Icon: Home }, ...shared]
+      ? [{ href: base, label: "ئەمڕۆ", Icon: Home }, { href: `${base}/automation`, label: "ئۆتۆمەیشن", Icon: Bot }, ...shared]
       : [{ href: `${base}/news`, label: "هەواڵ", Icon: Newspaper }, ...shared];
 
   return (
