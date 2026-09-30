@@ -28,7 +28,7 @@ interface VariantRow {
 const MAX_PHOTOS = 5;
 
 /** A stored price back to what the merchant types: whole dinars, or dollars with cents only when there are some. */
-function priceText(amountMinor: number, currency: string): string {
+export function priceText(amountMinor: number, currency: string): string {
   const exp = exponentOf(currency);
   const value = amountMinor / 10 ** exp;
   return Number.isInteger(value) ? String(value) : value.toFixed(exp);
