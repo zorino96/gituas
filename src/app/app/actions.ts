@@ -32,6 +32,7 @@ import { assertWithin, LimitReached, limitMessage } from "@/lib/billing/limits";
 import { recordNewsPublish } from "@/lib/news/publish-record";
 import { checkDraft } from "@/lib/news/rules";
 import { pauseThread } from "@/lib/shop/pause";
+import { tagPublishedPost } from "@/lib/shop/state";
 
 export type Result = { ok: true } | { ok: false; error: string };
 
@@ -264,6 +265,8 @@ export interface PublishInput {
   media?: { url: string; pathname: string; type: "IMAGE" | "VIDEO"; durationSec?: number };
   /** Set when the post comes from the news desk; its result is recorded on the draft. */
   newsDraftId?: string;
+  /** A shop product card: the published Facebook/Instagram post is tagged with it, so price questions get its card. */
+  productId?: string;
   tiktok?: {
     privacy: string | null;
     allowComment: boolean;
@@ -280,6 +283,8 @@ export interface PublishOutcome {
   ok: boolean;
   url?: string;
   publishId?: string;
+  /** The platform's id for the published post (Facebook and Instagram). */
+  externalId?: string;
   error?: string;
 }
 
@@ -342,11 +347,11 @@ export async function publishAction(input: PublishInput): Promise<{ ok: true; re
         mediaUrl: input.media?.url,
         mediaType: input.media?.type,
       });
-      return { target, ok: r.ok, url: r.permalinkUrl, error: r.error };
+      return { target, ok: r.ok, url: r.permalinkUrl, externalId: r.externalId, error: r.error };
     }
     if (target === "IG") {
       const r = await publishToInstagram(ws.id, { caption, mediaUrl: input.media!.url, mediaType: input.media!.type });
-      return { target, ok: r.ok, url: r.permalinkUrl, error: r.error };
+      return { target, ok: r.ok, url: r.permalinkUrl, externalId: r.externalId, error: r.error };
     }
     // TikTok pulls the video from our verified domain, through the media proxy.
     const tt = input.tiktok;
@@ -406,6 +411,13 @@ export async function publishAction(input: PublishInput): Promise<{ ok: true; re
     } catch (e) {
       // The post already went out; a bookkeeping failure must not turn that into a reported failure.
       console.error("recordNewsPublish failed:", e instanceof Error ? e.message : "unknown error");
+    }
+  }
+  if (input.productId) {
+    for (const o of results) {
+      if (o.ok && o.externalId && (o.target === "FB" || o.target === "IG")) {
+        await tagPublishedPost(ws.id, o.target === "IG" ? "META_INSTAGRAM" : "META_FACEBOOK", o.externalId, input.productId).catch(() => {});
+      }
     }
   }
   return { ok: true, results };

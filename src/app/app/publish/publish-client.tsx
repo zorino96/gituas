@@ -47,10 +47,12 @@ function readDuration(file: File): Promise<number | undefined> {
 export function PublishClient({
   workspaceId,
   accounts,
+  products,
   initial,
 }: {
   workspaceId: string;
   accounts: Record<Target, string | null>;
+  products: { id: string; name: string }[];
   initial?: { newsDraftId: string; caption: string; media: Media };
 }) {
   const router = useRouter();
@@ -73,6 +75,9 @@ export function PublishClient({
   const [caption, setCaption] = useState(initial?.caption ?? "");
   const [suggesting, startSuggest] = useTransition();
   const [captionError, setCaptionError] = useState<string | null>(null);
+
+  // shop product card — price questions on the published post get this product's card
+  const [productId, setProductId] = useState("");
 
   // targets
   const [on, setOn] = useState<Record<Target, boolean>>({ FB: !!accounts.FB, IG: !!initial && !!accounts.IG, TT: false });
@@ -219,6 +224,7 @@ export function PublishClient({
         media: media ?? undefined,
         tiktok: on.TT ? { privacy, allowComment, allowDuet, allowStitch, commercial, yourBrand, branded } : undefined,
         newsDraftId: newsDraftId ?? undefined,
+        productId: productId || undefined,
       });
       if (!r.ok) {
         setPublishError(r.error);
@@ -253,6 +259,7 @@ export function PublishClient({
     setCommercial(false);
     setYourBrand(false);
     setBranded(false);
+    setProductId("");
   }
 
   if (results) {
@@ -390,6 +397,22 @@ export function PublishClient({
         </span>
       </div>
       {captionError && <p className="gm-err">{captionError}</p>}
+
+      {/* product card */}
+      {products.length > 0 && (
+        <div className="gm-field" style={{ marginTop: 14 }}>
+          <label htmlFor="gm-product">کارتی بەرهەم (ئارەزوومەندانە)</label>
+          <select id="gm-product" className="gm-input" value={productId} onChange={(e) => setProductId(e.target.value)}>
+            <option value="">بێ کارت</option>
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <p className="gm-hint">ئەگەر هەڵیبژێریت، هەر کەسێک پرسیاری نرخ بکات، نامەیەکی تایبەت بە نرخ و وێنەکانەوە بە خۆکاری بۆی دەچێت.</p>
+        </div>
+      )}
 
       {/* targets */}
       <p className="gm-sec">بۆ کوێ</p>
