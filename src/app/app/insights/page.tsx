@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { baseFor, currentWorkspace, loadConnections, loadInsights, loadPosts } from "../data";
+import { baseFor, currentWorkspace, loadConnections, loadInsights, loadPosts, loadYouTube } from "../data";
 import { rankPosts } from "@/lib/merchant/state";
 import { PLATFORM_NAME, ago, num } from "../format";
 
@@ -23,7 +23,7 @@ const FB_LABEL: Record<string, string> = {
 export default async function InsightsPage() {
   const ws = (await currentWorkspace())!;
   const conns = await loadConnections(ws.id);
-  const [insights, { posts }] = await Promise.all([loadInsights(ws.id, conns), loadPosts(ws.id, conns)]);
+  const [insights, { posts }, youtube] = await Promise.all([loadInsights(ws.id, conns), loadPosts(ws.id, conns), loadYouTube(ws.id, conns)]);
   const top = rankPosts(posts, 5).filter((p) => p.commentCount > 0);
   const pick = (list: { name: string; value: number }[], labels: Record<string, string>) =>
     Object.keys(labels).flatMap((k) => {
@@ -52,6 +52,55 @@ export default async function InsightsPage() {
           </div>
         ))}
       </div>
+
+      {youtube && (
+        <>
+          <p className="gm-sec">یوتیوب</p>
+          {youtube.error ? (
+            <p className="gm-note">
+              ئاماری یوتیوب نەهات. <Link href={`${baseFor(ws.kind)}/settings`} className="gm-link">لە ڕێکخستن دووبارە پەیوەستی بکەوە</Link>
+            </p>
+          ) : (
+            <>
+              <div className="gm-kpis">
+                {youtube.tiles.map((t) => (
+                  <div key={t.key} className="gm-kpi">
+                    <b>{num(t.value)}</b>
+                    <span>{t.label}</span>
+                  </div>
+                ))}
+              </div>
+              {youtube.top.length > 0 && (
+                <div className="gm-card" style={{ marginTop: 8 }}>
+                  {youtube.top.map((v) => (
+                    <div key={v.id} className="gm-rank">
+                      {v.thumbnailUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={v.thumbnailUrl} alt="" className="gm-thumb" style={{ width: 38, height: 38, flexBasis: 38 }} />
+                      ) : (
+                        <div className="gm-thumb" style={{ width: 38, height: 38, flexBasis: 38 }} aria-hidden="true" />
+                      )}
+                      <a
+                        href={v.permalinkUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="gm-time"
+                        dir="auto"
+                        style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "52vw" }}
+                      >
+                        {v.title || "(بێ ناونیشان)"}
+                      </a>
+                      <b>
+                        {num(v.views)} <span className="gm-time">بینین</span>
+                      </b>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
 
       <p className="gm-sec">پۆستەکانی زۆرترین کۆمێنت</p>
       <div className="gm-card">

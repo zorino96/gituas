@@ -18,7 +18,9 @@ import {
   fetchPagePosts,
   fetchPageProfile,
 } from "@/lib/publishers/facebook-engage";
+import { fetchChannelStats, fetchRecentVideos } from "@/lib/publishers/youtube-engage";
 import { fromFb, fromIg } from "@/lib/merchant/normalize";
+import { youtubeBlock, type YouTubeBlock } from "@/lib/merchant/youtube-insights";
 import type { MConversation, MPost } from "@/lib/merchant/types";
 
 export type Kind = "MERCHANT" | "NEWS";
@@ -307,4 +309,18 @@ export async function loadInsights(tenantId: string, conns: Connections): Promis
     waTaps7d,
     notes,
   };
+}
+
+/**
+ * The YouTube block for the insights page: channel counters and the most-viewed recent uploads.
+ * Null when YouTube is not connected; a Google failure becomes an error the page shows, never a throw.
+ */
+export async function loadYouTube(tenantId: string, conns: Connections): Promise<YouTubeBlock | null> {
+  if (!conns.YOUTUBE.connected) return null;
+  const failed = (e: unknown) => ({ ok: false as const, error: e instanceof Error ? e.message : "YouTube failed" });
+  const [stats, recent] = await Promise.all([
+    fetchChannelStats(tenantId).catch(failed),
+    fetchRecentVideos(tenantId, 10).catch(failed),
+  ]);
+  return youtubeBlock(stats, recent);
 }
