@@ -80,6 +80,19 @@ async function vary(store: Store, sample: string, lang: Lang): Promise<string> {
 async function createJobs(storeId: string, messageId: string, specs: JobSpec[]): Promise<string[]> {
   const ids: string[] = [];
   for (const s of specs) {
+    if (s.kind === "DM_PHOTOS" && s.recipientId) {
+      // One photo job per buyer per store: a fixed id makes a racing second insert fail instead of sending twice.
+      try {
+        const job = await db.outboxJob.create({
+          data: { id: `dmphotos_${storeId}_${s.recipientId}`, storeId, messageId, kind: s.kind, payload: s.payload as Prisma.InputJsonValue, recipientId: s.recipientId },
+          select: { id: true },
+        });
+        ids.push(job.id);
+      } catch (e) {
+        if ((e as { code?: string }).code !== "P2002") throw e;
+      }
+      continue;
+    }
     const job = await db.outboxJob.upsert({
       where: { messageId_kind: { messageId, kind: s.kind } },
       create: { storeId, messageId, kind: s.kind, payload: s.payload as Prisma.InputJsonValue, recipientId: s.recipientId ?? null },
@@ -128,7 +141,7 @@ async function planComment(msg: Msg): Promise<string[]> {
   const g = gate({
     now,
     store,
-    self: { ids: [store.fbPageId, store.igUserId].filter((x): x is string => !!x), username: store.igUsername },
+    self: { ids: [store.fbPageId, store.igUserId].filter((x): x is string => !!x), username: platform === "META_INSTAGRAM" ? store.igUsername : null },
     author: { id: msg.authorId, name: msg.authorHandle },
     post,
     newerAutomatedPosts: newer,

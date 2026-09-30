@@ -21,12 +21,12 @@ describe("decideComment", () => {
       flag: null,
     });
     expect(decideComment(c("QUESTION", "price"), { ...ctx, hasProduct: false })).toEqual({
-      actions: [{ kind: "PUBLIC_REPLY", style: "answer" }, { kind: "LIKE" }],
+      actions: [{ kind: "LIKE" }],
       flag: "no_product",
     });
   });
   it("skips the private reply when it is no longer allowed, and likes only on Facebook", () => {
-    expect(decideComment(c("QUESTION", "price"), { ...ctx, canPrivateReply: false, isFacebook: false }).actions).toEqual([{ kind: "PUBLIC_REPLY", style: "answer" }]);
+    expect(decideComment(c("QUESTION", "price"), { ...ctx, canPrivateReply: false, isFacebook: false })).toEqual({ actions: [], flag: "private_window" });
   });
   it("thanks praise", () => {
     expect(decideComment(c("PRAISE"), ctx)).toEqual({ actions: [{ kind: "PUBLIC_REPLY", style: "thanks" }, { kind: "LIKE" }], flag: null });

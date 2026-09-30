@@ -74,6 +74,11 @@ describe("helpers", () => {
     expect(t.length).toBeLessThanOrEqual(20);
     expect(t.endsWith("…")).toBe(true);
   });
+  it("never splits an emoji when it cuts", () => {
+    const t = truncate("a".repeat(78) + "😀😀😀", 80);
+    expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(t)).toBe(false);
+    expect(t.endsWith("…")).toBe(true);
+  });
   it("names the product and first in-stock price for WhatsApp", () => {
     expect(waText(hoodie, "en")).toBe("Hoodie — 25,000 IQD");
   });

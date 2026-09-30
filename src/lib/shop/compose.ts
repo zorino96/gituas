@@ -64,8 +64,9 @@ export const DEFAULT_SAMPLES: Record<"answer" | "thanks", Record<Lang, string[]>
 };
 
 export function truncate(s: string, max: number): string {
-  if (s.length <= max) return s;
-  const cut = s.slice(0, max - 1);
+  const chars = Array.from(s);
+  if (chars.length <= max) return s;
+  const cut = chars.slice(0, max - 1).join("");
   const space = cut.lastIndexOf(" ");
   return `${(space > max / 2 ? cut.slice(0, space) : cut).trimEnd()}…`;
 }

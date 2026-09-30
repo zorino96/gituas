@@ -43,18 +43,17 @@ export function decideComment(c: Classification, ctx: CommentContext): CommentDe
   const like: CommentAction[] = ctx.isFacebook && ctx.likeComments ? [{ kind: "LIKE" }] : [];
 
   if (c.type === "QUESTION" || c.type === "ORDER") {
-    const actions: CommentAction[] = [{ kind: "PUBLIC_REPLY", style: "answer" }];
-    let flag: string | null = null;
-    if (ctx.canPrivateReply) {
-      if (ctx.hasProduct) {
-        actions.push({ kind: "PRIVATE_REPLY", content: "card", whatsapp: c.type === "ORDER" || ctx.whatsappAlways });
-      } else if (ctx.hasDefaultDm) {
-        actions.push({ kind: "PRIVATE_REPLY", content: "default_dm", whatsapp: false });
-      } else {
-        flag = "no_product";
-      }
+    // The public "answer" tells the buyer to check their messages, so it only goes out together with a private reply.
+    if (!ctx.canPrivateReply) return { actions: [...like], flag: "private_window" };
+    let priv: CommentAction;
+    if (ctx.hasProduct) {
+      priv = { kind: "PRIVATE_REPLY", content: "card", whatsapp: c.type === "ORDER" || ctx.whatsappAlways };
+    } else if (ctx.hasDefaultDm) {
+      priv = { kind: "PRIVATE_REPLY", content: "default_dm", whatsapp: false };
+    } else {
+      return { actions: [...like], flag: "no_product" };
     }
-    return { actions: [...actions, ...like], flag };
+    return { actions: [{ kind: "PUBLIC_REPLY", style: "answer" }, priv, ...like], flag: null };
   }
   if (c.type === "PRAISE") return { actions: [{ kind: "PUBLIC_REPLY", style: "thanks" }, ...like], flag: null };
   if (c.type === "SPAM" || c.type === "ABUSE") {

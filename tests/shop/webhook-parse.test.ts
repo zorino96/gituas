@@ -52,7 +52,15 @@ describe("parseEntry — messages", () => {
     ] });
     expect(ev).toEqual([{ kind: "dm", platform: "META_INSTAGRAM", accountId: "IG", messageId: "m1", senderId: "S1", text: "قیاسی L هەیە؟" }]);
   });
+  it("reads a Facebook DM", () => {
+    expect(parseEntry("page", { id: "PAGE", messaging: [{ sender: { id: "PSID" }, message: { mid: "m1", text: "hi" } }] })).toEqual([
+      { kind: "dm", platform: "META_FACEBOOK", accountId: "PAGE", messageId: "m1", senderId: "PSID", text: "hi" },
+    ]);
+  });
   it("returns nothing for an entry without an id", () => {
     expect(parseEntry("page", { changes: [] })).toEqual([]);
+  });
+  it("ignores objects the shop does not handle", () => {
+    expect(parseEntry("whatsapp_business_account", { id: "WABA", messaging: [{ sender: { id: "S1" }, message: { mid: "m1", text: "hi" } }] })).toEqual([]);
   });
 });

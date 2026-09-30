@@ -27,6 +27,7 @@ export function parseEntry(object: string | undefined, entry: unknown): ShopEven
   const e = (entry ?? {}) as Obj;
   const accountId = str(e.id);
   if (!accountId) return [];
+  if (object !== "page" && object !== "instagram") return [];
   const platform: MetaPlatform = object === "page" ? "META_FACEBOOK" : "META_INSTAGRAM";
   const out: ShopEvent[] = [];
 
