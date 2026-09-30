@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { can } from "@/lib/newsroom/roles";
 import { baseFor, currentWorkspace, loadConnections } from "../data";
 import { PublishClient } from "./publish-client";
+import { listScheduled } from "./schedule-actions";
 
 // Instagram video containers are polled for up to ~45 s before publishing.
 export const maxDuration = 60;
@@ -18,10 +19,11 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
     );
   }
   const { draft: draftId } = await searchParams;
-  const [conns, draft, products] = await Promise.all([
+  const [conns, draft, products, scheduled] = await Promise.all([
     loadConnections(ws.id),
     draftId ? db.newsDraft.findFirst({ where: { id: draftId, tenantId: ws.id }, include: { item: true } }) : null,
     db.product.findMany({ where: { active: true, store: { tenantId: ws.id } }, select: { id: true, name: true }, orderBy: { updatedAt: "desc" } }),
+    listScheduled(),
   ]);
   const hasCard = !!(draft?.cardUrl && draft?.cardPath);
   const initial = draft && hasCard
@@ -43,6 +45,7 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
         workspaceId={ws.id}
         products={products}
         initial={initial}
+        scheduled={scheduled}
         accounts={{
           FB: conns.META_FACEBOOK.connected ? (conns.META_FACEBOOK.name ?? "پەیجی فەیسبووک") : null,
           IG: conns.META_INSTAGRAM.connected ? (conns.META_INSTAGRAM.name ?? "ئینستاگرام") : null,

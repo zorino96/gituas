@@ -32,6 +32,16 @@ export function kuDate(iso: string | null | undefined): string {
   return `${num(get("day"))}ی ${KU_MONTHS[get("month") - 1]} ${num(get("year")).replace(/[٬,]/g, "")}`;
 }
 
+/** A date and time in Kurdish, e.g. "٣٠ی ئەیلوول ٢٠٢٦، ١٥:٣٠", in Baghdad time. */
+export function kuDateTime(iso: string | null | undefined): string {
+  const date = kuDate(iso);
+  if (!date || !iso) return "";
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Baghdad", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(iso));
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
+  const time = `${get("hour")}:${get("minute")}`.replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[Number(d)]);
+  return `${date}، ${time}`;
+}
+
 /** The month names used in Iraqi Kurdistan. */
 const KU_MONTHS = [
   "کانوونی دووەم", "شوبات", "ئازار", "نیسان", "ئایار", "حوزەیران",

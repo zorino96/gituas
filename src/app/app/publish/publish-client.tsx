@@ -17,7 +17,8 @@ import {
   type PublishOutcome,
   type TikTokContext,
 } from "../actions";
-import { PLATFORM_NAME, PRIVACY_LABEL, friendlyError, num } from "../format";
+import { PLATFORM_NAME, PRIVACY_LABEL, friendlyError, kuDateTime, num } from "../format";
+import { cancelScheduledAction, listScheduled, schedulePublishAction, type ScheduledRow } from "./schedule-actions";
 import { imageToJpeg } from "./to-jpeg";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,video/mp4,video/quicktime";
@@ -49,11 +50,13 @@ export function PublishClient({
   accounts,
   products,
   initial,
+  scheduled: initialScheduled,
 }: {
   workspaceId: string;
   accounts: Record<Target, string | null>;
   products: { id: string; name: string }[];
   initial?: { newsDraftId: string; caption: string; media: Media };
+  scheduled: ScheduledRow[];
 }) {
   const router = useRouter();
   const base = useBase();
@@ -99,6 +102,15 @@ export function PublishClient({
   const [publishError, setPublishError] = useState<string | null>(null);
   const [ttStatus, setTtStatus] = useState<string | null>(null);
 
+  // scheduling — Facebook and Instagram only; TikTok is always posted live
+  const [mode, setMode] = useState<"now" | "later">("now");
+  const [runAtLocal, setRunAtLocal] = useState("");
+  const [scheduled, setScheduled] = useState<ScheduledRow[]>(initialScheduled);
+  const [scheduledMsg, setScheduledMsg] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [cancelling, startCancel] = useTransition();
+  const later = mode === "later";
+
   const targets = (Object.keys(on) as Target[]).filter((t) => on[t]);
   const isVideo = media?.type === "VIDEO";
   const uploading = progress !== null && !media;
@@ -107,6 +119,11 @@ export function PublishClient({
   useEffect(() => {
     setOn((o) => ({ ...o, IG: o.IG && !!media, TT: o.TT && !!media }));
   }, [media, isVideo]);
+
+  // TikTok is never scheduled: scheduled mode switches it off, and a finished upload cannot switch it back on.
+  useEffect(() => {
+    if (later && on.TT) setOn((o) => ({ ...o, TT: false }));
+  }, [later, on.TT]);
 
   // Load TikTok's creator_info the moment TikTok is switched on — its privacy
   // options and interaction switches must come from TikTok, not from us.
@@ -212,6 +229,7 @@ export function PublishClient({
   if (on.TT && ttIssues.includes("commercial")) blockers.push("جۆری ناوەڕۆکی بازرگانی هەڵبژێرە.");
   if (on.TT && ttIssues.includes("branded-private")) blockers.push("ناوەڕۆکی براند ناتوانێت «تەنیا خۆم» بێت.");
   if (on.TT && ttIssues.includes("duration")) blockers.push("ڤیدیۆکە لە سنووری تیکتۆکی ئەم ئەکاونتە درێژترە.");
+  if (later && !runAtLocal) blockers.push("کاتی بڵاوکردنەوە دیاری بکە.");
 
   function publish() {
     setPublishError(null);
@@ -234,6 +252,40 @@ export function PublishClient({
       const ttResult = r.results.find((x) => x.target === "TT" && x.ok && x.publishId);
       if (ttResult?.publishId) pollTikTok(ttResult.publishId);
     });
+  }
+
+  function schedule() {
+    setPublishError(null);
+    setScheduledMsg(null);
+    startPublish(async () => {
+      const r = await schedulePublishAction(
+        { caption, targets, media: media ?? undefined, newsDraftId: newsDraftId ?? undefined, productId: productId || undefined },
+        runAtLocal,
+      );
+      if (!r.ok) {
+        setPublishError(r.error);
+        return;
+      }
+      reset();
+      setRunAtLocal("");
+      setScheduledMsg(`خشتە کرا — ${kuDateTime(r.runAt)} بڵاو دەکرێتەوە.`);
+      setScheduled(await listScheduled());
+    });
+  }
+
+  function cancelScheduled(id: string) {
+    setCancelError(null);
+    startCancel(async () => {
+      const r = await cancelScheduledAction(id);
+      if (!r.ok) setCancelError(r.error);
+      setScheduled(await listScheduled());
+    });
+  }
+
+  function chooseMode(m: "now" | "later") {
+    setMode(m);
+    setPublishError(null);
+    setScheduledMsg(null);
   }
 
   function pollTikTok(publishId: string, attempt = 0) {
@@ -420,13 +472,15 @@ export function PublishClient({
         {(["FB", "IG", "TT"] as Target[]).map((t) => {
           const account = accounts[t];
           const needsMedia = (t === "IG" || t === "TT") && !media;
-          const disabled = !account || needsMedia;
+          const disabled = !account || needsMedia || (later && t === "TT");
           return (
             <div key={t} className="gm-target">
               <div>
                 <p>{PLATFORM_NAME[t]}</p>
                 <small>
-                  {!account ? (
+                  {later && t === "TT" ? (
+                    "تیکتۆک تەنها ڕاستەوخۆ"
+                  ) : !account ? (
                     <Link href={`${base}/settings`} className="gm-link">پەیوەست نەکراوە — پەیوەستی بکە</Link>
                   ) : needsMedia ? (
                     // Connected, but Instagram and TikTok can't post text alone: say
@@ -582,6 +636,27 @@ export function PublishClient({
         </div>
       )}
 
+      {/* when */}
+      <div className="gm-card" style={{ marginTop: 14 }}>
+        <div className="gm-target">
+          <p>کات</p>
+          <div className="gm-chips" role="group" aria-label="کات">
+            <button type="button" className="gm-chip" aria-pressed={!later} onClick={() => chooseMode("now")}>
+              ئێستا
+            </button>
+            <button type="button" className="gm-chip" aria-pressed={later} onClick={() => chooseMode("later")}>
+              کاتێکی دیاریکراو
+            </button>
+          </div>
+        </div>
+        {later && (
+          <div className="gm-field" style={{ marginTop: 4 }}>
+            <label htmlFor="gm-runat">کاتی بڵاوکردنەوە (کاتی عێراق)</label>
+            <input id="gm-runat" type="datetime-local" className="gm-input" value={runAtLocal} onChange={(e) => setRunAtLocal(e.target.value)} />
+          </div>
+        )}
+      </div>
+
       {/* publish */}
       {blockers.length > 0 && targets.length > 0 && (
         <ul className="gm-hint" style={{ margin: "14px 0 0", paddingInlineStart: 18 }}>
@@ -591,10 +666,47 @@ export function PublishClient({
         </ul>
       )}
       {publishError && <p className="gm-err">{friendlyError(publishError)}</p>}
-      <button type="button" className="gm-btn block" style={{ marginTop: 14 }} onClick={publish} disabled={blockers.length > 0 || publishing}>
-        {publishing ? "بڵاو دەکرێتەوە…" : `بڵاوی بکەرەوە${targets.length ? ` — ${targets.map((t) => PLATFORM_NAME[t]).join("، ")}` : ""}`}
+      {scheduledMsg && <p className="gm-ok">{scheduledMsg}</p>}
+      <button type="button" className="gm-btn block" style={{ marginTop: 14 }} onClick={later ? schedule : publish} disabled={blockers.length > 0 || publishing}>
+        {later
+          ? publishing
+            ? "خشتە دەکرێت…"
+            : "خشتەکردن"
+          : publishing
+            ? "بڵاو دەکرێتەوە…"
+            : `بڵاوی بکەرەوە${targets.length ? ` — ${targets.map((t) => PLATFORM_NAME[t]).join("، ")}` : ""}`}
       </button>
-      {publishing && on.IG && isVideo && <p className="gm-hint">ڤیدیۆی ئینستاگرام تا یەک خولەک دەخایەنێت.</p>}
+      {publishing && !later && on.IG && isVideo && <p className="gm-hint">ڤیدیۆی ئینستاگرام تا یەک خولەک دەخایەنێت.</p>}
+
+      {/* scheduled posts */}
+      {scheduled.length > 0 && (
+        <>
+          <p className="gm-sec">پۆستە خشتەکراوەکان</p>
+          <div className="gm-card">
+            {scheduled.map((p) => (
+              <div key={p.id} className="gm-target" style={{ alignItems: "flex-start" }}>
+                <div>
+                  <p dir="auto">{p.caption || "—"}</p>
+                  <small>
+                    {kuDateTime(p.runAt)} · {p.targets.map((t) => PLATFORM_NAME[t]).join("، ")}
+                  </small>
+                  {p.status === "FAILED" && p.lastError && (
+                    <small className="gm-err" style={{ display: "block", margin: 0 }}>{friendlyError(p.lastError)}</small>
+                  )}
+                </div>
+                {p.status === "PENDING" ? (
+                  <button type="button" className="gm-btn quiet small" onClick={() => cancelScheduled(p.id)} disabled={cancelling}>
+                    هەڵوەشاندنەوە
+                  </button>
+                ) : (
+                  <span className={`gm-badge ${p.status === "FAILED" ? "warn" : ""}`}>{p.status === "FAILED" ? "نەکرا" : "دەنێردرێت…"}</span>
+                )}
+              </div>
+            ))}
+          </div>
+          {cancelError && <p className="gm-err">{cancelError}</p>}
+        </>
+      )}
     </div>
   );
 }
