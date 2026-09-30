@@ -400,6 +400,8 @@ model Tenant {
   currentPeriodEnd      DateTime?
   /// When the paid newsroom plan lapses (Wayl billing); null = never paid.
   planPaidUntil         DateTime?
+  /// End of the free newsroom trial; null = no trial (older workspaces, shops).
+  trialEndsAt           DateTime?
   discordWebhookUrl     String?
   telegramBotToken      String?
   telegramChatId        String?
@@ -425,6 +427,8 @@ model Tenant {
   projects              Project[]
   wallet                Wallet?
   invoices              Invoice[]
+  scheduledPosts        ScheduledPost[]
+  orders                Order[]
 }
 
 model User {
@@ -991,4 +995,72 @@ model Invoice {
 
   @@index([tenantId, createdAt])
   @@index([status, createdAt])
+}
+
+enum ScheduleStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+  CANCELLED
+}
+
+/// A composer post to publish later (Facebook, Instagram, YouTube — never TikTok).
+model ScheduledPost {
+  id          String         @id @default(cuid())
+  tenantId    String
+  createdById String
+  /// The composer's PublishInput, as JSON.
+  input       Json
+  runAt       DateTime
+  status      ScheduleStatus @default(PENDING)
+  /// The PublishOutcome[] after running.
+  result      Json?
+  lastError   String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([status, runAt])
+  @@index([tenantId, runAt])
+}
+
+enum OrderStatus {
+  NEW
+  CONFIRMED
+  SENT
+  DELIVERED
+  RETURNED
+  CANCELLED
+}
+
+/// A shop order, entered by the merchant or opened automatically from an ORDER comment/DM.
+model Order {
+  id               String      @id @default(cuid())
+  tenantId         String
+  storeId          String?
+  customerName     String      @default("")
+  phone            String?
+  /// Governorate code from src/lib/orders/cities.ts, or null until known.
+  city             String?
+  address          String?
+  productId        String?
+  productName      String      @default("")
+  variantLabel     String      @default("")
+  amountMinor      Int         @default(0)
+  currency         String      @default("IQD")
+  deliveryFeeMinor Int?
+  cod              Boolean     @default(true)
+  status           OrderStatus @default(NEW)
+  /// "MANUAL" | "COMMENT" | "DM"
+  source           String      @default("MANUAL")
+  sourceMessageId  String?     @unique
+  note             String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  tenant           Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, city])
+  @@index([tenantId, status])
 }
