@@ -110,7 +110,9 @@ export function AutomationClient({ store, stores, templates, products, postAutom
           </span>
         </div>
         <small className="gm-hint" style={{ display: "block" }}>
-          پلان: {usage.plan}
+          <Link href="/app/billing" className="gm-link">
+            پلان: {usage.plan}
+          </Link>
         </small>
       </div>
 

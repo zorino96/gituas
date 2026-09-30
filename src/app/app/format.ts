@@ -23,6 +23,15 @@ export function ago(iso?: string, now: number = Date.now()): string {
   return `${num(date.getDate())}ی ${KU_MONTHS[date.getMonth()]}`;
 }
 
+/** A calendar date in Kurdish, e.g. "٣٠ی ئەیلوول ٢٠٢٦". Fixed to Baghdad time so server and browser agree. */
+export function kuDate(iso: string | null | undefined): string {
+  const t = iso ? new Date(iso) : null;
+  if (!t || Number.isNaN(t.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Baghdad", day: "numeric", month: "numeric", year: "numeric" }).formatToParts(t);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  return `${num(get("day"))}ی ${KU_MONTHS[get("month") - 1]} ${num(get("year")).replace(/[٬,]/g, "")}`;
+}
+
 /** The month names used in Iraqi Kurdistan. */
 const KU_MONTHS = [
   "کانوونی دووەم", "شوبات", "ئازار", "نیسان", "ئایار", "حوزەیران",

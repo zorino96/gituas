@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { signOut } from "next-auth/react";
 
 import { normalizePhone } from "@/lib/merchant/phone";
@@ -82,6 +83,16 @@ export function SettingsClient({
       {connectError && <p className="gm-err">{CONNECT_ERRORS[connectError] ?? "پەیوەستکردن سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە."}</p>}
 
       {news && <NewsSettings {...news} />}
+
+      <div className="gm-card">
+        <div className="gm-target">
+          <p>
+            <Link href={`${base}/billing`} className="gm-link">
+              پلان و پارەدان
+            </Link>
+          </p>
+        </div>
+      </div>
 
       <p className="gm-sec">ئەکاونتەکان</p>
       <div className="gm-card">
