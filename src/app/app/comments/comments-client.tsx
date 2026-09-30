@@ -7,18 +7,23 @@ import { EyeOff, Eye, RefreshCw, Reply, Trash2, ExternalLink } from "lucide-reac
 
 import type { CommentState, MComment, MPost, Platform } from "@/lib/merchant/types";
 import { commentState, countStates } from "@/lib/merchant/state";
+import { needsYou, REASON_LABEL } from "@/lib/shop/forms";
 import { useBase } from "../use-base";
 import { deleteCommentAction, replyToCommentAction, setCommentHiddenAction } from "../actions";
 import { ReplyComposer } from "../reply-composer";
 import { PLATFORM_NAME, ago, friendlyError, num } from "../format";
 
-type Filter = "all" | CommentState;
+type Filter = "all" | "needs" | CommentState;
+
+/** What the shop automation did with a comment: `outcome` and `reason` come from its conversation message. */
+type Outcomes = Record<string, { outcome: string | null; reason: string | null }>;
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "unanswered", label: "وەڵام نەدراوە" },
   { key: "all", label: "هەموو" },
   { key: "answered", label: "وەڵام دراوە" },
   { key: "hidden", label: "شاردراوە" },
+  { key: "needs", label: "پێویستی بە تۆیە" },
 ];
 
 const STATE_BADGE: Record<CommentState, { cls: string; label: string }> = {
@@ -27,14 +32,27 @@ const STATE_BADGE: Record<CommentState, { cls: string; label: string }> = {
   hidden: { cls: "ghost", label: "شاردراوە" },
 };
 
+function OutcomeBadges({ outcomes, id }: { outcomes: Outcomes; id: string }) {
+  const o = outcomes[id];
+  const reason = o?.reason && needsYou(o.reason) ? o.reason : null;
+  return (
+    <>
+      {o?.outcome === "AUTO_REPLIED" && <span className="gm-badge ghost">وەڵامی خۆکار</span>}
+      {reason && <span className="gm-badge warn">{REASON_LABEL[reason]}</span>}
+    </>
+  );
+}
+
 export function CommentsClient({
   initialPosts,
   errors,
+  outcomes,
   whatsappPath,
   connected,
 }: {
   initialPosts: MPost[];
   errors: { platform: Platform; message: string }[];
+  outcomes: Outcomes;
   whatsappPath: string | null;
   connected: Record<Platform, boolean>;
 }) {
@@ -50,8 +68,12 @@ export function CommentsClient({
   useEffect(() => setWaUrl(whatsappPath ? `${window.location.origin}${whatsappPath}` : null), [whatsappPath]);
 
   const total = counts.unanswered + counts.answered + counts.hidden;
+  // A comment waits for the merchant when the automation flagged it, or flagged a reply under it.
+  const flagged = (c: MComment) => needsYou(outcomes[c.id]?.reason ?? null) || c.replies.some((r) => needsYou(outcomes[r.id]?.reason ?? null));
+  const needsCount = posts.reduce((n, p) => n + p.comments.filter(flagged).length, 0);
+  const matches = (c: MComment) => filter === "all" || (filter === "needs" ? flagged(c) : commentState(c) === filter);
   const visible = posts
-    .map((p) => ({ post: p, comments: p.comments.filter((c) => filter === "all" || commentState(c) === filter) }))
+    .map((p) => ({ post: p, comments: p.comments.filter(matches) }))
     .filter((x) => x.comments.length > 0);
 
   function patchComment(platform: Platform, id: string, fn: (c: MComment) => MComment | null) {
@@ -113,7 +135,7 @@ export function CommentsClient({
             aria-pressed={filter === f.key}
             onClick={() => setFilter(f.key)}
           >
-            {f.label} {num(f.key === "all" ? total : counts[f.key])}
+            {f.label} {num(f.key === "all" ? total : f.key === "needs" ? needsCount : counts[f.key])}
           </button>
         ))}
       </div>
@@ -152,6 +174,7 @@ export function CommentsClient({
                 <CommentItem
                   key={c.id}
                   comment={c}
+                  outcomes={outcomes}
                   waUrl={waUrl}
                   onReplied={(text) =>
                     patchComment(c.platform, c.id, (x) => ({
@@ -173,12 +196,14 @@ export function CommentsClient({
 
 function CommentItem({
   comment: c,
+  outcomes,
   waUrl,
   onReplied,
   onHidden,
   onDeleted,
 }: {
   comment: MComment;
+  outcomes: Outcomes;
   waUrl: string | null;
   onReplied: (text: string) => void;
   onHidden: (hidden: boolean) => void;
@@ -215,7 +240,10 @@ function CommentItem({
   return (
     <div className={`gm-comment ${state === "unanswered" ? "unanswered" : ""}`}>
       <div className="gm-between">
-        <span className="gm-who" dir="auto">{c.fromUs ? "تۆ" : c.author || "بەکارهێنەر"}</span>
+        <span className="gm-row" style={{ gap: 8, flexWrap: "wrap" }}>
+          <span className="gm-who" dir="auto">{c.fromUs ? "تۆ" : c.author || "بەکارهێنەر"}</span>
+          <OutcomeBadges outcomes={outcomes} id={c.id} />
+        </span>
         <span className="gm-row" style={{ gap: 8 }}>
           <span className={`gm-badge ${badge.cls}`}>{badge.label}</span>
           <span className="gm-time">{ago(c.createdAt)}</span>
@@ -225,7 +253,7 @@ function CommentItem({
 
       {c.replies.map((r) => (
         <div key={r.id} className={`gm-reply ${r.fromUs ? "us" : ""}`}>
-          <b>{r.fromUs ? "وەڵامی تۆ" : r.author}</b> · <span dir="auto">{r.text}</span>
+          <b>{r.fromUs ? "وەڵامی تۆ" : r.author}</b> · <span dir="auto">{r.text}</span> <OutcomeBadges outcomes={outcomes} id={r.id} />
         </div>
       ))}
 
