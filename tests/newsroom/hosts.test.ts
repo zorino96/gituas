@@ -37,8 +37,22 @@ describe("routeFor on the shop domain", () => {
     expect(r("/newsroom")).toEqual({ kind: "redirect", url: `${NEWSROOM_ORIGIN}/newsroom` });
     expect(r("/login", "?next=%2Fnewsroom%2Fnews")).toEqual({ kind: "redirect", url: `${NEWSROOM_ORIGIN}/login?next=%2Fnewsroom%2Fnews` });
   });
+  it("opens the shop at the root", () => {
+    expect(r("/")).toEqual({ kind: "redirect", url: `${SHOP_ORIGIN}/app` });
+  });
+  it("opens sign-in, sign-up and forgot as the shop's when nothing says otherwise", () => {
+    for (const p of ["/login", "/signup", "/forgot"]) {
+      expect(r(p)).toEqual({ kind: "redirect", url: `${SHOP_ORIGIN}${p}?next=%2Fapp` });
+    }
+    expect(r("/login", "?next=%2Fdashboard")).toEqual({ kind: "next" });
+    expect(r("/login", "?callbackUrl=%2Fdashboard")).toEqual({ kind: "next" });
+    expect(r("/login", "?error=OAuthAccountNotLinked")).toEqual({ kind: "next" });
+  });
+  it("drops www", () => {
+    expect(routeFor("www.gituas.com", "/app", "?x=1")).toEqual({ kind: "redirect", url: `${SHOP_ORIGIN}/app?x=1` });
+  });
   it("leaves the shop and everything else alone", () => {
-    for (const p of ["/", "/app", "/app/publish", "/login", "/api/oauth/meta_facebook/callback", "/dashboard", "/newsroomx"]) {
+    for (const p of ["/app", "/app/publish", "/api/oauth/meta_facebook/callback", "/dashboard", "/newsroomx", "/privacy"]) {
       expect(r(p)).toEqual({ kind: "next" });
     }
   });

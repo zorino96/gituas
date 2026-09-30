@@ -41,9 +41,18 @@ export function routeFor(hostHeader: string, path: string, search: string): Rout
     return NEXT;
   }
 
-  // The shop domain.
+  // The shop domain: its root opens the shop (or the shop's sign-in).
+  if (host !== "gituas.com") return { kind: "redirect", url: `${SHOP_ORIGIN}${path}${search}` };
+  if (path === "/") return { kind: "redirect", url: `${SHOP_ORIGIN}/app` };
   if (NEWSROOM.test(path)) return { kind: "redirect", url: `${NEWSROOM_ORIGIN}${path}${search}` };
-  if (AUTH_PAGES.has(path) && next.startsWith("/newsroom")) return { kind: "redirect", url: `${NEWSROOM_ORIGIN}${path}${search}` };
+  if (AUTH_PAGES.has(path)) {
+    if (next.startsWith("/newsroom")) return { kind: "redirect", url: `${NEWSROOM_ORIGIN}${path}${search}` };
+    // A bare sign-in is the shop's. A failed attempt (?error=) keeps the login page's own cookie-based fallback.
+    if (!next && !params.has("callbackUrl") && !params.has("error")) {
+      params.set("next", "/app");
+      return { kind: "redirect", url: `${SHOP_ORIGIN}${path}?${params.toString()}` };
+    }
+  }
   return NEXT;
 }
 
