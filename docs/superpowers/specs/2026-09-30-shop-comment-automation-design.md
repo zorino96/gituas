@@ -66,7 +66,8 @@ generic template as a private reply.
 
 ### Gate — before anything runs
 
-1. The comment's author is the store itself (Page id or IG user id) → ignore.
+1. The comment's author is the store itself (Page id or IG user id, or the IG
+   username on Instagram) → ignore.
    This prevents the bot answering its own replies. There is no such check today.
 2. The post is automated: its `PostAutomation` is enabled, not expired, and
    within the plan's active-post slots (the **N newest posts** by post creation time).
@@ -104,10 +105,13 @@ language: ckb (Sorani) | kmr (Badini) | ar | ku_latn | en
   language. A guard rejects any output containing a digit (Western, Arabic-Indic
   or Persian) or longer than 300 characters. On rejection or model failure, the
   sample is sent verbatim. On Instagram the reply starts with `@username`.
+  A store that has not written samples yet uses built-in ones per language.
 - **Product card**: see Composition.
 - **No product card on the post** → the store's default DM (merchant-written text).
-  If there is none, the private reply is skipped and the post is flagged "add a
-  product card".
+- **The public answer only goes out together with a private reply.** Its samples
+  tell the buyer to check their messages, so when there is no card and no default
+  DM (flag `no_product`), or the comment is past Meta's 7-day private-reply window
+  (flag `private_window`), nothing is posted except the Facebook like.
 - **Timing**: each comment waits a random 8–30 s before its replies go out, so
   replies read as human and a burst of comments is spread out. The ceiling keeps
   the whole run inside the 60 s a function gets on Vercel Hobby.
@@ -118,9 +122,10 @@ When a buyer answers a private reply, the thread is bound to that post's product
 - **First answer**: send the product photos (up to 5; IG needs this because its
   private reply was text), then handle the answer itself like any later DM.
 - **Later DMs**: classify. Price, delivery, size/colour and availability get the
-  template answer from the product; ORDER gets the WhatsApp link. Anything else is
-  flagged.
+  template answer from the product; ORDER gets the WhatsApp link. Thanks pass
+  silently. Anything else is flagged.
 - DMs with no bound product are flagged, never guessed at.
+- Photos go once per buyer per store, even when two DMs arrive together.
 
 ### Composition — the model never writes numbers
 
@@ -140,9 +145,11 @@ languages (`ckb`, `kmr`, `ar`), Western digits for `ku_latn` and `en`. IQD has
 no minor unit and USD has two. A small `src/lib/shop/money.ts` owns this; the
 richer money module exists only on the unmerged `tiktok-boost` branch.
 
-The Facebook card is a generic template with one element per product photo (max
-10): image = photo, title = product name, subtitle = price and delivery (≤ 80
-chars; the builder truncates at a word boundary), button = the WhatsApp link. If
+The Facebook card is a generic template (max 10 elements). A product with several
+variants gets one element per variant, titled "name — variant", with its own
+price and the photos cycled. A one-price product gets one element per photo. Each
+element has image = photo, subtitle = price and delivery (≤ 80 chars, truncated at
+a word boundary without splitting an emoji), and button = the WhatsApp link. If
 the template is rejected, the same content is sent as text.
 
 The WhatsApp link is the existing counted redirect `/w/<slug>?t=<text>`, where
@@ -204,6 +211,8 @@ ConversationMessage  + storeId, classification, binding
   - `@@unique([storeId, externalMessageId])` for idempotent webhook upserts.
   - `projectId` becomes optional, so shop rows no longer need a `Project`. Operator-dashboard
     rows keep theirs and follow the old path unchanged.
+- **ThreadPause**: `tenantId`, `platform`, `threadKey` (comment id or buyer
+  messaging id), unique together. A manual reply writes one; the gate reads it.
 - **OutboxJob**:
   - `messageId`, `kind` (PUBLIC_REPLY | PRIVATE_REPLY | LIKE | HIDE | DM_ANSWER | DM_PHOTOS),
     `@@unique([messageId, kind])`;
