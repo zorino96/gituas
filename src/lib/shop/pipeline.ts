@@ -46,7 +46,7 @@ export async function processMessage(messageId: string, opts: { delay?: boolean 
   const jobIds = msg.channelType === "DM" ? await planDm(msg as Msg) : await planComment(msg as Msg);
   if (!jobIds.length) return;
   if (opts.delay) await sleep(jitterMs());
-  for (const id of jobIds) await runJob(id);
+  for (const id of jobIds) await runJob(id, { immediate: true });
 }
 
 async function finish(id: string, outcome: "AUTO_REPLIED" | "FLAGGED" | "SKIPPED", reason: string | null, extra: Prisma.ConversationMessageUpdateInput = {}): Promise<void> {
@@ -77,14 +77,16 @@ async function vary(store: Store, sample: string, lang: Lang): Promise<string> {
   return r.text;
 }
 
-async function createJobs(storeId: string, messageId: string, specs: JobSpec[]): Promise<string[]> {
+async function createJobs(storeId: string, messageId: string, specs: JobSpec[], productId: string | null = null): Promise<string[]> {
   const ids: string[] = [];
   for (const s of specs) {
+    // reserved for the immediate run; the sweep only takes it if that run died
+    const nextAttemptAt = new Date(Date.now() + 2 * 60_000);
     if (s.kind === "DM_PHOTOS" && s.recipientId) {
-      // One photo job per buyer per store: a fixed id makes a racing second insert fail instead of sending twice.
+      // One photo job per buyer per product: a fixed id makes a racing second insert fail instead of sending twice.
       try {
         const job = await db.outboxJob.create({
-          data: { id: `dmphotos_${storeId}_${s.recipientId}`, storeId, messageId, kind: s.kind, payload: s.payload as Prisma.InputJsonValue, recipientId: s.recipientId },
+          data: { id: `dmphotos_${storeId}_${s.recipientId}_${productId ?? "none"}`, storeId, messageId, kind: s.kind, payload: s.payload as Prisma.InputJsonValue, recipientId: s.recipientId, nextAttemptAt },
           select: { id: true },
         });
         ids.push(job.id);
@@ -95,7 +97,7 @@ async function createJobs(storeId: string, messageId: string, specs: JobSpec[]):
     }
     const job = await db.outboxJob.upsert({
       where: { messageId_kind: { messageId, kind: s.kind } },
-      create: { storeId, messageId, kind: s.kind, payload: s.payload as Prisma.InputJsonValue, recipientId: s.recipientId ?? null },
+      create: { storeId, messageId, kind: s.kind, payload: s.payload as Prisma.InputJsonValue, recipientId: s.recipientId ?? null, nextAttemptAt },
       update: {},
       select: { id: true },
     });
@@ -192,7 +194,8 @@ async function planComment(msg: Msg): Promise<string[]> {
 
   const specs = buildCommentJobs({ decision, platform, commentId, authorName: msg.authorHandle, publicText, card, defaultDm: store.defaultDm });
   const ids = await createJobs(store.id, msg.id, specs);
-  await finish(msg.id, specs.length ? "AUTO_REPLIED" : "FLAGGED", decision.flag, {
+  const replied = specs.some((s) => s.kind === "PUBLIC_REPLY" || s.kind === "PRIVATE_REPLY");
+  await finish(msg.id, replied ? "AUTO_REPLIED" : "FLAGGED", decision.flag ?? (replied ? null : "no_action"), {
     commentType: c.type, intent: c.intent, language: c.language, confidence: c.confidence, boundProductId: product?.id ?? null,
   });
   return ids;
@@ -224,7 +227,7 @@ async function planDm(msg: Msg): Promise<string[]> {
     select: { message: { select: { boundProductId: true } } },
   });
   const product = await loadProduct(bound?.message.boundProductId ?? null);
-  const photosSent = product ? await db.outboxJob.count({ where: { storeId: store.id, kind: "DM_PHOTOS", recipientId: senderId } }) : 0;
+  const photosSent = product ? await db.outboxJob.count({ where: { id: `dmphotos_${store.id}_${senderId}_${product.id}` } }) : 0;
   const text = (msg.content ?? "").trim();
   const c = text ? await classifyText(text, { channel: "dm", productName: product?.name }) : null;
   const decision = decideDm(c, { boundProduct: !!product, firstReply: photosSent === 0, hasPhotos: (product?.photos.length ?? 0) > 0 });
@@ -237,7 +240,7 @@ async function planDm(msg: Msg): Promise<string[]> {
   }
   const specs = buildDmJobs({ actions: decision.actions, recipientId: senderId, photos: product?.photos ?? [], answerText: answer });
   const flag = decision.flag ?? (ans && !answer ? "needs_you" : null);
-  const ids = await createJobs(store.id, msg.id, specs);
+  const ids = await createJobs(store.id, msg.id, specs, product?.id ?? null);
   await finish(msg.id, specs.length ? "AUTO_REPLIED" : "FLAGGED", flag, {
     commentType: c?.type ?? null, intent: c?.intent ?? null, language: c?.language ?? null, confidence: c?.confidence ?? null, boundProductId: product?.id ?? null,
   });

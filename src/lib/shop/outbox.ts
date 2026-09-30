@@ -4,6 +4,7 @@ import { accountFor, hideComment, likeComment, privateReply, replyToComment, sen
 import { backoffMs, MAX_ATTEMPTS, retryable } from "./meta-errors";
 
 const HOUR = 3_600_000;
+const CLAIM_MS = 5 * 60_000;
 
 async function send(acc: StoreAccount, kind: OutboxKind, p: JobPayload): Promise<SendResult> {
   switch (kind) {
@@ -32,22 +33,51 @@ async function send(acc: StoreAccount, kind: OutboxKind, p: JobPayload): Promise
   }
 }
 
-/** Send one job and record what happened. Safe to call twice: only PENDING jobs are sent. */
-export async function runJob(jobId: string): Promise<void> {
+/** Send one job and record what happened. The conditional claim makes a second concurrent call a no-op. */
+export async function runJob(jobId: string, opts: { immediate?: boolean } = {}): Promise<void> {
+  const now = new Date();
+  // Claim first: the immediate run and the cron sweep can meet on the same job.
+  // The immediate run ignores nextAttemptAt; the sweep only takes due jobs.
+  const claim = await db.outboxJob.updateMany({
+    where: { id: jobId, status: "PENDING", ...(opts.immediate ? {} : { nextAttemptAt: { lte: now } }) },
+    data: { nextAttemptAt: new Date(now.getTime() + CLAIM_MS) },
+  });
+  if (claim.count !== 1) return;
   const job = await db.outboxJob.findUnique({
     where: { id: jobId },
-    include: { store: { select: { id: true, tenantId: true, fbPageId: true, igUserId: true } }, message: { select: { platform: true } } },
+    include: {
+      store: { select: { id: true, tenantId: true, fbPageId: true, igUserId: true, automationEnabled: true } },
+      message: { select: { platform: true } },
+    },
   });
-  if (!job || job.status !== "PENDING") return;
+  if (!job) return;
+  const payload = job.payload as JobPayload;
+  const platform = job.message.platform as MetaPlatform;
+  const skip = (why: string) => db.outboxJob.update({ where: { id: job.id }, data: { status: "SKIPPED", lastError: why } });
 
-  const acc = await accountFor(job.store, job.message.platform as MetaPlatform);
+  // Retries happen later: the merchant may have switched automation off or taken the thread over.
+  if (!job.store.automationEnabled) return void (await skip("store_off"));
+  const keys = [payload.commentId, payload.recipientId].filter((k): k is string => !!k);
+  if (keys.length && (await db.threadPause.count({ where: { tenantId: job.store.tenantId, platform, threadKey: { in: keys } } }))) {
+    return void (await skip("thread_paused"));
+  }
+  if (payload.requiresPrivate) {
+    const priv = await db.outboxJob.findUnique({ where: { messageId_kind: { messageId: job.messageId, kind: "PRIVATE_REPLY" } }, select: { status: true } });
+    if (priv?.status === "PENDING") {
+      await db.outboxJob.update({ where: { id: job.id }, data: { nextAttemptAt: new Date(now.getTime() + 2 * 60_000) } });
+      return;
+    }
+    if (priv?.status !== "SENT") return void (await skip("private_reply_not_sent"));
+  }
+
+  const acc = await accountFor(job.store, platform);
   if (!acc) {
     await db.store.update({ where: { id: job.storeId }, data: { pausedReason: "token" } });
     await db.outboxJob.update({ where: { id: job.id }, data: { nextAttemptAt: new Date(Date.now() + HOUR), lastError: "no usable credential" } });
     return;
   }
 
-  const r = await send(acc, job.kind, job.payload as JobPayload);
+  const r = await send(acc, job.kind, payload);
   if (r.ok) {
     await db.outboxJob.update({ where: { id: job.id }, data: { status: "SENT", sentId: r.id, recipientId: r.recipientId ?? job.recipientId, lastError: null, attempts: { increment: 1 } } });
     return;

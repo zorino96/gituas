@@ -26,7 +26,7 @@ export async function connectStore(tenantId: string, platform: MetaPlatform, acc
   if (tenant?.kind !== "MERCHANT") return null;
 
   const slot = platform === "META_FACEBOOK" ? { fbPageId: accountId } : { igUserId: accountId };
-  const extra = platform === "META_INSTAGRAM" ? { igUsername: accountName } : {};
+  const extra = platform === "META_INSTAGRAM" ? { igUsername: accountName.replace(/^@/, "") } : {};
 
   let store = await db.store.findFirst({ where: slot, select: { id: true, tenantId: true, fbPageId: true, igUserId: true } });
   if (store && store.tenantId !== tenantId) return null; // this account already runs another workspace's store

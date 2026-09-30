@@ -11,6 +11,7 @@ describe("classifyMetaError", () => {
     expect(classifyMetaError(429, {})).toBe("rate");
     expect(classifyMetaError(400, err(10, "Message sent outside of allowed window"))).toBe("window");
     expect(classifyMetaError(400, err(100, "Object does not exist", 33))).toBe("gone");
+    expect(classifyMetaError(403, err(10, "Application does not have permission for this action"))).toBe("other");
     expect(classifyMetaError(400, err(10900, "Activity already replied to"))).toBe("duplicate");
     expect(classifyMetaError(500, err(2, "Service temporarily unavailable"))).toBe("other");
   });

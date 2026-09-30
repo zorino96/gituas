@@ -12,20 +12,26 @@ const decision = {
 const card = { text: "CARD TEXT", elements: [{ title: "Hoodie", subtitle: "25,000 IQD" }] };
 
 describe("buildCommentJobs", () => {
-  it("orders public reply, like, private reply; Facebook gets the template with a text fallback", () => {
+  it("orders private reply, public reply, like; Facebook gets the template with a text fallback", () => {
     const jobs = buildCommentJobs({ decision, platform: "META_FACEBOOK", commentId: "C1", authorName: "Aram", publicText: "سوپاس", card, defaultDm: null });
-    expect(jobs.map((j) => j.kind)).toEqual(["PUBLIC_REPLY", "LIKE", "PRIVATE_REPLY"]);
-    expect(jobs[0].payload).toEqual({ commentId: "C1", text: "سوپاس" });
-    expect(jobs[2].payload).toEqual({
+    expect(jobs.map((j) => j.kind)).toEqual(["PRIVATE_REPLY", "PUBLIC_REPLY", "LIKE"]);
+    expect(jobs[0].payload).toEqual({
       commentId: "C1",
       message: { attachment: { type: "template", payload: { template_type: "generic", elements: card.elements } } },
       fallbackText: "CARD TEXT",
     });
+    expect(jobs[1].payload).toEqual({ commentId: "C1", text: "سوپاس", requiresPrivate: true });
   });
   it("mentions the commenter and sends text on Instagram", () => {
     const jobs = buildCommentJobs({ decision, platform: "META_INSTAGRAM", commentId: "C1", authorName: "shilan", publicText: "سوپاس", card, defaultDm: null });
-    expect(jobs[0].payload.text).toBe("@shilan سوپاس");
+    expect(jobs.find((j) => j.kind === "PUBLIC_REPLY")!.payload.text).toBe("@shilan سوپاس");
     expect(jobs.find((j) => j.kind === "PRIVATE_REPLY")!.payload.message).toEqual({ text: "CARD TEXT" });
+  });
+  it("a public thank-you does not wait for a private reply", () => {
+    const d = { actions: [{ kind: "PUBLIC_REPLY" as const, style: "thanks" as const }], flag: null };
+    const jobs = buildCommentJobs({ decision: d, platform: "META_FACEBOOK", commentId: "C1", authorName: null, publicText: "سوپاس", card: null, defaultDm: null });
+    expect(jobs).toEqual([{ kind: "PUBLIC_REPLY", payload: { commentId: "C1", text: "سوپاس" } }]);
+    expect(jobs[0].payload).not.toHaveProperty("requiresPrivate");
   });
   it("uses the default DM, and drops jobs that have nothing to send", () => {
     const d = { actions: [{ kind: "PUBLIC_REPLY" as const, style: "answer" as const }, { kind: "PRIVATE_REPLY" as const, content: "default_dm" as const, whatsapp: false }], flag: null };

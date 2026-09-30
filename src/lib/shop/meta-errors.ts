@@ -9,8 +9,8 @@ export function classifyMetaError(status: number, body: unknown): MetaFailure {
   if (e.code === 190 || status === 401) return "token";
   if (e.code === 4 || e.code === 17 || e.code === 32 || e.code === 613 || status === 429) return "rate";
   if (e.code === 10900 || /already (been )?replied|only one/.test(msg)) return "duplicate";
-  if (e.error_subcode === 2534022 || e.error_subcode === 2018278 || /allowed window|24 hour|outside of/.test(msg) || e.code === 10) return "window";
-  if (e.error_subcode === 33 || /does not exist|cannot be loaded|unsupported (get|post) request/.test(msg)) return "gone";
+  if (e.error_subcode === 2534022 || e.error_subcode === 2018278 || /allowed window|24 hour|outside of/.test(msg)) return "window";
+  if (e.error_subcode === 33 || /does not exist|cannot be loaded/.test(msg)) return "gone";
   return "other";
 }
 

@@ -12,6 +12,8 @@ export interface JobPayload {
   fallbackText?: string;
   recipientId?: string;
   urls?: string[];
+  /** Public "we messaged you" answer: send only after this message's private reply was SENT. */
+  requiresPrivate?: boolean;
 }
 
 export interface JobSpec {
@@ -20,7 +22,7 @@ export interface JobSpec {
   recipientId?: string;
 }
 
-const ORDER: OutboxKind[] = ["PUBLIC_REPLY", "LIKE", "PRIVATE_REPLY", "HIDE"];
+const ORDER: OutboxKind[] = ["PRIVATE_REPLY", "PUBLIC_REPLY", "LIKE", "HIDE"];
 
 export function buildCommentJobs(i: {
   decision: CommentDecision;
@@ -36,7 +38,9 @@ export function buildCommentJobs(i: {
     if (a.kind === "PUBLIC_REPLY") {
       if (!i.publicText) continue;
       const mention = i.platform === "META_INSTAGRAM" && i.authorName ? `@${i.authorName} ` : "";
-      out.push({ kind: "PUBLIC_REPLY", payload: { commentId: i.commentId, text: mention + i.publicText } });
+      const payload: JobPayload = { commentId: i.commentId, text: mention + i.publicText };
+      if (a.style === "answer") payload.requiresPrivate = true;
+      out.push({ kind: "PUBLIC_REPLY", payload });
     } else if (a.kind === "LIKE" || a.kind === "HIDE") {
       out.push({ kind: a.kind, payload: { commentId: i.commentId } });
     } else if (a.content === "card" && i.card) {
