@@ -31,6 +31,7 @@ import type { Platform } from "@/lib/merchant/types";
 import { assertWithin, LimitReached, limitMessage } from "@/lib/billing/limits";
 import { recordNewsPublish } from "@/lib/news/publish-record";
 import { checkDraft } from "@/lib/news/rules";
+import { pauseThread } from "@/lib/shop/pause";
 
 export type Result = { ok: true } | { ok: false; error: string };
 
@@ -57,6 +58,7 @@ export async function replyToCommentAction(platform: Platform, commentId: string
   if (!t.ok) return t;
   const r = platform === "IG" ? await replyToComment(ws.id, commentId, t.text) : await replyToPageComment(ws.id, commentId, t.text);
   if (!r.ok) return { ok: false, error: r.error ?? "ناردن سەرکەوتوو نەبوو." };
+  await pauseThread(ws.id, platform === "IG" ? "META_INSTAGRAM" : "META_FACEBOOK", commentId);
   await audit(ws.id, "app.comment_reply", `Replied to ${platform} comment ${commentId}.`, { platform, commentId });
   return { ok: true };
 }
@@ -91,6 +93,7 @@ export async function sendMessageAction(platform: Platform, recipientId: string,
   if (!t.ok) return t;
   const r = platform === "IG" ? await sendInstagramDM(ws.id, recipientId, t.text) : await sendMessengerMessage(ws.id, recipientId, t.text);
   if (!r.ok) return { ok: false, error: r.error ?? "ناردن سەرکەوتوو نەبوو." };
+  await pauseThread(ws.id, platform === "IG" ? "META_INSTAGRAM" : "META_FACEBOOK", recipientId);
   await audit(ws.id, "app.dm_send", `Sent a ${platform} message to ${recipientId}.`, { platform, recipientId });
   return { ok: true };
 }

@@ -10,12 +10,16 @@
 // Docs: https://developers.facebook.com/docs/instagram-platform/webhooks/
 
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
+import { processMessage } from "@/lib/shop/pipeline";
+import { parseEntry, type ShopEvent } from "@/lib/shop/webhook-parse";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Shop replies wait 8-30 s (human pace) inside after(); keep the whole run under Hobby's 60 s.
+export const maxDuration = 60;
 
 // ---- GET: verification handshake ------------------------------------------
 
@@ -93,6 +97,29 @@ async function ingest(input: {
   });
 }
 
+/** The shop store behind a connected Page or Instagram account, if the account belongs to one. */
+async function storeForAccount(platform: "META_INSTAGRAM" | "META_FACEBOOK", accountId: string) {
+  return db.store.findFirst({ where: platform === "META_FACEBOOK" ? { fbPageId: accountId } : { igUserId: accountId }, select: { id: true } });
+}
+
+/** Store a shop event once; Meta redelivers, and the unique key makes the second copy a no-op. */
+async function ingestShop(storeId: string, ev: ShopEvent): Promise<string | null> {
+  const fields =
+    ev.kind === "comment"
+      ? { channelType: "COMMENT" as const, externalMessageId: ev.commentId, externalThreadId: ev.postId, authorId: ev.authorId, authorHandle: ev.authorName ?? ev.authorId, parentCommentId: ev.parentCommentId }
+      : { channelType: "DM" as const, externalMessageId: ev.messageId, externalThreadId: ev.senderId, authorId: ev.senderId, authorHandle: ev.senderId, parentCommentId: null };
+  try {
+    const row = await db.conversationMessage.create({
+      data: { storeId, platform: ev.platform, direction: "INBOUND", status: "RECEIVED", content: ev.text, ...fields },
+      select: { id: true },
+    });
+    return row.id;
+  } catch (e) {
+    if ((e as { code?: string }).code === "P2002") return null;
+    throw e;
+  }
+}
+
 interface IgEntry {
   id?: string;
   changes?: { field?: string; value?: Record<string, unknown> }[];
@@ -120,6 +147,21 @@ export async function POST(req: Request) {
   const platform = isPage ? "META_FACEBOOK" : "META_INSTAGRAM";
 
   for (const entry of body.entry ?? []) {
+    const store = entry.id ? await storeForAccount(platform, entry.id) : null;
+    if (store) {
+      for (const ev of parseEntry(body.object, entry)) {
+        const id = await ingestShop(store.id, ev);
+        if (id) {
+          after(() =>
+            processMessage(id, { delay: ev.kind === "comment" }).catch((e) =>
+              console.error("[shop] processing failed:", e instanceof Error ? e.message : "unknown error"),
+            ),
+          );
+        }
+      }
+      continue;
+    }
+
     const projectId = entry.id ? await projectForAccount(platform, entry.id) : null;
     if (!projectId) continue;
 
