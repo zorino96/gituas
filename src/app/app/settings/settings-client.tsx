@@ -12,7 +12,7 @@ import { PasswordCard } from "./password-card";
 import { NewsSettings, type NewsSettingsProps } from "./news-settings";
 
 interface Conn {
-  provider: "META_FACEBOOK" | "META_INSTAGRAM" | "TIKTOK";
+  provider: "META_FACEBOOK" | "META_INSTAGRAM" | "TIKTOK" | "YOUTUBE";
   label: string;
   note: string;
   connected: boolean;

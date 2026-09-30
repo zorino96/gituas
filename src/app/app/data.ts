@@ -143,7 +143,7 @@ export async function claimKind(ws: Workspace, kind: Kind): Promise<Workspace> {
   }
 }
 
-export type Provider = "META_FACEBOOK" | "META_INSTAGRAM" | "TIKTOK";
+export type Provider = "META_FACEBOOK" | "META_INSTAGRAM" | "TIKTOK" | "YOUTUBE";
 
 export interface Connection {
   connected: boolean;
@@ -156,7 +156,7 @@ export type Connections = Record<Provider, Connection>;
 
 export async function loadConnections(tenantId: string): Promise<Connections> {
   const pick = { providerAccountId: true, providerAccountName: true, avatarUrl: true } as const;
-  const [fb, ig, tt] = await Promise.all([
+  const [fb, ig, tt, yt] = await Promise.all([
     db.oAuthCredential.findFirst({
       where: { tenantId, provider: "META_FACEBOOK", NOT: { providerAccountId: { startsWith: "act_" } }, ...unexpired() },
       orderBy: newestFirst,
@@ -172,12 +172,18 @@ export async function loadConnections(tenantId: string): Promise<Connections> {
       orderBy: newestFirst,
       select: pick,
     }),
+    // YouTube access tokens last an hour; the refresh token keeps the connection alive.
+    db.oAuthCredential.findFirst({
+      where: { tenantId, provider: "YOUTUBE", ...usableOrRefreshable() },
+      orderBy: newestFirst,
+      select: pick,
+    }),
   ]);
   const shape = (c: typeof fb): Connection =>
     c
       ? { connected: true, name: c.providerAccountName ?? undefined, accountId: c.providerAccountId, avatarUrl: c.avatarUrl }
       : { connected: false };
-  return { META_FACEBOOK: shape(fb), META_INSTAGRAM: shape(ig), TIKTOK: shape(tt) };
+  return { META_FACEBOOK: shape(fb), META_INSTAGRAM: shape(ig), TIKTOK: shape(tt), YOUTUBE: shape(yt) };
 }
 
 export interface PostsResult {
