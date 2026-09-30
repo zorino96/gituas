@@ -108,8 +108,9 @@ language: ckb (Sorani) | kmr (Badini) | ar | ku_latn | en
 - **No product card on the post** → the store's default DM (merchant-written text).
   If there is none, the private reply is skipped and the post is flagged "add a
   product card".
-- **Timing**: each job waits a random 10–40 s before sending, so replies read as
-  human and a burst of comments is spread out.
+- **Timing**: each comment waits a random 8–30 s before its replies go out, so
+  replies read as human and a burst of comments is spread out. The ceiling keeps
+  the whole run inside the 60 s a function gets on Vercel Hobby.
 
 ### Follow-up DMs
 
@@ -134,9 +135,10 @@ The outgoing private text is assembled per language from fixed templates:
 {WhatsApp link}  (ORDER, or always if the store chooses)
 ```
 
-Money is formatted per language: Arabic-Indic digits for `ckb` and `ar`, Western
-digits for the others. IQD has no minor unit and USD has two; the
-`src/lib/money.ts` exponent table is reused.
+Money is formatted per language: Arabic-Indic digits for the Arabic-script
+languages (`ckb`, `kmr`, `ar`), Western digits for `ku_latn` and `en`. IQD has
+no minor unit and USD has two. A small `src/lib/shop/money.ts` owns this; the
+richer money module exists only on the unmerged `tiktok-boost` branch.
 
 The Facebook card is a generic template with one element per product photo (max
 10): image = photo, title = product name, subtitle = price and delivery (≤ 80
