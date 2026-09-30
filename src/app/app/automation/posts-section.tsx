@@ -30,13 +30,15 @@ function PostRow({
 
   const created = post.createdAt ? Date.parse(post.createdAt) : NaN;
   const until = auto?.activeUntil ?? (Number.isNaN(created) ? null : new Date(created + expiryDays * DAY).toISOString());
+  // Switched off, or past its end date: nothing is sent for this post.
+  const live = row.enabled && (until == null || Date.parse(until) > Date.now());
   const caption = Array.from(post.caption).slice(0, 60).join("");
 
   function change(patch: Partial<Row>) {
     const prev = row;
     setRow({ ...prev, ...patch });
     run(
-      () => setPostAutomationAction(storeId, { platform: post.platform, postId: post.id, postCreatedAt: post.createdAt, ...patch }),
+      () => setPostAutomationAction(storeId, { platform: post.platform, postId: post.id, ...patch }),
       undefined,
       () => setRow(prev),
     );
@@ -55,7 +57,7 @@ function PostRow({
           <span className={`gm-plat ${post.platform}`}>{PLATFORM_NAME[post.platform]}</span>
           {caption && <p>{caption}</p>}
           <small className="gm-time">
-            {row.enabled ? (
+            {live ? (
               <>
                 چالاکە تا {until && <span className="gm-ltr" style={{ display: "inline-block" }}>{until.slice(0, 10)}</span>}
               </>

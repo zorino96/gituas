@@ -18,7 +18,9 @@ export default async function AutomationPage({ searchParams }: { searchParams: P
   if (!can(ws.role, "configure")) return <p className="gm-note warn">{NOT_ALLOWED}</p>;
 
   const sp = await searchParams;
-  const state = await loadShopState(ws.id, sp.store);
+  const conns = await loadConnections(ws.id);
+  const connectedIds = [conns.META_FACEBOOK.accountId, conns.META_INSTAGRAM.accountId].filter((id): id is string => !!id);
+  const state = await loadShopState(ws.id, sp.store, connectedIds);
   if (!state.store) {
     return (
       <div className="gm-empty">
@@ -32,8 +34,13 @@ export default async function AutomationPage({ searchParams }: { searchParams: P
   }
 
   const { store } = state;
-  const conns = await loadConnections(ws.id);
-  const { posts, errors } = await loadPosts(ws.id, conns, 8);
+  const { posts: fetched, errors } = await loadPosts(ws.id, conns, 8);
+  // Only this store's posts: a Facebook post id starts with its Page id; Instagram posts belong to the connected account.
+  const posts = fetched.filter((p) =>
+    p.platform === "FB"
+      ? !!store.fbPageId && p.id.startsWith(`${store.fbPageId}_`)
+      : !!store.igUserId && conns.META_INSTAGRAM.accountId === store.igUserId,
+  );
 
   const postAutomations: Record<string, PostAutoView> = {};
   for (const a of state.posts) {

@@ -40,7 +40,7 @@ function Check({ done, label, hint, action }: { done: boolean; label: string; hi
 export function AutomationClient({ store, stores, templates, products, postAutomations, posts, postErrors, usage }: AutomationProps) {
   const router = useRouter();
   const status = useSaver();
-  // The last saved settings. Every control that saves sends all of them, because the action replaces them all.
+  // The last saved settings, for display. A save sends only the fields its own control or section owns.
   const [settings, setSettings] = useState<StoreSettings>(() => ({
     automationEnabled: store.automationEnabled,
     expiryDays: store.expiryDays,
@@ -53,7 +53,7 @@ export function AutomationClient({ store, stores, templates, products, postAutom
   }));
 
   async function save(patch: Partial<StoreSettings>) {
-    const r = await saveStoreSettingsAction(store.id, { ...settings, ...patch });
+    const r = await saveStoreSettingsAction(store.id, patch);
     if (r.ok) setSettings((s) => ({ ...s, ...patch }));
     return r;
   }
@@ -122,7 +122,7 @@ export function AutomationClient({ store, stores, templates, products, postAutom
           done={products.length > 0}
           label="لانیکەم یەک بەرهەم"
           action={
-            <Link href="/app/products" className="gm-link">
+            <Link href={`/app/products?store=${encodeURIComponent(store.id)}`} className="gm-link">
               بەرهەمەکان
             </Link>
           }

@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
+import type { Prisma } from "@/generated/prisma/client";
 import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
-import { cleanSamples, parsePrice } from "@/lib/shop/forms";
+import { cleanSamples, parsePrice, toWesternDigits } from "@/lib/shop/forms";
+import { accountFor, fetchPostCreatedAt } from "@/lib/shop/meta-client";
 import { currentWorkspace } from "@/app/app/data";
 
 export type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
@@ -17,9 +19,19 @@ async function ownedStore(storeId: string) {
   const ws = await currentWorkspace();
   if (!ws) return { error: "چوونەژوورەوە پێویستە." } as const;
   if (!can(ws.role, "configure")) return { error: NOT_ALLOWED } as const;
-  const store = await db.store.findFirst({ where: { id: storeId, tenantId: ws.id }, select: { id: true, tenantId: true, expiryDays: true, defaultTemplateId: true } });
+  const store = await db.store.findFirst({ where: { id: storeId, tenantId: ws.id }, select: { id: true, tenantId: true, expiryDays: true, defaultTemplateId: true, fbPageId: true, igUserId: true } });
   if (!store) return { error: "دووکانەکە نەدۆزرایەوە." } as const;
   return { ws, store } as const;
+}
+
+/** A product photo must be a file this workspace uploaded to Vercel Blob. */
+function isOwnBlobUrl(raw: string, workspaceId: string): boolean {
+  try {
+    const u = new URL(raw);
+    return u.protocol === "https:" && u.hostname.endsWith(".public.blob.vercel-storage.com") && u.pathname.startsWith(`/merchant/${workspaceId}/`);
+  } catch {
+    return false;
+  }
 }
 
 const done = (id?: string): ActionResult => {
@@ -28,38 +40,46 @@ const done = (id?: string): ActionResult => {
   return { ok: true, id };
 };
 
+/** Saves only the settings that are present: each screen section sends its own fields, so two quick saves cannot undo each other. */
 export async function saveStoreSettingsAction(
   storeId: string,
-  input: { automationEnabled: boolean; expiryDays: number; stopBefore: string; likeComments: boolean; autoHideSpam: boolean; deliveryFee: string; deliveryTime: string; defaultDm: string },
+  input: Partial<{ automationEnabled: boolean; expiryDays: number; stopBefore: string; likeComments: boolean; autoHideSpam: boolean; deliveryFee: string; deliveryTime: string; defaultDm: string }>,
 ): Promise<ActionResult> {
   const r = await ownedStore(storeId);
   if (r.error !== undefined) return { ok: false, error: r.error };
-  const days = Math.round(Number(input.expiryDays));
-  if (!Number.isFinite(days) || days < 1 || days > 365) return { ok: false, error: "ڕۆژەکان دەبێت لە ١ تا ٣٦٥ بن." };
-  let stopBefore: Date | null = null;
-  if (input.stopBefore.trim()) {
-    stopBefore = new Date(`${input.stopBefore.trim()}T00:00:00Z`);
-    if (Number.isNaN(stopBefore.getTime())) return { ok: false, error: "ڕێکەوتەکە دروست نییە." };
+  const data: Prisma.StoreUpdateInput = {};
+  if (input.automationEnabled !== undefined) data.automationEnabled = !!input.automationEnabled;
+  if (input.likeComments !== undefined) data.likeComments = !!input.likeComments;
+  if (input.autoHideSpam !== undefined) data.autoHideSpam = !!input.autoHideSpam;
+  if (input.expiryDays !== undefined) {
+    const days = Math.round(Number(input.expiryDays));
+    if (!Number.isFinite(days) || days < 1 || days > 365) return { ok: false, error: "ڕۆژەکان دەبێت لە ١ تا ٣٦٥ بن." };
+    data.expiryDays = days;
   }
-  let deliveryFeeMinor: number | null = null;
-  if (input.deliveryFee.trim()) {
-    deliveryFeeMinor = input.deliveryFee.trim() === "0" ? 0 : parsePrice(input.deliveryFee, "IQD");
-    if (deliveryFeeMinor == null) return { ok: false, error: "کرێی گەیاندن دروست نییە." };
+  if (input.stopBefore !== undefined) {
+    const raw = input.stopBefore.trim();
+    if (raw) {
+      const stopBefore = new Date(`${raw}T00:00:00Z`);
+      if (Number.isNaN(stopBefore.getTime())) return { ok: false, error: "ڕێکەوتەکە دروست نییە." };
+      data.stopBefore = stopBefore;
+    } else {
+      data.stopBefore = null;
+    }
   }
-  await db.store.update({
-    where: { id: r.store.id },
-    data: {
-      automationEnabled: !!input.automationEnabled,
-      expiryDays: days,
-      stopBefore,
-      likeComments: !!input.likeComments,
-      autoHideSpam: !!input.autoHideSpam,
-      deliveryFeeMinor,
-      deliveryCurrency: "IQD",
-      deliveryTime: Array.from(input.deliveryTime.trim()).slice(0, 60).join("") || null,
-      defaultDm: Array.from(input.defaultDm.trim()).slice(0, 1000).join("") || null,
-    },
-  });
+  if (input.deliveryFee !== undefined) {
+    const fee = toWesternDigits(input.deliveryFee).trim();
+    if (!fee) {
+      data.deliveryFeeMinor = null;
+    } else {
+      const minor = /^0+$/.test(fee) ? 0 : parsePrice(fee, "IQD");
+      if (minor == null) return { ok: false, error: "کرێی گەیاندن دروست نییە." };
+      data.deliveryFeeMinor = minor;
+    }
+    data.deliveryCurrency = "IQD";
+  }
+  if (input.deliveryTime !== undefined) data.deliveryTime = Array.from(input.deliveryTime.trim()).slice(0, 60).join("") || null;
+  if (input.defaultDm !== undefined) data.defaultDm = Array.from(input.defaultDm.trim()).slice(0, 1000).join("") || null;
+  if (Object.keys(data).length) await db.store.update({ where: { id: r.store.id }, data });
   return done();
 }
 
@@ -100,7 +120,7 @@ export async function deleteTemplateAction(storeId: string, templateId: string):
 
 export async function setPostAutomationAction(
   storeId: string,
-  input: { platform: "FB" | "IG"; postId: string; postCreatedAt: string | null; enabled?: boolean; productId?: string | null; templateId?: string | null },
+  input: { platform: "FB" | "IG"; postId: string; enabled?: boolean; productId?: string | null; templateId?: string | null },
 ): Promise<ActionResult> {
   const r = await ownedStore(storeId);
   if (r.error !== undefined) return { ok: false, error: r.error };
@@ -112,18 +132,23 @@ export async function setPostAutomationAction(
     return { ok: false, error: "تێمپلەیتەکە نەدۆزرایەوە." };
   }
   const platform = input.platform === "IG" ? "META_INSTAGRAM" : "META_FACEBOOK";
-  const created = input.postCreatedAt ? new Date(input.postCreatedAt) : new Date();
-  const postCreatedAt = Number.isNaN(created.getTime()) ? new Date() : created;
   const patch = {
     ...(input.enabled !== undefined ? { enabled: !!input.enabled } : {}),
     ...(input.productId !== undefined ? { productId: input.productId || null } : {}),
     ...(input.templateId !== undefined ? { templateId: input.templateId || null } : {}),
   };
-  await db.postAutomation.upsert({
-    where: { storeId_platform_externalPostId: { storeId: r.store.id, platform, externalPostId: input.postId } },
-    create: { storeId: r.store.id, platform, externalPostId: input.postId, postCreatedAt, activeUntil: new Date(postCreatedAt.getTime() + r.store.expiryDays * DAY), ...patch },
-    update: patch,
-  });
+  const key = { storeId_platform_externalPostId: { storeId: r.store.id, platform, externalPostId: input.postId } } as const;
+  const found = await db.postAutomation.findUnique({ where: key, select: { id: true } });
+  if (found) {
+    await db.postAutomation.update({ where: key, data: patch });
+  } else {
+    // The post's age comes from Meta, never from the browser; the clock is only the fallback.
+    const acc = await accountFor(r.store, platform);
+    const created = (acc && (await fetchPostCreatedAt(acc, input.postId))) ?? new Date();
+    await db.postAutomation.create({
+      data: { storeId: r.store.id, platform, externalPostId: input.postId, postCreatedAt: created, activeUntil: new Date(created.getTime() + r.store.expiryDays * DAY), ...patch },
+    });
+  }
   return done();
 }
 
@@ -137,7 +162,7 @@ export async function saveProductAction(
   const name = Array.from(input.name.trim()).slice(0, 80).join("");
   if (!name) return { ok: false, error: "ناوی بەرهەمەکە بنووسە." };
   const photos = input.photos.slice(0, 5);
-  if (photos.some((u) => !u.startsWith("https://") || !u.includes(`/merchant/${r.ws.id}/`))) return { ok: false, error: "وێنەیەک دروست نییە." };
+  if (!photos.every((u) => isOwnBlobUrl(u, r.ws.id))) return { ok: false, error: "وێنەیەک دروست نییە." };
   if (!input.variants.length || input.variants.length > 20) return { ok: false, error: "لانیکەم یەک نرخ پێویستە." };
   const variants = [];
   for (const [i, v] of input.variants.entries()) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 
 import { exponentOf, formatMoney } from "@/lib/shop/money";
@@ -208,7 +209,8 @@ function ProductEditor({
   );
 }
 
-export function ProductsClient({ workspaceId, storeId, products }: { workspaceId: string; storeId: string; products: ProductView[] }) {
+export function ProductsClient({ workspaceId, storeId, stores, products }: { workspaceId: string; storeId: string; stores: { id: string; name: string }[]; products: ProductView[] }) {
+  const router = useRouter();
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const { pending, message, setMessage, run } = useSaver();
 
@@ -221,6 +223,16 @@ export function ProductsClient({ workspaceId, storeId, products }: { workspaceId
     <div>
       <h2 className="gm-title kufi">بەرهەمەکان</h2>
       <p className="gm-sub">نرخ و وێنەکان لێرە دادەنرێن — ژمارەکان هەرگیز لە AIیەوە نایەن</p>
+
+      {stores.length > 1 && (
+        <select className="gm-input" aria-label="پەیج" style={{ marginBottom: 12 }} value={storeId} onChange={(e) => router.push(`/app/products?store=${encodeURIComponent(e.target.value)}`)}>
+          {stores.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+      )}
 
       <div style={{ margin: "12px 0" }}>
         <button type="button" className="gm-btn" disabled={editing === "new"} onClick={() => open("new")}>

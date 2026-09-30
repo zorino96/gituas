@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
 import { loadShopState } from "@/lib/shop/state";
-import { currentWorkspace } from "../data";
+import { currentWorkspace, loadConnections } from "../data";
 import { ProductsClient } from "./products-client";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,9 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
   if (!can(ws.role, "configure")) return <p className="gm-note warn">{NOT_ALLOWED}</p>;
 
   const sp = await searchParams;
-  const state = await loadShopState(ws.id, sp.store);
+  const conns = await loadConnections(ws.id);
+  const connectedIds = [conns.META_FACEBOOK.accountId, conns.META_INSTAGRAM.accountId].filter((id): id is string => !!id);
+  const state = await loadShopState(ws.id, sp.store, connectedIds);
   if (!state.store) {
     return (
       <div className="gm-empty">
@@ -30,6 +32,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
       key={state.store.id}
       workspaceId={ws.id}
       storeId={state.store.id}
+      stores={state.stores.map((s) => ({ id: s.id, name: s.name || (s.igUsername ? `@${s.igUsername}` : "—") }))}
       products={state.products.map((p) => ({
         id: p.id,
         name: p.name,
