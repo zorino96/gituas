@@ -8,6 +8,7 @@ const DAY = 86_400_000;
 
 describe("scheduleProblem", () => {
   it("accepts a time a few hours away", () => expect(scheduleProblem(["FB", "IG"], at(3 * 60 * MIN), now)).toBeNull());
+  it("schedules YouTube", () => expect(scheduleProblem(["FB", "YT"], at(DAY), now)).toBeNull());
   it("never schedules TikTok, whatever the time", () =>
     expect(scheduleProblem(["FB", "TT"], at(DAY), now)).toBe("بۆ تیکتۆک خشتەکردن نییە — ڕاستەوخۆ بڵاوی بکەرەوە."));
   it("rejects less than ten minutes ahead", () =>

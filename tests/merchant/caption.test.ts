@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { captionProblems, isJpegPath, mergeHashtags, CITY_TAGS } from "@/lib/merchant/caption";
+import { captionProblems, isJpegPath, mergeHashtags, youtubeProblem, youtubeTitle, CAPTION_LIMITS, CITY_TAGS, YT_VIDEO_ONLY } from "@/lib/merchant/caption";
 
 describe("captionProblems", () => {
   it("passes a normal caption everywhere", () => {
@@ -12,6 +12,35 @@ describe("captionProblems", () => {
   it("flags more than 30 hashtags on Instagram", () => {
     const tags = Array.from({ length: 31 }, (_, i) => `#t${i}`).join(" ");
     expect(captionProblems(tags, ["IG"])).toEqual([{ target: "IG", problem: "hashtags" }]);
+  });
+});
+
+describe("YouTube", () => {
+  it("allows a description up to 5000 characters and flags more", () => {
+    expect(CAPTION_LIMITS.YT).toBe(5000);
+    expect(captionProblems("ا".repeat(5000), ["YT"])).toEqual([]);
+    expect(captionProblems("ا".repeat(5001), ["YT"])).toEqual([{ target: "YT", problem: "length" }]);
+  });
+  it("takes a video and nothing else", () => {
+    expect(youtubeProblem(["YT"], { type: "VIDEO" })).toBeNull();
+    expect(youtubeProblem(["YT"], { type: "IMAGE" })).toBe("یوتیوب تەنها ڤیدیۆ وەردەگرێت.");
+    expect(youtubeProblem(["YT"], undefined)).toBe(YT_VIDEO_ONLY);
+  });
+  it("ignores a post that is not going to YouTube", () => {
+    expect(youtubeProblem(["FB", "IG"], { type: "IMAGE" })).toBeNull();
+    expect(youtubeProblem(["FB"], undefined)).toBeNull();
+  });
+  it("titles the video with the caption's first line", () => {
+    expect(youtubeTitle("جلی نوێ\nنرخ: ١٠ هەزار")).toBe("جلی نوێ");
+    expect(youtubeTitle("\n  \r\nسەرەتا\r\nدووەم")).toBe("سەرەتا");
+  });
+  it("cuts the title to 100 characters, not UTF-16 units", () => {
+    expect(Array.from(youtubeTitle("ا".repeat(150)))).toHaveLength(100);
+    expect(Array.from(youtubeTitle("😀".repeat(150)))).toHaveLength(100);
+  });
+  it("falls back to the word for video when the caption is empty", () => {
+    expect(youtubeTitle("")).toBe("ڤیدیۆ");
+    expect(youtubeTitle("   \n  ")).toBe("ڤیدیۆ");
   });
 });
 

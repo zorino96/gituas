@@ -6,13 +6,14 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { assertWithin, LimitReached, limitMessage } from "@/lib/billing/limits";
-import { captionProblems, isJpegPath, type Target } from "@/lib/merchant/caption";
+import { captionProblems, isJpegPath, youtubeProblem, youtubeTitle, type Target } from "@/lib/merchant/caption";
 import { tiktokProblems } from "@/lib/merchant/tiktok-rules";
 import { recordNewsPublish } from "@/lib/news/publish-record";
 import { checkDraft } from "@/lib/news/rules";
 import type { Role } from "@/lib/newsroom/roles";
 import { publishToFacebookPage } from "@/lib/publishers/facebook";
 import { publishToInstagram } from "@/lib/publishers/instagram";
+import { publishToYouTube } from "@/lib/publishers/youtube";
 import { getTikTokPostContext, publishPhotoToTikTok, publishToTikTok } from "@/lib/publishers/tiktok";
 import { tagPublishedPost } from "@/lib/shop/state";
 
@@ -42,7 +43,7 @@ export interface PublishOutcome {
   ok: boolean;
   url?: string;
   publishId?: string;
-  /** The platform's id for the published post (Facebook and Instagram). */
+  /** The platform's id for the published post (Facebook, Instagram and YouTube). */
   externalId?: string;
   error?: string;
 }
@@ -79,6 +80,8 @@ export async function publishForWorkspace(
   if ((targets.includes("IG") || targets.includes("TT")) && !input.media) {
     return { error: "ئینستاگرام و تیکتۆک وێنە یان ڤیدیۆیان دەوێت." };
   }
+  const ytProblem = youtubeProblem(targets, input.media);
+  if (ytProblem) return { error: ytProblem };
   if (input.media) {
     const expected = `merchant/${ws.id}/`;
     if (!input.media.pathname.startsWith(expected) || !/^https:\/\//.test(input.media.url)) {
@@ -116,6 +119,11 @@ export async function publishForWorkspace(
     }
     if (target === "IG") {
       const r = await publishToInstagram(ws.id, { caption, mediaUrl: input.media!.url, mediaType: input.media!.type });
+      return { target, ok: r.ok, url: r.permalinkUrl, externalId: r.externalId, error: r.error };
+    }
+    if (target === "YT") {
+      // publishToYouTube downloads the video from its public Blob URL, then uploads it.
+      const r = await publishToYouTube(ws.id, { title: youtubeTitle(caption), description: caption, videoUrl: input.media!.url });
       return { target, ok: r.ok, url: r.permalinkUrl, externalId: r.externalId, error: r.error };
     }
     // TikTok pulls the video from our verified domain, through the media proxy.

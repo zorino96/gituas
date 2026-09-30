@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { assertWithin, LimitReached, limitMessage } from "@/lib/billing/limits";
-import { captionProblems, isJpegPath, type Target } from "@/lib/merchant/caption";
+import { captionProblems, isJpegPath, youtubeProblem, type Target } from "@/lib/merchant/caption";
 import type { PublishInput } from "@/lib/merchant/publish-core";
 import { baghdadLocalToUtc, scheduleProblem } from "@/lib/merchant/schedule";
 import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
@@ -54,6 +54,8 @@ export async function schedulePublishAction(
   const caption = input.caption.trim();
   if (!caption && !input.media) return { ok: false, error: "دەق یان وێنە/ڤیدیۆیەک زیاد بکە." };
   if (targets.includes("IG") && !input.media) return { ok: false, error: "ئینستاگرام وێنە یان ڤیدیۆی دەوێت." };
+  const ytProblem = youtubeProblem(targets, input.media);
+  if (ytProblem) return { ok: false, error: ytProblem };
   if (input.media) {
     const expected = `merchant/${ws.id}/`;
     if (!input.media.pathname.startsWith(expected) || !/^https:\/\//.test(input.media.url)) {

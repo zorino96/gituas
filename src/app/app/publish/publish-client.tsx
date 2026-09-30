@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import { ImagePlus, Sparkles, X } from "lucide-react";
 
-import { CAPTION_LIMITS, CITY_TAGS, captionProblems, mergeHashtags, type Target } from "@/lib/merchant/caption";
+import { CAPTION_LIMITS, CITY_TAGS, YT_VIDEO_ONLY, captionProblems, mergeHashtags, type Target } from "@/lib/merchant/caption";
 import { tiktokProblems } from "@/lib/merchant/tiktok-rules";
 import { useBase } from "../use-base";
 import {
@@ -83,7 +83,7 @@ export function PublishClient({
   const [productId, setProductId] = useState("");
 
   // targets
-  const [on, setOn] = useState<Record<Target, boolean>>({ FB: !!accounts.FB, IG: !!initial && !!accounts.IG, TT: false });
+  const [on, setOn] = useState<Record<Target, boolean>>({ FB: !!accounts.FB, IG: !!initial && !!accounts.IG, TT: false, YT: false });
 
   // tiktok
   const [tt, setTt] = useState<TikTokContext | null>(null);
@@ -115,9 +115,9 @@ export function PublishClient({
   const isVideo = media?.type === "VIDEO";
   const uploading = progress !== null && !media;
 
-  // Instagram and TikTok need media (photo or video). Switch them off when that stops being true.
+  // Instagram and TikTok need media (photo or video); YouTube needs a video. Switch them off when that stops being true.
   useEffect(() => {
-    setOn((o) => ({ ...o, IG: o.IG && !!media, TT: o.TT && !!media }));
+    setOn((o) => ({ ...o, IG: o.IG && !!media, TT: o.TT && !!media, YT: o.YT && isVideo }));
   }, [media, isVideo]);
 
   // TikTok is never scheduled: scheduled mode switches it off, and a finished upload cannot switch it back on.
@@ -223,6 +223,7 @@ export function PublishClient({
   if (!caption.trim() && !media) blockers.push("دەق یان وێنە/ڤیدیۆیەک زیاد بکە.");
   if (uploading) blockers.push("چاوەڕێ بکە تا بارکردن تەواو دەبێت.");
   if (captionIssues.length) blockers.push("دەقەکە بۆ یەکێک لە شوێنەکان درێژە.");
+  if (on.YT && !isVideo) blockers.push(YT_VIDEO_ONLY);
   if (on.TT && !tt) blockers.push("زانیاری تیکتۆک هێشتا نەهاتووە.");
   if (on.TT && ttIssues.includes("privacy"))
     blockers.push(isVideo ? "لە تیکتۆک دیاری بکە کێ ڤیدیۆکە ببینێت." : "لە تیکتۆک دیاری بکە کێ پۆستەکە ببینێت.");
@@ -469,12 +470,13 @@ export function PublishClient({
       {/* targets */}
       <p className="gm-sec">بۆ کوێ</p>
       <div className="gm-card">
-        {(["FB", "IG", "TT"] as Target[]).map((t) => {
+        {(["FB", "IG", "TT", "YT"] as Target[]).filter((t) => t !== "YT" || accounts.YT).map((t) => {
           const account = accounts[t];
-          const needsMedia = (t === "IG" || t === "TT") && !media;
+          const needsMedia = t === "YT" ? !isVideo : (t === "IG" || t === "TT") && !media;
           const disabled = !account || needsMedia || (later && t === "TT");
           return (
-            <div key={t} className="gm-target">
+            <Fragment key={t}>
+            <div className="gm-target">
               <div>
                 <p>{PLATFORM_NAME[t]}</p>
                 <small>
@@ -482,13 +484,16 @@ export function PublishClient({
                     "تیکتۆک تەنها ڕاستەوخۆ"
                   ) : !account ? (
                     <Link href={`${base}/settings`} className="gm-link">پەیوەست نەکراوە — پەیوەستی بکە</Link>
+                  ) : needsMedia && t === "YT" && media ? (
+                    // A photo is attached: YouTube will not take it.
+                    <>{account} · {YT_VIDEO_ONLY}</>
                   ) : needsMedia ? (
                     // Connected, but Instagram and TikTok can't post text alone: say
                     // which account it is and offer the missing step right here.
                     <>
                       {account} ·{" "}
                       <button type="button" className="gm-link gm-linkbtn" onClick={() => fileInput.current?.click()}>
-                        سەرەتا وێنە یان ڤیدیۆ زیاد بکە
+                        {t === "YT" ? "سەرەتا ڤیدیۆ زیاد بکە" : "سەرەتا وێنە یان ڤیدیۆ زیاد بکە"}
                       </button>
                     </>
                   ) : (
@@ -508,6 +513,8 @@ export function PublishClient({
                 <i />
               </button>
             </div>
+            {t === "YT" && <p className="gm-hint">تا Google ئەپەکە پەسەند دەکات، ڤیدیۆکان وەک تایبەت (Private) بڵاو دەبنەوە.</p>}
+            </Fragment>
           );
         })}
       </div>

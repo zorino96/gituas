@@ -50,6 +50,7 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
           FB: conns.META_FACEBOOK.connected ? (conns.META_FACEBOOK.name ?? "پەیجی فەیسبووک") : null,
           IG: conns.META_INSTAGRAM.connected ? (conns.META_INSTAGRAM.name ?? "ئینستاگرام") : null,
           TT: conns.TIKTOK.connected ? (conns.TIKTOK.name ?? "تیکتۆک") : null,
+          YT: conns.YOUTUBE.connected ? (conns.YOUTUBE.name ?? "یوتیوب") : null,
         }}
       />
     </>

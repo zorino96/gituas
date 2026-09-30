@@ -48,7 +48,7 @@ const KU_MONTHS = [
   "تەممووز", "ئاب", "ئەیلوول", "تشرینی یەکەم", "تشرینی دووەم", "کانوونی یەکەم",
 ];
 
-export const PLATFORM_NAME = { FB: "فەیسبووک", IG: "ئینستاگرام", TT: "تیکتۆک" } as const;
+export const PLATFORM_NAME = { FB: "فەیسبووک", IG: "ئینستاگرام", TT: "تیکتۆک", YT: "یوتیوب" } as const;
 
 export const PRIVACY_LABEL: Record<string, string> = {
   PUBLIC_TO_EVERYONE: "هەموو کەس",
