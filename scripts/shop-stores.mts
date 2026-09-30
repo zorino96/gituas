@@ -7,6 +7,7 @@ import { connectStore } from "../src/lib/shop/store";
 const creds = await db.oAuthCredential.findMany({
   where: { provider: { in: ["META_FACEBOOK", "META_INSTAGRAM"] }, tenant: { kind: "MERCHANT" } },
   select: { tenantId: true, provider: true, providerAccountId: true, providerAccountName: true },
+  orderBy: { updatedAt: "asc" }, // oldest first, so the newest connection ends up owning each account
 });
 let linked = 0;
 for (const c of creds) {

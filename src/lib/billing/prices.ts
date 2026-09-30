@@ -3,7 +3,7 @@ export type BillingProduct = "SHOP" | "NEWS";
 export const PERIOD_DAYS = 30;
 const DAY = 86_400_000;
 
-/** IQD per month. Shop plans are per store (page); newsroom plans per workspace. */
+/** IQD per month. Shop plans are per store, and one store covers the whole business (Facebook, Instagram, TikTok, YouTube); newsroom plans per workspace. */
 export const SHOP_PRICES: Record<string, number> = { MERCHANT: 8000, PRO: 12000 };
 export const NEWS_PRICES: Record<string, number> = { LITE: 25000, MANUAL: 155000, AUTO: 390000, ENTERPRISE: 940000 };
 

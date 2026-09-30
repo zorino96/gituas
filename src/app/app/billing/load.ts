@@ -1,6 +1,9 @@
 import { confirmInvoice } from "@/lib/billing/invoices";
 import { db } from "@/lib/db";
+import { newestFirst, usableOrRefreshable } from "@/lib/oauth/pick";
+import { loadConnections } from "../data";
 import type { InvoiceRow } from "./billing-client";
+import type { WorkspaceAccounts } from "./chips";
 
 /**
  * The buyer comes back from Wayl with ?invoice=<id>. Ask Wayl about it, but only when the
@@ -32,4 +35,27 @@ export async function loadInvoices(tenantId: string): Promise<InvoiceRow[]> {
     paidAt: r.paidAt ? r.paidAt.toISOString() : null,
     storeId: r.storeId,
   }));
+}
+
+/**
+ * Every platform account the workspace has connected. loadConnections covers Facebook,
+ * Instagram and TikTok; YouTube is read here because it is not part of that shape.
+ */
+export async function loadAccounts(tenantId: string): Promise<WorkspaceAccounts> {
+  const [conns, youtube] = await Promise.all([
+    loadConnections(tenantId),
+    db.oAuthCredential.findFirst({
+      where: { tenantId, provider: "YOUTUBE", ...usableOrRefreshable() },
+      orderBy: newestFirst,
+      select: { providerAccountId: true, providerAccountName: true },
+    }),
+  ]);
+  return {
+    fb: conns.META_FACEBOOK,
+    ig: conns.META_INSTAGRAM,
+    tt: conns.TIKTOK,
+    yt: youtube
+      ? { connected: true, name: youtube.providerAccountName ?? undefined, accountId: youtube.providerAccountId }
+      : { connected: false },
+  };
 }

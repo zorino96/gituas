@@ -15,6 +15,11 @@ export function pickStoreForAccount(stores: StoreSlots[], platform: MetaPlatform
   return free ? only.id : null;
 }
 
+/** When an account moves to another workspace's store, which slot of the old store to clear. */
+export function slotToClear(platform: MetaPlatform): { fbPageId: null } | { igUserId: null } {
+  return platform === "META_FACEBOOK" ? { fbPageId: null } : { igUserId: null };
+}
+
 /**
  * Called after a Page or Instagram credential is saved. It creates or links the
  * merchant's store, clears a token pause, and subscribes the account to
@@ -29,7 +34,11 @@ export async function connectStore(tenantId: string, platform: MetaPlatform, acc
   const extra = platform === "META_INSTAGRAM" ? { igUsername: accountName.replace(/^@/, "") } : {};
 
   let store = await db.store.findFirst({ where: slot, select: { id: true, tenantId: true, fbPageId: true, igUserId: true } });
-  if (store && store.tenantId !== tenantId) return null; // this account already runs another workspace's store
+  if (store && store.tenantId !== tenantId) {
+    // the newest connection wins: whoever connected this account last (they can log into it) now owns it for automation
+    await db.store.update({ where: { id: store.id }, data: slotToClear(platform) });
+    store = null;
+  }
   if (!store) {
     const stores = await db.store.findMany({ where: { tenantId }, select: { id: true, fbPageId: true, igUserId: true } });
     const target = pickStoreForAccount(stores, platform);

@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { PLAN_LABEL, priceFor, type BillingProduct } from "@/lib/billing/prices";
 import { formatMoney } from "@/lib/shop/money";
 import { kuDate } from "../format";
+import { CHIP_LABEL, type PlatformChip } from "./chips";
 import { startNewsCheckoutAction, startShopCheckoutAction } from "./actions";
 
 /** What can be bought for each product, in the order the buttons appear. */
@@ -20,6 +21,8 @@ export interface BillingTarget {
   plan: string;
   /** ISO string, or null when it was never paid. */
   paidUntil: string | null;
+  /** Every platform account this plan covers. */
+  chips: PlatformChip[];
 }
 
 export interface InvoiceRow {
@@ -98,6 +101,16 @@ export function BillingClient({ product, configured, env, result, targets, invoi
               {t.paidUntil && <small>چالاکە تا {kuDate(t.paidUntil)}</small>}
             </div>
           </div>
+          {t.chips.length > 0 && (
+            <div className="gm-chips" style={{ marginTop: 8 }}>
+              {t.chips.map((c) => (
+                <span key={c.platform} className="gm-chip" style={{ cursor: "default" }}>
+                  {CHIP_LABEL[c.platform]} · {c.name}
+                </span>
+              ))}
+            </div>
+          )}
+          <p className="gm-hint">یەک پلان هەموو پلاتفۆرمەکانی ئەم کارە دەگرێتەوە.</p>
           {legacyFree(product, t) && <p className="gm-hint">ئێستا پلانی بنەڕەتت بەخۆڕایی هەیە.</p>}
           {PLANS[product].map((plan) => {
             const price = priceFor(product, plan);

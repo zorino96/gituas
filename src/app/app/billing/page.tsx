@@ -3,7 +3,8 @@ import { db } from "@/lib/db";
 import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
 import { currentWorkspace } from "../data";
 import { BillingClient } from "./billing-client";
-import { loadInvoices, settleReturn } from "./load";
+import { storeChips } from "./chips";
+import { loadAccounts, loadInvoices, settleReturn } from "./load";
 
 export const dynamic = "force-dynamic";
 
@@ -14,9 +15,10 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   const sp = await searchParams;
   // Confirm first, so the stores and invoices below already show the payment.
   const result = await settleReturn(ws.id, sp.invoice);
-  const [stores, invoices] = await Promise.all([
-    db.store.findMany({ where: { tenantId: ws.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, igUsername: true, plan: true, planPaidUntil: true } }),
+  const [stores, invoices, accounts] = await Promise.all([
+    db.store.findMany({ where: { tenantId: ws.id }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, fbPageId: true, igUserId: true, igUsername: true, plan: true, planPaidUntil: true } }),
     loadInvoices(ws.id),
+    loadAccounts(ws.id),
   ]);
 
   return (
@@ -30,6 +32,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         name: s.name || (s.igUsername ? `@${s.igUsername}` : "—"),
         plan: s.plan,
         paidUntil: s.planPaidUntil ? s.planPaidUntil.toISOString() : null,
+        chips: storeChips(s, accounts),
       }))}
       invoices={invoices}
     />
