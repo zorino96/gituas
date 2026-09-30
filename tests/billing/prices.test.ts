@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extendPaidUntil, PLAN_LABEL, priceFor } from "@/lib/billing/prices";
+import { extendPaidUntil, nextPaidUntil, PLAN_LABEL, priceFor } from "@/lib/billing/prices";
 
 describe("priceFor", () => {
   it("prices shop and newsroom plans in IQD", () => {
@@ -29,5 +29,36 @@ describe("extendPaidUntil", () => {
   });
   it("stacks on top of a period that is still running", () => {
     expect(extendPaidUntil(new Date("2026-10-10T00:00:00Z"), now).toISOString()).toBe("2026-11-09T00:00:00.000Z");
+  });
+});
+
+describe("nextPaidUntil", () => {
+  const now = new Date("2026-10-01T00:00:00Z");
+  const DAY = 86_400_000;
+  const after = (ms: number) => new Date(now.getTime() + ms).toISOString();
+
+  it("stacks another period on the same plan that is still running", () => {
+    const current = { plan: "LITE", paidUntil: new Date("2026-10-10T00:00:00Z") };
+    expect(nextPaidUntil("NEWS", current, "LITE", now).toISOString()).toBe("2026-11-09T00:00:00.000Z");
+  });
+  it("starts 30 days from now when no period is running", () => {
+    expect(nextPaidUntil("NEWS", { plan: "LITE", paidUntil: null }, "ENTERPRISE", now).toISOString()).toBe(after(30 * DAY));
+    expect(nextPaidUntil("NEWS", { plan: "LITE", paidUntil: new Date("2026-09-01T00:00:00Z") }, "ENTERPRISE", now).toISOString()).toBe(after(30 * DAY));
+  });
+  it("converts cheap stacked months into a few days of an expensive plan", () => {
+    const remaining = 300 * DAY;
+    const current = { plan: "LITE", paidUntil: new Date(now.getTime() + remaining) };
+    const credit = Math.floor((remaining * 25000) / 940000);
+    expect(nextPaidUntil("NEWS", current, "ENTERPRISE", now).toISOString()).toBe(after(credit + 30 * DAY));
+  });
+  it("lets a downgrade keep its value", () => {
+    const remaining = 20 * DAY;
+    const current = { plan: "AUTO", paidUntil: new Date(now.getTime() + remaining) };
+    const credit = Math.floor((remaining * 390000) / 155000);
+    expect(nextPaidUntil("NEWS", current, "MANUAL", now).toISOString()).toBe(after(credit + 30 * DAY));
+  });
+  it("gives no credit for a plan that has no price", () => {
+    const current = { plan: "FREE", paidUntil: new Date("2026-12-01T00:00:00Z") };
+    expect(nextPaidUntil("SHOP", current, "PRO", now).toISOString()).toBe(after(30 * DAY));
   });
 });

@@ -37,9 +37,14 @@ export interface BillingProps {
   configured: boolean;
   env: "test" | "live";
   /** What Wayl said about the invoice the buyer just came back from, if any. */
-  result: "paid" | "pending" | null;
+  result: "paid" | "paid_test" | "pending" | null;
   targets: BillingTarget[];
   invoices: InvoiceRow[];
+}
+
+/** A newsroom on the legacy free plan: MANUAL that was never paid for. */
+function legacyFree(product: BillingProduct, t: BillingTarget): boolean {
+  return product === "NEWS" && t.plan === "MANUAL" && !t.paidUntil;
 }
 
 function StatusBadge({ status }: { status: InvoiceRow["status"] }) {
@@ -79,7 +84,8 @@ export function BillingClient({ product, configured, env, result, targets, invoi
       {!configured && <p className="gm-note warn" style={{ marginBottom: 10 }}>پارەدان هێشتا ئامادە نییە.</p>}
 
       {result === "paid" && <p className="gm-ok">پارەدان سەرکەوتوو بوو — پلانەکەت چالاک کرا.</p>}
-      {result === "pending" && <p className="gm-hint">پارەدانەکە هێشتا تەواو نەبووە. ئەگەر پارەت داوە، چەند خولەکێکی تر ئەم پەڕەیە نوێ بکەرەوە.</p>}
+      {result === "paid_test" && <p className="gm-note">تاقیکردنەوەی پارەدان سەرکەوتوو بوو — لە مۆدی تاقیکردنەوەدا پلان ناگۆڕدرێت.</p>}
+      {result === "pending" &&<p className="gm-hint">پارەدانەکە هێشتا تەواو نەبووە. ئەگەر پارەت داوە، چەند خولەکێکی تر ئەم پەڕەیە نوێ بکەرەوە.</p>}
 
       {targets.length === 0 && <p className="gm-note">هێشتا پەیجێکت پەیوەست نەکردووە.</p>}
 
@@ -92,9 +98,11 @@ export function BillingClient({ product, configured, env, result, targets, invoi
               {t.paidUntil && <small>چالاکە تا {kuDate(t.paidUntil)}</small>}
             </div>
           </div>
+          {legacyFree(product, t) && <p className="gm-hint">ئێستا پلانی بنەڕەتت بەخۆڕایی هەیە.</p>}
           {PLANS[product].map((plan) => {
             const price = priceFor(product, plan);
             if (price == null) return null;
+            if (plan === "LITE" && legacyFree(product, t)) return null; // never offer the cheaper plan to a free newsroom
             const renewing = t.plan === plan && !!t.paidUntil;
             return (
               <button key={plan} type="button" className="gm-btn block" style={{ marginTop: 8 }} disabled={!configured || busy} onClick={() => buy(t, plan)}>

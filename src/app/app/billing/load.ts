@@ -6,12 +6,13 @@ import type { InvoiceRow } from "./billing-client";
  * The buyer comes back from Wayl with ?invoice=<id>. Ask Wayl about it, but only when the
  * invoice belongs to this workspace, so one workspace cannot poke another's invoices.
  */
-export async function settleReturn(tenantId: string, invoiceId: unknown): Promise<"paid" | "pending" | null> {
+export async function settleReturn(tenantId: string, invoiceId: unknown): Promise<"paid" | "paid_test" | "pending" | null> {
   if (typeof invoiceId !== "string" || !invoiceId) return null;
   const own = await db.invoice.findFirst({ where: { id: invoiceId, tenantId }, select: { id: true } });
   if (!own) return null;
   const r = await confirmInvoice(own.id);
-  return r === "missing" ? null : r;
+  if (r === "missing") return null;
+  return r === "error" ? "pending" : r; // Wayl unreachable reads like pending: the buyer refreshes.
 }
 
 /** The workspace's last 10 invoices, newest first. */

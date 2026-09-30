@@ -76,6 +76,12 @@ export async function getLink(referenceId: string): Promise<WaylLink | null> {
   return r.ok ? toLink(r.body) : null;
 }
 
+/** Stop an unpaid link from being paid later (before we expire its invoice). */
+export async function invalidateIfPending(referenceId: string): Promise<boolean> {
+  const r = await call(`/api/v1/links/${encodeURIComponent(referenceId)}/invalidate-if-pending`, { method: "POST" });
+  return r.ok;
+}
+
 /** HMAC-SHA256 of the raw body with the invoice's secret; Wayl's encoding is not documented, so hex (with or without "sha256=") and base64 are accepted. */
 export function signatureValid(raw: string, header: string | null, secret: string): boolean {
   if (!header) return false;

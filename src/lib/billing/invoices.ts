@@ -2,8 +2,8 @@ import { randomBytes } from "node:crypto";
 
 import { db } from "@/lib/db";
 import { SHOP_ORIGIN } from "@/lib/hosts";
-import { extendPaidUntil, PLAN_LABEL, priceFor, type BillingProduct } from "./prices";
-import { createLink, getLink, PAID_STATUS, waylConfigured, waylEnv } from "./wayl";
+import { nextPaidUntil, PLAN_LABEL, priceFor, type BillingProduct } from "./prices";
+import { createLink, getLink, invalidateIfPending, PAID_STATUS, waylConfigured, waylEnv } from "./wayl";
 
 const DAY = 86_400_000;
 /** Pending invoices older than this are expired by the daily cron. */
@@ -53,45 +53,85 @@ export async function startCheckout(i: {
   return { ok: true, url: r.link.url! };
 }
 
+/** Tenants allowed to get a real plan from a test-mode payment (comma-separated ids in WAYL_TEST_TENANTS); empty by default. */
+function testTenants(): string[] {
+  return (process.env.WAYL_TEST_TENANTS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+}
+
 /**
  * Ask Wayl whether the invoice is paid; if so, mark it PAID once and apply the plan.
- * Safe to call from the webhook and the return page at the same time.
+ * Safe to call from the webhook and the return page at the same time. An EXPIRED invoice can
+ * still settle, so a late payment is never lost. "error" means Wayl could not be reached: retry.
+ * A test-mode payment is recorded but only grants a plan to tenants in WAYL_TEST_TENANTS ("paid_test").
  */
-export async function confirmInvoice(invoiceId: string): Promise<"paid" | "pending" | "missing"> {
+export async function confirmInvoice(invoiceId: string): Promise<"paid" | "paid_test" | "pending" | "missing" | "error"> {
   const inv = await db.invoice.findUnique({ where: { id: invoiceId } });
   if (!inv) return "missing";
   if (inv.status === "PAID") return "paid";
-  if (inv.status !== "PENDING") return "missing";
+  if (inv.status !== "PENDING" && inv.status !== "EXPIRED") return "missing";
   const link = await getLink(inv.id);
-  if (!link || link.status !== PAID_STATUS) return "pending";
-  if (link.total != null && link.total !== inv.amountIqd) {
+  if (!link) return "error";
+  if (link.status !== PAID_STATUS) return "pending";
+  if (link.total == null || link.total !== inv.amountIqd) {
     await db.invoice.update({ where: { id: inv.id }, data: { lastError: `amount mismatch: ${link.total}` } });
     return "pending";
   }
+  const applyPlan = inv.env === "live" || testTenants().includes(inv.tenantId);
   const now = new Date();
   await db.$transaction(async (tx) => {
-    const claimed = await tx.invoice.updateMany({ where: { id: inv.id, status: "PENDING" }, data: { status: "PAID", paidAt: now } });
+    const claimed = await tx.invoice.updateMany({ where: { id: inv.id, status: { in: ["PENDING", "EXPIRED"] } }, data: { status: "PAID", paidAt: now } });
     if (claimed.count !== 1) return;
-    if (inv.product === "SHOP" && inv.storeId) {
-      const s = await tx.store.findUnique({ where: { id: inv.storeId }, select: { planPaidUntil: true } });
-      if (s) await tx.store.update({ where: { id: inv.storeId }, data: { plan: inv.plan as "MERCHANT" | "PRO", planPaidUntil: extendPaidUntil(s.planPaidUntil, now) } });
-    } else if (inv.product === "NEWS") {
-      const t = await tx.tenant.findUnique({ where: { id: inv.tenantId }, select: { planPaidUntil: true } });
-      if (t) await tx.tenant.update({ where: { id: inv.tenantId }, data: { plan: inv.plan as "LITE" | "MANUAL" | "AUTO" | "ENTERPRISE", planPaidUntil: extendPaidUntil(t.planPaidUntil, now) } });
+    if (applyPlan) {
+      if (inv.product === "SHOP" && inv.storeId) {
+        // Lock the row so two payments at the same moment both count.
+        await tx.$queryRaw`SELECT 1 FROM "Store" WHERE "id" = ${inv.storeId} FOR UPDATE`;
+        const s = await tx.store.findUnique({ where: { id: inv.storeId }, select: { plan: true, planPaidUntil: true } });
+        if (s) {
+          await tx.store.update({
+            where: { id: inv.storeId },
+            data: { plan: inv.plan as "MERCHANT" | "PRO", planPaidUntil: nextPaidUntil(inv.product as BillingProduct, { plan: s.plan, paidUntil: s.planPaidUntil }, inv.plan, now) },
+          });
+        }
+      } else if (inv.product === "NEWS") {
+        await tx.$queryRaw`SELECT 1 FROM "Tenant" WHERE "id" = ${inv.tenantId} FOR UPDATE`;
+        const t = await tx.tenant.findUnique({ where: { id: inv.tenantId }, select: { plan: true, planPaidUntil: true } });
+        if (t) {
+          await tx.tenant.update({
+            where: { id: inv.tenantId },
+            data: { plan: inv.plan as "LITE" | "MANUAL" | "AUTO" | "ENTERPRISE", planPaidUntil: nextPaidUntil(inv.product as BillingProduct, { plan: t.plan, paidUntil: t.planPaidUntil }, inv.plan, now) },
+          });
+        }
+      }
     }
     await tx.auditLog.create({
-      data: { tenantId: inv.tenantId, actor: "SYSTEM", action: "billing.paid", reasoning: `Paid ${inv.amountIqd} IQD for ${inv.product} ${inv.plan}.`, metadata: { invoiceId: inv.id, env: inv.env } },
+      data: { tenantId: inv.tenantId, actor: "SYSTEM", action: "billing.paid", reasoning: `Paid ${inv.amountIqd} IQD for ${inv.product} ${inv.plan}.`, metadata: { invoiceId: inv.id, env: inv.env, applied: applyPlan } },
     });
   });
-  return "paid";
+  return applyPlan ? "paid" : "paid_test";
 }
 
-/** Daily: lapsed plans drop back, stale pending invoices expire. */
+/**
+ * Daily: lapsed plans drop back, stale pending invoices are re-checked with Wayl (a paid one
+ * settles), and only a still-unpaid one is invalidated at Wayl and expired. If Wayl cannot be
+ * reached the invoice is left alone and retried tomorrow.
+ */
 export async function expireOverdue(now = new Date()): Promise<{ stores: number; tenants: number; invoices: number }> {
-  const [stores, tenants, invoices] = await Promise.all([
+  const [stores, tenants] = await Promise.all([
     db.store.updateMany({ where: { planPaidUntil: { lt: now }, NOT: { plan: "FREE" } }, data: { plan: "FREE" } }),
     db.tenant.updateMany({ where: { kind: "NEWS", planPaidUntil: { lt: now }, NOT: { plan: "LITE" } }, data: { plan: "LITE" } }),
-    db.invoice.updateMany({ where: { status: "PENDING", createdAt: { lt: new Date(now.getTime() - INVOICE_TTL_MS) } }, data: { status: "EXPIRED" } }),
   ]);
-  return { stores: stores.count, tenants: tenants.count, invoices: invoices.count };
+  const stale = await db.invoice.findMany({
+    where: { status: "PENDING", createdAt: { lt: new Date(now.getTime() - INVOICE_TTL_MS) } },
+    select: { id: true },
+    take: 20,
+  });
+  let invoices = 0;
+  for (const { id } of stale) {
+    const r = await confirmInvoice(id);
+    if (r !== "pending") continue; // paid (settled), or Wayl unreachable (retry tomorrow)
+    await invalidateIfPending(id);
+    const expired = await db.invoice.updateMany({ where: { id, status: "PENDING" }, data: { status: "EXPIRED" } });
+    invoices += expired.count;
+  }
+  return { stores: stores.count, tenants: tenants.count, invoices };
 }

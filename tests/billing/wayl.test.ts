@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createLink, getLink, signatureValid } from "@/lib/billing/wayl";
+import { createLink, getLink, invalidateIfPending, signatureValid } from "@/lib/billing/wayl";
 
 describe("signatureValid", () => {
   const raw = '{"referenceId":"inv1","paymentStatus":"Complete"}';
@@ -41,6 +41,15 @@ describe("Wayl requests", () => {
     respond({ data: { id: "L1", url: "u", status: "Complete", total: "8000" } });
     expect(await getLink("inv1")).toEqual({ id: "L1", url: "u", status: "Complete", total: 8000 });
     expect(calls[0].url).toBe("https://api.thewayl.com/api/v1/links/inv1");
+  });
+
+  it("invalidates a pending link with a POST", async () => {
+    respond({}, 200);
+    expect(await invalidateIfPending("inv1")).toBe(true);
+    expect(calls[0].url).toBe("https://api.thewayl.com/api/v1/links/inv1/invalidate-if-pending");
+    expect(calls[0].init.method).toBe("POST");
+    respond({ message: "nope" }, 404);
+    expect(await invalidateIfPending("inv1")).toBe(false);
   });
 
   it("reports failures without throwing", async () => {

@@ -27,5 +27,7 @@ export async function POST(req: Request) {
   const sig = req.headers.get("x-wayl-signature-256");
   if (sig && !signatureValid(raw, sig, inv.webhookSecret)) return NextResponse.json({ error: "bad signature" }, { status: 401 });
   const result = await confirmInvoice(inv.id);
+  // Wayl could not be asked: answer 503 so Wayl retries the webhook.
+  if (result === "error") return NextResponse.json({ error: "wayl unavailable" }, { status: 503 });
   return NextResponse.json({ ok: true, result });
 }

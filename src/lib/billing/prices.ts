@@ -28,3 +28,17 @@ export function extendPaidUntil(current: Date | null, now: Date, days = PERIOD_D
   const from = current && current.getTime() > now.getTime() ? current : now;
   return new Date(from.getTime() + days * DAY);
 }
+
+/**
+ * The new paid-until after paying for `newPlan`. Same plan: stack another period. Different plan
+ * while a period is still running: the remaining time is converted at the price ratio (cheap
+ * months become a few expensive days, and a downgrade keeps its value), then one period is added.
+ */
+export function nextPaidUntil(product: BillingProduct, current: { plan: string; paidUntil: Date | null }, newPlan: string, now: Date, days = PERIOD_DAYS): Date {
+  const remaining = current.paidUntil && current.paidUntil.getTime() > now.getTime() ? current.paidUntil.getTime() - now.getTime() : 0;
+  if (!remaining || current.plan === newPlan) return extendPaidUntil(current.paidUntil, now, days);
+  const oldPrice = priceFor(product, current.plan) ?? 0;
+  const newPrice = priceFor(product, newPlan) ?? 0;
+  const credit = newPrice > 0 ? Math.floor((remaining * oldPrice) / newPrice) : 0;
+  return new Date(now.getTime() + credit + days * DAY);
+}
