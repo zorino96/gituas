@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { vaultDecrypt, vaultEncrypt } from "@/lib/vault";
 import { can } from "@/lib/newsroom/roles";
 import { findProvider, type ProviderConfig } from "@/lib/oauth/registry";
+import { connectStore } from "@/lib/shop/store";
 import type { OAuthProvider } from "@/generated/prisma/client";
 
 function appUrl(): string {
@@ -402,6 +403,13 @@ async function saveCredential(
       metadata: { provider, accountId: account.id },
     },
   });
+
+  // Shop automation: create/link the merchant's store and subscribe the account to webhooks.
+  if (provider === "META_INSTAGRAM" || (provider === "META_FACEBOOK" && !account.id.startsWith("act_"))) {
+    await connectStore(tenantId, provider, account.id, account.name).catch((e) =>
+      console.error("[shop] store connect failed:", e instanceof Error ? e.message : "unknown error"),
+    );
+  }
 }
 
 export type PendingPageChoice = { redirectTo: string; pages: { id: string; name: string }[] };
