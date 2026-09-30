@@ -4,15 +4,22 @@ import { gmFontVars } from "@/app/app/fonts";
 import { listWorkspaces, type Workspace } from "@/app/app/data";
 import { newsroomAccess } from "@/lib/billing/trial";
 import { db } from "@/lib/db";
+import { getLang } from "@/lib/i18n";
+import { LangProvider } from "@/lib/i18n/client";
 import { ROLE_LABEL } from "@/lib/newsroom/roles";
 import { BottomNav, HelpLink, SideNav } from "./desk-nav";
 import { DeskSwitcher } from "./desk-switcher";
 
-/** The newsroom's root element: the shop's design system, re-tokened by .nr. */
-export function NewsroomRoot({ children }: { children: React.ReactNode }) {
+/**
+ * The newsroom's root element: the shop's design system, re-tokened by .nr.
+ * The newsroom's own screens stay Sorani; the provider is for the shop pages it re-exports
+ * (comments, messages, publish, insights, settings), which follow the gm_lang cookie.
+ */
+export async function NewsroomRoot({ children }: { children: React.ReactNode }) {
+  const lang = await getLang();
   return (
     <div className={`gm nr ${gmFontVars}`} dir="rtl" lang="ckb">
-      {children}
+      <LangProvider lang={lang}>{children}</LangProvider>
     </div>
   );
 }

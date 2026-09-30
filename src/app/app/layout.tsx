@@ -10,12 +10,23 @@ import { Tabs } from "./nav";
 import { switchWorkspaceAction } from "@/app/newsroom/desk-actions";
 import { NEWSROOM_ORIGIN } from "@/lib/hosts";
 import { createShopAction } from "./shop-actions";
+import { getLang, type Lang } from "@/lib/i18n";
+import { LangProvider } from "@/lib/i18n/client";
 
 export const metadata: Metadata = { title: "گیتواس", description: "وەڵامدانەوە و بڵاوکردنەوە بۆ دووکانەکەت" };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 export const dynamic = "force-dynamic";
 
 export default async function MerchantLayout({ children }: { children: React.ReactNode }) {
+  const lang = await getLang();
+  return (
+    <LangProvider lang={lang}>
+      <Shell lang={lang}>{children}</Shell>
+    </LangProvider>
+  );
+}
+
+async function Shell({ lang, children }: { lang: Lang; children: React.ReactNode }) {
   let ws = await currentWorkspace();
   if (!ws) redirect("/login?next=/app");
   if (!ws.kindChosen) ws = await claimKind(ws, "MERCHANT");
@@ -24,7 +35,7 @@ export default async function MerchantLayout({ children }: { children: React.Rea
     if (shops.length === 0) {
       // A newsroom account opening the shop: offer it a shop of its own instead of bouncing to the newsroom.
       return (
-        <div className={`gm ${gmFontVars}`} dir="rtl" lang="ckb">
+        <div className={`gm ${gmFontVars}`} dir="rtl" lang={lang}>
           <div className="gm-auth">
             <p className="gm-brand kufi">گیتواس</p>
             <div className="gm-card" style={{ marginTop: 18 }}>
@@ -43,7 +54,7 @@ export default async function MerchantLayout({ children }: { children: React.Rea
       );
     }
     return (
-      <div className={`gm ${gmFontVars}`} dir="rtl" lang="ckb">
+      <div className={`gm ${gmFontVars}`} dir="rtl" lang={lang}>
         <div className="gm-auth">
           <p className="gm-brand kufi">گیتواس</p>
           <div className="gm-card" style={{ marginTop: 18 }}>
@@ -67,7 +78,7 @@ export default async function MerchantLayout({ children }: { children: React.Rea
   }
 
   return (
-    <div className={`gm ${gmFontVars}`} dir="rtl" lang="ckb">
+    <div className={`gm ${gmFontVars}`} dir="rtl" lang={lang}>
       <div className="gm-shell">
         <header className="gm-head">
           <div>

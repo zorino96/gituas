@@ -8,6 +8,7 @@ import { normalizePhone } from "@/lib/merchant/phone";
 import { useBase } from "../use-base";
 import { NOT_ALLOWED } from "@/lib/newsroom/roles";
 import { saveWhatsAppAction } from "../actions";
+import { LanguageCard } from "./language-card";
 import { PasswordCard } from "./password-card";
 import { NewsSettings, type NewsSettingsProps } from "./news-settings";
 
@@ -81,6 +82,8 @@ export function SettingsClient({
 
       {connected && <p className="gm-ok">پەیوەست کرا.</p>}
       {connectError && <p className="gm-err">{CONNECT_ERRORS[connectError] ?? "پەیوەستکردن سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە."}</p>}
+
+      <LanguageCard />
 
       {news && <NewsSettings {...news} />}
 
