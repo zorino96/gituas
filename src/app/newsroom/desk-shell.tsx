@@ -2,6 +2,8 @@ import "@/app/app/app.css";
 import "./newsroom.css";
 import { gmFontVars } from "@/app/app/fonts";
 import { listWorkspaces, type Workspace } from "@/app/app/data";
+import { newsroomAccess } from "@/lib/billing/trial";
+import { db } from "@/lib/db";
 import { ROLE_LABEL } from "@/lib/newsroom/roles";
 import { BottomNav, HelpLink, SideNav } from "./desk-nav";
 import { DeskSwitcher } from "./desk-switcher";
@@ -13,6 +15,34 @@ export function NewsroomRoot({ children }: { children: React.ReactNode }) {
       {children}
     </div>
   );
+}
+
+/** Tells a newsroom how long its free trial has left, or that it is frozen (read-only) until a plan is bought. */
+async function TrialBanner({ tenantId }: { tenantId: string }) {
+  const t = await db.tenant.findUnique({ where: { id: tenantId }, select: { kind: true, plan: true, planPaidUntil: true, trialEndsAt: true } });
+  if (!t) return null;
+  const access = newsroomAccess(t, new Date());
+  if (access.reason === "trial") {
+    return (
+      <p className="gm-note" style={{ marginBottom: 12 }}>
+        {access.daysLeft} ڕۆژ لە تاقیکردنەوەی بەخۆڕایی ماوە —{" "}
+        <a href="/newsroom/billing" className="gm-link">
+          پلان هەڵبژێرە
+        </a>
+      </p>
+    );
+  }
+  if (access.reason === "frozen") {
+    return (
+      <p className="gm-note warn" style={{ marginBottom: 12 }}>
+        ماوەی تاقیکردنەوە تەواو بووە. هەواڵەکان دەبینیت، بەڵام نووسین و بڵاوکردنەوە ڕاگیراوە.{" "}
+        <a href="/newsroom/billing" className="gm-link">
+          پلان هەڵبژێرە
+        </a>
+      </p>
+    );
+  }
+  return null;
 }
 
 /** A signed-in channel's frame: sidebar on desktop, top bar with the "?" guide link, phone bar. */
@@ -34,7 +64,10 @@ export async function DeskShell({ ws, children }: { ws: Workspace; children: Rea
               <HelpLink />
             </div>
           </header>
-          <main className="nr-main">{children}</main>
+          <main className="nr-main">
+            <TrialBanner tenantId={ws.id} />
+            {children}
+          </main>
         </div>
       </div>
       <BottomNav />

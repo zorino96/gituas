@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { NEWS_LIMITS, type Metric } from "./plans";
+import { newsroomAccess } from "./trial";
 
 export function monthKey(d = new Date()): string {
   return d.toISOString().slice(0, 7);
@@ -9,6 +10,8 @@ export class LimitReached extends Error {
   constructor(
     readonly metric: Metric,
     readonly limit: number,
+    /** True when the newsroom's trial is over and nothing is paid — not a quota, a freeze. */
+    readonly frozen = false,
   ) {
     super(`${metric} limit of ${limit} reached`);
     this.name = "LimitReached";
@@ -18,16 +21,21 @@ export class LimitReached extends Error {
 const LABEL: Record<Metric, string> = { draft: "ئامادەکردنی هەواڵ", improve: "باشترکردن", publish: "بڵاوکردنەوە" };
 
 export function limitMessage(e: LimitReached): string {
+  if (e.frozen) return "ماوەی تاقیکردنەوە تەواو بووە — بۆ بەردەوامبوون لە «پلان و پارەدان» پلانێک هەڵبژێرە.";
   return `سنووری ${LABEL[e.metric]}ی ئەم مانگە (${new Intl.NumberFormat("ar-IQ").format(e.limit)}) تەواو بوو. بۆ زیاتر، پاکێجەکەت بەرز بکەرەوە.`;
 }
 
-/** Throws LimitReached when this month's count has reached the plan's quota, or when the tenant does not exist. */
+/**
+ * Throws LimitReached when this month's count has reached the plan's quota, when the tenant does
+ * not exist, or (frozen) when a newsroom's trial is over and no paid plan is running.
+ */
 export async function assertWithin(tenantId: string, metric: Metric): Promise<void> {
   const [tenant, row] = await Promise.all([
-    db.tenant.findUnique({ where: { id: tenantId }, select: { plan: true } }),
+    db.tenant.findUnique({ where: { id: tenantId }, select: { plan: true, kind: true, planPaidUntil: true, trialEndsAt: true } }),
     db.usage.findUnique({ where: { tenantId_month_metric: { tenantId, month: monthKey(), metric } }, select: { count: true } }),
   ]);
   if (!tenant) throw new LimitReached(metric, 0);
+  if (!newsroomAccess(tenant, new Date()).active) throw new LimitReached(metric, 0, true);
   const limit = NEWS_LIMITS[tenant.plan][metric];
   if ((row?.count ?? 0) >= limit) throw new LimitReached(metric, limit);
 }

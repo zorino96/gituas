@@ -7,6 +7,7 @@ import { auth, ensureWorkspace } from "@/auth";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { pickWorkspace } from "@/lib/workspace/pick";
+import { trialEndsAtFrom } from "@/lib/billing/trial";
 import type { Role } from "@/lib/newsroom/roles";
 import { newestFirst, unexpired, usableOrRefreshable } from "@/lib/oauth/pick";
 import { fetchComments, fetchConversations, fetchMedia, fetchUserInsights } from "@/lib/publishers/instagram-engage";
@@ -83,8 +84,13 @@ export async function rememberWorkspace(tenantId: string): Promise<void> {
   });
 }
 
-/** A new desk's starting settings: no keywords yet, and the GDELT source. */
+/**
+ * A new desk's starting settings: no keywords yet, the GDELT source, and the 14-day free trial.
+ * Every way a workspace becomes a newsroom (claimKind, a new desk, a reused placeholder) ends
+ * here, so this is the one place the trial starts — only if the workspace has none yet.
+ */
 export async function setupNewsDesk(tx: Prisma.TransactionClient, tenantId: string): Promise<void> {
+  await tx.tenant.updateMany({ where: { id: tenantId, trialEndsAt: null }, data: { trialEndsAt: trialEndsAtFrom(new Date()) } });
   await tx.newsSettings.upsert({ where: { tenantId }, create: { tenantId, keywords: [] }, update: {} });
   await tx.newsSource.upsert({
     where: { tenantId_catalogId: { tenantId, catalogId: "gdelt" } },

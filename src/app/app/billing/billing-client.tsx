@@ -23,6 +23,8 @@ export interface BillingTarget {
   paidUntil: string | null;
   /** Every platform account this plan covers. */
   chips: PlatformChip[];
+  /** Whole days left of a newsroom's free trial; null or absent when it is not in one. */
+  trialDaysLeft?: number | null;
 }
 
 export interface InvoiceRow {
@@ -43,11 +45,6 @@ export interface BillingProps {
   result: "paid" | "paid_test" | "pending" | null;
   targets: BillingTarget[];
   invoices: InvoiceRow[];
-}
-
-/** A newsroom on the legacy free plan: MANUAL that was never paid for. */
-function legacyFree(product: BillingProduct, t: BillingTarget): boolean {
-  return product === "NEWS" && t.plan === "MANUAL" && !t.paidUntil;
 }
 
 function StatusBadge({ status }: { status: InvoiceRow["status"] }) {
@@ -111,11 +108,10 @@ export function BillingClient({ product, configured, env, result, targets, invoi
             </div>
           )}
           <p className="gm-hint">یەک پلان هەموو پلاتفۆرمەکانی ئەم کارە دەگرێتەوە.</p>
-          {legacyFree(product, t) && <p className="gm-hint">ئێستا پلانی بنەڕەتت بەخۆڕایی هەیە.</p>}
+          {product === "NEWS" && t.trialDaysLeft != null && <p className="gm-hint">تاقیکردنەوە: {t.trialDaysLeft} ڕۆژ ماوە</p>}
           {PLANS[product].map((plan) => {
             const price = priceFor(product, plan);
             if (price == null) return null;
-            if (plan === "LITE" && legacyFree(product, t)) return null; // never offer the cheaper plan to a free newsroom
             const renewing = t.plan === plan && !!t.paidUntil;
             return (
               <button key={plan} type="button" className="gm-btn block" style={{ marginTop: 8 }} disabled={!configured || busy} onClick={() => buy(t, plan)}>

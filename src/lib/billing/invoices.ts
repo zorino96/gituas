@@ -111,15 +111,13 @@ export async function confirmInvoice(invoiceId: string): Promise<"paid" | "paid_
 }
 
 /**
- * Daily: lapsed plans drop back, stale pending invoices are re-checked with Wayl (a paid one
+ * Daily: lapsed shop plans drop back, stale pending invoices are re-checked with Wayl (a paid one
  * settles), and only a still-unpaid one is invalidated at Wayl and expired. If Wayl cannot be
  * reached the invoice is left alone and retried tomorrow.
  */
-export async function expireOverdue(now = new Date()): Promise<{ stores: number; tenants: number; invoices: number }> {
-  const [stores, tenants] = await Promise.all([
-    db.store.updateMany({ where: { planPaidUntil: { lt: now }, NOT: { plan: "FREE" } }, data: { plan: "FREE" } }),
-    db.tenant.updateMany({ where: { kind: "NEWS", planPaidUntil: { lt: now }, NOT: { plan: "LITE" } }, data: { plan: "LITE" } }),
-  ]);
+export async function expireOverdue(now = new Date()): Promise<{ stores: number; invoices: number }> {
+  // A lapsed newsroom plan is not downgraded here: freezing is computed from its dates (newsroomAccess).
+  const stores = await db.store.updateMany({ where: { planPaidUntil: { lt: now }, NOT: { plan: "FREE" } }, data: { plan: "FREE" } });
   const stale = await db.invoice.findMany({
     where: { status: "PENDING", createdAt: { lt: new Date(now.getTime() - INVOICE_TTL_MS) } },
     select: { id: true },
@@ -133,5 +131,5 @@ export async function expireOverdue(now = new Date()): Promise<{ stores: number;
     const expired = await db.invoice.updateMany({ where: { id, status: "PENDING" }, data: { status: "EXPIRED" } });
     invoices += expired.count;
   }
-  return { stores: stores.count, tenants: tenants.count, invoices };
+  return { stores: stores.count, invoices };
 }

@@ -37,6 +37,12 @@ describe("limits", () => {
   it("names the class as its Error name", () => {
     expect(new LimitReached("draft", 300).name).toBe("LimitReached");
   });
+  it("says the trial is over when frozen, instead of naming a limit", () => {
+    const e = new LimitReached("draft", 0, true);
+    expect(e.frozen).toBe(true);
+    expect(limitMessage(e)).toBe("ماوەی تاقیکردنەوە تەواو بووە — بۆ بەردەوامبوون لە «پلان و پارەدان» پلانێک هەڵبژێرە.");
+    expect(new LimitReached("draft", 300).frozen).toBe(false);
+  });
 });
 
 describe("assertWithin", () => {
@@ -49,8 +55,22 @@ describe("assertWithin", () => {
   });
 
   it("uses the tenant's own plan limit when the tenant exists", async () => {
-    mockDb.tenant.findUnique.mockResolvedValue({ plan: "MANUAL" });
+    mockDb.tenant.findUnique.mockResolvedValue({ plan: "MANUAL", kind: "NEWS", planPaidUntil: null, trialEndsAt: null });
     mockDb.usage.findUnique.mockResolvedValue({ count: NEWS_LIMITS.MANUAL.draft });
-    await expect(assertWithin("real-tenant", "draft")).rejects.toMatchObject({ metric: "draft", limit: NEWS_LIMITS.MANUAL.draft });
+    await expect(assertWithin("real-tenant", "draft")).rejects.toMatchObject({ metric: "draft", limit: NEWS_LIMITS.MANUAL.draft, frozen: false });
+  });
+
+  it("refuses a newsroom whose trial is over and that is not paid, as frozen, even with quota left", async () => {
+    mockDb.tenant.findUnique.mockResolvedValue({ plan: "MANUAL", kind: "NEWS", planPaidUntil: null, trialEndsAt: new Date(Date.now() - 1000) });
+    mockDb.usage.findUnique.mockResolvedValue({ count: 0 });
+    await expect(assertWithin("t", "publish")).rejects.toMatchObject({ metric: "publish", limit: 0, frozen: true });
+  });
+
+  it("lets a newsroom in its trial, or with a running paid plan, use its quota", async () => {
+    mockDb.usage.findUnique.mockResolvedValue({ count: 0 });
+    mockDb.tenant.findUnique.mockResolvedValue({ plan: "MANUAL", kind: "NEWS", planPaidUntil: null, trialEndsAt: new Date(Date.now() + 86_400_000) });
+    await expect(assertWithin("t", "draft")).resolves.toBeUndefined();
+    mockDb.tenant.findUnique.mockResolvedValue({ plan: "AUTO", kind: "NEWS", planPaidUntil: new Date(Date.now() + 86_400_000), trialEndsAt: new Date(Date.now() - 86_400_000) });
+    await expect(assertWithin("t", "draft")).resolves.toBeUndefined();
   });
 });
