@@ -22,13 +22,24 @@ describe("deepseekJson", () => {
     expect(sent.response_format).toEqual({ type: "json_object" });
   });
 
-  it("uses the non-thinking chat model when thinking is off (bulk sorting)", async () => {
+  it("calls the fast model with thinking disabled when thinking is off (bulk sorting)", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ model: "deepseek-flash", choices: [{ message: { content: '{"items":[]}' } }] }), { status: 200 }),
     );
     vi.stubGlobal("fetch", fetchMock);
     await deepseekJson({ system: "s", user: "u", strength: "fast", thinking: false }, 5000);
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body).model).toBe(DEEPSEEK_MODELS.noThinking);
+    const sent = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(sent.model).toBe(DEEPSEEK_MODELS.fast);
+    expect(sent.thinking).toEqual({ type: "disabled" });
+  });
+
+  it("does not send a thinking field when thinking is not turned off", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ model: "deepseek-flash", choices: [{ message: { content: "{}" } }] }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await deepseekJson({ system: "s", user: "u", strength: "fast" }, 5000);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty("thinking");
   });
 
   it("throws on an HTTP error", async () => {
