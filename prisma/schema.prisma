@@ -134,7 +134,9 @@ model ContentVariant {
 
 model ConversationMessage {
   id                String           @id @default(cuid())
-  projectId         String
+  /// Operator-dashboard rows only; shop rows use storeId.
+  projectId         String?
+  storeId           String?
   platform          Platform
   channelType       ChannelType
   direction         MessageDirection
@@ -142,18 +144,33 @@ model ConversationMessage {
   externalMessageId String?
   authorHandle      String?
   authorName        String?
+  /// Platform user id of the author (comment) or sender (DM).
+  authorId          String?
+  parentCommentId   String?
   content           String?
   audioUrl          String?
   transcript        String?
   status            MessageStatus    @default(RECEIVED)
   generatedReply    String?
   reasoning         String?
+  commentType       String?
+  intent            String?
+  language          String?
+  confidence        Float?
+  outcome           MessageOutcome?
+  /// Why it was skipped or flagged; non-null means "needs you" in the inbox.
+  outcomeReason     String?
+  boundProductId    String?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
-  project           Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project           Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  store             Store?           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  jobs              OutboxJob[]
 
+  @@unique([storeId, externalMessageId])
   @@index([platform, channelType])
   @@index([projectId])
+  @@index([storeId, authorId])
 }
 
 model Earnings {
@@ -402,6 +419,7 @@ model Tenant {
   memberships           Membership[]
   invites               Invite[]
   oauthCredentials      OAuthCredential[]
+  stores                Store[]
   projects              Project[]
   wallet                Wallet?
 }
@@ -768,4 +786,168 @@ model SourceCache {
   key       String   @id
   items     Json
   fetchedAt DateTime
+}
+
+enum StorePlan {
+  FREE
+  MERCHANT
+  PRO
+}
+
+enum OutboxKind {
+  PUBLIC_REPLY
+  PRIVATE_REPLY
+  LIKE
+  HIDE
+  DM_ANSWER
+  DM_PHOTOS
+}
+
+enum OutboxStatus {
+  PENDING
+  SENT
+  SKIPPED
+  FAILED
+}
+
+enum MessageOutcome {
+  AUTO_REPLIED
+  FLAGGED
+  SKIPPED
+}
+
+/// One connected Facebook Page and/or Instagram account that the shop automates.
+model Store {
+  id                String               @id @default(cuid())
+  tenantId          String
+  name              String               @default("")
+  fbPageId          String?              @unique
+  igUserId          String?              @unique
+  igUsername        String?
+  plan              StorePlan            @default(FREE)
+  automationEnabled Boolean              @default(false)
+  expiryDays        Int                  @default(30)
+  /// Lower than the plan's daily reply cap, when the merchant wants that.
+  dailyCap          Int?
+  likeComments      Boolean              @default(true)
+  autoHideSpam      Boolean              @default(false)
+  deliveryFeeMinor  Int?
+  deliveryCurrency  String               @default("IQD")
+  deliveryTime      String?
+  defaultDm         String?
+  defaultTemplateId String?
+  /// Posts created before this date are never automated ("stop old posts").
+  stopBefore        DateTime?
+  /// Set when sending must stop (e.g. "token"); cleared on reconnect.
+  pausedReason      String?
+  /// Last successful webhook subscription.
+  webhooksAt        DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  products          Product[]
+  templates         AutomationTemplate[]
+  posts             PostAutomation[]
+  jobs              OutboxJob[]
+  messages          ConversationMessage[]
+
+  @@index([tenantId])
+}
+
+model Product {
+  id          String           @id @default(cuid())
+  storeId     String
+  name        String
+  description String?
+  photos      String[]
+  active      Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  store       Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  variants    ProductVariant[]
+
+  @@index([storeId])
+}
+
+model ProductVariant {
+  id          String  @id @default(cuid())
+  productId   String
+  /// "M", "سوور / L", or "" for a product with one price.
+  label       String  @default("")
+  amountMinor Int
+  currency    String  @default("IQD")
+  inStock     Boolean @default(true)
+  position    Int     @default(0)
+  product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model AutomationTemplate {
+  id             String   @id @default(cuid())
+  storeId        String
+  name           String
+  publicSamples  String[]
+  thanksSamples  String[]
+  dmGreeting     Boolean  @default(true)
+  whatsappAlways Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  store          Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+}
+
+/// One row per post the shop has seen; automation is on by default until activeUntil.
+model PostAutomation {
+  id             String   @id @default(cuid())
+  storeId        String
+  platform       Platform
+  externalPostId String
+  postCreatedAt  DateTime
+  enabled        Boolean  @default(true)
+  productId      String?
+  templateId     String?
+  activeUntil    DateTime
+  createdAt      DateTime @default(now())
+  store          Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, platform, externalPostId])
+  @@index([storeId, postCreatedAt])
+}
+
+model OutboxJob {
+  id            String              @id @default(cuid())
+  storeId       String
+  messageId     String
+  kind          OutboxKind
+  status        OutboxStatus        @default(PENDING)
+  payload       Json
+  attempts      Int                 @default(0)
+  nextAttemptAt DateTime            @default(now())
+  sentId        String?
+  /// Private replies: the buyer's messaging id Meta returns. DM jobs: the target.
+  recipientId   String?
+  lastError     String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  store         Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  message       ConversationMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, kind])
+  @@index([status, nextAttemptAt])
+  @@index([storeId, recipientId])
+  @@index([storeId, updatedAt])
+}
+
+/// A thread the merchant answered by hand: automation stays out of it.
+model ThreadPause {
+  id        String   @id @default(cuid())
+  tenantId  String
+  platform  Platform
+  /// Comment threads: the comment id. DMs: the buyer's messaging id.
+  threadKey String
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, platform, threadKey])
 }
