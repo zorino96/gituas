@@ -12,7 +12,7 @@ export default async function NewDeskPage() {
   });
   const limit = deskLimit(owned.map((t) => t.plan));
   return (
-    <div className="gm-stack">
+    <div className="gm-stack gm-narrow">
       <h2 className="gm-title kufi">مێزی نوێ</h2>
       <p className="gm-sub" style={{ margin: 0 }}>
         مێزێکی جیا بۆ زمانێک، بەشێک یان براندێکی تری کەناڵەکەت. هەر مێزێک پەیج، سەرچاوە، براند و تیمی خۆی هەیە.

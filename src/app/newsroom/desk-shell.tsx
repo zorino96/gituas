@@ -31,7 +31,7 @@ async function TrialBanner({ tenantId }: { tenantId: string }) {
   const access = newsroomAccess(t, new Date());
   if (access.reason === "trial") {
     return (
-      <p className="gm-note" style={{ marginBottom: 12 }}>
+      <p className="gm-note nr-trial">
         {access.daysLeft} ڕۆژ لە تاقیکردنەوەی بەخۆڕایی ماوە —{" "}
         <a href="/newsroom/billing" className="gm-link">
           پلان هەڵبژێرە
@@ -41,7 +41,7 @@ async function TrialBanner({ tenantId }: { tenantId: string }) {
   }
   if (access.reason === "frozen") {
     return (
-      <p className="gm-note warn" style={{ marginBottom: 12 }}>
+      <p className="gm-note warn nr-trial">
         ماوەی تاقیکردنەوە تەواو بووە. هەواڵەکان دەبینیت، بەڵام نووسین و بڵاوکردنەوە ڕاگیراوە.{" "}
         <a href="/newsroom/billing" className="gm-link">
           پلان هەڵبژێرە

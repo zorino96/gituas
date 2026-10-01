@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
+import { Newspaper, Rss, Sparkles } from "lucide-react";
 
 import { classifyPending } from "@/lib/news/classify";
 
@@ -123,6 +124,9 @@ export default async function NewsPage({
   );
   const langs = langGroups.filter((g) => g.lang).map((g) => g.lang as string);
   const sourceNames = sourceGroups.map((g) => g.sourceName);
+  // Every story in this tab, before the chip filters: the groups below already count them.
+  const tabTotal = categoryGroups.reduce((n, g) => n + g._count._all, 0);
+  const showChecklist = !checklistDone(steps);
 
   return (
     <div className="gm-stack">
@@ -131,17 +135,44 @@ export default async function NewsPage({
         <RefreshButton />
       </div>
 
-      {!checklistDone(steps) && <Checklist steps={steps} />}
-
-      <div className="gm-chips" role="tablist">
-        {TABS.map((t) => (
-          <Link key={t.key} href={newsHref(q, { tab: t.key })} className="gm-chip" aria-pressed={t.key === tab.key}>
-            {t.label}
-          </Link>
-        ))}
+      <div className={showChecklist ? "nr-overview has-check" : "nr-overview"}>
+        <div className="nr-stats">
+          <div className="nr-stat">
+            <span className="gm-stat-icon" aria-hidden="true"><Newspaper /></span>
+            <div>
+              <b>{num(tabTotal)}</b>
+              <span>{tab.label}</span>
+            </div>
+          </div>
+          <div className="nr-stat">
+            <span className="gm-stat-icon" aria-hidden="true"><Sparkles /></span>
+            <div>
+              <b>{num(drafts)} / {num(limit)}</b>
+              <span>ئامادەکراوی ئەم مانگە</span>
+            </div>
+          </div>
+          <div className="nr-stat">
+            <span className="gm-stat-icon" aria-hidden="true"><Rss /></span>
+            <div>
+              <b>{num(sources)}</b>
+              <span>سەرچاوە</span>
+            </div>
+          </div>
+        </div>
+        {showChecklist && <Checklist steps={steps} />}
       </div>
 
-      <NewsFilters q={q} categoryCounts={categoryCounts} regionCounts={regionCounts} langs={langs} sources={sourceNames} />
+      <div className="gm-card nr-filters">
+        <div className="gm-chips nr-tabs" role="tablist">
+          {TABS.map((t) => (
+            <Link key={t.key} href={newsHref(q, { tab: t.key })} className="gm-chip" aria-pressed={t.key === tab.key}>
+              {t.label}
+            </Link>
+          ))}
+        </div>
+
+        <NewsFilters q={q} categoryCounts={categoryCounts} regionCounts={regionCounts} langs={langs} sources={sourceNames} />
+      </div>
 
       {!sources && (
         <p className="gm-note">
@@ -158,10 +189,10 @@ export default async function NewsPage({
       {groups.length === 0 ? (
         <p className="gm-empty">هیچ هەواڵێک لێرە نییە.</p>
       ) : (
-        <div className="gm-stack" style={{ gap: 8 }}>
+        <div className="nr-news-list">
           {groups.map(({ lead, count }) => (
-            <Link key={lead.id} href={`/newsroom/news/${lead.id}`} className="gm-card" style={{ display: "block", textDecoration: "none", color: "inherit" }}>
-              <b dir="auto" style={{ display: "block", lineHeight: 1.7 }}>{lead.title}</b>
+            <Link key={lead.id} href={`/newsroom/news/${lead.id}`} className="gm-card">
+              <b dir="auto">{lead.title}</b>
               <small className="gm-sub">
                 {lead.sourceName}
                 {count > 1 ? ` · ${num(count)} سەرچاوە` : ""} · {ago(lead.publishedAt.toISOString())}
@@ -174,21 +205,18 @@ export default async function NewsPage({
         </div>
       )}
 
-      <p className="gm-hint">
-        ئامادەکراوی ئەم مانگە: {num(drafts)} / {num(limit)}
-        {attributions.length > 0 && (
-          <>
-            {" "}· هەندێک هەواڵ لە ڕێگەی{" "}
-            {attributions.map((a, i) => (
-              <span key={a.id}>
-                {i > 0 ? " و " : ""}
-                <a href={a.attribution!.url} className="gm-link" target="_blank" rel="noreferrer">{a.attribution!.label}</a>
-              </span>
-            ))}
-            ەوە دێن.
-          </>
-        )}
-      </p>
+      {attributions.length > 0 && (
+        <p className="gm-hint">
+          هەندێک هەواڵ لە ڕێگەی{" "}
+          {attributions.map((a, i) => (
+            <span key={a.id}>
+              {i > 0 ? " و " : ""}
+              <a href={a.attribution!.url} className="gm-link" target="_blank" rel="noreferrer">{a.attribution!.label}</a>
+            </span>
+          ))}
+          ەوە دێن.
+        </p>
+      )}
     </div>
   );
 }

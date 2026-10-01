@@ -35,40 +35,53 @@ export function NewsFilters(props: {
   const langList = q.lang && !langs.includes(q.lang) ? [...langs, q.lang] : langs;
   const sourceList = q.src && !sources.includes(q.src) ? [...sources, q.src] : sources;
   return (
-    <div className="gm-stack" style={{ gap: 8 }}>
+    <div className="nr-filter-groups">
       {cats.length > 0 && (
-        <div className="gm-chips" aria-label="بابەت">
-          <Chip href={newsHref(q, { cat: undefined })} on={!q.cat}>هەموو بابەتەکان</Chip>
-          {cats.map((c) => (
-            <Chip key={c.id} href={newsHref(q, { cat: q.cat === c.id ? undefined : c.id })} on={q.cat === c.id}>
-              {c.label} · {num(categoryCounts[c.id])}
-            </Chip>
-          ))}
+        <div className="nr-filter" role="group" aria-labelledby="nf-cat">
+          <span id="nf-cat" className="nr-filter-label">بابەت</span>
+          <div className="gm-chips">
+            <Chip href={newsHref(q, { cat: undefined })} on={!q.cat}>هەموو بابەتەکان</Chip>
+            {cats.map((c) => (
+              <Chip key={c.id} href={newsHref(q, { cat: q.cat === c.id ? undefined : c.id })} on={q.cat === c.id}>
+                {c.label} · {num(categoryCounts[c.id])}
+              </Chip>
+            ))}
+          </div>
         </div>
       )}
-      <div className="gm-chips" aria-label="ناوچە">
-        <Chip href={newsHref(q, { region: undefined })} on={!q.region}>هەموو ناوچەکان</Chip>
-        {REGIONS.filter((r) => regionCounts[r.id] || r.id === q.region).map((r) => (
-          <Chip key={r.id} href={newsHref(q, { region: q.region === r.id ? undefined : r.id })} on={q.region === r.id}>
-            {r.label}
-          </Chip>
-        ))}
-        {langList.length > 1 || q.lang
-          ? langList.map((l) => (
-            <Chip key={l} href={newsHref(q, { lang: q.lang === l ? undefined : l })} on={q.lang === l}>
-              {LANGS[l] ?? l}
-            </Chip>
-          ))
-          : null}
-      </div>
-      {(sourceList.length > 1 || q.src) && (
-        <div className="gm-chips" aria-label="سەرچاوە">
-          <Chip href={newsHref(q, { src: undefined })} on={!q.src}>هەموو سەرچاوەکان</Chip>
-          {sourceList.map((s) => (
-            <Chip key={s} href={newsHref(q, { src: q.src === s ? undefined : s })} on={q.src === s}>
-              {s}
+      <div className="nr-filter" role="group" aria-labelledby="nf-region">
+        <span id="nf-region" className="nr-filter-label">ناوچە</span>
+        <div className="gm-chips">
+          <Chip href={newsHref(q, { region: undefined })} on={!q.region}>هەموو ناوچەکان</Chip>
+          {REGIONS.filter((r) => regionCounts[r.id] || r.id === q.region).map((r) => (
+            <Chip key={r.id} href={newsHref(q, { region: q.region === r.id ? undefined : r.id })} on={q.region === r.id}>
+              {r.label}
             </Chip>
           ))}
+          {langList.length > 1 || q.lang ? (
+            <>
+              {/* languages share the row; a hairline sets them apart from the regions */}
+              <span className="nr-filter-sep" aria-hidden="true" />
+              {langList.map((l) => (
+                <Chip key={l} href={newsHref(q, { lang: q.lang === l ? undefined : l })} on={q.lang === l}>
+                  {LANGS[l] ?? l}
+                </Chip>
+              ))}
+            </>
+          ) : null}
+        </div>
+      </div>
+      {(sourceList.length > 1 || q.src) && (
+        <div className="nr-filter" role="group" aria-labelledby="nf-src">
+          <span id="nf-src" className="nr-filter-label">سەرچاوە</span>
+          <div className="gm-chips">
+            <Chip href={newsHref(q, { src: undefined })} on={!q.src}>هەموو سەرچاوەکان</Chip>
+            {sourceList.map((s) => (
+              <Chip key={s} href={newsHref(q, { src: q.src === s ? undefined : s })} on={q.src === s}>
+                {s}
+              </Chip>
+            ))}
+          </div>
         </div>
       )}
     </div>

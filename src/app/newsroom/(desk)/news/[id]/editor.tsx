@@ -151,86 +151,92 @@ export function NewsEditor({ workspaceId, source, initial, brand }: { workspaceI
   }
 
   return (
-    <div className="gm-stack">
-      <p className="gm-sec">سەرچاوە</p>
-      <div className="gm-card">
-        <b dir="auto" style={{ display: "block", lineHeight: 1.7 }}>{source.title}</b>
-        {source.snippet && <p dir="auto" className="gm-sub" style={{ margin: "6px 0 0" }}>{source.snippet}</p>}
-        <small className="gm-sub">
-          {source.sourceName} · {ago(source.publishedAt)} ·{" "}
-          <a href={source.url} target="_blank" rel="noreferrer" className="gm-link">
-            کردنەوە <ExternalLink size={12} aria-hidden="true" />
-          </a>
-        </small>
-      </div>
-
-      <div className="gm-between">
-        <p className="gm-sec" style={{ margin: 0 }}>کورتەی کوردی</p>
-        <div className="gm-row" style={{ gap: 6 }}>
-          <button type="button" className="gm-btn quiet small" disabled={busy} onClick={() => redraft("strong")}>
-            <Sparkles size={14} aria-hidden="true" /> باشترکردن
-          </button>
-          <button type="button" className="gm-btn quiet small" disabled={busy} onClick={dismiss}>
-            <Trash2 size={14} aria-hidden="true" /> لابردن
-          </button>
+    <div className="nr-editor">
+      <div className="nr-editor-main gm-stack">
+        <p className="gm-sec">سەرچاوە</p>
+        <div className="gm-card">
+          <b dir="auto" style={{ display: "block", lineHeight: 1.7 }}>{source.title}</b>
+          {source.snippet && <p dir="auto" className="gm-sub" style={{ margin: "6px 0 0" }}>{source.snippet}</p>}
+          <small className="gm-sub">
+            {source.sourceName} · {ago(source.publishedAt)} ·{" "}
+            <a href={source.url} target="_blank" rel="noreferrer" className="gm-link">
+              کردنەوە <ExternalLink size={12} aria-hidden="true" />
+            </a>
+          </small>
         </div>
+
+        <div className="gm-between">
+          <p className="gm-sec" style={{ margin: 0 }}>کورتەی کوردی</p>
+          <div className="gm-row" style={{ gap: 6 }}>
+            <button type="button" className="gm-btn quiet small" disabled={busy} onClick={() => redraft("strong")}>
+              <Sparkles size={14} aria-hidden="true" /> باشترکردن
+            </button>
+            <button type="button" className="gm-btn quiet small" disabled={busy} onClick={dismiss}>
+              <Trash2 size={14} aria-hidden="true" /> لابردن
+            </button>
+          </div>
+        </div>
+
+        {!d ? (
+          <p className="gm-hint">{stage ?? "ئامادە دەکرێت…"}</p>
+        ) : (
+          <>
+            <div className="gm-card gm-stack">
+              <div className="gm-field">
+                <label htmlFor="nd-head">سەردێڕ</label>
+                <input id="nd-head" className="gm-input" value={d.headline} onChange={(e) => patch({ headline: e.target.value })} />
+              </div>
+              <div className="gm-field">
+                <label htmlFor="nd-body">دەق</label>
+                <textarea id="nd-body" className="gm-textarea" value={d.body} onChange={(e) => patch({ body: e.target.value })} />
+              </div>
+              <div className="gm-chips" role="group" aria-label="جۆری کارت">
+                {CARD_KINDS.map((k) => (
+                  <button key={k} type="button" className="gm-chip" aria-pressed={d.cardKind === k} onClick={() => patch({ cardKind: k })}>
+                    {KIND_LABEL[k]}
+                  </button>
+                ))}
+              </div>
+              {d.cardKind === "STAT" && (
+                <div className="gm-field">
+                  <label htmlFor="nd-stat">ژمارە</label>
+                  <input id="nd-stat" className="gm-input" value={d.stat ?? ""} onChange={(e) => patch({ stat: e.target.value })} />
+                </div>
+              )}
+              {d.cardKind === "QUOTE" && (
+                <>
+                  <div className="gm-field">
+                    <label htmlFor="nd-quote">وتە</label>
+                    <textarea id="nd-quote" className="gm-textarea" value={d.quote ?? ""} onChange={(e) => patch({ quote: e.target.value })} />
+                  </div>
+                  <div className="gm-field">
+                    <label htmlFor="nd-speaker">خاوەنی وتە</label>
+                    <input id="nd-speaker" className="gm-input" value={d.speaker ?? ""} onChange={(e) => patch({ speaker: e.target.value })} />
+                  </div>
+                </>
+              )}
+              {d.cardKind === "STANDARD" && (
+                <div className="gm-row">
+                  <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => e.target.files?.[0] && pickPhoto(e.target.files[0])} />
+                  <button type="button" className="gm-btn quiet small" onClick={() => fileInput.current?.click()} disabled={busy || photoProgress !== null}>
+                    <ImagePlus size={14} aria-hidden="true" /> {d.photoPath ? "گۆڕینی وێنە" : "وێنەی خۆت"}
+                  </button>
+                  {photoProgress !== null && <small className="gm-hint">{photoProgress}٪</small>}
+                  <small className="gm-hint">تەنها وێنەی خۆتان — هیچ وێنەیەک لە سەرچاوەکان وەرناگیرێت.</small>
+                </div>
+              )}
+            </div>
+
+            {problems.map((p) => (
+              <p key={p.code} className="gm-err" role="alert" style={{ margin: 0 }}>{p.message}</p>
+            ))}
+            {overflow && <p className="gm-err" style={{ margin: 0 }}>دەقەکە بۆ کارتەکە درێژە. کورتی بکەرەوە.</p>}
+          </>
+        )}
       </div>
 
-      {!d ? (
-        <p className="gm-hint">{stage ?? "ئامادە دەکرێت…"}</p>
-      ) : (
-        <>
-          <div className="gm-card gm-stack">
-            <div className="gm-field">
-              <label htmlFor="nd-head">سەردێڕ</label>
-              <input id="nd-head" className="gm-input" value={d.headline} onChange={(e) => patch({ headline: e.target.value })} />
-            </div>
-            <div className="gm-field">
-              <label htmlFor="nd-body">دەق</label>
-              <textarea id="nd-body" className="gm-textarea" value={d.body} onChange={(e) => patch({ body: e.target.value })} />
-            </div>
-            <div className="gm-chips" role="group" aria-label="جۆری کارت">
-              {CARD_KINDS.map((k) => (
-                <button key={k} type="button" className="gm-chip" aria-pressed={d.cardKind === k} onClick={() => patch({ cardKind: k })}>
-                  {KIND_LABEL[k]}
-                </button>
-              ))}
-            </div>
-            {d.cardKind === "STAT" && (
-              <div className="gm-field">
-                <label htmlFor="nd-stat">ژمارە</label>
-                <input id="nd-stat" className="gm-input" value={d.stat ?? ""} onChange={(e) => patch({ stat: e.target.value })} />
-              </div>
-            )}
-            {d.cardKind === "QUOTE" && (
-              <>
-                <div className="gm-field">
-                  <label htmlFor="nd-quote">وتە</label>
-                  <textarea id="nd-quote" className="gm-textarea" value={d.quote ?? ""} onChange={(e) => patch({ quote: e.target.value })} />
-                </div>
-                <div className="gm-field">
-                  <label htmlFor="nd-speaker">خاوەنی وتە</label>
-                  <input id="nd-speaker" className="gm-input" value={d.speaker ?? ""} onChange={(e) => patch({ speaker: e.target.value })} />
-                </div>
-              </>
-            )}
-            {d.cardKind === "STANDARD" && (
-              <div className="gm-row">
-                <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(e) => e.target.files?.[0] && pickPhoto(e.target.files[0])} />
-                <button type="button" className="gm-btn quiet small" onClick={() => fileInput.current?.click()} disabled={busy || photoProgress !== null}>
-                  <ImagePlus size={14} aria-hidden="true" /> {d.photoPath ? "گۆڕینی وێنە" : "وێنەی خۆت"}
-                </button>
-                {photoProgress !== null && <small className="gm-hint">{photoProgress}٪</small>}
-                <small className="gm-hint">تەنها وێنەی خۆتان — هیچ وێنەیەک لە سەرچاوەکان وەرناگیرێت.</small>
-              </div>
-            )}
-          </div>
-
-          {problems.map((p) => (
-            <p key={p.code} className="gm-err" role="alert" style={{ margin: 0 }}>{p.message}</p>
-          ))}
-          {overflow && <p className="gm-err" style={{ margin: 0 }}>دەقەکە بۆ کارتەکە درێژە. کورتی بکەرەوە.</p>}
-
+      {d && (
+        <aside className="nr-editor-side gm-stack">
           <p className="gm-sec">کارت</p>
           <div dir="ltr" style={{ width: PREVIEW_W, height: CARD_H * SCALE, overflow: "hidden", borderRadius: 12, margin: "0 auto" }}>
             <div style={{ transform: `scale(${SCALE})`, transformOrigin: "top left", width: CARD_W, height: CARD_H }}>
@@ -255,7 +261,7 @@ export function NewsEditor({ workspaceId, source, initial, brand }: { workspaceI
             {stage ?? "ئامادەکردن بۆ بڵاوکردنەوە"}
           </button>
           <p className="gm-hint">دوای ئەمە پەڕەی بڵاوکردنەوە دەکرێتەوە: شوێنەکان هەڵدەبژێریت و پەسەندی دەکەیت. هیچ شتێک بێ کلیکی تۆ بڵاو نابێتەوە.</p>
-        </>
+        </aside>
       )}
     </div>
   );

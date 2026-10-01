@@ -24,18 +24,22 @@ export default async function GuidePage() {
   return (
     <NewsroomRoot>
       <div className="nr-land">
-        <div className="gm-between" style={{ marginBottom: 18 }}>
-          <Link href="/newsroom" className="nr-brand kufi" style={{ padding: 0 }}>
-            <span className="nr-live" aria-hidden="true" />
-            گیتواس نیوزڕووم
-          </Link>
-          {!ws && (
-            <Link href="/login?next=/newsroom/news" className="gm-btn quiet small">
-              چوونەژوورەوە
+        <header className="nr-land-bar">
+          <div className="nr-wrap">
+            <Link href="/newsroom" className="nr-brand kufi" style={{ padding: 0 }}>
+              <span className="nr-live" aria-hidden="true" />
+              گیتواس نیوزڕووم
             </Link>
-          )}
-        </div>
-        <GuideArticle />
+            {!ws && (
+              <Link href="/login?next=/newsroom/news" className="gm-btn quiet small">
+                چوونەژوورەوە
+              </Link>
+            )}
+          </div>
+        </header>
+        <main className="nr-land-main nr-wrap">
+          <GuideArticle />
+        </main>
       </div>
     </NewsroomRoot>
   );

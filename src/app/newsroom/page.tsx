@@ -57,43 +57,75 @@ export default async function NewsroomLandingPage() {
   return (
     <NewsroomRoot>
       <div className="nr-land">
-        <div className="gm-between">
-          <p className="nr-brand kufi" style={{ padding: 0 }}>
-            <span className="nr-live" aria-hidden="true" />
-            گیتواس نیوزڕووم
-          </p>
-          <Link href="/login?next=/newsroom/news" className="gm-btn quiet small">
-            چوونەژوورەوە
-          </Link>
-        </div>
+        <header className="nr-land-bar">
+          <div className="nr-wrap">
+            <p className="nr-brand kufi" style={{ padding: 0 }}>
+              <span className="nr-live" aria-hidden="true" />
+              گیتواس نیوزڕووم
+            </p>
+            <Link href="/login?next=/newsroom/news" className="gm-btn quiet small">
+              چوونەژوورەوە
+            </Link>
+          </div>
+        </header>
 
-        <section className="nr-hero">
-          <h1 className="kufi">ژووری هەواڵی کەناڵەکەت، لەسەر هەموو پلاتفۆرمەکان</h1>
-          <p>هەواڵ بکە بە کارتی براندی خۆت و لە یەک شوێنەوە بۆ فەیسبووک، ئینستاگرام و تیکتۆک بڵاوی بکەرەوە.</p>
-        </section>
+        <main className="nr-land-main nr-wrap">
+          <section className="nr-hero">
+            <div className="nr-hero-copy">
+              <h1 className="kufi">ژووری هەواڵی کەناڵەکەت، لەسەر هەموو پلاتفۆرمەکان</h1>
+              <p>هەواڵ بکە بە کارتی براندی خۆت و لە یەک شوێنەوە بۆ فەیسبووک، ئینستاگرام و تیکتۆک بڵاوی بکەرەوە.</p>
 
-        <div className="nr-cta">
-          <Link href="/signup?next=/newsroom/news" className="gm-btn">
-            دەست پێ بکە
-          </Link>
-          <Link href="/newsroom/guide" className="gm-btn quiet">
-            چۆن کار دەکات؟
-          </Link>
-        </div>
-        <p className="nr-promise">
-          <ShieldCheck aria-hidden="true" />
-          هیچ شتێک بێ پەسەندی تۆ بڵاو نابێتەوە.
-        </p>
-
-        <div className="nr-features">
-          {FEATURES.map(({ Icon, title, body }) => (
-            <div key={title} className="nr-feature">
-              <Icon aria-hidden="true" />
-              <h3 className="kufi">{title}</h3>
-              <p>{body}</p>
+              <div className="nr-cta">
+                <Link href="/signup?next=/newsroom/news" className="gm-btn">
+                  دەست پێ بکە
+                </Link>
+                <Link href="/newsroom/guide" className="gm-btn quiet">
+                  چۆن کار دەکات؟
+                </Link>
+              </div>
+              <p className="nr-promise">
+                <ShieldCheck aria-hidden="true" />
+                هیچ شتێک بێ پەسەندی تۆ بڵاو نابێتەوە.
+              </p>
             </div>
-          ))}
-        </div>
+
+            {/* decoration only: a news card on its way to three platforms */}
+            <div className="nr-art" aria-hidden="true">
+              <div className="nr-art-card back" />
+              <div className="nr-art-card">
+                <div className="nr-art-top">
+                  <span className="nr-live" />
+                  <i />
+                  <i />
+                </div>
+                <div className="nr-art-photo" />
+                <div className="nr-art-lines">
+                  <i />
+                  <i />
+                  <i />
+                </div>
+                <div className="nr-art-plats">
+                  <b />
+                  <b />
+                  <b />
+                  <i />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div className="nr-features">
+            {FEATURES.map(({ Icon, title, body }) => (
+              <div key={title} className="nr-feature">
+                <span className="nr-feature-icon" aria-hidden="true">
+                  <Icon />
+                </span>
+                <h3 className="kufi">{title}</h3>
+                <p>{body}</p>
+              </div>
+            ))}
+          </div>
+        </main>
       </div>
     </NewsroomRoot>
   );
