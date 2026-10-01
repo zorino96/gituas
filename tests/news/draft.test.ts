@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildUserPrompt, DRAFT_SYSTEM, nextAttempt, validateDraft } from "@/lib/news/draft";
+import { buildSystemPrompt, buildUserPrompt, DRAFT_SYSTEM, nextAttempt, validateDraft } from "@/lib/news/draft";
 import { CATEGORIES } from "@/lib/news/types";
 
 describe("validateDraft", () => {
@@ -68,6 +68,43 @@ describe("buildUserPrompt", () => {
     const out = buildUserPrompt(item, { headline: "H", body: "B" });
     expect(out).toContain('"H"');
     expect(out).toContain('"B"');
+  });
+});
+
+describe("buildUserPrompt with a draft to move away from", () => {
+  const item = { sourceName: "GDELT", title: "T", snippet: "s" };
+  const base = buildUserPrompt(item);
+
+  it("quotes our own previous draft and asks for different wording with the same facts", () => {
+    const out = buildUserPrompt(item, undefined, { headline: "سەردێڕی ئێمە", body: "دەقی ئێمە" });
+    expect(out.startsWith(base)).toBe(true);
+    expect(out).toContain('"سەردێڕی ئێمە"');
+    expect(out).toContain('"دەقی ئێمە"');
+    expect(out).toContain(
+      "Another outlet already published this story with very similar wording. Write it again with clearly different words and sentence structure. Same facts, add none.",
+    );
+    expect(out).not.toContain("COPIED THE SOURCE");
+  });
+});
+
+describe("buildSystemPrompt", () => {
+  it("is the plain system prompt when the desk has no style", () => {
+    expect(buildSystemPrompt()).toBe(DRAFT_SYSTEM);
+    expect(buildSystemPrompt({ voice: "", voiceNote: "  " })).toBe(DRAFT_SYSTEM);
+  });
+  it("appends the house style as a preference that never overrides the rules", () => {
+    const out = buildSystemPrompt({ voice: "House style for this outlet: x." });
+    expect(out.startsWith(DRAFT_SYSTEM)).toBe(true);
+    expect(out).toContain("House style for this outlet: x.");
+    expect(out).toMatch(/never overrides the rules above/);
+    expect(out).not.toContain("STYLE NOTE");
+  });
+  it("appends the outlet's own note, cut to 300 characters and marked as style only", () => {
+    const out = buildSystemPrompt({ voice: "House style for this outlet: x.", voiceNote: `ڕستەی کورت\n${"ڕ".repeat(400)}` });
+    expect(out).toContain("--- BEGIN STYLE NOTE ---\nڕستەی کورت ");
+    expect(out).toMatch(/never overrides the facts-only rules/);
+    const note = out.split("--- BEGIN STYLE NOTE ---\n")[1].split("\n--- END STYLE NOTE ---")[0];
+    expect([...note]).toHaveLength(300);
   });
 });
 

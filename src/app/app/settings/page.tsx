@@ -45,6 +45,7 @@ export default async function SettingsPage({
       }),
       categories: settings?.categories ?? [],
       keywordFilter: settings?.keywordFilter ?? false,
+      voiceNote: settings?.voiceNote ?? "",
       feeds: sources.filter((s) => s.rssUrl && !s.catalogId).map((s) => ({ id: s.id, name: s.name, url: s.rssUrl!, lastError: s.lastError })),
       kit: {
         logoPath: kit?.logoPath ?? null,

@@ -11,12 +11,14 @@ import { brandFrom, mediaSrc } from "@/lib/cards/brand";
 import { ReferencePicker } from "./color-picker";
 import { GROUPS, LANG_LABEL, type SourceGroup, type SourceLang } from "@/lib/news/catalog";
 import { TAXONOMY } from "@/lib/news/taxonomy";
+import { VOICE_NOTE_MAX } from "@/lib/news/voice";
 import {
   addRssSourceAction,
   removeSourceAction,
   saveBrandKitAction,
   saveCategoriesAction,
   saveKeywordsAction,
+  saveVoiceNoteAction,
   setKeywordFilterAction,
   toggleCatalogSourceAction,
 } from "@/app/newsroom/(desk)/news/actions";
@@ -28,6 +30,7 @@ export interface NewsSettingsProps {
   catalog: Array<{ id: string; name: string; group: SourceGroup; lang: SourceLang | null; description: string | null; enabled: boolean; lastError: string | null }>;
   categories: string[];
   keywordFilter: boolean;
+  voiceNote: string;
   feeds: Array<{ id: string; name: string; url: string; lastError: string | null }>;
   kit: { logoPath: string | null; primary: string; accent: string; text: string; headingFont: "kufi" | "sans" };
 }
@@ -46,6 +49,7 @@ export function NewsSettings(p: NewsSettingsProps) {
   const [kit, setKit] = useState(p.kit);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [cats, setCats] = useState<string[]>(p.categories);
+  const [voiceNote, setVoiceNote] = useState(p.voiceNote);
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, okText: string) =>
     start(async () => {
@@ -197,6 +201,25 @@ export function NewsSettings(p: NewsSettingsProps) {
         })}
         <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => saveCategoriesAction(cats), tn.saved)}>
           {tn.saveTopics}
+        </button>
+      </div>
+
+      <p className="gm-sec">{tn.voiceSec}</p>
+      <div className="gm-card gm-stack">
+        <div className="gm-field">
+          <label htmlFor="ns-voice">{tn.voiceLabel}</label>
+          <textarea
+            id="ns-voice"
+            className="gm-textarea"
+            dir="auto"
+            maxLength={VOICE_NOTE_MAX}
+            value={voiceNote}
+            onChange={(e) => setVoiceNote(e.target.value)}
+          />
+          <p className="gm-hint" style={{ marginBottom: 0 }}>{tn.voiceHint}</p>
+        </div>
+        <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => saveVoiceNoteAction(voiceNote), tn.saved)}>
+          {tn.save}
         </button>
       </div>
 

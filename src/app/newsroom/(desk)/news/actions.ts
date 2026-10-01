@@ -9,12 +9,13 @@ import { NEWS_LIMITS } from "@/lib/billing/plans";
 import { AiUnavailable, type Strength } from "@/lib/ai/provider";
 import { catalogEntry } from "@/lib/news/catalog";
 import { classifyPending } from "@/lib/news/classify";
-import { draftFor, nextAttempt } from "@/lib/news/draft";
 import { ingest } from "@/lib/news/ingest";
-import { checkDraft, copyPart, LIMITS } from "@/lib/news/rules";
+import { checkDraft, LIMITS } from "@/lib/news/rules";
 import { fetchFeed } from "@/lib/news/sources/rss";
 import { normalizeChoice } from "@/lib/news/taxonomy";
 import { CARD_KINDS, type CardKind } from "@/lib/news/types";
+import { cleanVoiceNote } from "@/lib/news/voice";
+import { writeDraft } from "@/lib/news/write";
 import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
 import { currentWorkspace, type Workspace } from "@/app/app/data";
 
@@ -86,8 +87,8 @@ export async function refreshNewsAction(): Promise<Result<{ added: number; faile
 
 /**
  * Write (or rewrite) the draft for an item. `strong` is the editor's "improve".
- * When the draft copies the source, it is redrafted with feedback (same strength), and once
- * more at "strong" if a "fast" draft still copies — kept inside Vercel's 60s action budget.
+ * writeDraft does the writing: the desk's own voice, the source-copy retries and the
+ * cross-desk check, all kept inside Vercel's 60s action budget.
  */
 export async function draftNewsAction(itemId: string, strength: Strength): Promise<Result<{ draft: DraftView }>> {
   const actionStart = Date.now();
@@ -100,26 +101,12 @@ export async function draftNewsAction(itemId: string, strength: Strength): Promi
   const metric = strength === "strong" ? "improve" : "draft";
   try {
     await assertWithin(ws.id, metric);
-    let attempt = 1;
-    let currentStrength: Strength = strength;
-    let feedback: { headline?: string; body?: string } | undefined;
-    let result = await draftFor(item, currentStrength, feedback);
-    for (;;) {
-      const part = copyPart(result.draft, item);
-      const next = nextAttempt(attempt, currentStrength, part, Date.now() - actionStart);
-      if (next === null) break;
-      feedback = {
-        headline: part !== "body" ? result.draft.headline : undefined,
-        body: part !== "headline" ? result.draft.body : undefined,
-      };
-      currentStrength = next;
-      attempt++;
-      result = await draftFor(item, currentStrength, feedback);
-    }
-    const { draft, model } = result;
+    const settings = await db.newsSettings.findUnique({ where: { tenantId: ws.id }, select: { voiceNote: true } });
+    const { draft, model } = await writeDraft(ws.id, item, strength, { startedAt: actionStart, voiceNote: settings?.voiceNote });
     // A stale card must never go out with new text.
     const data = { ...draft, model, tenantId: ws.id, cardUrl: null, cardPath: null };
     const saved = await db.newsDraft.upsert({ where: { itemId }, create: { itemId, ...data }, update: data });
+    // One count per action, whatever the number of attempts writeDraft needed.
     await countUsage(ws.id, metric);
     if (item.status === "NEW") await db.newsItem.update({ where: { id: itemId }, data: { status: "DRAFTED" } });
     return { ok: true, draft: view(saved) };
@@ -283,6 +270,21 @@ export async function saveBrandKitAction(kit: {
   const data = { logoPath: kit.logoPath, primary: kit.primary, accent: kit.accent, text: kit.text, headingFont: kit.headingFont };
   await db.brandKit.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, ...data }, update: data });
   return { ok: true };
+}
+
+/** The outlet's own writing style, added to every draft's instructions. Empty clears it. */
+export async function saveVoiceNoteAction(raw: string): Promise<Result<{ voiceNote: string }>> {
+  const ws = await newsWorkspace();
+  if (!ws) return NOT_NEWS;
+  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
+  const voiceNote = cleanVoiceNote(typeof raw === "string" ? raw : "");
+  await db.newsSettings.upsert({
+    where: { tenantId: ws.id },
+    create: { tenantId: ws.id, keywords: [], voiceNote },
+    update: { voiceNote },
+    select: { tenantId: true },
+  });
+  return { ok: true, voiceNote: voiceNote ?? "" };
 }
 
 /** Which categories the desk keeps. An empty list keeps everything. */
