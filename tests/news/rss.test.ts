@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { lookup } from "node:dns/promises";
-import { fetchFeed, isPrivateAddress, parseFeed } from "@/lib/news/sources/rss";
+import { conditionalHeaders, fetchFeed, fetchFeedConditional, isPrivateAddress, parseFeed } from "@/lib/news/sources/rss";
 
 vi.mock("node:dns/promises", () => ({ lookup: vi.fn() }));
 
@@ -149,5 +149,89 @@ describe("fetchFeed", () => {
     );
     const items = await fetchFeed("https://public.example/feed", "X");
     expect(items.map((i) => i.title)).toEqual(["Only one"]);
+  });
+});
+
+describe("conditionalHeaders", () => {
+  it("sends If-None-Match and If-Modified-Since from the stored validators", () => {
+    expect(conditionalHeaders({ etag: '"abc"', lastModified: "Wed, 01 Jan 2026 00:00:00 GMT" })).toEqual({
+      "If-None-Match": '"abc"',
+      "If-Modified-Since": "Wed, 01 Jan 2026 00:00:00 GMT",
+    });
+  });
+  it("sends only what is known, and nothing for a feed never seen", () => {
+    expect(conditionalHeaders({ etag: '"abc"', lastModified: null })).toEqual({ "If-None-Match": '"abc"' });
+    expect(conditionalHeaders({ etag: null, lastModified: "Wed, 01 Jan 2026 00:00:00 GMT" })).toEqual({ "If-Modified-Since": "Wed, 01 Jan 2026 00:00:00 GMT" });
+    expect(conditionalHeaders({ etag: null, lastModified: null })).toEqual({});
+    expect(conditionalHeaders(null)).toEqual({});
+    expect(conditionalHeaders(undefined)).toEqual({});
+  });
+});
+
+describe("fetchFeedConditional", () => {
+  beforeEach(() => {
+    mockLookup.mockReset();
+    mockLookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+  });
+  const headersOf = (fetchMock: ReturnType<typeof vi.fn>, call = 0) => (fetchMock.mock.calls[call][1] as RequestInit).headers as Record<string, string>;
+
+  it("sends the validators it was given", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(SINGLE, { status: 200, headers: { "content-type": "application/rss+xml" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    await fetchFeedConditional("https://public.example/feed", "X", { etag: '"v1"', lastModified: "Wed, 01 Jan 2026 00:00:00 GMT" });
+    expect(headersOf(fetchMock)["If-None-Match"]).toBe('"v1"');
+    expect(headersOf(fetchMock)["If-Modified-Since"]).toBe("Wed, 01 Jan 2026 00:00:00 GMT");
+  });
+
+  it("sends no conditional headers without validators", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(SINGLE, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await fetchFeedConditional("https://public.example/feed", "X");
+    expect(headersOf(fetchMock)).not.toHaveProperty("If-None-Match");
+    expect(headersOf(fetchMock)).not.toHaveProperty("If-Modified-Since");
+  });
+
+  it("on a 200 returns the items with the new validators", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(SINGLE, { status: 200, headers: { etag: '"v2"', "last-modified": "Thu, 02 Jan 2026 00:00:00 GMT" } })),
+    );
+    const r = await fetchFeedConditional("https://public.example/feed", "X", { etag: '"v1"', lastModified: null });
+    expect(r.items?.map((i) => i.title)).toEqual(["Only one"]);
+    expect(r.etag).toBe('"v2"');
+    expect(r.lastModified).toBe("Thu, 02 Jan 2026 00:00:00 GMT");
+  });
+
+  it("on a 304 returns no items and keeps the validators", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 304 })));
+    const r = await fetchFeedConditional("https://public.example/feed", "X", { etag: '"v1"', lastModified: "Wed, 01 Jan 2026 00:00:00 GMT" });
+    expect(r).toEqual({ items: null, etag: '"v1"', lastModified: "Wed, 01 Jan 2026 00:00:00 GMT" });
+  });
+
+  it("takes refreshed validators from a 304", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 304, headers: { etag: '"v1b"' } })));
+    const r = await fetchFeedConditional("https://public.example/feed", "X", { etag: '"v1"', lastModified: null });
+    expect(r).toEqual({ items: null, etag: '"v1b"', lastModified: null });
+  });
+
+  it("still refuses a private host before sending anything", async () => {
+    mockLookup.mockResolvedValue([{ address: "10.0.0.5", family: 4 }]);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(fetchFeedConditional("https://internal.example/feed", "X", { etag: '"v1"', lastModified: null })).rejects.toThrow();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("still fails on any other error status", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("nope", { status: 500 })));
+    await expect(fetchFeedConditional("https://public.example/feed", "X", { etag: '"v1"', lastModified: null })).rejects.toThrow("HTTP 500");
+  });
+
+  it("fetchFeed itself stays unconditional and returns the items", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(SINGLE, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const items = await fetchFeed("https://public.example/feed", "X");
+    expect(items.map((i) => i.title)).toEqual(["Only one"]);
+    expect(headersOf(fetchMock)).not.toHaveProperty("If-None-Match");
   });
 });

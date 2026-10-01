@@ -123,13 +123,32 @@ async function assertPublicHost(hostname: string): Promise<void> {
   if (records.some((r) => isPrivateAddress(r.address))) throw new Error("Refused: private address");
 }
 
+/** What the last 200 told us about a feed, sent back so an unchanged feed answers 304 instead of its whole body. */
+export interface FeedValidators {
+  etag: string | null;
+  lastModified: string | null;
+}
+
+/** The result of one conditional fetch. `items` is null when the feed answered 304: nothing changed, keep what is cached. */
+export interface FeedResult extends FeedValidators {
+  items: RawItem[] | null;
+}
+
+/** If-None-Match / If-Modified-Since from stored validators; nothing for a feed never seen. */
+export function conditionalHeaders(v?: Partial<FeedValidators> | null): Record<string, string> {
+  const h: Record<string, string> = {};
+  if (v?.etag) h["If-None-Match"] = v.etag;
+  if (v?.lastModified) h["If-Modified-Since"] = v.lastModified;
+  return h;
+}
+
 /**
- * Fetch and parse one feed. Throws when the URL does not answer with a feed.
- * Refuses http(s) hosts and redirect targets that resolve to a private
- * network address, following at most MAX_REDIRECTS redirects itself so each
- * hop can be checked before it is requested.
+ * Fetch and parse one feed, asking only for what changed since `validators`. Throws when the URL
+ * does not answer with a feed. Refuses http(s) hosts and redirect targets that resolve to a
+ * private network address, following at most MAX_REDIRECTS redirects itself so each hop can be
+ * checked before it is requested.
  */
-export async function fetchFeed(url: string, sourceName: string): Promise<RawItem[]> {
+export async function fetchFeedConditional(url: string, sourceName: string, validators?: Partial<FeedValidators> | null): Promise<FeedResult> {
   let current = new URL(url);
   for (let hop = 0; ; hop++) {
     if (current.protocol !== "http:" && current.protocol !== "https:") throw new Error("Refused: unsupported protocol");
@@ -139,6 +158,7 @@ export async function fetchFeed(url: string, sourceName: string): Promise<RawIte
       headers: {
         "User-Agent": "HawalnoosNewsDesk/1.0 (+https://hawalnoos.com)",
         Accept: "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8",
+        ...conditionalHeaders(validators),
       },
       redirect: "manual",
       signal: AbortSignal.timeout(8000),
@@ -150,11 +170,23 @@ export async function fetchFeed(url: string, sourceName: string): Promise<RawIte
       current = new URL(location, current);
       continue;
     }
+    if (res.status === 304) {
+      // A server may repeat or refresh the validators on a 304; otherwise the old ones still stand.
+      return { items: null, etag: res.headers.get("etag") ?? validators?.etag ?? null, lastModified: res.headers.get("last-modified") ?? validators?.lastModified ?? null };
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const buf = await res.arrayBuffer();
     const charset = charsetFromContentType(res.headers.get("content-type")) ?? charsetFromXmlProlog(buf);
     const body = decodeBody(buf, charset);
     if (!/<(rss|feed|rdf:RDF)[\s>]/i.test(body)) throw new Error("not an RSS or Atom feed");
-    return parseFeed(body, sourceName);
+    return { items: parseFeed(body, sourceName), etag: res.headers.get("etag"), lastModified: res.headers.get("last-modified") };
   }
+}
+
+/** Fetch and parse one feed, unconditionally. */
+export async function fetchFeed(url: string, sourceName: string): Promise<RawItem[]> {
+  const r = await fetchFeedConditional(url, sourceName);
+  // Without validators a server has nothing to answer 304 to.
+  if (!r.items) throw new Error("HTTP 304");
+  return r.items;
 }

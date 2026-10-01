@@ -8,11 +8,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Run due scheduled posts and the shop outbox
+      - name: Run due scheduled posts, the shop outbox and the newsroom tick
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           if [ -z "$CRON_SECRET" ]; then echo "CRON_SECRET not set; skipping"; exit 0; fi
-          for p in /api/cron/scheduled /api/cron/shop-outbox; do
+          for p in /api/cron/scheduled /api/cron/shop-outbox /api/cron/news; do
             curl -fsS -m 55 -H "Authorization: Bearer $CRON_SECRET" "https://gituas.com$p" || echo "tick $p failed"
           done

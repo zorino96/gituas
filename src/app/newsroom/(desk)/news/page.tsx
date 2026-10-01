@@ -8,14 +8,16 @@ import { classifyPending } from "@/lib/news/classify";
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { usageOf } from "@/lib/billing/limits";
-import { NEWS_LIMITS } from "@/lib/billing/plans";
+import { NEWS_LIMITS, refreshSecFor } from "@/lib/billing/plans";
 import { CATALOG } from "@/lib/news/catalog";
 import { groupByCluster } from "@/lib/news/cluster";
 import { ingest } from "@/lib/news/ingest";
+import { ckb } from "@/lib/i18n/ckb";
 import { categoryLabel, categoryWhere, regionLabel, REGIONS, TAXONOMY } from "@/lib/news/taxonomy";
 import { currentWorkspace } from "@/app/app/data";
 import { ago, num } from "@/app/app/format";
 import { checklist, checklistDone } from "@/lib/newsroom/checklist";
+import { AutoRefresh } from "./auto-refresh";
 import { Checklist } from "./checklist";
 import { NewsFilters, newsHref, type NewsQuery } from "./filters";
 import { RefreshButton } from "./refresh-button";
@@ -42,7 +44,7 @@ export default async function NewsPage({
   const sp = await searchParams;
   const tab = TABS.find((t) => t.key === sp.tab) ?? TABS[0];
 
-  // Fetching is throttled to once per five minutes, so opening the desk is cheap.
+  // Fetching is throttled to the plan's refresh interval, so opening the desk is cheap.
   // GDELT can take 10–20 s, so the page waits at most INGEST_WAIT_MS and shows
   // what is stored; `after` keeps the function alive until the fetch finishes,
   // and its stories appear on the next open or refresh.
@@ -107,6 +109,7 @@ export default async function NewsPage({
   ]);
   const groups = groupByCluster(items);
   const limit = NEWS_LIMITS[tenant?.plan ?? "MANUAL"].draft;
+  const refreshSec = refreshSecFor(tenant?.plan);
   const attributions = CATALOG.filter((c) => c.attribution && catalogSources.some((s) => s.catalogId === c.id));
   const steps = checklist({
     pagesConnected,
@@ -134,6 +137,7 @@ export default async function NewsPage({
         <h2 className="gm-title kufi">هەواڵەکان</h2>
         <RefreshButton />
       </div>
+      <AutoRefresh refreshSec={refreshSec} label={ckb.billing.features.refresh(refreshSec)} />
 
       <div className={showChecklist ? "nr-overview has-check" : "nr-overview"}>
         <div className="nr-stats">
