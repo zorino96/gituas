@@ -11,6 +11,14 @@ describe("routeFor on the newsroom domain", () => {
       expect(r(p)).toEqual({ kind: "next" });
     }
   });
+  it("serves the card render page itself, token and all, and the shop domain hands it over", () => {
+    expect(r("/newsroom/card-render/abc123", "?t=1800000300.ab")).toEqual({ kind: "next" });
+    expect(routeFor("gituas.com", "/newsroom/card-render/abc123", "?t=1800000300.ab")).toEqual({
+      kind: "redirect",
+      url: `${NEWSROOM_ORIGIN}/newsroom/card-render/abc123?t=1800000300.ab`,
+    });
+    expect(routeFor("localhost:3012", "/newsroom/card-render/abc123", "?t=1800000300.ab")).toEqual({ kind: "next" });
+  });
   it("sends shop and operator pages to the shop domain", () => {
     expect(r("/app/settings", "?a=1")).toEqual({ kind: "redirect", url: `${SHOP_ORIGIN}/app/settings?a=1` });
     expect(r("/dashboard")).toEqual({ kind: "redirect", url: `${SHOP_ORIGIN}/dashboard` });

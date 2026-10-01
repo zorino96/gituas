@@ -4,9 +4,9 @@ import { forwardRef, useLayoutEffect, useRef, type CSSProperties } from "react";
 
 import type { CardKind } from "@/lib/news/types";
 import { BODY_FONT, HEADING_FONT, type Brand } from "./brand";
+import { CARD_H, CARD_W } from "./size";
 
-export const CARD_W = 1080;
-export const CARD_H = 1350;
+export { CARD_H, CARD_W };
 
 export interface CardContent {
   headline: string;

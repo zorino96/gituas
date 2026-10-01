@@ -8,6 +8,7 @@ import { ExternalLink, ImagePlus, Sparkles, Trash2 } from "lucide-react";
 import { NewsCard, CARD_H, CARD_W } from "@/lib/cards/templates";
 import { renderCardJpeg } from "@/lib/cards/render";
 import { mediaSrc, type Brand } from "@/lib/cards/brand";
+import { stampOf } from "@/lib/cards/stamp";
 import { checkDraft } from "@/lib/news/rules";
 import { CARD_KINDS, type CardKind } from "@/lib/news/types";
 import { attachCardAction, dismissNewsAction, draftNewsAction, saveNewsDraftAction, type DraftView } from "../actions";
@@ -25,9 +26,6 @@ interface Source {
   url: string;
   publishedAt: string;
 }
-
-const stampOf = (iso: string) =>
-  new Intl.DateTimeFormat("ar-IQ", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Baghdad" }).format(new Date(iso));
 
 const blank = (): DraftView => ({
   draftId: "",
