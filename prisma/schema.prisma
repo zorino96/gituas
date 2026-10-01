@@ -693,6 +693,16 @@ model NewsSettings {
   categories    String[]  @default([])
   /// When on, RSS stories must match the keywords too (the APIs always search by them).
   keywordFilter Boolean   @default(false)
+  /// Autopilot: OFF | DRAFT (AI prepares drafts, a person publishes) | PUBLISH (drafts, cards and posts by itself).
+  autoMode      String    @default("OFF")
+  /// Where PUBLISH posts to: FB and/or IG. TikTok and YouTube are never automatic.
+  autoTargets   String[]  @default([])
+  autoDailyMax  Int       @default(20)
+  /// Minutes between two automatic posts.
+  autoMinGapMin Int       @default(3)
+  /// The outlet's own style preference, appended to the house style (never overrides the facts-only rules).
+  voiceNote     String?
+  lastAutoAt    DateTime?
 }
 
 /// One source a news page reads: a catalog entry or the page's own RSS feed.
@@ -732,10 +742,13 @@ model NewsItem {
   region        String?
   /// Failed classification attempts; after three the story is left unclassified (and still shown).
   classifyTries Int        @default(0)
+  /// When the autopilot last handled this story, so a failure is never retried in a loop.
+  autoTriedAt   DateTime?
 
   @@unique([tenantId, url])
   @@index([tenantId, status, publishedAt])
   @@index([tenantId, category])
+  @@index([tenantId, status, autoTriedAt])
 }
 
 /// The Sorani post written from one item, and where it went.
@@ -758,6 +771,8 @@ model NewsDraft {
   cardPath    String?
   results     Json?
   publishedAt DateTime?
+  /// Written (and possibly posted) by the autopilot rather than by a person.
+  auto        Boolean   @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -791,9 +806,12 @@ model Usage {
 /// fetched at most once per window whatever the number of pages reading it.
 model SourceCache {
   /// rss:<url> | gdelt:<keywords> | newsdata:<keywords>
-  key       String   @id
-  items     Json
-  fetchedAt DateTime
+  key          String   @id
+  items        Json
+  fetchedAt    DateTime
+  /// Validators from the feed's last 200, sent back as If-None-Match / If-Modified-Since.
+  etag         String?
+  lastModified String?
 }
 
 enum StorePlan {
