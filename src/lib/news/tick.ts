@@ -76,8 +76,17 @@ async function withDeadline<T>(work: Promise<T>, ms: number): Promise<T | "timeo
   }
 }
 
-/** One desk, one pass: fetch its stories, classify them, then let the autopilot act. A failing step never stops the next. */
-async function serveDesk(tenantId: string, graceMs: number, totals: Pick<TickResult, "added" | "drafted" | "published" | "errors">): Promise<void> {
+/**
+ * One desk, one pass: fetch its stories, classify them, then let the autopilot act. A failing step
+ * never stops the next. `msLeft` says how long the tick still has: the autopilot is given that as
+ * its own deadline, so it never starts a post it has no time to finish.
+ */
+async function serveDesk(
+  tenantId: string,
+  graceMs: number,
+  totals: Pick<TickResult, "added" | "drafted" | "published" | "errors">,
+  msLeft: () => number,
+): Promise<void> {
   try {
     totals.added += (await ingest(tenantId, { graceMs })).added;
   } catch (e) {
@@ -91,7 +100,7 @@ async function serveDesk(tenantId: string, graceMs: number, totals: Pick<TickRes
     console.error("[news tick] classify failed:", e instanceof Error ? e.message : "unknown error");
   }
   try {
-    const r = await runAutopilot(tenantId);
+    const r = await runAutopilot(tenantId, { deadline: Date.now() + msLeft() });
     totals.drafted += r.drafted;
     totals.published += r.published;
   } catch (e) {
@@ -135,7 +144,7 @@ export async function tickNewsrooms(clock: Clock = realClock): Promise<TickResul
           totals.timedOut++;
           continue;
         }
-        const r = await withDeadline(serveDesk(desk.tenantId, TICK_GRACE_MS, totals), left);
+        const r = await withDeadline(serveDesk(desk.tenantId, TICK_GRACE_MS, totals, () => deadline - clock.now()), left);
         if (r === "timeout") totals.timedOut++;
         else handled++;
       }

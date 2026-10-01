@@ -749,6 +749,8 @@ model NewsItem {
   @@index([tenantId, status, publishedAt])
   @@index([tenantId, category])
   @@index([tenantId, status, autoTriedAt])
+  /// The cross-desk wording check finds the other desks' drafts of one article by its url.
+  @@index([url])
 }
 
 /// The Sorani post written from one item, and where it went.

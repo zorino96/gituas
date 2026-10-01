@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 
@@ -9,12 +10,14 @@ import { useT } from "@/lib/i18n/client";
 import { NewsCard, CARD_H, CARD_W } from "@/lib/cards/templates";
 import { brandFrom, mediaSrc } from "@/lib/cards/brand";
 import { ReferencePicker } from "./color-picker";
+import { AUTO_DAILY_MAX, AUTO_MIN_GAP, AUTO_MODES, AUTO_TARGETS, type AutoMode, type AutoTarget } from "@/lib/news/autopilot-settings";
 import { GROUPS, LANG_LABEL, type SourceGroup, type SourceLang } from "@/lib/news/catalog";
 import { TAXONOMY } from "@/lib/news/taxonomy";
 import { VOICE_NOTE_MAX } from "@/lib/news/voice";
 import {
   addRssSourceAction,
   removeSourceAction,
+  saveAutopilotAction,
   saveBrandKitAction,
   saveCategoriesAction,
   saveKeywordsAction,
@@ -31,6 +34,16 @@ export interface NewsSettingsProps {
   categories: string[];
   keywordFilter: boolean;
   voiceNote: string;
+  autopilot: {
+    mode: AutoMode;
+    targets: AutoTarget[];
+    dailyMax: number;
+    minGapMin: number;
+    /** Whether the plan lets the autopilot post by itself. */
+    canPublish: boolean;
+    refreshSec: number;
+    connected: Record<AutoTarget, boolean>;
+  };
   feeds: Array<{ id: string; name: string; url: string; lastError: string | null }>;
   kit: { logoPath: string | null; primary: string; accent: string; text: string; headingFont: "kufi" | "sans" };
 }
@@ -50,6 +63,8 @@ export function NewsSettings(p: NewsSettingsProps) {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [cats, setCats] = useState<string[]>(p.categories);
   const [voiceNote, setVoiceNote] = useState(p.voiceNote);
+  const ap = p.autopilot;
+  const [auto, setAuto] = useState({ mode: ap.mode, targets: ap.targets, dailyMax: String(ap.dailyMax), minGapMin: String(ap.minGapMin) });
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, okText: string) =>
     start(async () => {
@@ -57,6 +72,13 @@ export function NewsSettings(p: NewsSettingsProps) {
       setMsg(r.ok ? { ok: true, text: okText } : { ok: false, text: r.error ?? t.common.error });
       if (r.ok) router.refresh();
     });
+
+  function saveAutopilot() {
+    if (auto.mode === "PUBLISH" && !window.confirm(tn.autoConfirm)) return;
+    // Only connected pages are sent; the server checks all of it again.
+    const targets = auto.targets.filter((k) => ap.connected[k]);
+    run(() => saveAutopilotAction({ mode: auto.mode, targets, dailyMax: Number(auto.dailyMax), minGapMin: Number(auto.minGapMin) }), tn.saved);
+  }
 
   async function pickLogo(file: File) {
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) return setMsg({ ok: false, text: tn.onlyImages });
@@ -219,6 +241,88 @@ export function NewsSettings(p: NewsSettingsProps) {
           <p className="gm-hint" style={{ marginBottom: 0 }}>{tn.voiceHint}</p>
         </div>
         <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => saveVoiceNoteAction(voiceNote), tn.saved)}>
+          {tn.save}
+        </button>
+      </div>
+
+      <p className="gm-sec">{tn.autoSec}</p>
+      <div className="gm-card gm-stack">
+        <p className="gm-hint" style={{ margin: 0 }}>
+          {t.billing.features.label.refresh}: {t.billing.features.refresh(ap.refreshSec)}. {tn.autoTopicsAbove}.
+        </p>
+        <div className="gm-chips">
+          {AUTO_MODES.map((m) => (
+            <button
+              key={m}
+              type="button"
+              className="gm-chip"
+              aria-pressed={auto.mode === m}
+              disabled={m === "PUBLISH" && !ap.canPublish}
+              onClick={() => setAuto((a) => ({ ...a, mode: m }))}
+            >
+              {tn.autoMode[m]}
+            </button>
+          ))}
+        </div>
+        {!ap.canPublish && (
+          <p className="gm-hint" style={{ margin: 0 }}>
+            <Link href="/newsroom/billing" className="gm-link">{tn.autoPlanOnly}</Link>
+          </p>
+        )}
+        <div>
+          {AUTO_TARGETS.map((k) => (
+            <label key={k} className="gm-radio" style={ap.connected[k] ? undefined : { cursor: "not-allowed" }}>
+              <input
+                type="checkbox"
+                checked={ap.connected[k] && auto.targets.includes(k)}
+                disabled={!ap.connected[k]}
+                onChange={(e) =>
+                  setAuto((a) => ({ ...a, targets: e.target.checked ? [...a.targets.filter((x) => x !== k), k] : a.targets.filter((x) => x !== k) }))
+                }
+              />
+              {t.platform[k]}
+              {!ap.connected[k] && <span className="gm-badge ghost">{t.settings.notConnectedBadge}</span>}
+            </label>
+          ))}
+          {[tn.autoTikTok, tn.autoYouTube].map((label) => (
+            <label key={label} className="gm-radio" style={{ cursor: "not-allowed", color: "var(--muted)" }}>
+              <input type="checkbox" checked={false} disabled readOnly />
+              {label}
+            </label>
+          ))}
+        </div>
+        <div className="gm-field">
+          <label htmlFor="ns-auto-max">{tn.autoDailyMax}</label>
+          <input
+            id="ns-auto-max"
+            className="gm-input gm-ltr"
+            dir="ltr"
+            type="number"
+            inputMode="numeric"
+            min={AUTO_DAILY_MAX.min}
+            max={AUTO_DAILY_MAX.max}
+            step={1}
+            value={auto.dailyMax}
+            onChange={(e) => setAuto((a) => ({ ...a, dailyMax: e.target.value }))}
+          />
+        </div>
+        <div className="gm-field">
+          <label htmlFor="ns-auto-gap">{tn.autoMinGap}</label>
+          <input
+            id="ns-auto-gap"
+            className="gm-input gm-ltr"
+            dir="ltr"
+            type="number"
+            inputMode="numeric"
+            min={AUTO_MIN_GAP.min}
+            max={AUTO_MIN_GAP.max}
+            step={1}
+            value={auto.minGapMin}
+            onChange={(e) => setAuto((a) => ({ ...a, minGapMin: e.target.value }))}
+          />
+        </div>
+        <p className="gm-note warn" style={{ margin: 0 }}>{tn.autoWarn}</p>
+        <button type="button" className="gm-btn" disabled={pending} onClick={saveAutopilot}>
           {tn.save}
         </button>
       </div>

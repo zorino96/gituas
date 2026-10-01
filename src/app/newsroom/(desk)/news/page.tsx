@@ -92,7 +92,12 @@ export default async function NewsPage({
     langGroups,
     sourceGroups,
   ] = await Promise.all([
-    db.newsItem.findMany({ where, orderBy: { publishedAt: "desc" }, take: 150 }),
+    db.newsItem.findMany({
+      where,
+      orderBy: { publishedAt: "desc" },
+      take: 150,
+      include: { draft: { select: { id: true, auto: true, cardPath: true } } },
+    }),
     db.newsSource.count({ where: { tenantId: ws.id, enabled: true } }),
     db.tenant.findUnique({ where: { id: ws.id }, select: { plan: true } }),
     usageOf(ws.id, "draft"),
@@ -194,18 +199,37 @@ export default async function NewsPage({
         <p className="gm-empty">هیچ هەواڵێک لێرە نییە.</p>
       ) : (
         <div className="nr-news-list">
-          {groups.map(({ lead, count }) => (
-            <Link key={lead.id} href={`/newsroom/news/${lead.id}`} className="gm-card">
-              <b dir="auto">{lead.title}</b>
-              <small className="gm-sub">
-                {lead.sourceName}
-                {count > 1 ? ` · ${num(count)} سەرچاوە` : ""} · {ago(lead.publishedAt.toISOString())}
-                {lead.lang && LANG_LABEL[lead.lang] ? ` · ${LANG_LABEL[lead.lang]}` : ""}
-                {categoryLabel(lead.category, lead.subcategory) ? ` · ${categoryLabel(lead.category, lead.subcategory)}` : ""}
-                {regionLabel(lead.region) ? ` · ${regionLabel(lead.region)}` : ""}
-              </small>
-            </Link>
-          ))}
+          {groups.map(({ lead, count }) => {
+            // Written (and maybe posted) by the autopilot: marked in the ready and published tabs.
+            const auto = tab.key !== "new" && !!lead.draft?.auto;
+            const story = (
+              <>
+                <b dir="auto">{lead.title}</b>
+                {auto && <span className="gm-badge ghost nr-auto">خۆکار</span>}
+                <small className="gm-sub">
+                  {lead.sourceName}
+                  {count > 1 ? ` · ${num(count)} سەرچاوە` : ""} · {ago(lead.publishedAt.toISOString())}
+                  {lead.lang && LANG_LABEL[lead.lang] ? ` · ${LANG_LABEL[lead.lang]}` : ""}
+                  {categoryLabel(lead.category, lead.subcategory) ? ` · ${categoryLabel(lead.category, lead.subcategory)}` : ""}
+                  {regionLabel(lead.region) ? ` · ${regionLabel(lead.region)}` : ""}
+                </small>
+              </>
+            );
+            // The autopilot never posts to TikTok: a post it made is one tap from the composer, where a person approves it.
+            if (auto && tab.key === "done" && lead.draft?.cardPath) {
+              return (
+                <div key={lead.id} className="gm-card">
+                  <Link href={`/newsroom/news/${lead.id}`} className="nr-news-open">{story}</Link>
+                  <Link href={`/newsroom/publish?draft=${lead.draft.id}`} className="gm-link nr-news-more">تیکتۆک</Link>
+                </div>
+              );
+            }
+            return (
+              <Link key={lead.id} href={`/newsroom/news/${lead.id}`} className="gm-card">
+                {story}
+              </Link>
+            );
+          })}
         </div>
       )}
 

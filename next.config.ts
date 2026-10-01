@@ -9,7 +9,10 @@ const nextConfig: NextConfig = {
   // next to its own files.
   serverExternalPackages: ["puppeteer-core", "@sparticuz/chromium"],
   // That packed browser (bin/*.br) is read from disk, not imported, so it is named here
-  // for the one function that renders cards: the background news tick.
+  // for the one function that renders cards: the background news tick, whose autopilot
+  // (src/lib/news/autopilot.ts) is the renderer's only caller. Pages and server actions
+  // import src/lib/news/autopilot-settings.ts instead, which has no renderer in it. A new
+  // route that imports the autopilot or the renderer must be added here.
   outputFileTracingIncludes: {
     "/api/cron/news": ["./node_modules/@sparticuz/chromium/bin/**"],
   },

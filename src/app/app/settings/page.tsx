@@ -1,6 +1,8 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { canAutoPublish, refreshSecFor } from "@/lib/billing/plans";
 import { dict, getLang } from "@/lib/i18n";
+import { AUTO_DAILY_MAX, AUTO_MIN_GAP, autoTargetsFor, isAutoMode } from "@/lib/news/autopilot-settings";
 import { catalogAvailable } from "@/lib/news/catalog";
 import { currentWorkspace, loadConnections } from "../data";
 import { SettingsClient } from "./settings-client";
@@ -22,11 +24,14 @@ export default async function SettingsPage({
 
   let news: NewsSettingsProps | null = null;
   if (ws.kind === "NEWS") {
-    const [settings, sources, kit] = await Promise.all([
+    const [settings, sources, kit, tenant] = await Promise.all([
       db.newsSettings.findUnique({ where: { tenantId: ws.id } }),
       db.newsSource.findMany({ where: { tenantId: ws.id }, orderBy: { createdAt: "asc" } }),
       db.brandKit.findUnique({ where: { tenantId: ws.id } }),
+      db.tenant.findUnique({ where: { id: ws.id }, select: { plan: true } }),
     ]);
+    const canPublish = canAutoPublish(tenant?.plan);
+    const savedMode = isAutoMode(settings?.autoMode) ? settings.autoMode : "OFF";
     news = {
       workspaceId: ws.id,
       pageName: ws.name,
@@ -46,6 +51,16 @@ export default async function SettingsPage({
       categories: settings?.categories ?? [],
       keywordFilter: settings?.keywordFilter ?? false,
       voiceNote: settings?.voiceNote ?? "",
+      autopilot: {
+        // What is shown is what runs: on a plan that may not post by itself, PUBLISH runs as DRAFT.
+        mode: savedMode === "PUBLISH" && !canPublish ? "DRAFT" : savedMode,
+        targets: autoTargetsFor(settings?.autoTargets, { FB: true, IG: true }),
+        dailyMax: settings?.autoDailyMax ?? AUTO_DAILY_MAX.fallback,
+        minGapMin: settings?.autoMinGapMin ?? AUTO_MIN_GAP.fallback,
+        canPublish,
+        refreshSec: refreshSecFor(tenant?.plan),
+        connected: { FB: conns.META_FACEBOOK.connected, IG: conns.META_INSTAGRAM.connected },
+      },
       feeds: sources.filter((s) => s.rssUrl && !s.catalogId).map((s) => ({ id: s.id, name: s.name, url: s.rssUrl!, lastError: s.lastError })),
       kit: {
         logoPath: kit?.logoPath ?? null,

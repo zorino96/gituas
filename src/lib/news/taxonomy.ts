@@ -113,6 +113,21 @@ export function categoryWhere(chosen: readonly string[]): { OR?: Array<Record<st
   };
 }
 
+/**
+ * categoryWhere's rule for one story, in memory, without its "unclassified passes" branch:
+ * a story with no category never matches. The autopilot uses it, because it must only act
+ * on a story it can place.
+ */
+export function matchesChoice(category: string | null, subcategory: string | null, chosen: readonly string[]): boolean {
+  if (!category) return false;
+  if (!chosen.length) return true;
+  return chosen.some((c) => {
+    if (!c.includes("/")) return c === category;
+    const [cat, sub] = c.split("/");
+    return cat === category && sub === subcategory;
+  });
+}
+
 export function categoryLabel(category: string | null, subcategory: string | null): string | null {
   const c = category ? byId.get(category) : undefined;
   if (!c) return null;

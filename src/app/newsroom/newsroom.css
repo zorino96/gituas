@@ -167,6 +167,10 @@ a.nr-brand:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px
 .nr-news-list > .gm-card { display: flex; flex-direction: column; gap: 8px; margin-top: 0; min-width: 0; color: inherit; text-decoration: none; }
 .nr-news-list b { display: block; font-size: 14.5px; line-height: 1.7; overflow-wrap: anywhere; }
 .nr-news-list small { margin: auto 0 0; font-size: 12.5px; }
+/* The autopilot's mark, and a story row that also carries a second link beside the story itself. */
+.nr-news-list .nr-auto { align-self: flex-start; }
+.nr-news-open { display: flex; flex-direction: column; flex: 1; gap: 8px; min-width: 0; color: inherit; text-decoration: none; }
+.nr-news-more { align-self: flex-start; font-size: 12.5px; font-weight: 500; }
 @media (min-width: 1200px) {
   .nr-news-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 }

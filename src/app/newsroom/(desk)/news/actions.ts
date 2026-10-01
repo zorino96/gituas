@@ -5,8 +5,9 @@ import { after } from "next/server";
 
 import { db } from "@/lib/db";
 import { assertWithin, countUsage, LimitReached, limitMessage } from "@/lib/billing/limits";
-import { NEWS_LIMITS } from "@/lib/billing/plans";
+import { canAutoPublish, NEWS_LIMITS } from "@/lib/billing/plans";
 import { AiUnavailable, type Strength } from "@/lib/ai/provider";
+import { autoTargetsFor, parseAutopilot } from "@/lib/news/autopilot-settings";
 import { catalogEntry } from "@/lib/news/catalog";
 import { classifyPending } from "@/lib/news/classify";
 import { ingest } from "@/lib/news/ingest";
@@ -17,7 +18,7 @@ import { CARD_KINDS, type CardKind } from "@/lib/news/types";
 import { cleanVoiceNote } from "@/lib/news/voice";
 import { writeDraft } from "@/lib/news/write";
 import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
-import { currentWorkspace, type Workspace } from "@/app/app/data";
+import { currentWorkspace, loadConnections, type Workspace } from "@/app/app/data";
 
 export type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -285,6 +286,34 @@ export async function saveVoiceNoteAction(raw: string): Promise<Result<{ voiceNo
     select: { tenantId: true },
   });
   return { ok: true, voiceNote: voiceNote ?? "" };
+}
+
+/**
+ * The autopilot's settings. Nothing the form sends is trusted: the mode, the platforms and both
+ * numbers are checked again here. Posting by itself is refused on a plan that does not include
+ * it, and only connected Facebook and Instagram pages are ever saved as its targets.
+ */
+export async function saveAutopilotAction(input: { mode: string; targets: string[]; dailyMax: number; minGapMin: number }): Promise<Result> {
+  const ws = await newsWorkspace();
+  if (!ws) return NOT_NEWS;
+  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
+  const choice = parseAutopilot(input);
+  if (!choice) return { ok: false, error: "ڕێکخستنەکانی ئۆتۆپایلۆت دروست نین." };
+  const conns = await loadConnections(ws.id);
+  const targets = autoTargetsFor(choice.targets, { FB: conns.META_FACEBOOK.connected, IG: conns.META_INSTAGRAM.connected });
+  if (choice.mode === "PUBLISH") {
+    const tenant = await db.tenant.findUnique({ where: { id: ws.id }, select: { plan: true } });
+    if (!canAutoPublish(tenant?.plan)) return { ok: false, error: "بڵاوکردنەوەی خۆکار تەنها لە پلانی پرۆ و دامەزراوە بەردەستە." };
+    if (!targets.length) return { ok: false, error: "بۆ بڵاوکردنەوەی خۆکار، لانیکەم فەیسبووک یان ئینستاگرامێکی پەیوەستکراو هەڵبژێرە." };
+  }
+  const data = { autoMode: choice.mode, autoTargets: targets, autoDailyMax: choice.dailyMax, autoMinGapMin: choice.minGapMin };
+  await db.newsSettings.upsert({
+    where: { tenantId: ws.id },
+    create: { tenantId: ws.id, keywords: [], ...data },
+    update: data,
+    select: { tenantId: true },
+  });
+  return { ok: true };
 }
 
 /** Which categories the desk keeps. An empty list keeps everything. */
