@@ -57,25 +57,23 @@ export async function DeskShell({ ws, children }: { ws: Workspace; children: Rea
   const desks = (await listWorkspaces()).filter((w) => w.kind === "NEWS" && w.kindChosen);
   return (
     <NewsroomRoot>
-      <div className="nr-frame">
-        <SideNav />
-        <div className="nr-body">
-          <header className="nr-top">
-            <DeskSwitcher
-              currentId={ws.id}
-              currentName={ws.name}
-              desks={desks.map((d) => ({ id: d.id, name: d.name, role: ROLE_LABEL[d.role] }))}
-            />
-            <div className="gm-row" style={{ gap: 8 }}>
-              <span className="gm-badge ghost">{ROLE_LABEL[ws.role]}</span>
-              <HelpLink />
-            </div>
-          </header>
-          <main className="nr-main">
-            <TrialBanner tenantId={ws.id} />
-            {children}
-          </main>
-        </div>
+      <SideNav />
+      <div className="gm-shell">
+        <header className="nr-top">
+          <DeskSwitcher
+            currentId={ws.id}
+            currentName={ws.name}
+            desks={desks.map((d) => ({ id: d.id, name: d.name, role: ROLE_LABEL[d.role] }))}
+          />
+          <div className="gm-row" style={{ gap: 8 }}>
+            <span className="gm-badge ghost">{ROLE_LABEL[ws.role]}</span>
+            <HelpLink />
+          </div>
+        </header>
+        <main className="gm-main">
+          <TrialBanner tenantId={ws.id} />
+          {children}
+        </main>
       </div>
       <BottomNav />
     </NewsroomRoot>

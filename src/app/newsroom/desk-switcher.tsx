@@ -42,14 +42,14 @@ export function DeskSwitcher({ currentId, currentName, desks }: { currentId: str
           <form key={d.id} action={switchWorkspaceAction}>
             <input type="hidden" name="id" value={d.id} />
             <input type="hidden" name="next" value="/newsroom/news" />
-            <button type="submit" className="nr-link" aria-current={d.id === currentId ? "true" : undefined}>
+            <button type="submit" className="gm-navlink" aria-current={d.id === currentId ? "true" : undefined}>
               {d.id === currentId ? <Check aria-hidden="true" /> : <span style={{ width: 18, flex: "none" }} aria-hidden="true" />}
               <span>{d.name}</span>
               <small className="nr-switch-role">{d.role}</small>
             </button>
           </form>
         ))}
-        <Link href="/newsroom/desks/new" className="nr-link">
+        <Link href="/newsroom/desks/new" className="gm-navlink">
           <Plus aria-hidden="true" />
           مێزی نوێ
         </Link>

@@ -94,41 +94,43 @@ export function BillingClient({ product, configured, env, result, targets, invoi
 
       {targets.length === 0 && <p className="gm-note">{b.noPage}</p>}
 
-      {targets.map((t) => (
-        <div key={t.id} className="gm-card" style={{ marginTop: 12 }}>
-          <div className="gm-target">
-            <div>
-              <p>{t.name}</p>
-              <small>{b.plan(planLabel(t.plan, lang))}</small>
-              {t.paidUntil && <small>{b.activeUntil(kuDate(t.paidUntil, tr))}</small>}
+      <div className="gm-grid lg" style={{ marginTop: 12 }}>
+        {targets.map((t) => (
+          <div key={t.id} className="gm-card">
+            <div className="gm-target">
+              <div>
+                <p>{t.name}</p>
+                <small>{b.plan(planLabel(t.plan, lang))}</small>
+                {t.paidUntil && <small>{b.activeUntil(kuDate(t.paidUntil, tr))}</small>}
+              </div>
             </div>
+            {t.chips.length > 0 && (
+              <div className="gm-chips" style={{ marginTop: 8 }}>
+                {t.chips.map((c) => (
+                  <span key={c.platform} className="gm-chip" style={{ cursor: "default" }}>
+                    {tr.platform[c.platform]} · {c.name}
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="gm-hint">{b.coversAll}</p>
+            {product === "NEWS" && t.trialDaysLeft != null && <p className="gm-hint">{b.trialLeft(t.trialDaysLeft)}</p>}
+            {PLANS[product].map((plan) => {
+              const price = priceFor(product, plan);
+              if (price == null) return null;
+              const name = planLabel(plan, lang);
+              const amount = formatMoney(price, "IQD", lang);
+              const renewing = t.plan === plan && !!t.paidUntil;
+              return (
+                <button key={plan} type="button" className="gm-btn block" style={{ marginTop: 8 }} disabled={!configured || busy} onClick={() => buy(t, plan)}>
+                  {renewing ? b.renew(name, amount) : b.buy(name, amount)}
+                </button>
+              );
+            })}
+            {error?.targetId === t.id && <p className="gm-err">{error.text}</p>}
           </div>
-          {t.chips.length > 0 && (
-            <div className="gm-chips" style={{ marginTop: 8 }}>
-              {t.chips.map((c) => (
-                <span key={c.platform} className="gm-chip" style={{ cursor: "default" }}>
-                  {tr.platform[c.platform]} · {c.name}
-                </span>
-              ))}
-            </div>
-          )}
-          <p className="gm-hint">{b.coversAll}</p>
-          {product === "NEWS" && t.trialDaysLeft != null && <p className="gm-hint">{b.trialLeft(t.trialDaysLeft)}</p>}
-          {PLANS[product].map((plan) => {
-            const price = priceFor(product, plan);
-            if (price == null) return null;
-            const name = planLabel(plan, lang);
-            const amount = formatMoney(price, "IQD", lang);
-            const renewing = t.plan === plan && !!t.paidUntil;
-            return (
-              <button key={plan} type="button" className="gm-btn block" style={{ marginTop: 8 }} disabled={!configured || busy} onClick={() => buy(t, plan)}>
-                {renewing ? b.renew(name, amount) : b.buy(name, amount)}
-              </button>
-            );
-          })}
-          {error?.targetId === t.id && <p className="gm-err">{error.text}</p>}
-        </div>
-      ))}
+        ))}
+      </div>
 
       {invoices.length > 0 && (
         <>

@@ -52,13 +52,13 @@ function NavLinks({ onNavigate }: { onNavigate?: (href: string) => void }) {
   return (
     <>
       {NAV_GROUPS.map((g) => (
-        <div key={g.key} className="nr-group">
-          <p className="nr-group-label">{g.label}</p>
+        <div key={g.key} className="gm-navgroup">
+          <p className="gm-navlabel">{g.label}</p>
           {NAV.filter((i) => i.group === g.key).map((i) => {
             const Icon = ICONS[i.key];
             const on = current?.key === i.key;
             return (
-              <Link key={i.key} href={i.href} className="nr-link" aria-current={on ? "page" : undefined} onClick={() => onNavigate?.(i.href)}>
+              <Link key={i.key} href={i.href} className="gm-navlink" aria-current={on ? "page" : undefined} onClick={() => onNavigate?.(i.href)}>
                 <Icon aria-hidden="true" strokeWidth={on ? 2.2 : 1.8} />
                 {i.label}
                 <Pending />
@@ -73,7 +73,7 @@ function NavLinks({ onNavigate }: { onNavigate?: (href: string) => void }) {
 
 function SignOutButton() {
   return (
-    <button type="button" className="nr-link" onClick={signOutOfNewsroom}>
+    <button type="button" className="gm-navlink" onClick={signOutOfNewsroom}>
       <LogOut aria-hidden="true" strokeWidth={1.8} />
       چوونەدەرەوە
     </button>
@@ -83,12 +83,14 @@ function SignOutButton() {
 /** Desktop sidebar (hidden under 960px by CSS). */
 export function SideNav() {
   return (
-    <aside className="nr-side">
-      <Brand />
+    <aside className="gm-side">
+      <div className="gm-side-brand">
+        <Brand />
+      </div>
       <nav aria-label="بەشەکانی نیوزڕووم" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <NavLinks />
       </nav>
-      <div className="nr-foot">
+      <div className="gm-side-foot">
         <SignOutButton />
       </div>
     </aside>
@@ -157,7 +159,7 @@ export function BottomNav() {
           <nav aria-label="هەموو بەشەکان" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <NavLinks onNavigate={(href) => href === path && setOpenAt(null)} />
           </nav>
-          <div className="nr-foot">
+          <div className="gm-side-foot">
             <SignOutButton />
           </div>
         </div>

@@ -6,7 +6,7 @@ import { Settings } from "lucide-react";
 import "./app.css";
 import { claimKind, currentWorkspace, listWorkspaces } from "./data";
 import { gmFontVars } from "./fonts";
-import { Tabs } from "./nav";
+import { SideNav, Tabs } from "./nav";
 import { switchWorkspaceAction } from "@/app/newsroom/desk-actions";
 import { NEWSROOM_ORIGIN } from "@/lib/hosts";
 import { createShopAction } from "./shop-actions";
@@ -83,6 +83,7 @@ async function Shell({ lang, children }: { lang: Lang; children: React.ReactNode
 
   return (
     <div className={`gm ${gmFontVars}`} dir="rtl" lang={lang}>
+      <SideNav kind={ws.kind} workspace={ws.name} />
       <div className="gm-shell">
         <header className="gm-head">
           <div>

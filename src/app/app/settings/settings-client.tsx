@@ -73,7 +73,7 @@ export function SettingsClient({
   }
 
   return (
-    <div>
+    <div className="gm-narrow">
       <h2 className="gm-title kufi">{s.title}</h2>
 
       {connected && <p className="gm-ok">{s.connected}</p>}

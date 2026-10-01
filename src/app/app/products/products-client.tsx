@@ -260,48 +260,50 @@ export function ProductsClient({ workspaceId, storeId, stores, products }: { wor
           {pr.emptyBody}
         </div>
       ) : (
-        products.map((p) => (
-          <div key={p.id} className="gm-card" style={{ marginBottom: 12 }}>
-            {editing === p.id ? (
-              <ProductEditor workspaceId={workspaceId} storeId={storeId} product={p} onDone={() => setEditing(null)} />
-            ) : (
-              <div className="gm-stack">
-                <div className="gm-row" style={{ gap: 12, alignItems: "flex-start" }}>
-                  {p.photos[0] && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.photos[0]} alt="" className="gm-thumb" />
-                  )}
-                  <div style={{ flex: 1 }}>
-                    <p style={{ margin: 0, fontWeight: 600 }}>{p.name}</p>
-                    <div className="gm-chips" style={{ marginTop: 8 }}>
-                      {p.variants.map((v, i) => (
-                        <span key={i} className="gm-chip" style={{ cursor: "default" }}>
-                          {v.label ? `${v.label}: ` : ""}
-                          {formatMoney(v.amountMinor, v.currency, lang)}
-                        </span>
-                      ))}
+        <div className="gm-grid lg">
+          {products.map((p) => (
+            <div key={p.id} className={editing === p.id ? "gm-card gm-span" : "gm-card"}>
+              {editing === p.id ? (
+                <ProductEditor workspaceId={workspaceId} storeId={storeId} product={p} onDone={() => setEditing(null)} />
+              ) : (
+                <div className="gm-stack">
+                  <div className="gm-row" style={{ gap: 12, alignItems: "flex-start" }}>
+                    {p.photos[0] && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.photos[0]} alt="" className="gm-thumb" />
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <p style={{ margin: 0, fontWeight: 600 }}>{p.name}</p>
+                      <div className="gm-chips" style={{ marginTop: 8 }}>
+                        {p.variants.map((v, i) => (
+                          <span key={i} className="gm-chip" style={{ cursor: "default" }}>
+                            {v.label ? `${v.label}: ` : ""}
+                            {formatMoney(v.amountMinor, v.currency, lang)}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
+                  <div className="gm-row" style={{ gap: 6 }}>
+                    <button type="button" className="gm-btn small quiet" disabled={pending} onClick={() => open(p.id)}>
+                      {pr.edit}
+                    </button>
+                    <button
+                      type="button"
+                      className="gm-btn small danger"
+                      disabled={pending}
+                      onClick={() => {
+                        if (window.confirm(pr.confirmDelete)) run(() => archiveProductAction(storeId, p.id));
+                      }}
+                    >
+                      {pr.delete}
+                    </button>
+                  </div>
                 </div>
-                <div className="gm-row" style={{ gap: 6 }}>
-                  <button type="button" className="gm-btn small quiet" disabled={pending} onClick={() => open(p.id)}>
-                    {pr.edit}
-                  </button>
-                  <button
-                    type="button"
-                    className="gm-btn small danger"
-                    disabled={pending}
-                    onClick={() => {
-                      if (window.confirm(pr.confirmDelete)) run(() => archiveProductAction(storeId, p.id));
-                    }}
-                  >
-                    {pr.delete}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        ))
+              )}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

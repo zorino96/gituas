@@ -79,66 +79,77 @@ export function AutomationClient({ store, stores, templates, products, postAutom
         </select>
       )}
 
-      <p className="gm-sec">{a.statusSec}</p>
-      <div className="gm-card">
-        <SwitchRow
-          label={a.switchLabel}
-          hint={on ? a.switchOn : a.switchOff}
-          checked={on}
-          disabled={status.pending}
-          onToggle={() => status.run(() => save({ automationEnabled: !on }))}
-        />
-        {store.pausedReason && <p className="gm-note warn" style={{ marginTop: 8 }}>{a.paused}</p>}
-        <SaveMessage message={status.message} />
-      </div>
+      <div className="gm-cols-2">
+        <div>
+          <p className="gm-sec">{a.statusSec}</p>
+          <div className="gm-card">
+            <SwitchRow
+              label={a.switchLabel}
+              hint={on ? a.switchOn : a.switchOff}
+              checked={on}
+              disabled={status.pending}
+              onToggle={() => status.run(() => save({ automationEnabled: !on }))}
+            />
+            {store.pausedReason && <p className="gm-note warn" style={{ marginTop: 8 }}>{a.paused}</p>}
+            <SaveMessage message={status.message} />
+          </div>
 
-      <p className="gm-sec">{a.usageSec}</p>
-      <div className="gm-card">
-        <div className="gm-target">
-          <p>{a.activePosts}</p>
-          <span className="gm-ltr">
-            {num(usage.activePosts)} / {usage.postSlots == null ? a.allPosts : num(usage.postSlots)}
-          </span>
+          <p className="gm-sec">{a.usageSec}</p>
+          <div className="gm-card">
+            <div className="gm-target">
+              <p>{a.activePosts}</p>
+              <span className="gm-ltr">
+                {num(usage.activePosts)} / {usage.postSlots == null ? a.allPosts : num(usage.postSlots)}
+              </span>
+            </div>
+            <div className="gm-target">
+              <p>{a.sentToday}</p>
+              <span className="gm-ltr">
+                {num(usage.sentToday)} / {num(usage.cap)}
+              </span>
+            </div>
+            <div className="gm-target">
+              <p>{a.aiVaried}</p>
+              <span className="gm-ltr">
+                {num(usage.aiUsed)} / {num(usage.aiLimit)}
+              </span>
+            </div>
+            <small className="gm-hint" style={{ display: "block" }}>
+              <Link href="/app/billing" className="gm-link">
+                {a.plan(usage.plan)}
+              </Link>
+            </small>
+          </div>
         </div>
-        <div className="gm-target">
-          <p>{a.sentToday}</p>
-          <span className="gm-ltr">
-            {num(usage.sentToday)} / {num(usage.cap)}
-          </span>
+        <div className="gm-section">
+          <p className="gm-sec">{a.readySec}</p>
+          <div className="gm-card">
+            <Check done label={a.pageConnected} />
+            <Check done={!!store.webhooksAt} label={a.webhooks} />
+            <Check
+              done={products.length > 0}
+              label={a.oneProduct}
+              action={
+                <Link href={`/app/products?store=${encodeURIComponent(store.id)}`} className="gm-link">
+                  {a.productsLink}
+                </Link>
+              }
+            />
+            <Check done={!!defaultTemplate && defaultTemplate.publicSamples.length > 0} label={a.sampleWritten} hint={a.sampleHint} />
+            <p className="gm-hint">{a.igHint}</p>
+          </div>
         </div>
-        <div className="gm-target">
-          <p>{a.aiVaried}</p>
-          <span className="gm-ltr">
-            {num(usage.aiUsed)} / {num(usage.aiLimit)}
-          </span>
-        </div>
-        <small className="gm-hint" style={{ display: "block" }}>
-          <Link href="/app/billing" className="gm-link">
-            {a.plan(usage.plan)}
-          </Link>
-        </small>
-      </div>
-
-      <p className="gm-sec">{a.readySec}</p>
-      <div className="gm-card">
-        <Check done label={a.pageConnected} />
-        <Check done={!!store.webhooksAt} label={a.webhooks} />
-        <Check
-          done={products.length > 0}
-          label={a.oneProduct}
-          action={
-            <Link href={`/app/products?store=${encodeURIComponent(store.id)}`} className="gm-link">
-              {a.productsLink}
-            </Link>
-          }
-        />
-        <Check done={!!defaultTemplate && defaultTemplate.publicSamples.length > 0} label={a.sampleWritten} hint={a.sampleHint} />
-        <p className="gm-hint">{a.igHint}</p>
       </div>
 
       <TemplatesSection storeId={store.id} templates={templates} defaultTemplateId={store.defaultTemplateId} />
-      <DeliverySection settings={settings} save={save} />
-      <CommentsSection settings={settings} save={save} />
+      <div className="gm-cols-2">
+        <div className="gm-section">
+          <DeliverySection settings={settings} save={save} />
+        </div>
+        <div className="gm-section">
+          <CommentsSection settings={settings} save={save} />
+        </div>
+      </div>
       <PostsSection
         storeId={store.id}
         posts={posts}

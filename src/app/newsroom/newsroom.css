@@ -1,75 +1,71 @@
-/* Newsroom — a control-room identity on top of the merchant app's .gm system.
-   Everything is scoped under .gm.nr / .nr-*, so the shop never changes. */
+/* Newsroom — a control-room identity on top of the shop's .gm system.
+   Only tokens and newsroom-only pieces live here; the frame, sidebar and
+   components come from app.css. Everything is scoped under .gm.nr / .nr-*. */
 
 .gm.nr {
-  --ground: #eef0f4; --surface: #ffffff; --raised: #f5f6f9;
-  --ink: #0c1322; --muted: #5a6478; --faint: #8b94a6;
-  --accent: #1f4fd6; --accent-soft: #e3e9fc; --accent-line: #b4c5f3;
-  --alert: #c4262e; --alert-soft: #fbe5e6; --alert-line: #efb4b7;
-  --line: #d5dae4; --line-soft: #e3e7ee;
+  --ground: #f5f7fa; --surface: #ffffff; --raised: #eff2f7; --sunken: #e5e9f0;
+  --line: #e0e5ee; --line-soft: #ebeef4; --line-strong: #cdd4e0;
+  --ink: #0c1322; --muted: #566177; --faint: #747e92;
+  --accent: #1f4fd6; --accent-hover: #1a42b5; --accent-soft: #e9eefc; --accent-line: #bccbf4;
+  --on-accent: #ffffff; --ring: rgba(31, 79, 214, 0.22);
+  --bar: rgba(255, 255, 255, 0.82);
+  --scrim: rgba(5, 8, 15, 0.45);
   --live: #e0262f;
 }
 @media (prefers-color-scheme: dark) {
   .gm.nr {
-    --ground: #0a0e16; --surface: #111827; --raised: #172033;
-    --ink: #e7ecf5; --muted: #98a3b8; --faint: #6b7589;
-    --accent: #7aa2ff; --accent-soft: #16244a; --accent-line: #2c417a;
-    --alert: #ff7a7f; --alert-soft: #3a1518; --alert-line: #6b2a2f;
-    --line: #243049; --line-soft: #1a2438;
+    --ground: #0b0f17; --surface: #121826; --raised: #182031; --sunken: #1f2839;
+    --line: #243049; --line-soft: #1b2437; --line-strong: #2f3c58;
+    --ink: #e7ecf5; --muted: #9aa5ba; --faint: #76819a;
+    --accent: #7aa2ff; --accent-hover: #96b6ff; --accent-soft: #16244a; --accent-line: #2c417a;
+    --on-accent: #08122b; --ring: rgba(122, 162, 255, 0.3);
+    --bar: rgba(18, 24, 38, 0.82);
+    --scrim: rgba(0, 0, 0, 0.6);
     --live: #ff4d55;
   }
 }
 
-/* brand mark */
+/* brand mark: the name with a live dot */
 .nr-brand { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; margin: 0; padding: 4px 10px;
   color: var(--ink); text-decoration: none; }
 .nr-live { width: 8px; height: 8px; border-radius: 50%; background: var(--live); flex: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--live) 22%, transparent); }
+/* in the sidebar the dot sits on an accent tile, like the shop's mark */
+.gm-side-brand .nr-brand { padding: 0; gap: 12px; font-size: 16px; line-height: 1.35; }
+.gm-side-brand .nr-live { position: relative; width: 32px; height: 32px; border-radius: 9px; background: var(--accent); box-shadow: var(--shadow-sm); }
+.gm-side-brand .nr-live::after { content: ""; position: absolute; inset: 0; margin: auto; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--live); box-shadow: 0 0 0 2.5px var(--thumb); }
+/* the sign-in pages' brand: a live dot instead of the shop's diamond */
+.nr .gm-brand::after { border-radius: 50%; transform: none; background: var(--live); box-shadow: 0 0 0 2.5px var(--thumb); }
 
-/* frame: one column on phones, sidebar + content from 960px */
-.nr-frame { min-height: 100%; }
-.nr-side { display: none; }
-.nr-body { min-width: 0; min-height: 100%; display: flex; flex-direction: column; }
+/* top bar: desk switcher, role and the "?" guide link (phones and desktop) */
 .nr-top {
   position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 12px; background: var(--ground);
-  border-bottom: 1px solid var(--line-soft);
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 10px;
+  background: var(--bar); -webkit-backdrop-filter: saturate(1.6) blur(16px); backdrop-filter: saturate(1.6) blur(16px);
+  border-bottom: 1px solid var(--line);
 }
 .nr-desk { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.nr-desk h1, .nr-desk-name { margin: 0; font-size: 17px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nr-help { width: 32px; height: 32px; flex: none; display: inline-grid; place-items: center; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--line); background: var(--surface); color: var(--muted); text-decoration: none; font: inherit; }
+.nr-desk h1, .nr-desk-name { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nr-help { width: 34px; height: 34px; flex: none; display: inline-grid; place-items: center; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--muted); text-decoration: none; font: inherit;
+  transition: color 0.15s, border-color 0.15s; }
 .nr-help:hover { color: var(--accent); border-color: var(--accent-line); }
-.nr-main { flex: 1; width: 100%; max-width: 880px; margin: 0 auto; padding: 16px 16px calc(env(safe-area-inset-bottom, 0px) + 92px); }
-
-/* nav links (sidebar and sheet) */
-.nr-group { display: flex; flex-direction: column; gap: 2px; }
-.nr-group-label { font-size: 11px; font-weight: 600; color: var(--faint); margin: 0; padding: 0 10px 4px; }
-.nr-link { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px;
-  color: var(--muted); text-decoration: none; font-size: 13.5px; }
-button.nr-link { font: inherit; font-size: 13.5px; background: none; border: 0; cursor: pointer; width: 100%; text-align: start; }
-.nr-link svg { width: 18px; height: 18px; flex: none; }
-.nr-link:hover { background: var(--raised); color: var(--ink); }
-.nr-link[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-.nr-link .gm-pending { top: auto; bottom: 2px; left: 10px; right: 10px; }
-.nr-link:focus-visible, .nr-help:focus-visible, .nr-more:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.nr-foot { margin-top: auto; display: flex; flex-direction: column; gap: 2px; border-top: 1px solid var(--line-soft); padding-top: 10px; }
+.nr-help:focus-visible, .nr-more:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* phone bar "more" button and sheet */
 .nr-more { font: inherit; font-size: 11px; background: none; border: 0; cursor: pointer; width: 100%; }
 /* a native <dialog> in the top layer: undo the UA centring and pin it to the bottom */
 .nr-sheet { position: fixed; inset: auto 0 0 0; margin: 0; width: 100%; max-width: none; max-height: 80dvh; overflow-y: auto;
-  padding: 0; border: 0; border-top: 1px solid var(--line-soft); border-radius: 18px 18px 0 0; background: var(--surface); color: var(--ink); }
-.nr-sheet::backdrop { background: rgb(5 8 15 / 0.45); }
-.nr-sheet-body { display: flex; flex-direction: column; gap: 14px; padding: 14px 12px calc(env(safe-area-inset-bottom, 0px) + 16px); }
+  padding: 0; border: 0; border-top: 1px solid var(--line); border-radius: 20px 20px 0 0;
+  background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); }
+.nr-sheet::backdrop { background: var(--scrim); }
+.nr-sheet-body { display: flex; flex-direction: column; gap: 14px; padding: 16px 12px calc(env(safe-area-inset-bottom, 0px) + 16px); }
 .nr-sheet-head { display: flex; align-items: center; justify-content: space-between; }
 
 @media (min-width: 960px) {
-  .nr-frame { display: grid; grid-template-columns: 248px minmax(0, 1fr); }
-  .nr-side { display: flex; flex-direction: column; gap: 18px; position: sticky; top: 0; height: 100vh; height: 100dvh; overflow-y: auto;
-    padding: calc(env(safe-area-inset-top, 0px) + 16px) 12px 16px; background: var(--surface); border-inline-end: 1px solid var(--line-soft); }
-  .nr-main { padding: 24px 28px 40px; }
-  .nr .gm-tabs { display: none; }
+  /* line the top bar's contents up with the centred content column below it */
+  .nr-top { padding: 12px max(32px, calc((100% - 1116px) / 2)); }
 }
 
 /* guide */
@@ -77,7 +73,7 @@ button.nr-link { font: inherit; font-size: 13.5px; background: none; border: 0; 
 .nr-guide .gm-card + .gm-card { margin-top: 0; }
 .nr-guide .gm-chip { text-decoration: none; }
 .nr-guide section { scroll-margin-top: 72px; }
-.nr-guide h2 { font-size: 17px; margin: 0 0 6px; }
+.nr-guide h2 { font-size: 17px; line-height: 1.4; margin: 0 0 6px; }
 .nr-guide p { margin: 0; }
 .nr-steps { margin: 10px 0 0; padding-inline-start: 22px; display: grid; gap: 6px; }
 .nr-qa { margin: 6px 0 0; }
@@ -88,22 +84,23 @@ button.nr-link { font: inherit; font-size: 13.5px; background: none; border: 0; 
 /* first-run checklist */
 .nr-check { display: grid; gap: 10px; }
 .nr-check ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.nr-check li a { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; text-decoration: none;
-  color: inherit; background: var(--raised); }
-.nr-check .tick { width: 20px; height: 20px; flex: none; border-radius: 50%; border: 1.5px solid var(--line);
+.nr-check li a { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm); text-decoration: none;
+  color: inherit; background: var(--raised); transition: background-color 0.15s; }
+.nr-check li a:hover { background: var(--sunken); }
+.nr-check .tick { width: 20px; height: 20px; flex: none; border-radius: 50%; border: 1.5px solid var(--line-strong);
   display: inline-grid; place-items: center; }
-.nr-check li.done .tick { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.nr-check li.done .tick { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .nr-check li.done .label { color: var(--muted); text-decoration: line-through; }
 .nr-check .state { margin-inline-start: auto; font-size: 11.5px; color: var(--muted); }
-.nr-meter { height: 4px; border-radius: 999px; background: var(--line-soft); overflow: hidden; }
+.nr-meter { height: 4px; border-radius: 999px; background: var(--sunken); overflow: hidden; }
 .nr-meter span { display: block; height: 100%; background: var(--accent); }
 
 /* landing and public pages */
 .nr-land { max-width: 760px; margin: 0 auto; padding: calc(env(safe-area-inset-top, 0px) + 28px) 16px 48px; }
 .nr-hero h1 { font-size: 27px; line-height: 1.55; margin: 18px 0 8px; }
 .nr-hero p { color: var(--muted); font-size: 15px; margin: 0; }
-.nr-features { display: grid; gap: 10px; margin-top: 24px; }
-.nr-feature { background: var(--surface); border: 1px solid var(--line-soft); border-radius: 14px; padding: 16px; }
+.nr-features { display: grid; gap: 12px; margin-top: 24px; }
+.nr-feature { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }
 .nr-feature svg { color: var(--accent); width: 22px; height: 22px; }
 .nr-feature h3 { font-size: 15px; margin: 8px 0 4px; }
 .nr-feature p { margin: 0; color: var(--muted); font-size: 13px; }
@@ -117,11 +114,11 @@ button.nr-link { font: inherit; font-size: 13.5px; background: none; border: 0; 
 
 /* desk switcher */
 .nr-switch { position: relative; min-width: 0; }
-.nr-switch > summary { list-style: none; cursor: pointer; border-radius: 10px; padding: 4px 6px; margin: -4px -6px; }
+.nr-switch > summary { list-style: none; cursor: pointer; border-radius: var(--radius-sm); padding: 4px 8px; margin: -4px -8px; transition: background-color 0.15s; }
 .nr-switch > summary::-webkit-details-marker { display: none; }
 .nr-switch > summary:hover { background: var(--raised); }
 .nr-switch > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .nr-switch-menu { position: absolute; inset-inline-start: 0; top: calc(100% + 8px); z-index: 10; display: grid; gap: 2px;
-  min-width: 240px; max-width: calc(100vw - 32px); padding: 6px; border-radius: 12px; background: var(--surface);
-  border: 1px solid var(--line-soft); box-shadow: 0 10px 28px rgb(0 0 0 / 0.14); }
+  min-width: 260px; max-width: calc(100vw - 32px); padding: 6px; border-radius: 12px; background: var(--surface);
+  border: 1px solid var(--line); box-shadow: var(--shadow-lg); }
 .nr-switch-role { margin-inline-start: auto; font-size: 11px; color: var(--faint); }

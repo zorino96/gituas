@@ -230,80 +230,84 @@ export function OrdersClient({ orders, cityCards, products }: { orders: OrderVie
 
       <SaveMessage message={message} />
 
-      {cityCards.length > 0 && (
-        <div className="gm-card" style={{ marginBottom: 12 }}>
-          <p className="gm-sec" style={{ margin: 0 }}>
-            {od.byCity}
-          </p>
-          {cityCards.map((card) => (
-            <div key={card.currency}>
-              {cityCards.length > 1 && (
-                <p className="gm-hint" style={{ marginTop: 10 }}>
-                  {card.currency === "USD" ? od.usd : od.iqd}
-                </p>
-              )}
-              {card.rows.map((r) => (
-                <div key={r.city} className="gm-target">
-                  <div>
-                    <p>{r.city}</p>
-                    <small>{od.count(r.count)}</small>
-                  </div>
-                  <span>{formatMoney(r.totalMinor, card.currency, lang)}</span>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {orders.length === 0 && editing !== "new" ? (
-        <div className="gm-empty">
-          <b className="kufi">{od.emptyTitle}</b>
-          {od.emptyBody}
-        </div>
-      ) : shown.length === 0 ? (
-        <p className="gm-note">{od.noneInStatus}</p>
-      ) : (
-        <div className="gm-card">
-          {shown.map((o) =>
-            editing === o.id ? (
-              <div key={o.id} style={{ padding: "12px 0" }}>
-                <OrderEditor products={products} order={o} onDone={() => setEditing(null)} />
-              </div>
-            ) : (
-              <div key={o.id} className="gm-target">
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p>
-                    {o.customerName || "—"} {sourceLabel[o.source] && <span className="gm-badge ghost">{sourceLabel[o.source]}</span>}
+      <div className={cityCards.length > 0 ? "gm-split" : undefined}>
+        {cityCards.length > 0 && (
+          <div className="gm-card gm-split-aside" style={{ marginBottom: 12 }}>
+            <p className="gm-sec" style={{ margin: 0 }}>
+              {od.byCity}
+            </p>
+            {cityCards.map((card) => (
+              <div key={card.currency}>
+                {cityCards.length > 1 && (
+                  <p className="gm-hint" style={{ marginTop: 10 }}>
+                    {card.currency === "USD" ? od.usd : od.iqd}
                   </p>
-                  <small>{[cityLabel(o.city, lang), [o.productName, o.variantLabel].filter(Boolean).join(" — ")].filter(Boolean).join(" · ") || "—"}</small>
-                  <small>
-                    {o.amountMinor > 0 ? formatMoney(o.amountMinor, o.currency, lang) : "—"}
-                    {o.cod ? ` · ${od.cod}` : ""}
-                  </small>
-                  {o.phone && (
-                    <small className="gm-ltr" dir="ltr">
-                      +{o.phone}
-                    </small>
-                  )}
-                </div>
-                <div className="gm-stack" style={{ alignItems: "stretch", gap: 6 }}>
-                  <select className="gm-input" aria-label={od.statusAria} value={o.status} disabled={pending} onChange={(e) => run(() => setOrderStatusAction(o.id, e.target.value))}>
-                    {STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {statusLabel[s]}
-                      </option>
-                    ))}
-                  </select>
-                  <button type="button" className="gm-btn small quiet" disabled={pending} onClick={() => open(o.id)}>
-                    {od.edit}
-                  </button>
-                </div>
+                )}
+                {card.rows.map((r) => (
+                  <div key={r.city} className="gm-target">
+                    <div>
+                      <p>{r.city}</p>
+                      <small>{od.count(r.count)}</small>
+                    </div>
+                    <span>{formatMoney(r.totalMinor, card.currency, lang)}</span>
+                  </div>
+                ))}
               </div>
-            ),
+            ))}
+          </div>
+        )}
+
+        <div className="gm-split-main">
+          {orders.length === 0 && editing !== "new" ? (
+            <div className="gm-empty">
+              <b className="kufi">{od.emptyTitle}</b>
+              {od.emptyBody}
+            </div>
+          ) : shown.length === 0 ? (
+            <p className="gm-note">{od.noneInStatus}</p>
+          ) : (
+            <div className="gm-card">
+              {shown.map((o) =>
+                editing === o.id ? (
+                  <div key={o.id} style={{ padding: "12px 0" }}>
+                    <OrderEditor products={products} order={o} onDone={() => setEditing(null)} />
+                  </div>
+                ) : (
+                  <div key={o.id} className="gm-target">
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p>
+                        {o.customerName || "—"} {sourceLabel[o.source] && <span className="gm-badge ghost">{sourceLabel[o.source]}</span>}
+                      </p>
+                      <small>{[cityLabel(o.city, lang), [o.productName, o.variantLabel].filter(Boolean).join(" — ")].filter(Boolean).join(" · ") || "—"}</small>
+                      <small>
+                        {o.amountMinor > 0 ? formatMoney(o.amountMinor, o.currency, lang) : "—"}
+                        {o.cod ? ` · ${od.cod}` : ""}
+                      </small>
+                      {o.phone && (
+                        <small className="gm-ltr" dir="ltr">
+                          +{o.phone}
+                        </small>
+                      )}
+                    </div>
+                    <div className="gm-stack" style={{ alignItems: "stretch", gap: 6 }}>
+                      <select className="gm-input" aria-label={od.statusAria} value={o.status} disabled={pending} onChange={(e) => run(() => setOrderStatusAction(o.id, e.target.value))}>
+                        {STATUSES.map((s) => (
+                          <option key={s} value={s}>
+                            {statusLabel[s]}
+                          </option>
+                        ))}
+                      </select>
+                      <button type="button" className="gm-btn small quiet" disabled={pending} onClick={() => open(o.id)}>
+                        {od.edit}
+                      </button>
+                    </div>
+                  </div>
+                ),
+              )}
+            </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

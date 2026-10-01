@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MessageCircle, MessagesSquare, Phone, SquarePlus } from "lucide-react";
 
 import { currentWorkspace, loadConnections, loadConversations, loadInsights, loadPosts } from "./data";
 import { dict, getLang } from "@/lib/i18n";
@@ -43,63 +44,72 @@ export default async function TodayPage() {
         </div>
       )}
 
-      <div className="gm-strip">
-        <Link href="/app/comments" className={`gm-cell ${counts.unanswered ? "hot" : ""}`}>
+      <div className="gm-stats">
+        <Link href="/app/comments" className={`gm-stat ${counts.unanswered ? "hot" : ""}`}>
+          <span className="gm-stat-icon" aria-hidden="true"><MessagesSquare /></span>
           <b>{num(counts.unanswered)}</b>
           <span>{t.home.unansweredComments}</span>
         </Link>
-        <Link href="/app/messages" className={`gm-cell ${waitingConvs.length ? "hot" : ""}`}>
+        <Link href="/app/messages" className={`gm-stat ${waitingConvs.length ? "hot" : ""}`}>
+          <span className="gm-stat-icon" aria-hidden="true"><MessageCircle /></span>
           <b>{num(waitingConvs.length)}</b>
           <span>{t.home.waitingMessages}</span>
         </Link>
-        <Link href="/app/publish" className="gm-cell">
+        <Link href="/app/publish" className="gm-stat">
+          <span className="gm-stat-icon" aria-hidden="true"><SquarePlus /></span>
           <b>{num(postsThisWeek)}</b>
           <span>{t.home.postsThisWeek}</span>
         </Link>
-        <Link href="/app/insights" className="gm-cell">
+        <Link href="/app/insights" className="gm-stat">
+          <span className="gm-stat-icon" aria-hidden="true"><Phone /></span>
           <b>{num(insights.waTaps7d)}</b>
           <span>{t.home.whatsappTaps}</span>
         </Link>
       </div>
 
-      <p className="gm-sec">{t.home.unansweredComments}</p>
-      {unanswered.length === 0 ? (
-        <p className="gm-note">{anyConnected ? t.home.noCommentsWaiting : t.home.appearAfterConnect}</p>
-      ) : (
-        <div className="gm-stack">
-          {unanswered.map(({ c, p }) => (
-            <Link key={`${c.platform}-${c.id}`} href="/app/comments" className="gm-card" style={{ textDecoration: "none", color: "inherit" }}>
-              <div className="gm-between">
-                <span className="gm-who" dir="auto">{c.author || t.common.user}</span>
-                <span className="gm-time">{ago(c.createdAt, t)}</span>
-              </div>
-              <p className="gm-text" dir="auto">{c.text}</p>
-              <div className="gm-row" style={{ gap: 6 }}>
-                <span className={`gm-plat ${p.platform}`}>{t.platform[p.platform]}</span>
-                <span className="gm-badge warn">{t.home.waitingBadge}</span>
-              </div>
-            </Link>
-          ))}
+      <div className="gm-cols-2">
+        <div>
+          <p className="gm-sec">{t.home.unansweredComments}</p>
+          {unanswered.length === 0 ? (
+            <p className="gm-note">{anyConnected ? t.home.noCommentsWaiting : t.home.appearAfterConnect}</p>
+          ) : (
+            <div className="gm-stack">
+              {unanswered.map(({ c, p }) => (
+                <Link key={`${c.platform}-${c.id}`} href="/app/comments" className="gm-card" style={{ textDecoration: "none", color: "inherit" }}>
+                  <div className="gm-between">
+                    <span className="gm-who" dir="auto">{c.author || t.common.user}</span>
+                    <span className="gm-time">{ago(c.createdAt, t)}</span>
+                  </div>
+                  <p className="gm-text" dir="auto">{c.text}</p>
+                  <div className="gm-row" style={{ gap: 6 }}>
+                    <span className={`gm-plat ${p.platform}`}>{t.platform[p.platform]}</span>
+                    <span className="gm-badge warn">{t.home.waitingBadge}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
-      )}
-
-      <p className="gm-sec">{t.home.waitingMessages}</p>
-      {waitingConvs.length === 0 ? (
-        <p className="gm-note">{t.home.noMessagesWaiting}</p>
-      ) : (
-        <div className="gm-stack">
-          {waitingConvs.slice(0, 5).map((c) => (
-            <Link key={`${c.platform}-${c.id}`} href="/app/messages" className="gm-card" style={{ textDecoration: "none", color: "inherit" }}>
-              <div className="gm-between">
-                <span className="gm-who" dir="auto">{c.participantName || t.home.customer}</span>
-                <span className="gm-time">{ago(c.updatedAt, t)}</span>
-              </div>
-              <p className="gm-text" dir="auto">{c.messages[c.messages.length - 1]?.text || t.common.mediaOrFile}</p>
-              <span className={`gm-plat ${c.platform}`}>{t.platform[c.platform]}</span>
-            </Link>
-          ))}
+        <div>
+          <p className="gm-sec">{t.home.waitingMessages}</p>
+          {waitingConvs.length === 0 ? (
+            <p className="gm-note">{t.home.noMessagesWaiting}</p>
+          ) : (
+            <div className="gm-stack">
+              {waitingConvs.slice(0, 5).map((c) => (
+                <Link key={`${c.platform}-${c.id}`} href="/app/messages" className="gm-card" style={{ textDecoration: "none", color: "inherit" }}>
+                  <div className="gm-between">
+                    <span className="gm-who" dir="auto">{c.participantName || t.home.customer}</span>
+                    <span className="gm-time">{ago(c.updatedAt, t)}</span>
+                  </div>
+                  <p className="gm-text" dir="auto">{c.messages[c.messages.length - 1]?.text || t.common.mediaOrFile}</p>
+                  <span className={`gm-plat ${c.platform}`}>{t.platform[c.platform]}</span>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

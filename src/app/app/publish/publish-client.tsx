@@ -319,7 +319,7 @@ export function PublishClient({
 
   if (results) {
     return (
-      <div>
+      <div className="gm-narrow">
         <h2 className="gm-title kufi">{t.publish.resultsTitle}</h2>
         <div className="gm-card" style={{ marginTop: 12 }}>
           {results.map((r) => (
@@ -362,7 +362,7 @@ export function PublishClient({
   }
 
   return (
-    <div>
+    <div className="gm-narrow">
       <h2 className="gm-title kufi">{t.publish.title}</h2>
       <p className="gm-sub">{t.publish.sub}</p>
       {isNewsroom && !newsDraftId && !media && (
