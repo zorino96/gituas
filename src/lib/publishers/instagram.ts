@@ -24,6 +24,16 @@ import type { PublishResult } from "./index";
 export const HOST = "https://graph.instagram.com";
 export const V = `${HOST}/v25.0`;
 
+/** No Graph call in the publish path may hang longer than this. */
+const CALL_TIMEOUT_MS = 15_000;
+/** Under a deadline, the calls a post can do without (the quota look-up, the permalink) get this at most. */
+const ASIDE_TIMEOUT_MS = 5_000;
+/** The container is asked for its status this often, at most this many times. */
+const POLL_EVERY_MS = 5_000;
+const MAX_POLLS = 9;
+/** Under a deadline, media_publish is only sent with this much of it left. */
+const PUBLISH_RESERVE_MS = 8_000;
+
 export interface IgCred {
   id: string;
   igUserId: string;
@@ -65,6 +75,7 @@ export async function lazyRefresh(cred: IgCred): Promise<IgCred> {
   try {
     const r = await fetch(
       `${HOST}/refresh_access_token?grant_type=ig_refresh_token&access_token=${encodeURIComponent(cred.token)}`,
+      { signal: AbortSignal.timeout(CALL_TIMEOUT_MS) },
     );
     const j = await r.json();
     if (r.ok && j?.access_token) {
@@ -91,10 +102,26 @@ export interface IgPublishInput {
   surface?: "FEED" | "STORY";
 }
 
+/**
+ * Publish one photo, Reel or Story. Every Graph call times out after 15 s.
+ *
+ * `deadlineMs` is how long the whole publish may take, for a caller with a hard limit of its
+ * own (the newsroom autopilot gives 30 s). Under it the container is polled only while there
+ * is still time to publish, and media_publish is not sent at all once too little is left: a
+ * post that goes out after the caller stopped listening would never be recorded. Without it
+ * the publish waits for the container as it always did (up to about 45 s).
+ */
 export async function publishToInstagram(
   tenantId: string,
   content: IgPublishInput,
+  deadlineMs?: number,
 ): Promise<PublishResult> {
+  const until = deadlineMs === undefined ? Infinity : Date.now() + deadlineMs;
+  const left = () => until - Date.now();
+  /** The timeout for one call: 15 s, or what is left of the deadline when that is less. */
+  const timeout = (most = CALL_TIMEOUT_MS) => AbortSignal.timeout(Math.max(1_000, Math.min(most, left())));
+  const aside = () => timeout(until === Infinity ? CALL_TIMEOUT_MS : ASIDE_TIMEOUT_MS);
+
   let cred = await loadCred(tenantId);
   if (!cred) return { ok: false, error: "Instagram not connected (or token expired — reconnect)" };
   if (!/^https:\/\//i.test(content.mediaUrl)) {
@@ -106,6 +133,7 @@ export async function publishToInstagram(
   try {
     const q = await fetch(
       `${V}/${cred.igUserId}/content_publishing_limit?fields=quota_usage,config&access_token=${encodeURIComponent(cred.token)}`,
+      { signal: aside() },
     ).then((r) => r.json());
     const usage = q?.data?.[0]?.quota_usage;
     const total = q?.data?.[0]?.config?.quota_total;
@@ -132,28 +160,39 @@ export async function publishToInstagram(
     if (isVideo) params.share_to_feed = "true";
   }
 
-  const containerRes = await fetch(`${V}/${cred.igUserId}/media`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams(params).toString(),
-  });
-  const containerJson = await containerRes.json();
-  if (!containerRes.ok || !containerJson?.id) {
-    return {
-      ok: false,
-      error: `Instagram container ${containerRes.status}: ${JSON.stringify(containerJson?.error ?? containerJson).slice(0, 250)}`,
-    };
+  let containerId: string;
+  try {
+    const containerRes = await fetch(`${V}/${cred.igUserId}/media`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(params).toString(),
+      signal: timeout(),
+    });
+    const containerJson = await containerRes.json();
+    if (!containerRes.ok || !containerJson?.id) {
+      return {
+        ok: false,
+        error: `Instagram container ${containerRes.status}: ${JSON.stringify(containerJson?.error ?? containerJson).slice(0, 250)}`,
+      };
+    }
+    containerId = String(containerJson.id);
+  } catch {
+    // Nothing is live yet: a container that was never published is simply dropped by Meta.
+    return { ok: false, error: "Instagram did not answer while preparing the post — retry shortly" };
   }
-  const containerId = String(containerJson.id);
 
   // 2. Poll until FINISHED. Images are usually ready on the first check; videos
-  //    take longer. Bounded (~45s) to stay inside serverless limits.
+  //    take longer. Bounded (~45s) to stay inside serverless limits, and under a
+  //    deadline only for as long as there is still time left to publish.
   let status = "IN_PROGRESS";
-  for (let i = 0; i < 9 && status === "IN_PROGRESS"; i++) {
-    if (i > 0 || isVideo) await new Promise((r) => setTimeout(r, 5000));
+  for (let i = 0; i < MAX_POLLS && status === "IN_PROGRESS"; i++) {
+    const pause = i > 0 || isVideo ? POLL_EVERY_MS : 0;
+    if (left() < pause + PUBLISH_RESERVE_MS) break;
+    if (pause) await new Promise((r) => setTimeout(r, pause));
     try {
       const s = await fetch(
         `${V}/${containerId}?fields=status_code&access_token=${encodeURIComponent(cred.token)}`,
+        { signal: timeout() },
       ).then((r) => r.json());
       status = s?.status_code ?? status;
     } catch {
@@ -170,31 +209,44 @@ export async function publishToInstagram(
     };
   }
 
-  // 3. Publish
-  const pubRes = await fetch(`${V}/${cred.igUserId}/media_publish`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ creation_id: containerId, access_token: cred.token }).toString(),
-  });
-  const pub = await pubRes.json();
-  if (!pubRes.ok || !pub?.id) {
-    return {
-      ok: false,
-      error: `Instagram publish ${pubRes.status}: ${JSON.stringify(pub?.error ?? pub).slice(0, 250)}`,
-    };
+  // 3. Publish. Under a deadline this is only sent with time enough to hear the answer.
+  if (left() < PUBLISH_RESERVE_MS) {
+    return { ok: false, error: `Instagram container ${containerId} was ready too late to publish in time — retry the publish shortly` };
+  }
+  let mediaId: string;
+  try {
+    const pubRes = await fetch(`${V}/${cred.igUserId}/media_publish`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ creation_id: containerId, access_token: cred.token }).toString(),
+      signal: timeout(),
+    });
+    const pub = await pubRes.json();
+    if (!pubRes.ok || !pub?.id) {
+      return {
+        ok: false,
+        error: `Instagram publish ${pubRes.status}: ${JSON.stringify(pub?.error ?? pub).slice(0, 250)}`,
+      };
+    }
+    mediaId = String(pub.id);
+  } catch {
+    // The request was sent and no answer came: the post may be live all the same.
+    return { ok: false, error: "Instagram did not answer the publish call — check the account before posting again" };
   }
 
-  await db.oAuthCredential.update({ where: { id: cred.id }, data: { lastUsedAt: new Date() } });
+  // The post is live from here on: nothing below may turn that into a reported failure.
+  await db.oAuthCredential.update({ where: { id: cred.id }, data: { lastUsedAt: new Date() } }).catch(() => undefined);
 
   let permalinkUrl: string | undefined;
   try {
     const p = await fetch(
-      `${V}/${pub.id}?fields=permalink&access_token=${encodeURIComponent(cred.token)}`,
+      `${V}/${mediaId}?fields=permalink&access_token=${encodeURIComponent(cred.token)}`,
+      { signal: aside() },
     ).then((r) => r.json());
     permalinkUrl = p?.permalink ?? undefined;
   } catch {
     /* permalink is nice-to-have */
   }
 
-  return { ok: true, externalId: String(pub.id), permalinkUrl };
+  return { ok: true, externalId: mediaId, permalinkUrl };
 }

@@ -1,4 +1,4 @@
-import { refreshSecFor } from "@/lib/billing/plans";
+import { canAutoPublish, refreshSecFor } from "@/lib/billing/plans";
 import { newsroomAccess } from "@/lib/billing/trial";
 import { db } from "@/lib/db";
 import { runAutopilot } from "./autopilot";
@@ -15,8 +15,15 @@ export const TICK_GRACE_MS = 20_000;
 const SECOND_PASS_AT_MS = 30_000;
 /** No second pass when the first one already took this long. */
 const SECOND_PASS_LATEST_START_MS = 25_000;
-/** The tick answers by this mark whatever is still running (the route's limit is 60 s). */
-const HARD_STOP_MS = 50_000;
+/** No desk, and no story, is started after this mark. */
+const SOFT_STOP_MS = 40_000;
+/**
+ * Work already running is waited for until this mark, and only then is the tick's answer sent
+ * without it (the route's limit is 60 s). A post that is on its way out must be seen through:
+ * left behind, it would go out and never be recorded. The autopilot starts no post it cannot
+ * finish by this mark, so the wait is there for the work to end, not to be cut off.
+ */
+const HARD_STOP_MS = 58_000;
 const CONCURRENCY = 3;
 /** Desks served per tick, most overdue first; the rest wait for the next tick. */
 const MAX_DESKS = 40;
@@ -26,6 +33,9 @@ export interface Desk {
   tenantId: string;
   plan: string;
   lastFetchedAt: Date | null;
+  /** The autopilot posts by itself here: PUBLISH mode on a plan that allows it. */
+  posts: boolean;
+  lastAutoAt: Date | null;
 }
 
 /** The desks whose plan interval is up (less the grace), the most overdue first; a desk never fetched comes first. */
@@ -34,6 +44,19 @@ export function dueDesks<T extends { plan: string; lastFetchedAt: Date | null }>
   return desks
     .filter((d) => !d.lastFetchedAt || now - d.lastFetchedAt.getTime() >= refreshSecFor(d.plan) * 1000 - graceMs)
     .sort((a, b) => age(a) - age(b));
+}
+
+/**
+ * The order the desks are served in. A post can only be started early in a tick, so the desks
+ * that post by themselves go first, and among them the one whose last automatic post is oldest
+ * (a desk that never posted before all): with many desks they take turns at that early window
+ * instead of the same few having it every time. The other desks follow in the order given.
+ */
+export function postingDesksFirst<T extends { posts: boolean; lastAutoAt: Date | null }>(desks: T[]): T[] {
+  const last = (d: T) => (d.lastAutoAt ? d.lastAutoAt.getTime() : -Infinity);
+  // Array.prototype.sort is stable, so equal desks keep the order they came in.
+  const posting = desks.filter((d) => d.posts).sort((a, b) => (last(a) === last(b) ? 0 : last(a) < last(b) ? -1 : 1));
+  return [...posting, ...desks.filter((d) => !d.posts)];
 }
 
 /** How long to wait before the second pass for 30-second desks, or null when there should be none. */
@@ -78,14 +101,14 @@ async function withDeadline<T>(work: Promise<T>, ms: number): Promise<T | "timeo
 
 /**
  * One desk, one pass: fetch its stories, classify them, then let the autopilot act. A failing step
- * never stops the next. `msLeft` says how long the tick still has: the autopilot is given that as
- * its own deadline, so it never starts a post it has no time to finish.
+ * never stops the next. `msLeft` says how long the tick still has, to start stories in and to
+ * finish in: the autopilot is given both, so it never starts a post it has no time to finish.
  */
 async function serveDesk(
   tenantId: string,
   graceMs: number,
   totals: Pick<TickResult, "added" | "drafted" | "published" | "errors">,
-  msLeft: () => number,
+  msLeft: () => { toStart: number; toFinish: number },
 ): Promise<void> {
   try {
     totals.added += (await ingest(tenantId, { graceMs })).added;
@@ -100,7 +123,9 @@ async function serveDesk(
     console.error("[news tick] classify failed:", e instanceof Error ? e.message : "unknown error");
   }
   try {
-    const r = await runAutopilot(tenantId, { deadline: Date.now() + msLeft() });
+    const now = Date.now();
+    const { toStart, toFinish } = msLeft();
+    const r = await runAutopilot(tenantId, { deadline: now + toFinish, startBy: now + toStart });
     totals.drafted += r.drafted;
     totals.published += r.published;
   } catch (e) {
@@ -112,15 +137,19 @@ async function serveDesk(
 /**
  * Serves every newsroom that has the autopilot on, not frozen and due by its plan interval: ingest,
  * classify, then the autopilot. After the first pass, if a 30-second desk was served and less than
- * 25 s have gone, it waits for the 30 s mark and serves the 30-second desks once more. It never
- * runs past 50 s.
+ * 25 s have gone, it waits for the 30 s mark and serves the 30-second desks once more. It starts
+ * nothing after 40 s, waits for what is already running, and never runs past 58 s.
  */
 export async function tickNewsrooms(clock: Clock = realClock): Promise<TickResult> {
   const started = clock.now();
+  const startBy = started + SOFT_STOP_MS;
   const deadline = started + HARD_STOP_MS;
   const totals: TickResult = { desks: 0, served: 0, secondPass: 0, added: 0, drafted: 0, published: 0, errors: 0, timedOut: 0, ms: 0 };
 
-  const settings = await db.newsSettings.findMany({ where: { autoMode: { not: "OFF" } }, select: { tenantId: true, lastFetchedAt: true } });
+  const settings = await db.newsSettings.findMany({
+    where: { autoMode: { not: "OFF" } },
+    select: { tenantId: true, lastFetchedAt: true, autoMode: true, lastAutoAt: true },
+  });
   const tenants = settings.length
     ? await db.tenant.findMany({
         where: { id: { in: settings.map((s) => s.tenantId) }, kind: "NEWS" },
@@ -129,22 +158,30 @@ export async function tickNewsrooms(clock: Clock = realClock): Promise<TickResul
     : [];
   const at = new Date(started);
   const live = new Map(tenants.filter((t) => newsroomAccess(t, at).active).map((t) => [t.id, t.plan]));
-  const desks: Desk[] = settings.filter((s) => live.has(s.tenantId)).map((s) => ({ tenantId: s.tenantId, plan: live.get(s.tenantId)!, lastFetchedAt: s.lastFetchedAt }));
+  const desks: Desk[] = settings
+    .filter((s) => live.has(s.tenantId))
+    .map((s) => {
+      const plan = live.get(s.tenantId)!;
+      return { tenantId: s.tenantId, plan, lastFetchedAt: s.lastFetchedAt, posts: s.autoMode === "PUBLISH" && canAutoPublish(plan), lastAutoAt: s.lastAutoAt };
+    });
   totals.desks = desks.length;
 
-  /** Serve `list` with a few desks at a time, until `deadline`. Returns how many were handled. */
+  /**
+   * Serve `list` with a few desks at a time. No desk is started after `startBy`; a desk already
+   * started is waited for until `deadline`. Returns how many were handled.
+   */
   async function pass(list: Desk[]): Promise<number> {
     let next = 0;
     let handled = 0;
+    const msLeft = () => ({ toStart: startBy - clock.now(), toFinish: deadline - clock.now() });
     const worker = async () => {
       while (next < list.length) {
         const desk = list[next++];
-        const left = deadline - clock.now();
-        if (left <= 0) {
+        if (clock.now() >= startBy) {
           totals.timedOut++;
           continue;
         }
-        const r = await withDeadline(serveDesk(desk.tenantId, TICK_GRACE_MS, totals, () => deadline - clock.now()), left);
+        const r = await withDeadline(serveDesk(desk.tenantId, TICK_GRACE_MS, totals, msLeft), deadline - clock.now());
         if (r === "timeout") totals.timedOut++;
         else handled++;
       }
@@ -153,7 +190,8 @@ export async function tickNewsrooms(clock: Clock = realClock): Promise<TickResul
     return handled;
   }
 
-  const due = dueDesks(desks, started).slice(0, MAX_DESKS);
+  // The forty most overdue are served, so no desk waits for ever; among those the posting desks go first, in turn.
+  const due = postingDesksFirst(dueDesks(desks, started).slice(0, MAX_DESKS));
   totals.served = await pass(due);
 
   const fast = due.filter((d) => refreshSecFor(d.plan) === FAST_SEC);

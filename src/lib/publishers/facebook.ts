@@ -22,6 +22,11 @@ import type { PublishResult } from "./index";
 
 export const FB_V = "https://graph.facebook.com/v25.0";
 
+/** No Graph call in the publish path may hang longer than this. */
+const CALL_TIMEOUT_MS = 15_000;
+/** A video is answered only after Facebook has pulled the whole file, so that one call gets longer. */
+const VIDEO_TIMEOUT_MS = 50_000;
+
 export interface FbCred {
   id: string;
   /** The Facebook Page id (stored in OAuthCredential.providerAccountId). */
@@ -88,6 +93,7 @@ export async function publishToFacebookPage(
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams(params).toString(),
+      signal: AbortSignal.timeout(hasMedia && isVideo ? VIDEO_TIMEOUT_MS : CALL_TIMEOUT_MS),
     });
     const j = await res.json();
     // feed → {id}; photos → {id, post_id}; videos → {id}
@@ -96,12 +102,14 @@ export async function publishToFacebookPage(
       return { ok: false, error: `Facebook publish ${res.status}: ${JSON.stringify(j?.error ?? j).slice(0, 250)}` };
     }
 
-    await db.oAuthCredential.update({ where: { id: cred.id }, data: { lastUsedAt: new Date() } });
+    // The post is live from here on: nothing below may turn that into a reported failure.
+    await db.oAuthCredential.update({ where: { id: cred.id }, data: { lastUsedAt: new Date() } }).catch(() => undefined);
 
     let permalinkUrl: string | undefined;
     try {
       const p = await fetch(
         `${FB_V}/${externalId}?fields=permalink_url&access_token=${encodeURIComponent(cred.token)}`,
+        { signal: AbortSignal.timeout(CALL_TIMEOUT_MS) },
       ).then((r) => r.json());
       permalinkUrl = p?.permalink_url
         ? (p.permalink_url.startsWith("http") ? p.permalink_url : `https://www.facebook.com${p.permalink_url}`)

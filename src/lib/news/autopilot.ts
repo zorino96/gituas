@@ -6,7 +6,11 @@
 // - it only ever posts to Facebook and Instagram (AUTO_TARGETS), and only to connected pages;
 // - it posts by itself only on a plan that allows it, otherwise it only drafts;
 // - a story is stamped as tried before anything is written, so it is handled once;
+// - a story an editor dismissed, in any of its articles, is never touched;
+// - an event the desk already wrote about in the last two days is drafted but not posted;
 // - quotas, the daily maximum and the gap between posts are checked again before every story;
+// - the posting slot is taken in the database before the card is made, so two runs cannot both post;
+// - a post is only started with time enough to finish and be recorded;
 // - one failing story is logged and the next one still runs. runAutopilot never throws.
 import type { Prisma } from "@/generated/prisma/client";
 import { loadConnections } from "@/app/app/data";
@@ -21,6 +25,7 @@ import { publishForWorkspace } from "@/lib/merchant/publish-core";
 import { AUTO_TARGETS, autoTargetsFor, type AutoMode, type AutoTarget } from "./autopilot-settings";
 import { RETRY_DEADLINE_MS } from "./draft";
 import { matchesChoice, normalizeChoice } from "./taxonomy";
+import { sameStoryTooClose } from "./voice";
 import { writeDraft } from "./write";
 
 /** Stories handled in one run, at most. */
@@ -28,21 +33,33 @@ export const AUTO_MAX_PER_TICK = 3;
 /** A story older than this is no longer news for the autopilot. */
 export const AUTO_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
-/** A run called without a deadline gives itself this long. */
-const DEFAULT_RUN_MS = 45_000;
+/** A run called without a deadline gives itself this long: the background tick's own limit. */
+const DEFAULT_RUN_MS = 58_000;
 /** No new story is started with less than this left. */
 const MIN_STORY_MS = 12_000;
+/**
+ * The post is only sent with this much left. A post cut off half-way is out on the page but
+ * not in our records, which is the one thing that must not happen: Instagram is given 30 s at
+ * most (IG_PUBLISH_MS), Facebook needs no more, and the rest is for writing down what went out.
+ */
+const POST_MIN_MS = 35_000;
+/** The longest the Instagram part of an automatic post may take. */
+const IG_PUBLISH_MS = 30_000;
+/** The card is only rendered with this much left; redrafting in publish mode stops this early too. */
+const RENDER_MIN_MS = POST_MIN_MS + 5_000;
 /**
  * A story that will also be posted needs this much: the draft, the card and the post. With
  * less, it is not started at all and waits, untouched, for the next run.
  */
-const POST_STORY_MS = 30_000;
+const POST_STORY_MS = RENDER_MIN_MS + 8_000;
 /** In draft mode, redrafting stops this long before the deadline. */
 const WRITE_RESERVE_MS = 3_000;
-/** The card is only rendered with this much left; redrafting in publish mode stops this early too. */
-const RENDER_MIN_MS = 15_000;
-/** The post is only sent with this much left: a post cut off half-way is the one thing worth avoiding. */
-const POST_MIN_MS = 10_000;
+
+/** An item in one of these states closes its whole story: it was written, posted, or thrown out by an editor. */
+const CLOSING_STATUSES = ["DRAFTED", "PUBLISHED", "DISMISSED"];
+/** How far back, and through how many of the desk's own drafts, a new draft is checked for the same event. */
+const SAME_EVENT_WINDOW_MS = 48 * 60 * 60 * 1000;
+const SAME_EVENT_DRAFTS = 30;
 
 // ─── Which stories ──────────────────────────────────────────────────────────
 
@@ -62,9 +79,10 @@ export interface CandidateItem {
  * published within the last six hours and never tried.
  *
  * One story per cluster: a cluster is closed when it is in `taken` (it already has a drafted,
- * published or tried item), or when an item in `items` shows the same. Of the items left in an
- * open cluster only the oldest is returned, so two runs looking at the same cluster reach for
- * the same item and the second one finds it claimed.
+ * published, dismissed or tried item), or when an item in `items` shows the same. A story an
+ * editor dismissed stays closed whichever of its articles arrives later. Of the items left in
+ * an open cluster only the oldest is returned, so two runs looking at the same cluster reach
+ * for the same item and the second one finds it claimed.
  */
 export function autopilotCandidates<T extends CandidateItem>(
   items: readonly T[],
@@ -74,7 +92,7 @@ export function autopilotCandidates<T extends CandidateItem>(
 ): T[] {
   const closed = new Set(taken);
   for (const it of items) {
-    if (it.status === "DRAFTED" || it.status === "PUBLISHED" || it.autoTriedAt) closed.add(it.clusterKey);
+    if (CLOSING_STATUSES.includes(it.status) || it.autoTriedAt) closed.add(it.clusterKey);
   }
   const oldestFirst = [...items].sort((a, b) => a.publishedAt.getTime() - b.publishedAt.getTime() || a.id.localeCompare(b.id));
   const out: T[] = [];
@@ -123,6 +141,8 @@ export interface Budget {
 
 const whole = (n: number) => (Number.isFinite(n) ? Math.floor(n) : 0);
 const left = (limit: number, used: number) => Math.max(0, whole(limit) - Math.max(0, whole(used)));
+/** The desk's minimum gap between two automatic posts, in milliseconds. */
+const gapMsOf = (minutes: number) => Math.max(0, whole(minutes)) * 60_000;
 
 /**
  * How many stories to draft and how many to post now, at most AUTO_MAX_PER_TICK.
@@ -149,7 +169,7 @@ export function autoBudget(b: BudgetInput): Budget {
   if (publishesLeft === 0) return none("publish-quota");
   const postsToday = left(b.autoDailyMax, b.autoPostsToday);
   if (postsToday === 0) return none("daily-max");
-  const gapMs = Math.max(0, whole(b.autoMinGapMin)) * 60_000;
+  const gapMs = gapMsOf(b.autoMinGapMin);
   if (gapMs > 0 && b.lastAutoAt && b.now - b.lastAutoAt.getTime() < gapMs) return none("min-gap");
   const publish = Math.min(draft, publishesLeft, postsToday, gapMs > 0 ? 1 : AUTO_MAX_PER_TICK);
   return { mode, draft: publish, publish, stop: null };
@@ -191,6 +211,8 @@ export interface AutopilotResult {
 export interface AutopilotOptions {
   /** When the run must be finished (epoch ms): the background tick passes its own limit. */
   deadline?: number;
+  /** No new story is started after this moment (epoch ms); a story already begun is finished. */
+  startBy?: number;
 }
 
 interface Story extends CandidateItem {
@@ -248,7 +270,7 @@ async function pickStories(tenantId: string, chosen: readonly string[], now: num
     where: {
       tenantId,
       clusterKey: { in: [...new Set(fresh.map((i) => i.clusterKey))] },
-      OR: [{ status: { in: ["DRAFTED", "PUBLISHED"] } }, { autoTriedAt: { not: null } }],
+      OR: [{ status: { in: CLOSING_STATUSES } }, { autoTriedAt: { not: null } }],
     },
     select: { clusterKey: true },
     distinct: ["clusterKey"],
@@ -257,7 +279,7 @@ async function pickStories(tenantId: string, chosen: readonly string[], now: num
 }
 
 /** The budget for the next story, from fresh numbers, and where it may be posted. */
-async function budgetNow(run: Run): Promise<{ budget: Budget; targets: AutoTarget[]; voiceNote: string | null } | null> {
+async function budgetNow(run: Run): Promise<{ budget: Budget; targets: AutoTarget[]; voiceNote: string | null; gapMs: number } | null> {
   const { tenantId } = run;
   const now = Date.now();
   const dayStart = utcDayStart(now);
@@ -299,20 +321,43 @@ async function budgetNow(run: Run): Promise<{ budget: Budget; targets: AutoTarge
     autoMinGapMin: settings.autoMinGapMin,
     now,
   });
-  return { budget, targets, voiceNote: settings.voiceNote };
+  return { budget, targets, voiceNote: settings.voiceNote, gapMs: gapMsOf(settings.autoMinGapMin) };
 }
 
 /**
- * Make the card and post the draft. True when the run may go on to the next story: the post
- * went out to at least one page and its time was saved. A post that did not go out is logged
- * and leaves the draft as it is, DRAFTED, for a person. It never throws.
+ * True when the desk already holds a draft, written in the last two days, that reads like this
+ * one. Stories are only clustered within one language, so the same event reported in Kurdish
+ * and in Arabic arrives as two stories; both are written in the desk's own language, and there
+ * the second one shows.
  */
-async function postDraft(run: Run, story: Story, draft: { id: string; headline: string; body: string }, targets: AutoTarget[]): Promise<boolean> {
+async function alreadyCovered(tenantId: string, draft: { id: string; headline: string; body: string }): Promise<boolean> {
+  const recent = await db.newsDraft.findMany({
+    where: { tenantId, id: { not: draft.id }, createdAt: { gte: new Date(Date.now() - SAME_EVENT_WINDOW_MS) } },
+    orderBy: { createdAt: "desc" },
+    take: SAME_EVENT_DRAFTS,
+    select: { headline: true, body: true },
+  });
+  return recent.some((other) => sameStoryTooClose(draft, other));
+}
+
+/**
+ * Make the card and post the draft. "next" when the run may go on to the next story: the post
+ * went out to at least one page, or the desk had this event already and nothing was posted.
+ * A post that did not go out is logged and leaves the draft as it is, DRAFTED, for a person.
+ * It never throws.
+ */
+async function postDraft(
+  run: Run,
+  story: Story,
+  draft: { id: string; headline: string; body: string },
+  targets: AutoTarget[],
+  gapMs: number,
+): Promise<"next" | "stop"> {
   const { tenantId } = run;
   const meta = { itemId: story.id, draftId: draft.id };
-  const failed = async (reasoning: string, e: unknown): Promise<false> => {
+  const failed = async (reasoning: string, e: unknown): Promise<"stop"> => {
     await noteFailure(tenantId, "news.autopilot_publish_failed", `${reasoning} The draft waits for a person.`, e, meta);
-    return false;
+    return "stop";
   };
   try {
     // The last guard before a post: only the allow-listed platforms, whatever reached this point.
@@ -320,16 +365,36 @@ async function postDraft(run: Run, story: Story, draft: { id: string; headline: 
     if (!allowed.length || allowed.length !== targets.length) return await failed("The autopilot had no allowed page to post to.", "no allowed target");
     if (run.deadline - Date.now() < RENDER_MIN_MS) return await failed("This run had no time left to make the card.", "out of time");
 
+    if (await alreadyCovered(tenantId, draft)) {
+      await note(tenantId, "news.autopilot_duplicate", "The desk already wrote about this event in the last two days, so the draft was not posted. It waits for a person.", meta);
+      return "next";
+    }
+
+    // Take the posting slot before anything goes out: of two runs that overlap, only one moves
+    // the time of the last automatic post, and only that one posts. The slot stays taken when
+    // the post then fails, so a failed attempt uses up the gap as well.
+    const now = Date.now();
+    const slot = await db.newsSettings.updateMany({
+      where: { tenantId, OR: [{ lastAutoAt: null }, { lastAutoAt: { lt: new Date(now - gapMs) } }] },
+      data: { lastAutoAt: new Date(now) },
+    });
+    if (slot.count !== 1) {
+      await note(tenantId, "news.autopilot_slot_taken", "Another run took this desk's posting slot first, so the draft was not posted. It waits for a person.", meta);
+      return "stop";
+    }
+
     const card = await renderAndStoreCard(draft.id, tenantId, renderOrigin());
     if (run.deadline - Date.now() < POST_MIN_MS) return await failed("This run had no time left to post the card.", "out of time");
 
     const results = await publishForWorkspace(
       { id: tenantId, kind: "NEWS", role: "OWNER" },
       {
-        caption: `${draft.headline.trim()}\n\n${draft.body.trim()}`,
+        // The caption is the text the card was rendered from, never an earlier copy of the draft.
+        caption: `${card.headline.trim()}\n\n${card.body.trim()}`,
         targets: allowed,
         media: { url: card.url, pathname: card.pathname, type: "IMAGE" },
         newsDraftId: draft.id,
+        igDeadlineMs: IG_PUBLISH_MS,
       },
     );
     if (!Array.isArray(results)) return await failed("The post was refused.", results.error);
@@ -347,13 +412,14 @@ async function postDraft(run: Run, story: Story, draft: { id: string; headline: 
       failed: results.filter((r) => !r.ok).map((r) => r.target),
     });
     try {
+      // The gap counts from when the post went out, a little after the slot was taken.
       await db.newsSettings.update({ where: { tenantId }, data: { lastAutoAt: new Date() }, select: { tenantId: true } });
     } catch (e) {
-      // Without the time of this post the gap cannot be kept, so the run ends here.
+      // The slot taken above already keeps the gap; with the database failing, the run ends here.
       await noteFailure(tenantId, "news.autopilot_failed", "The post went out, but its time could not be saved.", e, meta);
-      return false;
+      return "stop";
     }
-    return true;
+    return "next";
   } catch (e) {
     return failed("The card or the post failed.", e);
   }
@@ -382,9 +448,10 @@ async function handleStory(run: Run, story: Story): Promise<"next" | "stop"> {
       tenantId,
       clusterKey: story.clusterKey,
       id: { not: story.id },
-      OR: [{ status: { in: ["DRAFTED", "PUBLISHED"] } }, { autoTriedAt: { not: null } }],
+      OR: [{ status: { in: CLOSING_STATUSES } }, { autoTriedAt: { not: null } }],
     },
   });
+  // Or an editor dismissed one since the stories were picked.
   if (rivals > 0) return "next";
 
   // writeDraft stops redrafting 35 s after `startedAt`; move that moment to just before our deadline when it is nearer.
@@ -413,10 +480,10 @@ async function handleStory(run: Run, story: Story): Promise<"next" | "stop"> {
 
   if (budget.mode !== "PUBLISH" || budget.publish < 1) return "next";
   // A post that fails ends the run: the next story would most likely fail the same way.
-  return (await postDraft(run, story, saved, targets)) ? "next" : "stop";
+  return postDraft(run, story, saved, targets, plan.gapMs);
 }
 
-async function work(tenantId: string, deadline: number, done: AutopilotResult): Promise<void> {
+async function work(tenantId: string, deadline: number, startBy: number, done: AutopilotResult): Promise<void> {
   const settings = await db.newsSettings.findUnique({ where: { tenantId }, select: { autoMode: true, categories: true } });
   if (!settings || (settings.autoMode !== "DRAFT" && settings.autoMode !== "PUBLISH")) return;
   const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { kind: true, plan: true, planPaidUntil: true, trialEndsAt: true } });
@@ -430,7 +497,7 @@ async function work(tenantId: string, deadline: number, done: AutopilotResult): 
   const run: Run = { tenantId, plan: tenant.plan, deadline, done, connected: null };
 
   for (const story of stories.slice(0, AUTO_MAX_PER_TICK)) {
-    if (deadline - Date.now() < MIN_STORY_MS) break;
+    if (deadline - Date.now() < MIN_STORY_MS || Date.now() > startBy) break;
     try {
       if ((await handleStory(run, story)) === "stop") break;
     } catch (e) {
@@ -452,7 +519,7 @@ async function work(tenantId: string, deadline: number, done: AutopilotResult): 
 export async function runAutopilot(tenantId: string, opts: AutopilotOptions = {}): Promise<AutopilotResult> {
   const done: AutopilotResult = { drafted: 0, published: 0 };
   try {
-    await work(tenantId, opts.deadline ?? Date.now() + DEFAULT_RUN_MS, done);
+    await work(tenantId, opts.deadline ?? Date.now() + DEFAULT_RUN_MS, opts.startBy ?? Infinity, done);
   } catch (e) {
     await noteFailure(tenantId, "news.autopilot_failed", "The autopilot stopped before it finished.", e);
   }

@@ -12,10 +12,10 @@ const AiDown = vi.hoisted(
 
 vi.mock("@/lib/db", () => ({
   db: {
-    newsSettings: { findUnique: vi.fn(), update: vi.fn() },
+    newsSettings: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     tenant: { findUnique: vi.fn() },
     newsItem: { findMany: vi.fn(), updateMany: vi.fn(), count: vi.fn() },
-    newsDraft: { count: vi.fn(), create: vi.fn() },
+    newsDraft: { count: vi.fn(), create: vi.fn(), findMany: vi.fn() },
     auditLog: { create: vi.fn() },
   },
 }));
@@ -120,6 +120,16 @@ describe("autopilotCandidates", () => {
       story("d", { clusterKey: "c4" }),
     ];
     expect(ids(autopilotCandidates(items, [], NOW))).toEqual(["d"]);
+  });
+
+  it("leaves out a story an editor dismissed one article of", () => {
+    const items = [
+      story("dismissed", { clusterKey: "c1", status: "DISMISSED", publishedAt: minsAgo(20) }),
+      story("sibling", { clusterKey: "c1", publishedAt: minsAgo(40) }),
+      story("later", { clusterKey: "c1", publishedAt: minsAgo(5) }),
+      story("other", { clusterKey: "c2" }),
+    ];
+    expect(ids(autopilotCandidates(items, [], NOW))).toEqual(["other"]);
   });
 
   it("returns the stories oldest first", () => {
@@ -269,6 +279,16 @@ describe("safeError", () => {
 
 const m = db as unknown as Record<string, Record<string, ReturnType<typeof vi.fn>>>;
 const DRAFT = { headline: "سەردێڕ", body: "دەق.", category: "سیاسەت", cardKind: "STANDARD", stat: null, quote: null, speaker: null };
+/** Long enough for the same-story check to have something to compare. */
+const EVENT = {
+  headline: "حکومەتی هەرێم بودجەی ساڵی داهاتووی پەسەند کرد",
+  body: "ئەنجومەنی وەزیران لە کۆبوونەوەی ئەمڕۆیدا بودجەی ساڵی داهاتووی پەسەند کرد و بڕیاریدا مووچەی فەرمانبەران لە کاتی خۆیدا دابەش بکرێت.",
+};
+const OTHER_EVENT = {
+  headline: "یانەی هەولێر یاریی کۆتایی جامی بردەوە",
+  body: "لە یاریگای فرانسۆ هەریری یانەی هەولێر بە دوو گۆڵ بەرامبەر بە یەک گۆڵ سەرکەوتنی بەدەستهێنا و نازناوەکەی پاراست.",
+};
+const CARD = { url: "https://blob.example/card.jpg", pathname: "merchant/t1/news-card-1.jpg" };
 
 function item(id: string, clusterKey = `c-${id}`) {
   return {
@@ -311,6 +331,12 @@ function desk(d: Desk = {}) {
     settings.lastAutoAt = data.lastAutoAt;
     return {};
   });
+  // The slot: taken only when the last automatic post is older than the cut-off, as the database would decide it.
+  m.newsSettings.updateMany.mockImplementation(async ({ where, data }: { where: { OR: [unknown, { lastAutoAt: { lt: Date } }] }; data: { lastAutoAt: Date } }) => {
+    if (settings.lastAutoAt && settings.lastAutoAt >= where.OR[1].lastAutoAt.lt) return { count: 0 };
+    settings.lastAutoAt = data.lastAutoAt;
+    return { count: 1 };
+  });
   m.tenant.findUnique.mockResolvedValue({
     kind: "NEWS",
     plan: d.plan ?? "AUTO",
@@ -322,6 +348,7 @@ function desk(d: Desk = {}) {
   m.newsItem.updateMany.mockResolvedValue({ count: 1 });
   m.newsItem.count.mockResolvedValue(0);
   m.newsDraft.count.mockResolvedValue(0);
+  m.newsDraft.findMany.mockResolvedValue([]);
   m.newsDraft.create.mockImplementation(async ({ data }: { data: { itemId: string; headline: string; body: string } }) => ({
     id: `d-${data.itemId}`,
     headline: data.headline,
@@ -338,12 +365,14 @@ function desk(d: Desk = {}) {
   vi.mocked(usageOf).mockResolvedValue(0);
   vi.mocked(assertWithin).mockResolvedValue(undefined);
   vi.mocked(writeDraft).mockResolvedValue({ draft: DRAFT, model: "m1", part: null } as Awaited<ReturnType<typeof writeDraft>>);
-  vi.mocked(renderAndStoreCard).mockResolvedValue({ url: "https://blob.example/card.jpg", pathname: "merchant/t1/news-card-1.jpg" });
+  vi.mocked(renderAndStoreCard).mockResolvedValue({ ...CARD, headline: DRAFT.headline, body: DRAFT.body });
   vi.mocked(publishForWorkspace).mockImplementation(async (_ws, input) => input.targets.map((target) => ({ target, ok: true, url: `https://post/${target}` })));
 }
 
 const audits = () => m.auditLog.create.mock.calls.map((c) => (c[0] as { data: { action: string } }).data.action);
 const claims = () => m.newsItem.updateMany.mock.calls.filter((c) => "autoTriedAt" in (c[0] as { data: object }).data);
+const writes = (text: { headline: string; body: string }) =>
+  vi.mocked(writeDraft).mockResolvedValue({ draft: { ...DRAFT, ...text }, model: "m1", part: null } as Awaited<ReturnType<typeof writeDraft>>);
 
 describe("runAutopilot", () => {
   let errors: ReturnType<typeof vi.spyOn>;
@@ -403,6 +432,14 @@ describe("runAutopilot", () => {
     expect(writeDraft).not.toHaveBeenCalled();
   });
 
+  it("counts a dismissed article as closing its story, when it picks and again after the claim", async () => {
+    desk({ mode: "DRAFT" });
+    await runAutopilot("t1");
+    const closing = (where: { OR: [{ status: { in: string[] } }, unknown] }) => where.OR[0].status.in;
+    expect(closing(m.newsItem.findMany.mock.calls[1][0].where)).toEqual(expect.arrayContaining(["DRAFTED", "PUBLISHED", "DISMISSED"]));
+    expect(closing(m.newsItem.count.mock.calls[0][0].where)).toEqual(expect.arrayContaining(["DRAFTED", "PUBLISHED", "DISMISSED"]));
+  });
+
   it("stores nothing and counts nothing when the draft still copies the source", async () => {
     desk({ mode: "PUBLISH" });
     vi.mocked(writeDraft).mockResolvedValue({ draft: DRAFT, model: "m1", part: "body" } as Awaited<ReturnType<typeof writeDraft>>);
@@ -425,6 +462,7 @@ describe("runAutopilot", () => {
       targets: ["FB"],
       media: { url: "https://blob.example/card.jpg", pathname: "merchant/t1/news-card-1.jpg", type: "IMAGE" },
       newsDraftId: "d-a",
+      igDeadlineMs: 30_000,
     });
     expect(m.newsSettings.update.mock.calls[0][0]).toMatchObject({ where: { tenantId: "t1" }, data: { lastAutoAt: expect.any(Date) } });
     expect(audits()).toContain("news.autopilot_published");
@@ -485,9 +523,101 @@ describe("runAutopilot", () => {
     desk({ mode: "PUBLISH", gapMin: 1, items: [item("a"), item("b")] });
     vi.mocked(publishForWorkspace).mockResolvedValue([{ target: "FB", ok: false, error: "token expired" }]);
     expect(await runAutopilot("t1")).toEqual({ drafted: 1, published: 0 });
+    // The slot stays taken: a failed attempt uses up the gap too.
+    expect(m.newsSettings.updateMany).toHaveBeenCalledTimes(1);
     expect(m.newsSettings.update).not.toHaveBeenCalled();
     expect(audits()).toContain("news.autopilot_publish_failed");
     expect(writeDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not post an event the desk already covered in the last two days, and leaves the draft for a person", async () => {
+    desk({ mode: "PUBLISH" });
+    writes(EVENT);
+    m.newsDraft.findMany.mockResolvedValue([OTHER_EVENT, { ...EVENT }]);
+    const before = Date.now();
+
+    expect(await runAutopilot("t1")).toEqual({ drafted: 1, published: 0 });
+
+    expect(renderAndStoreCard).not.toHaveBeenCalled();
+    expect(publishForWorkspace).not.toHaveBeenCalled();
+    // Nothing was posted, so the slot is not used up either.
+    expect(m.newsSettings.updateMany).not.toHaveBeenCalled();
+    expect(audits()).toContain("news.autopilot_duplicate");
+    expect(audits()).not.toContain("news.autopilot_publish_failed");
+    const asked = m.newsDraft.findMany.mock.calls[0][0];
+    expect(asked).toMatchObject({ where: { tenantId: "t1", id: { not: "d-a" } }, orderBy: { createdAt: "desc" }, take: 30 });
+    const since = before - (asked.where.createdAt.gte as Date).getTime();
+    expect(since).toBeGreaterThanOrEqual(48 * 3_600_000 - 5_000);
+    expect(since).toBeLessThanOrEqual(48 * 3_600_000 + 5_000);
+  });
+
+  it("posts when the desk's recent drafts are about something else", async () => {
+    desk({ mode: "PUBLISH" });
+    writes(EVENT);
+    vi.mocked(renderAndStoreCard).mockResolvedValue({ ...CARD, ...EVENT });
+    m.newsDraft.findMany.mockResolvedValue([OTHER_EVENT]);
+    expect(await runAutopilot("t1")).toEqual({ drafted: 1, published: 1 });
+    expect(audits()).not.toContain("news.autopilot_duplicate");
+  });
+
+  it("takes the posting slot before the card is made, by the desk's own gap", async () => {
+    desk({ mode: "PUBLISH", gapMin: 7 });
+    const order: string[] = [];
+    m.newsSettings.updateMany.mockImplementation(async () => (order.push("slot"), { count: 1 }));
+    vi.mocked(renderAndStoreCard).mockImplementation(async () => (order.push("card"), { ...CARD, headline: DRAFT.headline, body: DRAFT.body }));
+    vi.mocked(publishForWorkspace).mockImplementation(async (_ws, input) => (order.push("post"), input.targets.map((target) => ({ target, ok: true }))));
+
+    expect(await runAutopilot("t1")).toEqual({ drafted: 1, published: 1 });
+
+    expect(order).toEqual(["slot", "card", "post"]);
+    const { where, data } = m.newsSettings.updateMany.mock.calls[0][0];
+    expect(where).toEqual({ tenantId: "t1", OR: [{ lastAutoAt: null }, { lastAutoAt: { lt: expect.any(Date) } }] });
+    expect((data.lastAutoAt as Date).getTime() - (where.OR[1].lastAutoAt.lt as Date).getTime()).toBe(7 * 60_000);
+  });
+
+  it("does not post when another run took the slot first", async () => {
+    desk({ mode: "PUBLISH", items: [item("a"), item("b")] });
+    m.newsSettings.updateMany.mockResolvedValue({ count: 0 });
+    expect(await runAutopilot("t1")).toEqual({ drafted: 1, published: 0 });
+    expect(renderAndStoreCard).not.toHaveBeenCalled();
+    expect(publishForWorkspace).not.toHaveBeenCalled();
+    expect(audits()).toContain("news.autopilot_slot_taken");
+    // The other run is posting for this desk: this one stops.
+    expect(writeDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes the caption from the text the card was rendered from", async () => {
+    desk({ mode: "PUBLISH" });
+    vi.mocked(renderAndStoreCard).mockResolvedValue({ ...CARD, headline: " سەردێڕی سەر کارتەکە ", body: "دەقی سەر کارتەکە.\n" });
+    expect(await runAutopilot("t1")).toEqual({ drafted: 1, published: 1 });
+    expect(vi.mocked(publishForWorkspace).mock.calls[0][1].caption).toBe("سەردێڕی سەر کارتەکە\n\nدەقی سەر کارتەکە.");
+  });
+
+  it("does not start a post with less than 35 s left, however long the card took", async () => {
+    desk({ mode: "PUBLISH" });
+    const real = Date.now.bind(Date);
+    let skew = 0;
+    const clock = vi.spyOn(Date, "now").mockImplementation(() => real() + skew);
+    vi.mocked(renderAndStoreCard).mockImplementation(async () => {
+      skew = 20_000;
+      return { ...CARD, headline: DRAFT.headline, body: DRAFT.body };
+    });
+    try {
+      // 54 s is enough to start; the card then eats 20 s, which leaves 34.
+      expect(await runAutopilot("t1", { deadline: real() + 54_000 })).toEqual({ drafted: 1, published: 0 });
+    } finally {
+      clock.mockRestore();
+    }
+    expect(renderAndStoreCard).toHaveBeenCalledTimes(1);
+    expect(publishForWorkspace).not.toHaveBeenCalled();
+    expect(audits()).toContain("news.autopilot_publish_failed");
+  });
+
+  it("starts no story once the time for starting is over", async () => {
+    desk({ mode: "DRAFT" });
+    expect(await runAutopilot("t1", { startBy: Date.now() - 1 })).toEqual({ drafted: 0, published: 0 });
+    expect(claims()).toHaveLength(0);
+    expect(writeDraft).not.toHaveBeenCalled();
   });
 
   it("leaves the draft for a person when the card cannot be made", async () => {
@@ -501,6 +631,10 @@ describe("runAutopilot", () => {
   it("does not start a story it has no time to post", async () => {
     desk({ mode: "PUBLISH" });
     expect(await runAutopilot("t1", { deadline: Date.now() + 20_000 })).toEqual({ drafted: 0, published: 0 });
+    expect(claims()).toHaveLength(0);
+    // The post alone needs 35 s, so 45 s is not enough for the draft, the card and the post.
+    desk({ mode: "PUBLISH" });
+    expect(await runAutopilot("t1", { deadline: Date.now() + 45_000 })).toEqual({ drafted: 0, published: 0 });
     expect(claims()).toHaveLength(0);
   });
 

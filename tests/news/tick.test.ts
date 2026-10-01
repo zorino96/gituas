@@ -14,7 +14,7 @@ import { db } from "@/lib/db";
 import { runAutopilot } from "@/lib/news/autopilot";
 import { classifyPending } from "@/lib/news/classify";
 import { ingest } from "@/lib/news/ingest";
-import { dueDesks, secondPassDelay, TICK_GRACE_MS, tickNewsrooms, type Clock } from "@/lib/news/tick";
+import { dueDesks, postingDesksFirst, secondPassDelay, TICK_GRACE_MS, tickNewsrooms, type Clock } from "@/lib/news/tick";
 
 const m = db as unknown as Record<string, Record<string, ReturnType<typeof vi.fn>>>;
 
@@ -54,6 +54,29 @@ describe("dueDesks", () => {
   });
 });
 
+describe("postingDesksFirst", () => {
+  it("puts the desks that post by themselves first, the one that posted longest ago in front, never-posted before all", () => {
+    const desks = [
+      { id: "draft-1", posts: false, lastAutoAt: null },
+      { id: "recent", posts: true, lastAutoAt: ago(60) },
+      { id: "draft-2", posts: false, lastAutoAt: ago(9000) },
+      { id: "never", posts: true, lastAutoAt: null },
+      { id: "long-ago", posts: true, lastAutoAt: ago(3600) },
+    ];
+    expect(postingDesksFirst(desks).map((d) => d.id)).toEqual(["never", "long-ago", "recent", "draft-1", "draft-2"]);
+  });
+
+  it("keeps the order it was given among desks that posted at the same moment", () => {
+    const desks = [
+      { id: "a", posts: true, lastAutoAt: null },
+      { id: "b", posts: true, lastAutoAt: null },
+      { id: "c", posts: true, lastAutoAt: ago(5) },
+      { id: "d", posts: true, lastAutoAt: ago(5) },
+    ];
+    expect(postingDesksFirst(desks).map((d) => d.id)).toEqual(["a", "b", "c", "d"]);
+  });
+});
+
 describe("secondPassDelay", () => {
   it("waits until the 30 s mark when a 30-second desk was served early enough", () => {
     expect(secondPassDelay(0, 1)).toBe(30_000);
@@ -83,8 +106,10 @@ describe("tickNewsrooms", () => {
   };
   const live = new Date(NOW + 86_400_000);
 
-  function desks(rows: { id: string; plan: string; lastFetchedAt?: Date | null; planPaidUntil?: Date | null }[]) {
-    m.newsSettings.findMany.mockResolvedValue(rows.map((r) => ({ tenantId: r.id, lastFetchedAt: r.lastFetchedAt ?? null })));
+  function desks(rows: { id: string; plan: string; lastFetchedAt?: Date | null; planPaidUntil?: Date | null; autoMode?: string; lastAutoAt?: Date | null }[]) {
+    m.newsSettings.findMany.mockResolvedValue(
+      rows.map((r) => ({ tenantId: r.id, lastFetchedAt: r.lastFetchedAt ?? null, autoMode: r.autoMode ?? "DRAFT", lastAutoAt: r.lastAutoAt ?? null })),
+    );
     m.tenant.findMany.mockResolvedValue(
       rows.map((r) => ({ id: r.id, kind: "NEWS", plan: r.plan, planPaidUntil: r.planPaidUntil === undefined ? live : r.planPaidUntil, trialEndsAt: null })),
     );
@@ -209,17 +234,49 @@ describe("tickNewsrooms", () => {
     expect(r).toMatchObject({ served: 2, errors: 1, drafted: 3, published: 2 });
   });
 
-  it("stops starting desks once 50 s have passed", async () => {
+  it("serves the desks that post by themselves in turn: the one that posted longest ago goes first", async () => {
+    desks([
+      { id: "draft", plan: "AUTO", autoMode: "DRAFT", lastFetchedAt: ago(900) },
+      { id: "posted-now", plan: "AUTO", autoMode: "PUBLISH", lastAutoAt: ago(60), lastFetchedAt: ago(800) },
+      { id: "posted-long-ago", plan: "AUTO", autoMode: "PUBLISH", lastAutoAt: ago(7200), lastFetchedAt: ago(100) },
+      { id: "never-posted", plan: "ENTERPRISE", autoMode: "PUBLISH", lastFetchedAt: ago(90) },
+      // PUBLISH on a plan that may not post by itself only drafts, so it takes no turn.
+      { id: "manual", plan: "MANUAL", autoMode: "PUBLISH", lastFetchedAt: ago(700) },
+    ]);
+    await tickNewsrooms(clock);
+    const firstPass = vi.mocked(ingest).mock.calls.map((c) => c[0]).slice(0, 5);
+    expect(firstPass).toEqual(["never-posted", "posted-long-ago", "posted-now", "draft", "manual"]);
+    expect(m.newsSettings.findMany.mock.calls[0][0].select).toMatchObject({ autoMode: true, lastAutoAt: true });
+  });
+
+  it("gives the autopilot the whole 58 s to finish in, and 40 s to start stories in", async () => {
+    desks([{ id: "a", plan: "MANUAL" }]);
+    const before = Date.now();
+    await tickNewsrooms(clock);
+    const opts = vi.mocked(runAutopilot).mock.calls[0][1]!;
+    expect(opts.deadline! - opts.startBy!).toBe(18_000);
+    expect(opts.deadline! - before).toBeGreaterThanOrEqual(58_000);
+    expect(opts.deadline! - Date.now()).toBeLessThanOrEqual(58_000);
+  });
+
+  it("waits for a desk already at work past the 40 s mark, and counts what it did", async () => {
+    desks([{ id: "a", plan: "MANUAL" }]);
+    vi.mocked(runAutopilot).mockImplementation(async () => (takes(55_000)(), { drafted: 1, published: 1 }));
+    const r = await tickNewsrooms(clock);
+    expect(r).toMatchObject({ served: 1, published: 1, timedOut: 0, ms: 55_000 });
+  });
+
+  it("stops starting desks once 40 s have passed", async () => {
     desks([
       { id: "a", plan: "MANUAL", lastFetchedAt: ago(900) },
       { id: "b", plan: "MANUAL", lastFetchedAt: ago(800) },
       { id: "c", plan: "MANUAL", lastFetchedAt: ago(700) },
       { id: "d", plan: "MANUAL", lastFetchedAt: ago(600) },
     ]);
-    // Three run at once and each eats 51 s of the fake clock; the fourth finds no time left.
-    vi.mocked(ingest).mockImplementation(async () => (takes(51_000)(), { added: 0, failed: [], skipped: false }));
+    // The first desk eats 41 s of the fake clock: the others are not started, though the tick still has time to wait.
+    vi.mocked(ingest).mockImplementation(async () => (takes(41_000)(), { added: 0, failed: [], skipped: false }));
     const r = await tickNewsrooms(clock);
-    expect(r.timedOut).toBeGreaterThanOrEqual(1);
-    expect(vi.mocked(ingest).mock.calls.map((c) => c[0])).not.toContain("d");
+    expect(vi.mocked(ingest).mock.calls.map((c) => c[0])).toEqual(["a"]);
+    expect(r).toMatchObject({ served: 1, timedOut: 3 });
   });
 });

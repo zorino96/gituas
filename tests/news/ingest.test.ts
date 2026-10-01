@@ -117,11 +117,16 @@ describe("cached", () => {
 });
 
 describe("rssTtl", () => {
-  it("follows the plan interval but never goes under 30 seconds", () => {
-    expect(rssTtl(300)).toBe(300_000);
-    expect(rssTtl(120)).toBe(120_000);
-    expect(rssTtl(30)).toBe(30_000);
-    expect(rssTtl(5)).toBe(30_000);
+  it("is four fifths of the plan interval, so a refresh one interval later always finds the cache stale", () => {
+    expect(rssTtl(300)).toBe(240_000);
+    expect(rssTtl(120)).toBe(96_000);
+    expect(rssTtl(60)).toBe(48_000);
+    expect(rssTtl(30)).toBe(24_000);
+  });
+
+  it("never goes under 24 seconds", () => {
+    expect(rssTtl(5)).toBe(24_000);
+    expect(rssTtl(0)).toBe(24_000);
   });
 });
 
@@ -253,6 +258,17 @@ describe("ingest", () => {
       expect(m.newsSettings.updateMany).not.toHaveBeenCalled();
       expect(m.newsSettings.update).toHaveBeenCalledTimes(1);
       expect(vi.mocked(fetchFeedConditional)).toHaveBeenCalledTimes(1);
+    });
+
+    it("fetches a feed again one plan interval after the last round, though that fetch finished a little later", async () => {
+      for (const [plan, sec] of [["ENTERPRISE", 30], ["AUTO", 60], ["MANUAL", 120], ["LITE", 300]] as const) {
+        setup({ keywordFilter: false, sources: own });
+        m.tenant.findUnique.mockResolvedValue({ plan });
+        // The cache is stamped when the fetch finishes, 3 s into the round: one interval after the round began it is 3 s short of the interval.
+        m.sourceCache.findUnique.mockResolvedValue({ key: "rss:https://own.example/rss", items: [], fetchedAt: new Date(Date.now() - (sec - 3) * 1000), etag: null, lastModified: null });
+        await ingest("t1", { force: true });
+        expect(vi.mocked(fetchFeedConditional), plan).toHaveBeenCalledTimes(1);
+      }
     });
 
     it("gives the feed cache the plan interval as its time to live", async () => {

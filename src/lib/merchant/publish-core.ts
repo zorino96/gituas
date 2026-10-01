@@ -27,6 +27,11 @@ export interface PublishInput {
   newsDraftId?: string;
   /** A shop product card: the published Facebook/Instagram post is tagged with it, so price questions get its card. */
   productId?: string;
+  /**
+   * The longest the Instagram part may take, in milliseconds. Only the autopilot sets it, because
+   * it runs inside a background tick with a hard limit; a person's own post waits as it always did.
+   */
+  igDeadlineMs?: number;
   tiktok?: {
     privacy: string | null;
     allowComment: boolean;
@@ -128,7 +133,7 @@ export async function publishForWorkspace(
       return { target, ok: r.ok, url: r.permalinkUrl, externalId: r.externalId, error: r.error };
     }
     if (target === "IG") {
-      const r = await publishToInstagram(ws.id, { caption, mediaUrl: input.media!.url, mediaType: input.media!.type });
+      const r = await publishToInstagram(ws.id, { caption, mediaUrl: input.media!.url, mediaType: input.media!.type }, input.igDeadlineMs);
       return { target, ok: r.ok, url: r.permalinkUrl, externalId: r.externalId, error: r.error };
     }
     if (target === "YT") {

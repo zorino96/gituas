@@ -122,6 +122,14 @@ async function shutdown(launching: Promise<Browser>): Promise<void> {
 }
 
 /**
+ * The end of the line of renders in this function instance. @sparticuz/chromium unpacks its
+ * browser into /tmp on first use, and a second launch beside it can find the binary half
+ * written; three browsers at once also need three times the memory. A render that fails
+ * still lets the next one through.
+ */
+let queue: Promise<unknown> = Promise.resolve();
+
+/**
  * The draft's card as a 1080×1350 JPEG (quality 92): the same card the editor shows.
  *
  * `origin` is where this app answers, without a path, and it must be an origin that serves
@@ -132,8 +140,17 @@ async function shutdown(launching: Promise<Browser>): Promise<void> {
  *
  * Throws when the page, its fonts or an image do not load, when the headline does not fit,
  * or after 25 seconds. The browser is always closed.
+ *
+ * One browser at a time: a render asked for while another is running waits for it to end, and
+ * its own 25 seconds only start then.
  */
-export async function renderCardServer(draftId: string, origin: string): Promise<Buffer> {
+export function renderCardServer(draftId: string, origin: string): Promise<Buffer> {
+  const mine = queue.then(() => renderNow(draftId, origin));
+  queue = mine.catch(() => undefined);
+  return mine;
+}
+
+async function renderNow(draftId: string, origin: string): Promise<Buffer> {
   const url = `${origin.replace(/\/+$/, "")}/newsroom/card-render/${encodeURIComponent(draftId)}?t=${signRenderToken(draftId)}`;
   const launching = launch();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -155,8 +172,15 @@ export async function renderCardServer(draftId: string, origin: string): Promise
  * does by hand. The desk rules are checked first, as attachCardAction does, and the card
  * is only attached when the draft's text did not change while it was being rendered: a
  * stale card must never go out with new text. `origin` as for renderCardServer.
+ *
+ * Returns, with the stored card, the headline and body it was rendered from: whoever posts the
+ * card must take the caption from these, not from a copy of the draft read earlier.
  */
-export async function renderAndStoreCard(draftId: string, tenantId: string, origin: string): Promise<{ url: string; pathname: string }> {
+export async function renderAndStoreCard(
+  draftId: string,
+  tenantId: string,
+  origin: string,
+): Promise<{ url: string; pathname: string; headline: string; body: string }> {
   const draft = await db.newsDraft.findFirst({
     where: { id: draftId, tenantId },
     select: { headline: true, body: true, updatedAt: true, item: { select: { title: true, snippet: true } } },
@@ -175,5 +199,5 @@ export async function renderAndStoreCard(draftId: string, tenantId: string, orig
     await del(blob.url).catch(() => undefined);
     throw new Error("The draft changed while its card was being rendered.");
   }
-  return { url: blob.url, pathname: blob.pathname };
+  return { url: blob.url, pathname: blob.pathname, headline: draft.headline, body: draft.body };
 }

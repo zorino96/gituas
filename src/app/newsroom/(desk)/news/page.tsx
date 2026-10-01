@@ -25,6 +25,8 @@ import { RefreshButton } from "./refresh-button";
 export const maxDuration = 60;
 
 const INGEST_WAIT_MS = 5000;
+/** How much earlier than the plan's interval the page's own refresh may fetch again. */
+const REFRESH_GRACE_MS = 5000;
 
 const TABS = [
   { key: "new", label: "نوێ", statuses: ["NEW"] },
@@ -48,7 +50,9 @@ export default async function NewsPage({
   // GDELT can take 10–20 s, so the page waits at most INGEST_WAIT_MS and shows
   // what is stored; `after` keeps the function alive until the fetch finishes,
   // and its stories appear on the next open or refresh.
-  const fetching = ingest(ws.id).catch(() => null);
+  // The page refreshes itself exactly one interval after the last load, and that load claimed its
+  // fetch a moment after it began: without a little grace every second refresh would be refused.
+  const fetching = ingest(ws.id, { graceMs: REFRESH_GRACE_MS }).catch(() => null);
   // Classification runs after the response, so neither the page nor a refresh waits on the AI.
   after(() => fetching.then(() => classifyPending(ws.id)));
   const ingestResult = await Promise.race([fetching, new Promise<null>((r) => setTimeout(() => r(null), INGEST_WAIT_MS))]);

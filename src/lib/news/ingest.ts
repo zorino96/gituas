@@ -12,14 +12,21 @@ import type { RawItem } from "./types";
 /** GDELT and NewsData have their own limits, so their cache windows do not follow the plan's speed. */
 const TTL = { gdelt: 10 * 60 * 1000, newsdata: 15 * 60 * 1000 };
 /** A feed is never re-fetched more often than this, however fast the plan. */
-const RSS_MIN_TTL_MS = 30 * 1000;
+const RSS_MIN_TTL_MS = 24 * 1000;
+/**
+ * The cache is stamped when a fetch finishes, a few seconds into a round, so a cache that lived
+ * a whole interval would still look fresh when the next round begins one interval later, and
+ * the desk would get new stories at half the speed its plan promises. Four fifths of the
+ * interval leaves room for that: 24 s on the 30-second plan, 48 s on the 60-second plan.
+ */
+const RSS_TTL_SHARE = 0.8;
 
 /**
  * How long a shared feed cache stays fresh for a tenant whose plan refreshes every `refreshSec`
  * seconds: a slower plan never forces a refetch, a faster plan gets fresh data.
  */
 export function rssTtl(refreshSec: number): number {
-  return Math.max(RSS_MIN_TTL_MS, refreshSec * 1000);
+  return Math.max(RSS_MIN_TTL_MS, Math.round(refreshSec * 1000 * RSS_TTL_SHARE));
 }
 const MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 const MAX_NEW_PER_FETCH = 100;
