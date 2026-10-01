@@ -1,9 +1,13 @@
 "use client";
 
+import { Check } from "lucide-react";
 import { useState, useTransition } from "react";
 
+import { planFeatures, type PlanFeature } from "@/lib/billing/features";
 import { planLabel, priceFor, type BillingProduct } from "@/lib/billing/prices";
 import { useLang, useT } from "@/lib/i18n/client";
+import { num } from "@/lib/i18n/num";
+import type { Dict } from "@/lib/i18n";
 import { formatMoney } from "@/lib/shop/money";
 import { kuDate } from "../format";
 import type { PlatformChip } from "./chips";
@@ -46,6 +50,15 @@ export interface BillingProps {
   result: "paid" | "paid_test" | "pending" | null;
   targets: BillingTarget[];
   invoices: InvoiceRow[];
+}
+
+/** One feature row's value in the reader's language: a count, a refresh interval, or one of the fixed phrases. */
+function featureValue(f: Dict["billing"]["features"], feature: PlanFeature): string {
+  const v = feature.value;
+  if (v === "autoDraft") return f.autoDraft;
+  if (v === "autoPublish") return f.autoPublish;
+  if (v === "all") return f.all;
+  return feature.key === "refresh" ? f.refresh(v) : num(v);
 }
 
 function StatusBadge({ status }: { status: InvoiceRow["status"] }) {
@@ -94,39 +107,62 @@ export function BillingClient({ product, configured, env, result, targets, invoi
 
       {targets.length === 0 && <p className="gm-note">{b.noPage}</p>}
 
-      <div className="gm-grid lg" style={{ marginTop: 12 }}>
+      <div className="gm-stack" style={{ marginTop: 12 }}>
         {targets.map((t) => (
-          <div key={t.id} className="gm-card">
-            <div className="gm-target">
-              <div>
-                <p>{t.name}</p>
-                <small>{b.plan(planLabel(t.plan, lang))}</small>
-                {t.paidUntil && <small>{b.activeUntil(kuDate(t.paidUntil, tr))}</small>}
+          <div key={t.id} className="gm-stack">
+            <div className="gm-card">
+              <div className="gm-target">
+                <div>
+                  <p>{t.name}</p>
+                  <small>{b.plan(planLabel(t.plan, lang))}</small>
+                  {t.paidUntil && <small>{b.activeUntil(kuDate(t.paidUntil, tr))}</small>}
+                </div>
               </div>
+              {t.chips.length > 0 && (
+                <div className="gm-chips" style={{ marginTop: 8 }}>
+                  {t.chips.map((c) => (
+                    <span key={c.platform} className="gm-chip" style={{ cursor: "default" }}>
+                      {tr.platform[c.platform]} · {c.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <p className="gm-hint">{b.coversAll}</p>
+              {product === "NEWS" && t.trialDaysLeft != null && <p className="gm-hint">{b.trialLeft(t.trialDaysLeft)}</p>}
             </div>
-            {t.chips.length > 0 && (
-              <div className="gm-chips" style={{ marginTop: 8 }}>
-                {t.chips.map((c) => (
-                  <span key={c.platform} className="gm-chip" style={{ cursor: "default" }}>
-                    {tr.platform[c.platform]} · {c.name}
-                  </span>
-                ))}
-              </div>
-            )}
-            <p className="gm-hint">{b.coversAll}</p>
-            {product === "NEWS" && t.trialDaysLeft != null && <p className="gm-hint">{b.trialLeft(t.trialDaysLeft)}</p>}
-            {PLANS[product].map((plan) => {
-              const price = priceFor(product, plan);
-              if (price == null) return null;
-              const name = planLabel(plan, lang);
-              const amount = formatMoney(price, "IQD", lang);
-              const renewing = t.plan === plan && !!t.paidUntil;
-              return (
-                <button key={plan} type="button" className="gm-btn block" style={{ marginTop: 8 }} disabled={!configured || busy} onClick={() => buy(t, plan)}>
-                  {renewing ? b.renew(name, amount) : b.buy(name, amount)}
-                </button>
-              );
-            })}
+
+            <div className="gm-grid lg">
+              {PLANS[product].map((plan) => {
+                const price = priceFor(product, plan);
+                if (price == null) return null;
+                const name = planLabel(plan, lang);
+                const amount = formatMoney(price, "IQD", lang);
+                const current = t.plan === plan;
+                const renewing = current && !!t.paidUntil;
+                return (
+                  <div key={plan} className={current ? "gm-card gm-plan current" : "gm-card gm-plan"}>
+                    <div className="gm-plan-head">
+                      <p className="gm-plan-name kufi">{name}</p>
+                      {current && <span className="gm-badge">{b.current}</span>}
+                    </div>
+                    <p className="gm-plan-price">{b.perMonth(amount)}</p>
+                    <ul className="gm-feats">
+                      {planFeatures(product, plan).map((f) => (
+                        <li key={f.key}>
+                          <Check size={16} strokeWidth={2.4} aria-hidden="true" />
+                          <span>
+                            {b.features.label[f.key]}: <b>{featureValue(b.features, f)}</b>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button type="button" className="gm-btn block" disabled={!configured || busy} onClick={() => buy(t, plan)}>
+                      {renewing ? b.renew(name, amount) : b.buy(name, amount)}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
             {error?.targetId === t.id && <p className="gm-err">{error.text}</p>}
           </div>
         ))}

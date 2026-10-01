@@ -544,6 +544,30 @@ export const ar: Dict = {
     trialLeft: (n: number) => `المتبقي من التجربة: ${counted(n, { one: "يوم واحد", two: "يومان", few: "أيام", many: "يوماً" })}`,
     renew: (plan: string, price: string) => `تجديد باقة ${plan} — ${price} شهرياً`,
     buy: (plan: string, price: string) => `شراء باقة ${plan} — ${price} شهرياً`,
+    current: "الباقة الحالية",
+    perMonth: (price: string) => `${price} شهرياً`,
+    features: {
+      label: {
+        refresh: "تحديث الأخبار",
+        drafts: "مسودات الذكاء الاصطناعي شهرياً",
+        improves: "التحسينات شهرياً",
+        publishes: "عمليات النشر شهرياً",
+        sources: "المصادر",
+        seats: "أعضاء الفريق",
+        desks: "المكاتب",
+        mode: "الطيار الآلي",
+        shopPosts: "المنشورات المؤتمتة",
+        shopReplies: "الردود التلقائية يومياً",
+        shopAi: "إعادة الصياغة بالذكاء الاصطناعي شهرياً",
+      },
+      refresh: (sec: number) =>
+        sec < 60
+          ? `كل ${counted(sec, { one: "ثانية", two: "ثانيتين", few: "ثوانٍ", many: "ثانية" })}`
+          : `كل ${counted(Math.round(sec / 60), { one: "دقيقة", two: "دقيقتين", few: "دقائق", many: "دقيقة" })}`,
+      autoDraft: "مسودات تلقائية — النشر يدوي",
+      autoPublish: "نشر تلقائي كامل (فيسبوك وإنستغرام)",
+      all: "جميع المنشورات",
+    },
     historySec: "سجل الدفعات",
     status: { PAID: "مدفوعة", PENDING: "قيد الانتظار", EXPIRED: "منتهية", CANCELLED: "ملغاة" },
   },

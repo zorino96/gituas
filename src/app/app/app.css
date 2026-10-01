@@ -361,6 +361,17 @@ select.gm-input {
 .gm-narrow { max-width: 800px; }
 .gm-stack > .gm-card, .gm-grid > .gm-card, .gm-cols-2 > .gm-card { margin-top: 0; }
 
+/* ---------- billing: one card per plan, with what it includes ---------- */
+.gm-plan { display: flex; flex-direction: column; }
+.gm-plan.current { border-color: var(--accent-line); box-shadow: 0 0 0 1px var(--accent-line), var(--shadow); }
+.gm-plan-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.gm-plan-name { margin: 0; font-size: 17px; font-weight: 700; color: var(--ink); }
+.gm-plan-price { margin: 4px 0 0; font-size: 13.5px; font-weight: 600; color: var(--accent); }
+.gm-feats { flex: 1; list-style: none; margin: 14px 0 16px; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.gm-feats li { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.6; color: var(--muted); }
+.gm-feats li svg { flex: none; margin-top: 4px; color: var(--accent); }
+.gm-feats li b { font-weight: 600; color: var(--ink); }
+
 @media (min-width: 640px) {
   .gm-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .gm-kpis { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
