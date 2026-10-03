@@ -52,8 +52,8 @@ async function launch(): Promise<Browser> {
  * itself once more, then says what it sees.
  *
  * next/font adds a metric-matched fallback face for each font, src: local("Arial"). A serverless
- * Chromium has no Arial, so that face fails to load and would sink the whole batch: loads are
- * settled one by one, and only a failed face that is not a fallback counts as broken.
+ * Chromium has no Arial, so that face fails to load and rejects every load that names it: the
+ * faces are judged one by one instead, and only a real face that failed counts as broken.
  */
 const SETTLE = `(async () => {
   const card = document.getElementById("card");
@@ -65,12 +65,13 @@ const SETTLE = `(async () => {
     const cs = getComputedStyle(el);
     loads.push(document.fonts.load(cs.fontStyle + " " + cs.fontWeight + " " + cs.fontSize + " " + cs.fontFamily, own));
   }
-  const settled = await Promise.allSettled(loads);
-  const faces = settled.reduce((n, r) => n + (r.status === "fulfilled" ? r.value.length : 0), 0);
+  // One load covers the whole family list, fallback included, so its own result says little:
+  // what counts is the state of each real face afterwards.
+  await Promise.allSettled(loads);
   await document.fonts.ready;
-  const broken = Array.from(document.fonts)
-    .filter((f) => f.status === "error" && !/fallback/i.test(f.family))
-    .map((f) => f.family);
+  const real = Array.from(document.fonts).filter((f) => !/fallback/i.test(f.family));
+  const faces = real.filter((f) => f.status === "loaded").length;
+  const broken = real.filter((f) => f.status === "error").map((f) => f.family);
   const images = await Promise.all(Array.from(card.querySelectorAll("img")).map((img) =>
     img.complete
       ? img.naturalWidth > 0
