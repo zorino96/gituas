@@ -43,7 +43,8 @@ export function routeFor(hostHeader: string, path: string, search: string): Rout
 
   // The shop domain: its root opens the shop (or the shop's sign-in).
   if (host !== "gituas.com") return { kind: "redirect", url: `${SHOP_ORIGIN}${path}${search}` };
-  if (path === "/") return { kind: "redirect", url: `${SHOP_ORIGIN}/app` };
+  // Its root is the public welcome page; that page sends signed-in people on to /app.
+  if (path === "/") return { kind: "rewrite", path: "/welcome" };
   if (NEWSROOM.test(path)) return { kind: "redirect", url: `${NEWSROOM_ORIGIN}${path}${search}` };
   if (AUTH_PAGES.has(path)) {
     if (next.startsWith("/newsroom")) return { kind: "redirect", url: `${NEWSROOM_ORIGIN}${path}${search}` };

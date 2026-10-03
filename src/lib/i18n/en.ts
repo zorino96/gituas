@@ -791,5 +791,28 @@ export const en: Dict = {
     cancel: "Cancel",
   },
 
+  welcome: {
+    metaTitle: "Gituas — sell on social media, the easy way",
+    metaDescription: "Post, answer comments and messages, and keep your shop's orders in one place — for Facebook, Instagram, TikTok and YouTube.",
+    title: "Run your shop on social media, the easy way",
+    lead: "Post once to Facebook, Instagram, TikTok and YouTube. Gituas answers comments and messages and collects your orders.",
+    start: "Start free",
+    signIn: "Sign in",
+    promise: "Start free — pay with FIB, ZainCash, QiCard or card",
+    features: {
+      publish: { title: "One post, every platform", body: "Pick a photo or video and publish it to Facebook, Instagram, TikTok and YouTube in one click, or schedule it." },
+      ai: { title: "Captions written with AI", body: "Type a few words and Gituas writes a ready-to-post sales caption with city hashtags." },
+      replies: { title: "Automatic replies", body: "Price and delivery questions in comments and messages are answered automatically, with the product card." },
+      orders: { title: "All your orders in one place", body: "Record orders from messages, see them by city and update their status until they reach the customer." },
+      insights: { title: "Insights", body: "See followers, reach and page activity on one screen." },
+    },
+    footer: {
+      privacy: "Privacy policy",
+      terms: "Terms",
+      dataDeletion: "Data deletion",
+      newsroom: "Hawalnoos — for news channels",
+    },
+  },
+
   nr: { shell: nrShellEn, news: nrNewsEn, team: nrTeamEn },
 };
