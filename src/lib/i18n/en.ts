@@ -88,12 +88,12 @@ export const en: Dict = {
   layout: {
     metaDescription: "Replies and publishing for your shop",
     settings: "Settings",
-    newsOnly: "So far this account has only been used for the newsroom. You can also create a shop for the same account:",
+    newsOnly: "So far this account has only been used for Hawalnoos. You can also create a shop for the same account:",
     createShop: "Create my shop",
-    goNewsroom: "Go to the newsroom",
+    goNewsroom: "Go to Hawalnoos",
     inDesk: (name: string) => `You're in the “${name}” news desk.`,
     goShop: (name: string) => `Go to the “${name}” shop`,
-    backNewsroom: "Back to the newsroom",
+    backNewsroom: "Back to Hawalnoos",
   },
 
   home: {

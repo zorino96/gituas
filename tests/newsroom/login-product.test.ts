@@ -20,11 +20,11 @@ describe("productFor", () => {
 
 describe("loginTitle", () => {
   it("names the newsroom and the shop in Kurdish", () => {
-    expect(loginTitle("newsroom")).toBe("چوونەژوورەوە — گیتواس نیوزڕووم");
+    expect(loginTitle("newsroom")).toBe("چوونەژوورەوە — هەواڵنووس");
     expect(loginTitle("shop")).toBe("چوونەژوورەوە — گیتواس");
   });
   it("follows the dictionary it is given", () => {
-    expect(loginTitle("newsroom", en)).toBe("Sign in — Gituas Newsroom");
+    expect(loginTitle("newsroom", en)).toBe("Sign in — Hawalnoos");
     expect(loginTitle("shop", en)).toBe("Sign in — Gituas");
     expect(loginTitle("shop", ar)).toBe("تسجيل الدخول — Gituas");
   });

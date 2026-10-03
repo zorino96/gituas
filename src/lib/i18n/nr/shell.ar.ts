@@ -10,7 +10,7 @@ function days(n: number): string {
 
 // The newsroom's shell text in Arabic: exactly the keys of shell.ckb.ts.
 export const nrShellAr: typeof nrShellCkb = {
-  name: "Gituas Newsroom",
+  name: "Hawalnoos",
   signIn: "تسجيل الدخول",
   signOut: "تسجيل الخروج",
 
@@ -37,7 +37,7 @@ export const nrShellAr: typeof nrShellCkb = {
       settings: "الإعدادات",
       guide: "الدليل",
     },
-    sideLabel: "أقسام غرفة الأخبار",
+    sideLabel: "أقسام Hawalnoos",
     barLabel: "الأقسام",
     more: "المزيد",
     all: "كل الأقسام",
@@ -101,10 +101,10 @@ export const nrShellAr: typeof nrShellCkb = {
   },
 
   join: {
-    metaTitle: "دعوة — Gituas Newsroom",
+    metaTitle: "دعوة — Hawalnoos",
     notFound: "لم يتم العثور على هذه الدعوة أو تم إلغاؤها.",
     used: "تم استخدام هذه الدعوة من قبل.",
-    goNewsroom: "اذهب إلى غرفة الأخبار",
+    goNewsroom: "اذهب إلى Hawalnoos",
     expired: "انتهت صلاحية هذه الدعوة. اطلب دعوة جديدة من مالك المكتب.",
     title: (desk: string) => `دعوة إلى «${desk}»`,
     as: (role: string) => `بصفة ${role}`,
@@ -126,16 +126,16 @@ export const nrShellAr: typeof nrShellCkb = {
   },
 
   guide: {
-    metaTitle: "الدليل — Gituas Newsroom",
-    metaDescription: "كيف تبدأ قناتك في غرفة الأخبار: ربط الصفحات، والعلامة التجارية، والمصادر، والبطاقات، والنشر.",
-    title: "دليل غرفة الأخبار",
+    metaTitle: "الدليل — Hawalnoos",
+    metaDescription: "كيف تبدأ قناتك في Hawalnoos: ربط الصفحات، والعلامة التجارية، والمصادر، والبطاقات، والنشر.",
+    title: "دليل Hawalnoos",
     sub: "كل ما تحتاجه لتبدأ قناتك العمل في يوم واحد.",
     toc: "المحتويات",
     sections: {
       start: {
-        title: "ما هي غرفة الأخبار؟",
+        title: "ما هو Hawalnoos؟",
         intro:
-          "غرفة الأخبار هي غرفة أخبار قناتك على وسائل التواصل الاجتماعي: تتابع الأخبار، ويُعدّ الذكاء الاصطناعي منها ملخصاً كردياً، فتحوّله إلى بطاقة بهوية قناتك وتنشره على فيسبوك وإنستغرام وتيك توك من مكان واحد.",
+          "Hawalnoos هو غرفة أخبار قناتك على وسائل التواصل الاجتماعي: تتابع الأخبار، ويُعدّ الذكاء الاصطناعي منها ملخصاً كردياً، فتحوّله إلى بطاقة بهوية قناتك وتنشره على فيسبوك وإنستغرام وتيك توك من مكان واحد.",
         steps: [
           "اربط صفحاتك.",
           "ضع شعار قناتك وألوانها.",

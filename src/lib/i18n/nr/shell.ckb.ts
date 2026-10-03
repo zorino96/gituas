@@ -3,7 +3,7 @@ import { num } from "../num";
 // The newsroom's shell text in Sorani. Wired into ckb.ts as `nr.shell`; nr/shell.ar.ts has the same keys.
 export const nrShellCkb = {
   /** The product name: the brand line and the page titles. */
-  name: "گیتواس نیوزڕووم",
+  name: "هەواڵنووس",
   signIn: "چوونەژوورەوە",
   signOut: "چوونەدەرەوە",
 
@@ -32,7 +32,7 @@ export const nrShellCkb = {
       settings: "ڕێکخستن",
       guide: "ڕێنمایی",
     },
-    sideLabel: "بەشەکانی نیوزڕووم",
+    sideLabel: "بەشەکانی هەواڵنووس",
     barLabel: "بەشەکان",
     more: "زیاتر",
     all: "هەموو بەشەکان",
@@ -98,10 +98,10 @@ export const nrShellCkb = {
 
   /** The team invite link: /newsroom/join/[token]. */
   join: {
-    metaTitle: "بانگهێشت — گیتواس نیوزڕووم",
+    metaTitle: "بانگهێشت — هەواڵنووس",
     notFound: "ئەم بانگهێشتە نەدۆزرایەوە یان هەڵوەشێنراوەتەوە.",
     used: "ئەم بانگهێشتە پێشتر بەکارهاتووە.",
-    goNewsroom: "بچۆ نیوزڕووم",
+    goNewsroom: "بچۆ هەواڵنووس",
     expired: "ئەم بانگهێشتە بەسەرچووە. داوای بانگهێشتێکی نوێ لە خاوەنی مێزەکە بکە.",
     title: (desk: string) => `بانگهێشت بۆ «${desk}»`,
     as: (role: string) => `وەک ${role}`,
@@ -128,16 +128,16 @@ export const nrShellCkb = {
    * Quoted labels are the real names on screen — check the screen before editing.
    */
   guide: {
-    metaTitle: "ڕێنمایی — گیتواس نیوزڕووم",
-    metaDescription: "چۆن کەناڵەکەت لە نیوزڕووم دەست پێ بکات: پەیج بەستنەوە، براند، سەرچاوە، کارت و بڵاوکردنەوە.",
-    title: "ڕێنمایی نیوزڕووم",
+    metaTitle: "ڕێنمایی — هەواڵنووس",
+    metaDescription: "چۆن کەناڵەکەت لە هەواڵنووس دەست پێ بکات: پەیج بەستنەوە، براند، سەرچاوە، کارت و بڵاوکردنەوە.",
+    title: "ڕێنمایی هەواڵنووس",
     sub: "هەموو ئەوەی پێویستە بۆ ئەوەی کەناڵەکەت لە یەک ڕۆژدا دەست بە کار بکات.",
     toc: "ناوەڕۆک",
     sections: {
       start: {
-        title: "نیوزڕووم چییە؟",
+        title: "هەواڵنووس چییە؟",
         intro:
-          "نیوزڕووم ژووری هەواڵی کەناڵەکەتە لەسەر سۆشیال میدیا: هەواڵ دەبینیت، بە زیرەکیی دەستکرد کورتەی کوردیی لێ ئامادە دەکرێت، دەیکەیت بە کارتی براندی خۆت و لە یەک شوێنەوە بۆ فەیسبووک، ئینستاگرام و تیکتۆک بڵاوی دەکەیتەوە.",
+          "هەواڵنووس ژووری هەواڵی کەناڵەکەتە لەسەر سۆشیال میدیا: هەواڵ دەبینیت، بە زیرەکیی دەستکرد کورتەی کوردیی لێ ئامادە دەکرێت، دەیکەیت بە کارتی براندی خۆت و لە یەک شوێنەوە بۆ فەیسبووک، ئینستاگرام و تیکتۆک بڵاوی دەکەیتەوە.",
         steps: [
           "پەیجەکانت ببەستەوە.",
           "لۆگۆ و ڕەنگی کەناڵەکەت دابنێ.",

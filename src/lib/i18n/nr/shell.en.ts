@@ -13,7 +13,7 @@ function desks(n: number): string {
 // The newsroom's shell text in English: exactly the keys of shell.ckb.ts. Wired into en.ts as `nr.shell`.
 // The product name stays in Latin letters. News drafts and cards stay Sorani whatever the UI language.
 export const nrShellEn: typeof nrShellCkb = {
-  name: "Gituas Newsroom",
+  name: "Hawalnoos",
   signIn: "Sign in",
   signOut: "Sign out",
 
@@ -40,7 +40,7 @@ export const nrShellEn: typeof nrShellCkb = {
       settings: "Settings",
       guide: "Guide",
     },
-    sideLabel: "Newsroom sections",
+    sideLabel: "Hawalnoos sections",
     barLabel: "Sections",
     more: "More",
     all: "All sections",
@@ -106,10 +106,10 @@ export const nrShellEn: typeof nrShellCkb = {
   },
 
   join: {
-    metaTitle: "Invitation — Gituas Newsroom",
+    metaTitle: "Invitation — Hawalnoos",
     notFound: "This invitation wasn't found or has been withdrawn.",
     used: "This invitation has already been used.",
-    goNewsroom: "Go to the newsroom",
+    goNewsroom: "Go to Hawalnoos",
     expired: "This invitation has expired. Ask the desk owner for a new one.",
     title: (desk: string) => `Invitation to “${desk}”`,
     as: (role: string) => `as ${role}`,
@@ -131,16 +131,16 @@ export const nrShellEn: typeof nrShellCkb = {
   },
 
   guide: {
-    metaTitle: "Guide — Gituas Newsroom",
-    metaDescription: "How to get your channel started in the newsroom: connecting pages, brand, sources, cards and publishing.",
-    title: "Newsroom guide",
+    metaTitle: "Guide — Hawalnoos",
+    metaDescription: "How to get your channel started in Hawalnoos: connecting pages, brand, sources, cards and publishing.",
+    title: "Hawalnoos guide",
     sub: "Everything you need to get your channel up and running in a day.",
     toc: "Contents",
     sections: {
       start: {
-        title: "What is the newsroom?",
+        title: "What is Hawalnoos?",
         intro:
-          "The newsroom is your channel's newsroom on social media. You see the news, AI drafts a short Kurdish summary from it, you turn it into a card in your own brand, and you publish it to Facebook, Instagram and TikTok from one place.",
+          "Hawalnoos is your channel's newsroom on social media. You see the news, AI drafts a short Kurdish summary from it, you turn it into a card in your own brand, and you publish it to Facebook, Instagram and TikTok from one place.",
         steps: [
           "Connect your pages.",
           "Add your channel's logo and colors.",

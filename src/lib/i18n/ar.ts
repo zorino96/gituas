@@ -92,12 +92,12 @@ export const ar: Dict = {
   layout: {
     metaDescription: "الرد والنشر لمتجرك",
     settings: "الإعدادات",
-    newsOnly: "استُخدم هذا الحساب حتى الآن لغرفة الأخبار فقط. أنشئ متجراً لنفس الحساب أيضاً:",
+    newsOnly: "استُخدم هذا الحساب حتى الآن لـ Hawalnoos فقط. أنشئ متجراً لنفس الحساب أيضاً:",
     createShop: "أنشئ متجري",
-    goNewsroom: "اذهب إلى غرفة الأخبار",
+    goNewsroom: "اذهب إلى Hawalnoos",
     inDesk: (name: string) => `أنت الآن في مكتب الأخبار «${name}».`,
     goShop: (name: string) => `اذهب إلى متجر «${name}»`,
-    backNewsroom: "العودة إلى غرفة الأخبار",
+    backNewsroom: "العودة إلى Hawalnoos",
   },
 
   home: {

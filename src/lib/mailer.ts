@@ -69,11 +69,11 @@ export function inviteEmail(input: { desk: string; inviter: string; role: string
   const lead = `${inviter} بانگهێشتی کردوویت بۆ مێزی هەواڵی «${desk}» وەک ${role}.`;
   const tail = "ئەم بەستەرە بۆ ٧ ڕۆژ کار دەکات. پێویستە بە هەمان ئیمەیڵ بچیتە ژوورەوە. ئەگەر چاوەڕێی ئەمە نەبوویت، پشتگوێی بخە.";
   return {
-    subject: `بانگهێشت بۆ ${desk} — گیتواس نیوزڕووم`,
+    subject: `بانگهێشت بۆ ${desk} — هەواڵنووس`,
     text: `${lead}\n\n${link}\n\n${tail}`,
     html: `<!doctype html><html lang="ckb" dir="rtl"><body style="margin:0;padding:24px;background:#f6f5f2;font-family:Tahoma,Arial,sans-serif;color:#1c1b19">
 <div style="max-width:420px;margin:0 auto;background:#fff;border-radius:12px;padding:28px;text-align:right">
-<p style="margin:0 0 6px;font-size:20px;font-weight:700">گیتواس نیوزڕووم</p>
+<p style="margin:0 0 6px;font-size:20px;font-weight:700">هەواڵنووس</p>
 <p style="margin:0 0 20px;font-size:15px;line-height:1.7">${esc(lead)}</p>
 <p style="margin:0 0 20px;text-align:center"><a href="${esc(link)}" style="display:inline-block;background:#1f4fd6;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px">بچۆ ناو مێزەکە</a></p>
 <p style="margin:0;font-size:13px;line-height:1.7;color:#6b6760">${esc(tail)}</p>
