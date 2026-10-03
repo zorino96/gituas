@@ -6,7 +6,6 @@ import { signOut } from "next-auth/react";
 
 import { normalizePhone } from "@/lib/merchant/phone";
 import { useBase } from "../use-base";
-import { NOT_ALLOWED } from "@/lib/newsroom/roles";
 import { saveWhatsAppAction } from "../actions";
 import { useT } from "@/lib/i18n/client";
 import { LanguageCard } from "./language-card";
@@ -48,9 +47,10 @@ export function SettingsClient({
   news: NewsSettingsProps | null;
 }) {
   const base = useBase();
-  const s = useT().settings;
-  // not_allowed is worded in src/lib/newsroom/roles.ts, which stays Sorani for now.
-  const connectErrors: Record<string, string> = { ...s.connectErrors, not_allowed: NOT_ALLOWED };
+  const t = useT();
+  const s = t.settings;
+  // not_allowed is worded with the team roles, not with the connect errors.
+  const connectErrors: Record<string, string> = { ...s.connectErrors, not_allowed: t.nr.team.roles.notAllowed };
   const [raw, setRaw] = useState(whatsappNumber ? localForm(whatsappNumber) : "");
   const [saved, setSaved] = useState<string | null>(whatsappNumber);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);

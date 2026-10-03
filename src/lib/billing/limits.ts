@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { nrNewsCkb, type NrNewsText } from "@/lib/i18n/nr/news.ckb";
 import { NEWS_LIMITS, type Metric } from "./plans";
 import { newsroomAccess } from "./trial";
 
@@ -18,13 +19,13 @@ export class LimitReached extends Error {
   }
 }
 
-const LABEL: Record<Metric, string> = { draft: "ئامادەکردنی هەواڵ", improve: "باشترکردن", publish: "بڵاوکردنەوە" };
+type LimitText = Pick<NrNewsText["actions"], "limitDraft" | "limitImprove" | "limitPublish" | "frozen">;
 
-export const FROZEN_MESSAGE = "ماوەی تاقیکردنەوە تەواو بووە — بۆ بەردەوامبوون لە «پلان و پارەدان» پلانێک هەڵبژێرە.";
-
-export function limitMessage(e: LimitReached): string {
-  if (e.frozen) return FROZEN_MESSAGE;
-  return `سنووری ${LABEL[e.metric]}ی ئەم مانگە (${new Intl.NumberFormat("ar-IQ").format(e.limit)}) تەواو بوو. بۆ زیاتر، پاکێجەکەت بەرز بکەرەوە.`;
+/** The message for a LimitReached, in the given newsroom wording (Sorani by default). */
+export function limitMessage(e: LimitReached, t: LimitText = nrNewsCkb.actions): string {
+  if (e.frozen) return t.frozen;
+  const byMetric: Record<Metric, (max: number) => string> = { draft: t.limitDraft, improve: t.limitImprove, publish: t.limitPublish };
+  return byMetric[e.metric](e.limit);
 }
 
 /**
@@ -47,9 +48,9 @@ export async function assertWithin(tenantId: string, metric: Metric): Promise<vo
  * write. Only the freeze: no quota is checked. Call it for every write path of a NEWS workspace —
  * publishing, scheduling, AI — not only the ones that count usage. A missing tenant reads as frozen.
  */
-export async function newsroomFrozenError(tenantId: string): Promise<string | null> {
+export async function newsroomFrozenError(tenantId: string, t: Pick<LimitText, "frozen"> = nrNewsCkb.actions): Promise<string | null> {
   const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { kind: true, plan: true, planPaidUntil: true, trialEndsAt: true } });
-  return tenant && newsroomAccess(tenant, new Date()).active ? null : FROZEN_MESSAGE;
+  return tenant && newsroomAccess(tenant, new Date()).active ? null : t.frozen;
 }
 
 /** Counted after the action succeeds. Two parallel actions can pass one over the quota; that is accepted. */

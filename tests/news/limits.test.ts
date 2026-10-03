@@ -10,6 +10,7 @@ vi.mock("@/lib/db", () => ({
 import { assertWithin, LimitReached, limitMessage, monthKey } from "@/lib/billing/limits";
 import { NEWS_LIMITS } from "@/lib/billing/plans";
 import { db } from "@/lib/db";
+import { nrNewsAr } from "@/lib/i18n/nr/news.ar";
 
 // The mocked db is untyped (a plain vi.fn() per method); this local view avoids
 // fighting Prisma's generic, select-narrowed return types in a test file.
@@ -28,6 +29,15 @@ describe("monthKey", () => {
 describe("limits", () => {
   it("names the limit in Kurdish", () => {
     expect(limitMessage(new LimitReached("draft", 300))).toContain("٣٠٠");
+  });
+  it("keeps the Sorani wording for every metric and answers in Arabic when given the Arabic text", () => {
+    // The formula limitMessage used before the wording moved to the dictionary.
+    const old = (label: string) => `سنووری ${label}ی ئەم مانگە (${new Intl.NumberFormat("ar-IQ").format(1200)}) تەواو بوو. بۆ زیاتر، پاکێجەکەت بەرز بکەرەوە.`;
+    expect(limitMessage(new LimitReached("draft", 1200))).toBe(old("ئامادەکردنی هەواڵ"));
+    expect(limitMessage(new LimitReached("improve", 1200))).toBe(old("باشترکردن"));
+    expect(limitMessage(new LimitReached("publish", 1200))).toBe(old("بڵاوکردنەوە"));
+    expect(limitMessage(new LimitReached("publish", 30), nrNewsAr.actions)).toBe("انتهى حد النشر لهذا الشهر (٣٠). للمزيد، قم بترقية باقتك.");
+    expect(limitMessage(new LimitReached("publish", 0, true), nrNewsAr.actions)).toBe(nrNewsAr.actions.frozen);
   });
   it("gives every plan a number for every metric", () => {
     for (const plan of Object.values(NEWS_LIMITS)) {

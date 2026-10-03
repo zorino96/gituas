@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { dict, getLang } from "@/lib/i18n";
-import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
+import { can } from "@/lib/newsroom/roles";
 import { loadShopState } from "@/lib/shop/state";
 import { currentWorkspace, loadConnections, loadPosts } from "../data";
 import { AutomationClient } from "./automation-client";
@@ -16,10 +16,10 @@ const iso = (raw: string | undefined) => {
 
 export default async function AutomationPage({ searchParams }: { searchParams: Promise<{ store?: string }> }) {
   const ws = (await currentWorkspace())!;
-  if (!can(ws.role, "configure")) return <p className="gm-note warn">{NOT_ALLOWED}</p>;
+  const t = dict(await getLang());
+  if (!can(ws.role, "configure")) return <p className="gm-note warn">{t.nr.team.roles.notAllowed}</p>;
 
   const sp = await searchParams;
-  const t = dict(await getLang());
   const conns = await loadConnections(ws.id);
   const connectedIds = [conns.META_FACEBOOK.accountId, conns.META_INSTAGRAM.accountId].filter((id): id is string => !!id);
   const state = await loadShopState(ws.id, sp.store, connectedIds);

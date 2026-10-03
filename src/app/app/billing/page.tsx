@@ -1,6 +1,7 @@
 import { waylConfigured, waylEnv } from "@/lib/billing/wayl";
 import { db } from "@/lib/db";
-import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
+import { dict, getLang } from "@/lib/i18n";
+import { can } from "@/lib/newsroom/roles";
 import { currentWorkspace } from "../data";
 import { BillingClient } from "./billing-client";
 import { storeChips } from "./chips";
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export default async function BillingPage({ searchParams }: { searchParams: Promise<{ invoice?: string }> }) {
   const ws = (await currentWorkspace())!;
-  if (!can(ws.role, "configure")) return <p className="gm-note warn">{NOT_ALLOWED}</p>;
+  if (!can(ws.role, "configure")) return <p className="gm-note warn">{dict(await getLang()).nr.team.roles.notAllowed}</p>;
 
   const sp = await searchParams;
   // Confirm first, so the stores and invoices below already show the payment.

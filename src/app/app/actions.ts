@@ -8,7 +8,8 @@ import { hashPassword, passwordProblem, verifyPassword } from "@/lib/password";
 import type { Prisma } from "@/generated/prisma/client";
 import { getGemini } from "@/lib/gemini";
 import { newsroomFrozenError } from "@/lib/billing/limits";
-import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
+import { dict, getLang, type Dict } from "@/lib/i18n";
+import { can } from "@/lib/newsroom/roles";
 import { baseFor, currentWorkspace } from "./data";
 import {
   deleteIgComment,
@@ -34,44 +35,50 @@ async function audit(tenantId: string, action: string, reasoning: string, metada
   await db.auditLog.create({ data: { tenantId, actor: "USER", action, reasoning, metadata } });
 }
 
-function cleanText(text: string, max: number): { ok: true; text: string } | { ok: false; error: string } {
+/** The signed-in workspace (or null) and the dictionary in the user's language. */
+async function session() {
+  const [ws, t] = await Promise.all([currentWorkspace(), getLang().then(dict)]);
+  return { ws, t };
+}
+
+function cleanText(text: string, max: number, m: Dict["actions"]["inbox"]): { ok: true; text: string } | { ok: false; error: string } {
   const t = text.trim();
-  if (!t) return { ok: false, error: "دەقەکە بەتاڵە." };
-  if ([...t].length > max) return { ok: false, error: `دەقەکە لە ${max} پیت درێژترە.` };
+  if (!t) return { ok: false, error: m.emptyText };
+  if ([...t].length > max) return { ok: false, error: m.textTooLong(max) };
   return { ok: true, text: t };
 }
 
 // ---------- comments -------------------------------------------------------
 
 export async function replyToCommentAction(platform: Platform, commentId: string, text: string): Promise<Result> {
-  const ws = await currentWorkspace();
-  if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
-  if (!can(ws.role, "engage")) return { ok: false, error: NOT_ALLOWED };
-  const t = cleanText(text, platform === "IG" ? 2200 : 8000);
-  if (!t.ok) return t;
-  const r = platform === "IG" ? await replyToComment(ws.id, commentId, t.text) : await replyToPageComment(ws.id, commentId, t.text);
-  if (!r.ok) return { ok: false, error: r.error ?? "ناردن سەرکەوتوو نەبوو." };
+  const { ws, t } = await session();
+  if (!ws) return { ok: false, error: t.actions.common.signIn };
+  if (!can(ws.role, "engage")) return { ok: false, error: t.nr.team.roles.notAllowed };
+  const body = cleanText(text, platform === "IG" ? 2200 : 8000, t.actions.inbox);
+  if (!body.ok) return body;
+  const r = platform === "IG" ? await replyToComment(ws.id, commentId, body.text) : await replyToPageComment(ws.id, commentId, body.text);
+  if (!r.ok) return { ok: false, error: r.error ?? t.actions.inbox.sendFailed };
   await pauseThread(ws.id, platform === "IG" ? "META_INSTAGRAM" : "META_FACEBOOK", commentId);
   await audit(ws.id, "app.comment_reply", `Replied to ${platform} comment ${commentId}.`, { platform, commentId });
   return { ok: true };
 }
 
 export async function setCommentHiddenAction(platform: Platform, commentId: string, hidden: boolean): Promise<Result> {
-  const ws = await currentWorkspace();
-  if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
-  if (!can(ws.role, "engage")) return { ok: false, error: NOT_ALLOWED };
+  const { ws, t } = await session();
+  if (!ws) return { ok: false, error: t.actions.common.signIn };
+  if (!can(ws.role, "engage")) return { ok: false, error: t.nr.team.roles.notAllowed };
   const r = platform === "IG" ? await setCommentHidden(ws.id, commentId, hidden) : await hidePageComment(ws.id, commentId, hidden);
-  if (!r.ok) return { ok: false, error: r.error ?? "نەکرا." };
+  if (!r.ok) return { ok: false, error: r.error ?? t.actions.inbox.failed };
   await audit(ws.id, hidden ? "app.comment_hide" : "app.comment_unhide", `${hidden ? "Hid" : "Unhid"} ${platform} comment ${commentId}.`, { platform, commentId });
   return { ok: true };
 }
 
 export async function deleteCommentAction(platform: Platform, commentId: string): Promise<Result> {
-  const ws = await currentWorkspace();
-  if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
-  if (!can(ws.role, "engage")) return { ok: false, error: NOT_ALLOWED };
+  const { ws, t } = await session();
+  if (!ws) return { ok: false, error: t.actions.common.signIn };
+  if (!can(ws.role, "engage")) return { ok: false, error: t.nr.team.roles.notAllowed };
   const r = platform === "IG" ? await deleteIgComment(ws.id, commentId) : await deletePageComment(ws.id, commentId);
-  if (!r.ok) return { ok: false, error: r.error ?? "سڕینەوە نەکرا." };
+  if (!r.ok) return { ok: false, error: r.error ?? t.actions.inbox.deleteFailed };
   await audit(ws.id, "app.comment_delete", `Deleted ${platform} comment ${commentId}.`, { platform, commentId });
   return { ok: true };
 }
@@ -79,13 +86,13 @@ export async function deleteCommentAction(platform: Platform, commentId: string)
 // ---------- messages -------------------------------------------------------
 
 export async function sendMessageAction(platform: Platform, recipientId: string, text: string): Promise<Result> {
-  const ws = await currentWorkspace();
-  if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
-  if (!can(ws.role, "engage")) return { ok: false, error: NOT_ALLOWED };
-  const t = cleanText(text, 1000);
-  if (!t.ok) return t;
-  const r = platform === "IG" ? await sendInstagramDM(ws.id, recipientId, t.text) : await sendMessengerMessage(ws.id, recipientId, t.text);
-  if (!r.ok) return { ok: false, error: r.error ?? "ناردن سەرکەوتوو نەبوو." };
+  const { ws, t } = await session();
+  if (!ws) return { ok: false, error: t.actions.common.signIn };
+  if (!can(ws.role, "engage")) return { ok: false, error: t.nr.team.roles.notAllowed };
+  const body = cleanText(text, 1000, t.actions.inbox);
+  if (!body.ok) return body;
+  const r = platform === "IG" ? await sendInstagramDM(ws.id, recipientId, body.text) : await sendMessengerMessage(ws.id, recipientId, body.text);
+  if (!r.ok) return { ok: false, error: r.error ?? t.actions.inbox.sendFailed };
   await pauseThread(ws.id, platform === "IG" ? "META_INSTAGRAM" : "META_FACEBOOK", recipientId);
   await audit(ws.id, "app.dm_send", `Sent a ${platform} message to ${recipientId}.`, { platform, recipientId });
   return { ok: true };
@@ -106,12 +113,12 @@ export async function draftReplyAction(
   incoming: string,
   kind: "comment" | "dm",
 ): Promise<{ ok: true; reply: string } | { ok: false; error: string }> {
-  const ws = await currentWorkspace();
-  if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
-  if (!can(ws.role, "engage")) return { ok: false, error: NOT_ALLOWED };
-  if (!incoming.trim()) return { ok: false, error: "هیچ دەقێک نییە بۆ وەڵامدانەوە." };
+  const { ws, t } = await session();
+  if (!ws) return { ok: false, error: t.actions.common.signIn };
+  if (!can(ws.role, "engage")) return { ok: false, error: t.nr.team.roles.notAllowed };
+  if (!incoming.trim()) return { ok: false, error: t.actions.inbox.nothingToReply };
   if (ws.kind === "NEWS") {
-    const frozen = await newsroomFrozenError(ws.id);
+    const frozen = await newsroomFrozenError(ws.id, t.nr.news.actions);
     if (frozen) return { ok: false, error: frozen };
   }
   const where = kind === "dm" ? "private message" : "public comment";
@@ -139,21 +146,21 @@ Rules:
 Customer: """${incoming.slice(0, 1000)}"""`;
   try {
     const reply = await gemini(prompt);
-    if (!reply) return { ok: false, error: "AI هیچ وەڵامێکی نەدایەوە." };
+    if (!reply) return { ok: false, error: t.actions.inbox.aiNoReply };
     return { ok: true, reply };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "AI کار ناکات." };
+    return { ok: false, error: e instanceof Error ? e.message : t.actions.common.aiDown };
   }
 }
 
 export async function suggestCaptionAction(
   notes: string,
 ): Promise<{ ok: true; caption: string } | { ok: false; error: string }> {
-  const ws = await currentWorkspace();
-  if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
-  if (!can(ws.role, "draft")) return { ok: false, error: NOT_ALLOWED };
+  const { ws, t } = await session();
+  if (!ws) return { ok: false, error: t.actions.common.signIn };
+  if (!can(ws.role, "draft")) return { ok: false, error: t.nr.team.roles.notAllowed };
   if (ws.kind === "NEWS") {
-    const frozen = await newsroomFrozenError(ws.id);
+    const frozen = await newsroomFrozenError(ws.id, t.nr.news.actions);
     if (frozen) return { ok: false, error: frozen };
   }
   try {
@@ -168,10 +175,10 @@ Rules:
 - Output only the caption.`,
       500,
     );
-    if (!caption) return { ok: false, error: "AI هیچ دەقێکی نەنووسی." };
+    if (!caption) return { ok: false, error: t.actions.publish.aiNoCaption };
     return { ok: true, caption };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "AI کار ناکات." };
+    return { ok: false, error: e instanceof Error ? e.message : t.actions.common.aiDown };
   }
 }
 
@@ -183,21 +190,22 @@ Rules:
  * toward the same guessing limit as the sign-in form.
  */
 export async function changePasswordAction(current: string, next: string): Promise<Result> {
-  const session = await auth();
-  if (!session?.user?.id) return { ok: false, error: "دووبارە بچۆ ژوورەوە." };
-  const user = await db.user.findUnique({ where: { id: session.user.id }, select: { id: true, email: true, passwordHash: true } });
-  if (!user?.email) return { ok: false, error: "ئەم هەژمارە ئیمەیڵی نییە." };
+  const [signedIn, t] = await Promise.all([auth(), getLang().then(dict)]);
+  const m = t.actions.settings;
+  if (!signedIn?.user?.id) return { ok: false, error: t.nr.shell.newDesk.signInAgain };
+  const user = await db.user.findUnique({ where: { id: signedIn.user.id }, select: { id: true, email: true, passwordHash: true } });
+  if (!user?.email) return { ok: false, error: m.noEmail };
 
   const problem = passwordProblem(next);
-  if (problem === "too-short") return { ok: false, error: "وشەی نهێنیی نوێ دەبێت لانیکەم ٨ پیت بێت." };
-  if (problem === "too-long") return { ok: false, error: "وشەی نهێنیی نوێ زۆر درێژە." };
+  if (problem === "too-short") return { ok: false, error: m.passwordShort };
+  if (problem === "too-long") return { ok: false, error: m.passwordLong };
 
   if (user.passwordHash) {
     const failures = await db.loginAttempt.count({ where: { email: user.email, createdAt: { gte: new Date(Date.now() - WINDOW_MS) } } });
-    if (failures >= MAX_FAILURES) return { ok: false, error: "زۆر جار هەڵە کرا. ١٥ خولەک چاوەڕێ بکە." };
+    if (failures >= MAX_FAILURES) return { ok: false, error: m.tooManyTries };
     if (!(await verifyPassword(current, user.passwordHash))) {
       await db.loginAttempt.create({ data: { email: user.email } });
-      return { ok: false, error: "وشەی نهێنیی ئێستا هەڵەیە." };
+      return { ok: false, error: m.wrongPassword };
     }
   }
 
@@ -211,17 +219,17 @@ export async function changePasswordAction(current: string, next: string): Promi
 }
 
 export async function saveWhatsAppAction(raw: string): Promise<{ ok: true; digits: string | null } | { ok: false; error: string }> {
-  const ws = await currentWorkspace();
-  if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
-  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
-  if (ws.kind !== "MERCHANT") return { ok: false, error: "ژمارەی وەتسئەپ تەنها بۆ دووکانە." };
+  const { ws, t } = await session();
+  if (!ws) return { ok: false, error: t.actions.common.signIn };
+  if (!can(ws.role, "configure")) return { ok: false, error: t.nr.team.roles.notAllowed };
+  if (ws.kind !== "MERCHANT") return { ok: false, error: t.actions.settings.whatsappShopOnly };
   if (!raw.trim()) {
     await db.tenant.update({ where: { id: ws.id }, data: { whatsappNumber: null } });
     revalidatePath(baseFor(ws.kind), "layout");
     return { ok: true, digits: null };
   }
   const n = normalizePhone(raw);
-  if (!n.ok) return { ok: false, error: "ژمارەکە دروست نییە. بۆ نموونە: 0750 123 4567" };
+  if (!n.ok) return { ok: false, error: t.actions.settings.badWhatsapp };
   await db.tenant.update({ where: { id: ws.id }, data: { whatsappNumber: n.digits } });
   await audit(ws.id, "app.whatsapp_set", "Set the WhatsApp number.", {});
   revalidatePath(baseFor(ws.kind), "layout");
@@ -241,8 +249,8 @@ export interface TikTokContext {
 }
 
 export async function tiktokContextAction(): Promise<{ ok: true; ctx: TikTokContext } | { ok: false; error: string }> {
-  const ws = await currentWorkspace();
-  if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
+  const { ws, t } = await session();
+  if (!ws) return { ok: false, error: t.actions.common.signIn };
   const info = await getTikTokPostContext(ws.id);
   if ("error" in info) return { ok: false, error: info.error };
   return {
@@ -267,17 +275,17 @@ export type { PublishInput, PublishOutcome };
  * route also calls, without a session.
  */
 export async function publishAction(input: PublishInput): Promise<{ ok: true; results: PublishOutcome[] } | { ok: false; error: string }> {
-  const ws = await currentWorkspace();
-  if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
-  if (!can(ws.role, "publish")) return { ok: false, error: NOT_ALLOWED };
-  const r = await publishForWorkspace(ws, input);
+  const { ws, t } = await session();
+  if (!ws) return { ok: false, error: t.actions.common.signIn };
+  if (!can(ws.role, "publish")) return { ok: false, error: t.nr.team.roles.notAllowed };
+  const r = await publishForWorkspace(ws, input, t);
   if (!Array.isArray(r)) return { ok: false, error: r.error };
   return { ok: true, results: r };
 }
 
 export async function tiktokStatusAction(publishId: string): Promise<{ ok: true; status: string; failReason?: string } | { ok: false; error: string }> {
-  const ws = await currentWorkspace();
-  if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
+  const { ws, t } = await session();
+  if (!ws) return { ok: false, error: t.actions.common.signIn };
   const s = await fetchTikTokPostStatus(ws.id, publishId);
   if ("error" in s) return { ok: false, error: s.error };
   return { ok: true, status: s.status, failReason: s.failReason };

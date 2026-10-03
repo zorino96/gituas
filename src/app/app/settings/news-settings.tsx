@@ -11,8 +11,8 @@ import { NewsCard, CARD_H, CARD_W } from "@/lib/cards/templates";
 import { brandFrom, mediaSrc } from "@/lib/cards/brand";
 import { ReferencePicker } from "./color-picker";
 import { AUTO_DAILY_MAX, AUTO_MIN_GAP, AUTO_MODES, AUTO_TARGETS, type AutoMode, type AutoTarget } from "@/lib/news/autopilot-settings";
-import { GROUPS, LANG_LABEL, type SourceGroup, type SourceLang } from "@/lib/news/catalog";
-import { TAXONOMY } from "@/lib/news/taxonomy";
+import { GROUPS, type SourceGroup, type SourceLang } from "@/lib/news/catalog";
+import { subcategoryLabel, TAXONOMY } from "@/lib/news/taxonomy";
 import { VOICE_NOTE_MAX } from "@/lib/news/voice";
 import {
   addRssSourceAction,
@@ -54,6 +54,8 @@ export function NewsSettings(p: NewsSettingsProps) {
   const router = useRouter();
   const t = useT();
   const tn = t.settings.news;
+  const nr = t.nr.news;
+  const about: Record<string, string> = nr.settings.about;
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [keywords, setKeywords] = useState(p.keywords.join("، "));
@@ -129,14 +131,14 @@ export function NewsSettings(p: NewsSettingsProps) {
           if (!entries.length) return null;
           return (
             <div key={g.id}>
-              <p className="gm-hint" style={{ fontWeight: 700, margin: "10px 0 2px" }}>{g.label}</p>
+              <p className="gm-hint" style={{ fontWeight: 700, margin: "10px 0 2px" }}>{nr.settings.groups[g.id]}</p>
               {entries.map((c) => (
                 <div key={c.id} className="gm-target">
                   <div>
                     <p>
-                      {c.name} {c.lang && <span className="gm-badge ghost">{LANG_LABEL[c.lang]}</span>}
+                      {c.name} {c.lang && <span className="gm-badge ghost">{nr.langs[c.lang]}</span>}
                     </p>
-                    <small>{c.lastError ? tn.sourceError(c.lastError) : c.description ?? ""}</small>
+                    <small>{c.lastError ? tn.sourceError(c.lastError) : about[c.id] ?? c.description ?? ""}</small>
                   </div>
                   <button
                     type="button"
@@ -198,7 +200,7 @@ export function NewsSettings(p: NewsSettingsProps) {
                   aria-pressed={whole}
                   onClick={() => setCats((x) => (whole ? x.filter((v) => v !== c.id) : [...x.filter((v) => !v.startsWith(`${c.id}/`)), c.id]))}
                 >
-                  {c.label}
+                  {nr.topics[c.id]}
                 </button>
                 {!whole &&
                   c.subs.map((s) => {
@@ -213,7 +215,7 @@ export function NewsSettings(p: NewsSettingsProps) {
                         aria-pressed={on}
                         onClick={() => setCats((x) => (on ? x.filter((v) => v !== code) : [...x, code]))}
                       >
-                        {s.label}
+                        {subcategoryLabel(c.id, s.id, nr)}
                       </button>
                     );
                   })}

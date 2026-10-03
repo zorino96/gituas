@@ -1,13 +1,9 @@
 import type { Dict } from "./ckb";
 import { num } from "./num";
-
-/** Arabic counts: 1 and 2 have their own forms, 3–10 the plural, 11 and up the singular again. */
-function plural(n: number, forms: { one: string; two: string; few: string; many: string }): string {
-  if (n === 1) return forms.one;
-  if (n === 2) return forms.two;
-  const r = n % 100;
-  return r >= 3 && r <= 10 ? forms.few : forms.many;
-}
+import { nrNewsAr } from "./nr/news.ar";
+import { nrShellAr } from "./nr/shell.ar";
+import { nrTeamAr } from "./nr/team.ar";
+import { plural } from "./plural";
 
 /** "منذ ساعة" / "منذ ساعتين" / "منذ ٥ ساعات" / "منذ ١٢ ساعة". */
 function since(n: number, forms: { one: string; two: string; few: string; many: string }): string {
@@ -618,4 +614,70 @@ export const ar: Dict = {
     save: "حفظ",
     cancel: "إلغاء",
   },
+
+  actions: {
+    common: {
+      signIn: "يجب تسجيل الدخول.",
+      aiDown: "الذكاء الاصطناعي لا يعمل الآن.",
+      productNotFound: "لم يُعثر على المنتج.",
+      badDeliveryFee: "أجرة التوصيل غير صالحة.",
+    },
+    inbox: {
+      emptyText: "النص فارغ.",
+      textTooLong: (max: number) => `النص يتجاوز الحد الأقصى (${num(max)} حرف).`,
+      sendFailed: "فشل الإرسال.",
+      failed: "تعذّر التنفيذ.",
+      deleteFailed: "تعذّر الحذف.",
+      nothingToReply: "لا يوجد نص للرد عليه.",
+      aiNoReply: "لم يقدّم الذكاء الاصطناعي أي رد.",
+    },
+    settings: {
+      noEmail: "لا يوجد بريد إلكتروني لهذا الحساب.",
+      passwordShort: "يجب أن تتكون كلمة المرور الجديدة من ٨ أحرف على الأقل.",
+      passwordLong: "كلمة المرور الجديدة طويلة جداً.",
+      tooManyTries: "محاولات خاطئة كثيرة. انتظر ١٥ دقيقة.",
+      wrongPassword: "كلمة المرور الحالية غير صحيحة.",
+      whatsappShopOnly: "رقم واتساب متاح للمتاجر فقط.",
+      badWhatsapp: "الرقم غير صالح. مثال: 0750 123 4567",
+    },
+    publish: {
+      aiNoCaption: "لم يكتب الذكاء الاصطناعي أي نص.",
+      unknownTarget: "منصة غير معروفة.",
+      needMedia: "إنستغرام وتيك توك يحتاجان إلى صورة أو فيديو.",
+      igNeedsMedia: "إنستغرام يحتاج إلى صورة أو فيديو.",
+      badFile: "تعذّر التعرف على الملف. ارفعه مرة أخرى.",
+      jpgOnly: "إنستغرام وتيك توك يقبلان صور JPG فقط.",
+      igJpgOnly: "إنستغرام يقبل صور JPG فقط.",
+      cardChanged: "تغيّرت البطاقة. أعد تجهيزها من مكتب الأخبار.",
+      ttNoSettings: "لم تُحدَّد إعدادات تيك توك.",
+      ttIncomplete: (problems: string) => `إعدادات تيك توك غير مكتملة (${problems}).`,
+      noTiktokSchedule: "لا يمكن جدولة تيك توك — انشره مباشرة.",
+      tooSoon: "يجب أن يكون الموعد بعد ١٠ دقائق على الأقل من الآن.",
+      tooFar: "يجب أن يكون الموعد خلال ٦٠ يوماً.",
+      badTime: "الموعد غير صالح.",
+      cantCancel: "لا يمكن إلغاء هذا المنشور الآن.",
+    },
+    automation: {
+      storeNotFound: "لم يُعثر على المتجر.",
+      badDays: "يجب أن يكون عدد الأيام من ١ إلى ٣٦٥.",
+      badDate: "التاريخ غير صالح.",
+      templateName: "اكتب اسماً للقالب.",
+      templateNotFound: "لم يُعثر على القالب.",
+      badPost: "المنشور غير صالح.",
+      productName: "اكتب اسم المنتج.",
+      badPhoto: "إحدى الصور غير صالحة.",
+      needPrice: "يلزم سعر واحد على الأقل.",
+      badRowPrice: (row: number) => `سعر السطر ${num(row)} غير صالح.`,
+      rowLabel: (row: number) => `اكتب اسم النوع في السطر ${num(row)} (المقاس أو اللون).`,
+    },
+    orders: {
+      customerName: "اكتب اسم الزبون.",
+      badPhone: "رقم الموبايل غير صالح.",
+      badCity: "المدينة غير صالحة.",
+      badStatus: "الحالة غير صالحة.",
+      badPrice: "السعر غير صالح.",
+      notFound: "لم يُعثر على الطلب.",
+    },
+  },
+  nr: { shell: nrShellAr, news: nrNewsAr, team: nrTeamAr },
 };

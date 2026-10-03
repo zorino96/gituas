@@ -12,7 +12,7 @@ import { NEWS_LIMITS, refreshSecFor } from "@/lib/billing/plans";
 import { CATALOG } from "@/lib/news/catalog";
 import { groupByCluster } from "@/lib/news/cluster";
 import { ingest } from "@/lib/news/ingest";
-import { ckb } from "@/lib/i18n/ckb";
+import { dict, getLang } from "@/lib/i18n";
 import { categoryLabel, categoryWhere, regionLabel, REGIONS, TAXONOMY } from "@/lib/news/taxonomy";
 import { currentWorkspace } from "@/app/app/data";
 import { ago, num } from "@/app/app/format";
@@ -29,12 +29,13 @@ const INGEST_WAIT_MS = 5000;
 const REFRESH_GRACE_MS = 5000;
 
 const TABS = [
-  { key: "new", label: "نوێ", statuses: ["NEW"] },
-  { key: "ready", label: "ئامادە", statuses: ["DRAFTED"] },
-  { key: "done", label: "بڵاوکراوە", statuses: ["PUBLISHED"] },
+  { key: "new", statuses: ["NEW"] },
+  { key: "ready", statuses: ["DRAFTED"] },
+  { key: "done", statuses: ["PUBLISHED"] },
 ] as const;
 
-const LANG_LABEL: Record<string, string> = { ku: "کوردی", ar: "عەرەبی", en: "ئینگلیزی" };
+/** The story languages the list names; t.nr.news.langs has the words. */
+const LIST_LANGS = new Set(["ku", "ar", "en"]);
 
 export default async function NewsPage({
   searchParams,
@@ -44,7 +45,10 @@ export default async function NewsPage({
   const ws = (await currentWorkspace())!;
   if (ws.kindChosen && ws.kind !== "NEWS") redirect("/newsroom");
   const sp = await searchParams;
-  const tab = TABS.find((t) => t.key === sp.tab) ?? TABS[0];
+  const tab = TABS.find((x) => x.key === sp.tab) ?? TABS[0];
+  const t = dict(await getLang());
+  const tn = t.nr.news;
+  const langNames: Record<string, string> = tn.langs;
 
   // Fetching is throttled to the plan's refresh interval, so opening the desk is cheap.
   // GDELT can take 10–20 s, so the page waits at most INGEST_WAIT_MS and shows
@@ -127,7 +131,7 @@ export default async function NewsPage({
     rssFeeds,
     cardsMade,
     postsPublished,
-  });
+  }, tn);
   const categoryCounts: Record<string, number> = Object.fromEntries(
     categoryGroups.filter((g) => g.category).map((g) => [g.category as string, g._count._all]),
   );
@@ -143,10 +147,10 @@ export default async function NewsPage({
   return (
     <div className="gm-stack">
       <div className="gm-between">
-        <h2 className="gm-title kufi">هەواڵەکان</h2>
+        <h2 className="gm-title kufi">{tn.list.title}</h2>
         <RefreshButton />
       </div>
-      <AutoRefresh refreshSec={refreshSec} label={ckb.billing.features.refresh(refreshSec)} />
+      <AutoRefresh refreshSec={refreshSec} label={t.billing.features.refresh(refreshSec)} />
 
       <div className={showChecklist ? "nr-overview has-check" : "nr-overview"}>
         <div className="nr-stats">
@@ -154,21 +158,21 @@ export default async function NewsPage({
             <span className="gm-stat-icon" aria-hidden="true"><Newspaper /></span>
             <div>
               <b>{num(tabTotal)}</b>
-              <span>{tab.label}</span>
+              <span>{tn.list.tabs[tab.key]}</span>
             </div>
           </div>
           <div className="nr-stat">
             <span className="gm-stat-icon" aria-hidden="true"><Sparkles /></span>
             <div>
               <b>{num(drafts)} / {num(limit)}</b>
-              <span>ئامادەکراوی ئەم مانگە</span>
+              <span>{tn.list.statDrafts}</span>
             </div>
           </div>
           <div className="nr-stat">
             <span className="gm-stat-icon" aria-hidden="true"><Rss /></span>
             <div>
               <b>{num(sources)}</b>
-              <span>سەرچاوە</span>
+              <span>{tn.list.statSources}</span>
             </div>
           </div>
         </div>
@@ -177,9 +181,9 @@ export default async function NewsPage({
 
       <div className="gm-card nr-filters">
         <div className="gm-chips nr-tabs" role="tablist">
-          {TABS.map((t) => (
-            <Link key={t.key} href={newsHref(q, { tab: t.key })} className="gm-chip" aria-pressed={t.key === tab.key}>
-              {t.label}
+          {TABS.map((x) => (
+            <Link key={x.key} href={newsHref(q, { tab: x.key })} className="gm-chip" aria-pressed={x.key === tab.key}>
+              {tn.list.tabs[x.key]}
             </Link>
           ))}
         </div>
@@ -189,18 +193,18 @@ export default async function NewsPage({
 
       {!sources && (
         <p className="gm-note">
-          هیچ سەرچاوەیەکت چالاک نییە. <Link href="/newsroom/settings" className="gm-link">لە ڕێکخستن سەرچاوە زیاد بکە</Link>.
+          {tn.list.noSources} <Link href="/newsroom/settings" className="gm-link">{tn.list.noSourcesLink}</Link>.
         </p>
       )}
       {!!sources && !settings?.keywords.length && (
         <p className="gm-note">
-          GDELT و NewsData وشەی سەرەکییان دەوێت. <Link href="/newsroom/settings" className="gm-link">وشە سەرەکییەکانت دابنێ</Link>.
+          {tn.list.noKeywords} <Link href="/newsroom/settings" className="gm-link">{tn.list.noKeywordsLink}</Link>.
         </p>
       )}
-      {ingestResult?.failed.length ? <p className="gm-hint">وەڵامی نەدایەوە: {ingestResult.failed.join("، ")}</p> : null}
+      {ingestResult?.failed.length ? <p className="gm-hint">{tn.list.noAnswer(ingestResult.failed.join("، "))}</p> : null}
 
       {groups.length === 0 ? (
-        <p className="gm-empty">هیچ هەواڵێک لێرە نییە.</p>
+        <p className="gm-empty">{tn.list.empty}</p>
       ) : (
         <div className="nr-news-list">
           {groups.map(({ lead, count }) => {
@@ -209,13 +213,13 @@ export default async function NewsPage({
             const story = (
               <>
                 <b dir="auto">{lead.title}</b>
-                {auto && <span className="gm-badge ghost nr-auto">خۆکار</span>}
+                {auto && <span className="gm-badge ghost nr-auto">{tn.list.auto}</span>}
                 <small className="gm-sub">
                   {lead.sourceName}
-                  {count > 1 ? ` · ${num(count)} سەرچاوە` : ""} · {ago(lead.publishedAt.toISOString())}
-                  {lead.lang && LANG_LABEL[lead.lang] ? ` · ${LANG_LABEL[lead.lang]}` : ""}
-                  {categoryLabel(lead.category, lead.subcategory) ? ` · ${categoryLabel(lead.category, lead.subcategory)}` : ""}
-                  {regionLabel(lead.region) ? ` · ${regionLabel(lead.region)}` : ""}
+                  {count > 1 ? ` · ${tn.list.sourceCount(count)}` : ""} · {ago(lead.publishedAt.toISOString(), t)}
+                  {lead.lang && LIST_LANGS.has(lead.lang) ? ` · ${langNames[lead.lang]}` : ""}
+                  {categoryLabel(lead.category, lead.subcategory, tn) ? ` · ${categoryLabel(lead.category, lead.subcategory, tn)}` : ""}
+                  {regionLabel(lead.region, tn) ? ` · ${regionLabel(lead.region, tn)}` : ""}
                 </small>
               </>
             );
@@ -224,7 +228,7 @@ export default async function NewsPage({
               return (
                 <div key={lead.id} className="gm-card">
                   <Link href={`/newsroom/news/${lead.id}`} className="nr-news-open">{story}</Link>
-                  <Link href={`/newsroom/publish?draft=${lead.draft.id}`} className="gm-link nr-news-more">تیکتۆک</Link>
+                  <Link href={`/newsroom/publish?draft=${lead.draft.id}`} className="gm-link nr-news-more">{t.platform.TT}</Link>
                 </div>
               );
             }
@@ -239,14 +243,14 @@ export default async function NewsPage({
 
       {attributions.length > 0 && (
         <p className="gm-hint">
-          هەندێک هەواڵ لە ڕێگەی{" "}
+          {tn.list.attribBefore}{" "}
           {attributions.map((a, i) => (
             <span key={a.id}>
-              {i > 0 ? " و " : ""}
+              {i > 0 ? tn.list.attribAnd : ""}
               <a href={a.attribution!.url} className="gm-link" target="_blank" rel="noreferrer">{a.attribution!.label}</a>
             </span>
           ))}
-          ەوە دێن.
+          {tn.list.attribAfter}
         </p>
       )}
     </div>

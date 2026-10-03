@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { num } from "@/app/app/format";
 import { deskLimit } from "@/lib/billing/plans";
+import { dict, getLang } from "@/lib/i18n";
 import { NewDeskForm } from "./new-desk-form";
 
 export default async function NewDeskPage() {
@@ -10,20 +10,15 @@ export default async function NewDeskPage() {
     where: { ownerId: session!.user!.id!, kind: "NEWS", kindChosen: true },
     select: { plan: true },
   });
-  const limit = deskLimit(owned.map((t) => t.plan));
+  const limit = deskLimit(owned.map((o) => o.plan));
+  const t = dict(await getLang()).nr.shell.newDesk;
   return (
     <div className="gm-stack gm-narrow">
-      <h2 className="gm-title kufi">مێزی نوێ</h2>
+      <h2 className="gm-title kufi">{t.title}</h2>
       <p className="gm-sub" style={{ margin: 0 }}>
-        مێزێکی جیا بۆ زمانێک، بەشێک یان براندێکی تری کەناڵەکەت. هەر مێزێک پەیج، سەرچاوە، براند و تیمی خۆی هەیە.
+        {t.sub}
       </p>
-      {owned.length >= limit ? (
-        <p className="gm-note">
-          پلانەکەت {num(limit)} مێزی تێدایە و هەمووی بەکارهاتووە. بۆ مێزی زیاتر پەیوەندیمان پێوە بکە.
-        </p>
-      ) : (
-        <NewDeskForm />
-      )}
+      {owned.length >= limit ? <p className="gm-note">{t.full(limit)}</p> : <NewDeskForm />}
     </div>
   );
 }

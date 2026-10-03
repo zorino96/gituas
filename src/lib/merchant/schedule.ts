@@ -1,23 +1,24 @@
 // Rules for posts scheduled for later. Pure, so the server action, the cron
 // route and the composer agree on them.
 
+import { ckb, type Dict } from "@/lib/i18n/ckb";
+
+type ScheduleText = Pick<Dict["actions"]["publish"], "noTiktokSchedule" | "tooSoon" | "tooFar" | "badTime">;
+
 /** TikTok's audited Direct Post flow needs the person present, so it is never scheduled. */
-export const SCHEDULE_NO_TIKTOK = "بۆ تیکتۆک خشتەکردن نییە — ڕاستەوخۆ بڵاوی بکەرەوە.";
-export const SCHEDULE_TOO_SOON = "کاتەکە دەبێت لانیکەم ١٠ خولەک دوای ئێستا بێت.";
-export const SCHEDULE_TOO_FAR = "کاتەکە دەبێت لە ماوەی ٦٠ ڕۆژدا بێت.";
-export const SCHEDULE_BAD_TIME = "کاتەکە دروست نییە.";
+export const SCHEDULE_NO_TIKTOK = ckb.actions.publish.noTiktokSchedule;
 
 const MINUTE = 60_000;
 const DAY = 86_400_000;
 export const MIN_LEAD_MS = 10 * MINUTE;
 export const MAX_LEAD_MS = 60 * DAY;
 
-/** Why this post cannot be scheduled, in Sorani, or null when it can. */
-export function scheduleProblem(targets: string[], runAt: Date, now: Date): string | null {
-  if (targets.includes("TT")) return SCHEDULE_NO_TIKTOK;
-  if (Number.isNaN(runAt.getTime())) return SCHEDULE_BAD_TIME;
-  if (runAt.getTime() < now.getTime() + MIN_LEAD_MS) return SCHEDULE_TOO_SOON;
-  if (runAt.getTime() > now.getTime() + MAX_LEAD_MS) return SCHEDULE_TOO_FAR;
+/** Why this post cannot be scheduled, in the given wording (Sorani by default), or null when it can. */
+export function scheduleProblem(targets: string[], runAt: Date, now: Date, t: ScheduleText = ckb.actions.publish): string | null {
+  if (targets.includes("TT")) return t.noTiktokSchedule;
+  if (Number.isNaN(runAt.getTime())) return t.badTime;
+  if (runAt.getTime() < now.getTime() + MIN_LEAD_MS) return t.tooSoon;
+  if (runAt.getTime() > now.getTime() + MAX_LEAD_MS) return t.tooFar;
   return null;
 }
 

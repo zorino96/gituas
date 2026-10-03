@@ -7,14 +7,15 @@ import { loadAccounts, loadInvoices, settleReturn } from "@/app/app/billing/load
 import { newsroomAccess } from "@/lib/billing/trial";
 import { waylConfigured, waylEnv } from "@/lib/billing/wayl";
 import { db } from "@/lib/db";
-import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
+import { dict, getLang } from "@/lib/i18n";
+import { can } from "@/lib/newsroom/roles";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewsroomBillingPage({ searchParams }: { searchParams: Promise<{ invoice?: string }> }) {
   const ws = (await currentWorkspace())!;
   if (ws.kind !== "NEWS") redirect("/newsroom");
-  if (!can(ws.role, "configure")) return <p className="gm-note warn">{NOT_ALLOWED}</p>;
+  if (!can(ws.role, "configure")) return <p className="gm-note warn">{dict(await getLang()).nr.team.roles.notAllowed}</p>;
 
   const sp = await searchParams;
   // Confirm first, so the plan and invoices below already show the payment.

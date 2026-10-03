@@ -4,45 +4,27 @@ import { redirect } from "next/navigation";
 import { BarChart3, LayoutTemplate, ShieldCheck, Sparkles, Send, Users } from "lucide-react";
 
 import { currentWorkspace, listWorkspaces } from "@/app/app/data";
+import { dict, getLang } from "@/lib/i18n";
 import { NewsroomRoot } from "./desk-shell";
 import { ShopNotice } from "./shop-notice";
 
-export const metadata: Metadata = {
-  title: "گیتواس نیوزڕووم",
-  description: "ژووری هەواڵی کەناڵەکەت لەسەر سۆشیال میدیا: کارتی براندی خۆت و بڵاوکردنەوە بۆ هەموو پلاتفۆرمەکان لە یەک شوێنەوە.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = dict(await getLang()).nr.shell;
+  return { title: t.name, description: t.landing.metaDescription };
+}
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 export const dynamic = "force-dynamic";
 
 const FEATURES = [
-  {
-    Icon: LayoutTemplate,
-    title: "کارتی براندی کەناڵەکەت",
-    body: "لۆگۆ و ڕەنگی خۆت، بە فۆنتێک کە هەڵیدەبژێریت، لەسەر هەموو کارتێک، بە چوار جۆر: ئاسایی، بەپەلە، ژمارە و وتە.",
-  },
-  {
-    Icon: Sparkles,
-    title: "کورتەی کوردی بە زیرەکیی دەستکرد",
-    body: "هەواڵ لە چەند چرکەیەکدا دەبێتە سەردێڕ و دەقی کوردیی ئامادە بۆ پۆست. تۆ دەستکاری و پەسەندی دەکەیت.",
-  },
-  {
-    Icon: Send,
-    title: "یەک شوێن بۆ هەموو پلاتفۆرمەکان",
-    body: "لە یەک پەڕەوە بۆ فەیسبووک، ئینستاگرام و تیکتۆک بڵاو بکەرەوە.",
-  },
-  {
-    Icon: BarChart3,
-    title: "کۆمێنت، نامە و ئامار",
-    body: "وەڵامی بینەران بدەرەوە و بزانە کام هەواڵ زۆرترین کۆمێنتی وەرگرتووە، بێ ئەوەی لە ئەپێکەوە بچیتە ئەپێکی تر.",
-  },
-  {
-    Icon: Users,
-    title: "تیمەکەت پێکەوە",
-    body: "نووسەر، سەرنووسەر و خاوەن، هەر یەکە بە ڕۆڵی خۆی. چەند مێز بۆ چەند زمان یان براند.",
-  },
+  { key: "cards", Icon: LayoutTemplate },
+  { key: "ai", Icon: Sparkles },
+  { key: "platforms", Icon: Send },
+  { key: "audience", Icon: BarChart3 },
+  { key: "team", Icon: Users },
 ] as const;
 
 export default async function NewsroomLandingPage() {
+  const t = dict(await getLang()).nr.shell;
   const ws = await currentWorkspace();
   if (ws) {
     if (!ws.kindChosen || ws.kind === "NEWS") redirect("/newsroom/news");
@@ -61,10 +43,10 @@ export default async function NewsroomLandingPage() {
           <div className="nr-wrap">
             <p className="nr-brand kufi" style={{ padding: 0 }}>
               <span className="nr-live" aria-hidden="true" />
-              گیتواس نیوزڕووم
+              {t.name}
             </p>
             <Link href="/login?next=/newsroom/news" className="gm-btn quiet small">
-              چوونەژوورەوە
+              {t.signIn}
             </Link>
           </div>
         </header>
@@ -72,20 +54,20 @@ export default async function NewsroomLandingPage() {
         <main className="nr-land-main nr-wrap">
           <section className="nr-hero">
             <div className="nr-hero-copy">
-              <h1 className="kufi">ژووری هەواڵی کەناڵەکەت، لەسەر هەموو پلاتفۆرمەکان</h1>
-              <p>هەواڵ بکە بە کارتی براندی خۆت و لە یەک شوێنەوە بۆ فەیسبووک، ئینستاگرام و تیکتۆک بڵاوی بکەرەوە.</p>
+              <h1 className="kufi">{t.landing.title}</h1>
+              <p>{t.landing.lead}</p>
 
               <div className="nr-cta">
                 <Link href="/signup?next=/newsroom/news" className="gm-btn">
-                  دەست پێ بکە
+                  {t.landing.start}
                 </Link>
                 <Link href="/newsroom/guide" className="gm-btn quiet">
-                  چۆن کار دەکات؟
+                  {t.landing.how}
                 </Link>
               </div>
               <p className="nr-promise">
                 <ShieldCheck aria-hidden="true" />
-                هیچ شتێک بێ پەسەندی تۆ بڵاو نابێتەوە.
+                {t.landing.promise}
               </p>
             </div>
 
@@ -115,13 +97,13 @@ export default async function NewsroomLandingPage() {
           </section>
 
           <div className="nr-features">
-            {FEATURES.map(({ Icon, title, body }) => (
-              <div key={title} className="nr-feature">
+            {FEATURES.map(({ key, Icon }) => (
+              <div key={key} className="nr-feature">
                 <span className="nr-feature-icon" aria-hidden="true">
                   <Icon />
                 </span>
-                <h3 className="kufi">{title}</h3>
-                <p>{body}</p>
+                <h3 className="kufi">{t.landing.features[key].title}</h3>
+                <p>{t.landing.features[key].body}</p>
               </div>
             ))}
           </div>

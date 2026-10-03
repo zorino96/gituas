@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { isOwnBlobUrl } from "@/lib/merchant/caption";
-import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
+import { dict, getLang } from "@/lib/i18n";
+import { can } from "@/lib/newsroom/roles";
 import { cleanSamples, parsePrice, toWesternDigits } from "@/lib/shop/forms";
 import { accountFor, fetchPostCreatedAt } from "@/lib/shop/meta-client";
 import { currentWorkspace } from "@/app/app/data";
@@ -15,14 +16,14 @@ export type ActionResult = { ok: true; id?: string } | { ok: false; error: strin
 const DAY = 86_400_000;
 const CURRENCIES = ["IQD", "USD"] as const;
 
-/** The signed-in workspace's own store, and only for roles that may configure. */
+/** The signed-in workspace's own store, and only for roles that may configure; `m` is the user's wording. */
 async function ownedStore(storeId: string) {
-  const ws = await currentWorkspace();
-  if (!ws) return { error: "چوونەژوورەوە پێویستە." } as const;
-  if (!can(ws.role, "configure")) return { error: NOT_ALLOWED } as const;
+  const [ws, t] = await Promise.all([currentWorkspace(), getLang().then(dict)]);
+  if (!ws) return { error: t.actions.common.signIn } as const;
+  if (!can(ws.role, "configure")) return { error: t.nr.team.roles.notAllowed } as const;
   const store = await db.store.findFirst({ where: { id: storeId, tenantId: ws.id }, select: { id: true, tenantId: true, expiryDays: true, defaultTemplateId: true, fbPageId: true, igUserId: true } });
-  if (!store) return { error: "دووکانەکە نەدۆزرایەوە." } as const;
-  return { ws, store } as const;
+  if (!store) return { error: t.actions.automation.storeNotFound } as const;
+  return { ws, store, m: { ...t.actions.common, ...t.actions.automation } } as const;
 }
 
 const done = (id?: string): ActionResult => {
@@ -44,14 +45,14 @@ export async function saveStoreSettingsAction(
   if (input.autoHideSpam !== undefined) data.autoHideSpam = !!input.autoHideSpam;
   if (input.expiryDays !== undefined) {
     const days = Math.round(Number(input.expiryDays));
-    if (!Number.isFinite(days) || days < 1 || days > 365) return { ok: false, error: "ڕۆژەکان دەبێت لە ١ تا ٣٦٥ بن." };
+    if (!Number.isFinite(days) || days < 1 || days > 365) return { ok: false, error: r.m.badDays };
     data.expiryDays = days;
   }
   if (input.stopBefore !== undefined) {
     const raw = input.stopBefore.trim();
     if (raw) {
       const stopBefore = new Date(`${raw}T00:00:00Z`);
-      if (Number.isNaN(stopBefore.getTime())) return { ok: false, error: "ڕێکەوتەکە دروست نییە." };
+      if (Number.isNaN(stopBefore.getTime())) return { ok: false, error: r.m.badDate };
       data.stopBefore = stopBefore;
     } else {
       data.stopBefore = null;
@@ -63,7 +64,7 @@ export async function saveStoreSettingsAction(
       data.deliveryFeeMinor = null;
     } else {
       const minor = /^0+$/.test(fee) ? 0 : parsePrice(fee, "IQD");
-      if (minor == null) return { ok: false, error: "کرێی گەیاندن دروست نییە." };
+      if (minor == null) return { ok: false, error: r.m.badDeliveryFee };
       data.deliveryFeeMinor = minor;
     }
     data.deliveryCurrency = "IQD";
@@ -82,12 +83,12 @@ export async function saveTemplateAction(
   const r = await ownedStore(storeId);
   if (r.error !== undefined) return { ok: false, error: r.error };
   const name = Array.from(input.name.trim()).slice(0, 40).join("");
-  if (!name) return { ok: false, error: "ناوێک بۆ تێمپلەیتەکە بنووسە." };
+  if (!name) return { ok: false, error: r.m.templateName };
   const data = { name, publicSamples: cleanSamples(input.publicSamples), thanksSamples: cleanSamples(input.thanksSamples), dmGreeting: !!input.dmGreeting, whatsappAlways: !!input.whatsappAlways };
   let id = templateId;
   if (id) {
     const owned = await db.automationTemplate.findFirst({ where: { id, storeId: r.store.id }, select: { id: true } });
-    if (!owned) return { ok: false, error: "تێمپلەیتەکە نەدۆزرایەوە." };
+    if (!owned) return { ok: false, error: r.m.templateNotFound };
     await db.automationTemplate.update({ where: { id }, data });
   } else {
     id = (await db.automationTemplate.create({ data: { storeId: r.store.id, ...data }, select: { id: true } })).id;
@@ -100,7 +101,7 @@ export async function deleteTemplateAction(storeId: string, templateId: string):
   const r = await ownedStore(storeId);
   if (r.error !== undefined) return { ok: false, error: r.error };
   const owned = await db.automationTemplate.findFirst({ where: { id: templateId, storeId: r.store.id }, select: { id: true } });
-  if (!owned) return { ok: false, error: "تێمپلەیتەکە نەدۆزرایەوە." };
+  if (!owned) return { ok: false, error: r.m.templateNotFound };
   await db.$transaction([
     db.postAutomation.updateMany({ where: { storeId: r.store.id, templateId }, data: { templateId: null } }),
     db.store.updateMany({ where: { id: r.store.id, defaultTemplateId: templateId }, data: { defaultTemplateId: null } }),
@@ -115,12 +116,12 @@ export async function setPostAutomationAction(
 ): Promise<ActionResult> {
   const r = await ownedStore(storeId);
   if (r.error !== undefined) return { ok: false, error: r.error };
-  if (!/^[\w-]{1,100}$/.test(input.postId)) return { ok: false, error: "پۆستەکە دروست نییە." };
+  if (!/^[\w-]{1,100}$/.test(input.postId)) return { ok: false, error: r.m.badPost };
   if (input.productId && !(await db.product.findFirst({ where: { id: input.productId, storeId: r.store.id, active: true }, select: { id: true } }))) {
-    return { ok: false, error: "بەرهەمەکە نەدۆزرایەوە." };
+    return { ok: false, error: r.m.productNotFound };
   }
   if (input.templateId && !(await db.automationTemplate.findFirst({ where: { id: input.templateId, storeId: r.store.id }, select: { id: true } }))) {
-    return { ok: false, error: "تێمپلەیتەکە نەدۆزرایەوە." };
+    return { ok: false, error: r.m.templateNotFound };
   }
   const platform = input.platform === "IG" ? "META_INSTAGRAM" : "META_FACEBOOK";
   const patch = {
@@ -151,24 +152,24 @@ export async function saveProductAction(
   const r = await ownedStore(storeId);
   if (r.error !== undefined) return { ok: false, error: r.error };
   const name = Array.from(input.name.trim()).slice(0, 80).join("");
-  if (!name) return { ok: false, error: "ناوی بەرهەمەکە بنووسە." };
+  if (!name) return { ok: false, error: r.m.productName };
   const photos = input.photos.slice(0, 5);
-  if (!photos.every((u) => isOwnBlobUrl(u, r.ws.id))) return { ok: false, error: "وێنەیەک دروست نییە." };
-  if (!input.variants.length || input.variants.length > 20) return { ok: false, error: "لانیکەم یەک نرخ پێویستە." };
+  if (!photos.every((u) => isOwnBlobUrl(u, r.ws.id))) return { ok: false, error: r.m.badPhoto };
+  if (!input.variants.length || input.variants.length > 20) return { ok: false, error: r.m.needPrice };
   const variants = [];
   for (const [i, v] of input.variants.entries()) {
     const currency = CURRENCIES.includes(v.currency as (typeof CURRENCIES)[number]) ? v.currency : "IQD";
     const amountMinor = parsePrice(v.price, currency);
-    if (amountMinor == null) return { ok: false, error: `نرخی ڕیزی ${i + 1} دروست نییە.` };
+    if (amountMinor == null) return { ok: false, error: r.m.badRowPrice(i + 1) };
     const label = Array.from(v.label.trim()).slice(0, 40).join("");
-    if (!label && input.variants.length > 1) return { ok: false, error: `ناوی جۆری ڕیزی ${i + 1} بنووسە (قیاس یان ڕەنگ).` };
+    if (!label && input.variants.length > 1) return { ok: false, error: r.m.rowLabel(i + 1) };
     variants.push({ label, amountMinor, currency, inStock: !!v.inStock, position: i });
   }
   const description = Array.from(input.description.trim()).slice(0, 500).join("") || null;
   let id = productId;
   if (id) {
     const owned = await db.product.findFirst({ where: { id, storeId: r.store.id }, select: { id: true } });
-    if (!owned) return { ok: false, error: "بەرهەمەکە نەدۆزرایەوە." };
+    if (!owned) return { ok: false, error: r.m.productNotFound };
     await db.$transaction([
       db.product.update({ where: { id }, data: { name, description, photos, active: true } }),
       db.productVariant.deleteMany({ where: { productId: id } }),
@@ -184,6 +185,6 @@ export async function archiveProductAction(storeId: string, productId: string): 
   const r = await ownedStore(storeId);
   if (r.error !== undefined) return { ok: false, error: r.error };
   const { count } = await db.product.updateMany({ where: { id: productId, storeId: r.store.id }, data: { active: false } });
-  if (!count) return { ok: false, error: "بەرهەمەکە نەدۆزرایەوە." };
+  if (!count) return { ok: false, error: r.m.productNotFound };
   return done();
 }

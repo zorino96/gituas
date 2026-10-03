@@ -6,6 +6,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { assertWithin, LimitReached, limitMessage, newsroomFrozenError } from "@/lib/billing/limits";
+import { ckb, type Dict } from "@/lib/i18n/ckb";
 import { captionProblems, isJpegPath, isKnownTarget, isOwnBlobUrl, youtubeProblem, youtubeTitle, type Target } from "@/lib/merchant/caption";
 import { tiktokProblems } from "@/lib/merchant/tiktok-rules";
 import { recordNewsPublish } from "@/lib/news/publish-record";
@@ -63,47 +64,50 @@ async function audit(tenantId: string, action: string, reasoning: string, metada
  * rules are re-checked here against a fresh creator_info call, never against
  * what the browser sent; publishToTikTok checks them a third time.
  *
- * The caller has already authenticated and checked the "publish" permission.
+ * The caller has already authenticated and checked the "publish" permission. `t` words the
+ * errors; the cron route and the autopilot have no viewer, so they get Sorani.
  */
 export async function publishForWorkspace(
   ws: { id: string; kind: "MERCHANT" | "NEWS"; role: Role },
   input: PublishInput,
+  t: Dict = ckb,
 ): Promise<PublishOutcome[] | { error: string }> {
+  const m = t.actions.publish;
   const targets = [...new Set(input.targets)];
-  if (!targets.length) return { error: "لانیکەم یەک شوێن هەڵبژێرە." };
-  if (!targets.every(isKnownTarget)) return { error: "ئامانجێکی نەناسراو." };
+  if (!targets.length) return { error: t.publish.blockPickTarget };
+  if (!targets.every(isKnownTarget)) return { error: m.unknownTarget };
   // A frozen newsroom may not post at all — not only drafts from the news desk.
   if (ws.kind === "NEWS") {
-    const frozen = await newsroomFrozenError(ws.id);
+    const frozen = await newsroomFrozenError(ws.id, t.nr.news.actions);
     if (frozen) return { error: frozen };
   }
   if (input.newsDraftId) {
     try {
       await assertWithin(ws.id, "publish");
     } catch (e) {
-      if (e instanceof LimitReached) return { error: limitMessage(e) };
+      if (e instanceof LimitReached) return { error: limitMessage(e, t.nr.news.actions) };
       throw e;
     }
   }
 
   const typedCaption = input.caption.trim();
-  if (!typedCaption && !input.media) return { error: "دەق یان وێنە/ڤیدیۆیەک زیاد بکە." };
+  if (!typedCaption && !input.media) return { error: t.publish.blockNeedContent };
   if ((targets.includes("IG") || targets.includes("TT")) && !input.media) {
-    return { error: "ئینستاگرام و تیکتۆک وێنە یان ڤیدیۆیان دەوێت." };
+    return { error: m.needMedia };
   }
-  const ytProblem = youtubeProblem(targets, input.media);
-  if (ytProblem) return { error: ytProblem };
+  // youtubeProblem has a single, Sorani answer; the dictionary has the same sentence.
+  if (youtubeProblem(targets, input.media)) return { error: t.publish.ytVideoOnly };
   if (input.media) {
     const expected = `merchant/${ws.id}/`;
     if (!input.media.pathname.startsWith(expected) || !/^https:\/\//.test(input.media.url)) {
-      return { error: "فایلەکە ناناسرێتەوە. دووبارە بارکردنی بکە." };
+      return { error: m.badFile };
     }
     // Our server downloads the YouTube video from this URL, so it must be one of this workspace's own Blob files.
     if (targets.includes("YT") && !isOwnBlobUrl(input.media.url, ws.id)) {
-      return { error: "فایلەکە ناناسرێتەوە. دووبارە بارکردنی بکە." };
+      return { error: m.badFile };
     }
     if (input.media.type === "IMAGE" && (targets.includes("IG") || targets.includes("TT")) && !isJpegPath(input.media.pathname)) {
-      return { error: "ئینستاگرام و تیکتۆک تەنها وێنەی JPG وەردەگرن." };
+      return { error: m.jpgOnly };
     }
   }
 
@@ -112,16 +116,16 @@ export async function publishForWorkspace(
   const caption = typedCaption;
   if (input.newsDraftId) {
     const draft = await db.newsDraft.findFirst({ where: { id: input.newsDraftId, tenantId: ws.id }, include: { item: true } });
-    if (!draft) return { error: "هەواڵەکە نەدۆزرایەوە." };
+    if (!draft) return { error: t.nr.news.actions.notFound };
     if (!draft.cardPath || draft.cardPath !== input.media?.pathname) {
-      return { error: "کارتەکە گۆڕاوە. لە مێزی هەواڵ دووبارە ئامادەی بکەوە." };
+      return { error: m.cardChanged };
     }
-    const copyProblem = checkDraft({ headline: "", body: typedCaption }, { title: draft.item.title, snippet: draft.item.snippet }).find(
+    const copyProblem = checkDraft({ headline: "", body: typedCaption }, { title: draft.item.title, snippet: draft.item.snippet }, t.nr.news).find(
       (p) => p.code === "COPY",
     );
     if (copyProblem) return { error: copyProblem.message };
   }
-  if (captionProblems(caption, targets).length) return { error: "دەقەکە بۆ یەکێک لە شوێنەکان درێژە." };
+  if (captionProblems(caption, targets).length) return { error: t.publish.blockCaptionLong };
 
   const run = async (target: Target): Promise<PublishOutcome> => {
     if (target === "FB") {
@@ -143,14 +147,14 @@ export async function publishForWorkspace(
     }
     // TikTok pulls the video from our verified domain, through the media proxy.
     const tt = input.tiktok;
-    if (!tt) return { target, ok: false, error: "ڕێکخستنەکانی تیکتۆک دیاری نەکراون." };
+    if (!tt) return { target, ok: false, error: m.ttNoSettings };
     const info = await getTikTokPostContext(ws.id);
     if ("error" in info) return { target, ok: false, error: info.error };
     const problems = tiktokProblems(
       { privacy: tt.privacy, commercial: tt.commercial, yourBrand: tt.yourBrand, branded: tt.branded, durationSec: input.media!.durationSec },
       { privacyOptions: info.privacy_level_options ?? [], maxDurationSec: info.max_video_post_duration_sec },
     );
-    if (problems.length) return { target, ok: false, error: `ڕێکخستنی تیکتۆک تەواو نییە (${problems.join(", ")}).` };
+    if (problems.length) return { target, ok: false, error: m.ttIncomplete(problems.join(", ")) };
     const mediaUrl = `${APP_ORIGIN}/m/${input.media!.pathname}`;
     if (input.media!.type === "IMAGE") {
       const r = await publishPhotoToTikTok(
@@ -182,7 +186,7 @@ export async function publishForWorkspace(
 
   const settled = await Promise.allSettled(targets.map(run));
   const results = settled.map((s, i): PublishOutcome =>
-    s.status === "fulfilled" ? s.value : { target: targets[i], ok: false, error: s.reason instanceof Error ? s.reason.message : "هەڵە" },
+    s.status === "fulfilled" ? s.value : { target: targets[i], ok: false, error: s.reason instanceof Error ? s.reason.message : t.common.error },
   );
   for (const r of results) {
     const meta: Prisma.InputJsonObject = {

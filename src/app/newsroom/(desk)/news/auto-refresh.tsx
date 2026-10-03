@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useTransition } from "react";
 
+import { useT } from "@/lib/i18n/client";
+
 /**
  * Re-reads the page every `refreshSec` seconds while the tab is in front, so new stories show up
  * without a click. It pauses while the tab is hidden, catches up once when it comes back, and
@@ -10,6 +12,7 @@ import { useEffect, useRef, useTransition } from "react";
  * ("هەر خولەکێک"), worked out on the server in the desk's language.
  */
 export function AutoRefresh({ refreshSec, label }: { refreshSec: number; label: string }) {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const busy = useRef(false);
@@ -52,5 +55,5 @@ export function AutoRefresh({ refreshSec, label }: { refreshSec: number; label: 
     };
   }, [refreshSec, router, start]);
 
-  return <p className="gm-hint">نوێکردنەوەی خۆکار: {label}</p>;
+  return <p className="gm-hint">{t.nr.news.list.autoRefresh(label)}</p>;
 }

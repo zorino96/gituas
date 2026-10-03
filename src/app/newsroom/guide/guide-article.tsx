@@ -1,19 +1,21 @@
 import Link from "next/link";
 
 import { num } from "@/app/app/format";
-import { GUIDE } from "@/lib/newsroom/guide";
+import { dict, getLang } from "@/lib/i18n";
+import { guideFor } from "@/lib/newsroom/guide";
 
-export function GuideArticle() {
+export async function GuideArticle() {
+  const lang = await getLang();
+  const t = dict(lang).nr.shell.guide;
+  const guide = guideFor(lang);
   return (
     <article className="nr-guide">
       <header className="nr-guide-head">
-        <h1 className="gm-title kufi">ڕێنمایی نیوزڕووم</h1>
-        <p className="gm-sub">
-          هەموو ئەوەی پێویستە بۆ ئەوەی کەناڵەکەت لە یەک ڕۆژدا دەست بە کار بکات.
-        </p>
+        <h1 className="gm-title kufi">{t.title}</h1>
+        <p className="gm-sub">{t.sub}</p>
       </header>
-      <nav aria-label="ناوەڕۆک" className="gm-chips nr-toc">
-        {GUIDE.map((s) => (
+      <nav aria-label={t.toc} className="gm-chips nr-toc">
+        {guide.map((s) => (
           <a key={s.id} href={`#${s.id}`} className="gm-chip">
             {s.title}
           </a>
@@ -21,7 +23,7 @@ export function GuideArticle() {
       </nav>
 
       <div className="nr-guide-body">
-        {GUIDE.map((s, i) => (
+        {guide.map((s, i) => (
           <section key={s.id} id={s.id} className="gm-card" aria-labelledby={`${s.id}-title`}>
             <h2 id={`${s.id}-title`} className="kufi">
               {num(i + 1)}. {s.title}

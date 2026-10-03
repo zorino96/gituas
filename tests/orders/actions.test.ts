@@ -9,6 +9,8 @@ const db = {
 vi.mock("@/lib/db", () => ({ db }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/app/app/data", () => ({ currentWorkspace: async () => ws }));
+const lang = vi.hoisted(() => ({ value: undefined as string | undefined }));
+vi.mock("next/headers", () => ({ cookies: async () => ({ get: (name: string) => (name === "gm_lang" && lang.value ? { name, value: lang.value } : undefined) }) }));
 
 const { saveOrderAction, setOrderStatusAction } = await import("@/app/app/orders/actions");
 
@@ -30,6 +32,7 @@ const input = {
 beforeEach(() => {
   vi.clearAllMocks();
   ws.role = "OWNER";
+  lang.value = undefined;
   db.order.create.mockResolvedValue({ id: "o1" });
   db.order.findFirst.mockResolvedValue({ id: "o1" });
   db.order.updateMany.mockResolvedValue({ count: 1 });
@@ -56,6 +59,15 @@ describe("saveOrderAction", () => {
     expect((await saveOrderAction(null, { ...input, status: "DONE" })).ok).toBe(false);
     expect((await saveOrderAction(null, { ...input, customerName: "  " })).ok).toBe(false);
     expect(db.order.create).not.toHaveBeenCalled();
+  });
+
+  it("answers in the language of the gm_lang cookie, Sorani by default", async () => {
+    expect(await saveOrderAction(null, { ...input, city: "atlantis" })).toEqual({ ok: false, error: "شارەکە دروست نییە." });
+    lang.value = "ar";
+    expect(await saveOrderAction(null, { ...input, city: "atlantis" })).toEqual({ ok: false, error: "المدينة غير صالحة." });
+    ws.role = "MEMBER";
+    const r = await saveOrderAction(null, input);
+    expect(r.ok === false && r.error).not.toMatch(/[کیەێۆڕڵڤپچژگ]/);
   });
 
   it("looks a product up inside the workspace's own stores and refuses someone else's", async () => {

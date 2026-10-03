@@ -1,5 +1,5 @@
 /**
- * The shop's language: Sorani Kurdish ("ckb", the default) or Arabic ("ar").
+ * The UI language of the shop and the newsroom: Sorani Kurdish ("ckb", the default) or Arabic ("ar").
  *
  *   Server component / action:   const t = dict(await getLang());     t.home.title
  *   Client component:            const t = useT();                    (import from "@/lib/i18n/client")
@@ -15,9 +15,10 @@
  * Helpers that format text outside React (ago, kuDate, friendlyError in app/format.ts) take the
  * dictionary as an optional last argument and default to Sorani.
  *
- * Only the shop follows the cookie. The newsroom's own screens stay Sorani; the shop pages it
- * re-exports (comments, messages, publish, insights, settings) read the same cookie, and the
- * newsroom shell wraps them in a LangProvider too.
+ * The newsroom follows the same cookie: its own screens take their text from `t.nr.*` (one file
+ * per area in ./nr/), and the shop pages it re-exports (comments, messages, publish, insights,
+ * settings) are wrapped in the newsroom shell's LangProvider. News content itself (drafts, cards,
+ * captions) stays in the desk's language, Sorani, whatever the UI language.
  *
  * This file imports next/headers, so client components must import from "./client", not here
  * (type-only imports from here are fine).

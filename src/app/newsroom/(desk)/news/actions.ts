@@ -17,7 +17,8 @@ import { normalizeChoice } from "@/lib/news/taxonomy";
 import { CARD_KINDS, type CardKind } from "@/lib/news/types";
 import { cleanVoiceNote } from "@/lib/news/voice";
 import { writeDraft } from "@/lib/news/write";
-import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
+import { can } from "@/lib/newsroom/roles";
+import { dict, getLang } from "@/lib/i18n";
 import { currentWorkspace, loadConnections, type Workspace } from "@/app/app/data";
 
 export type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
@@ -40,7 +41,11 @@ async function newsWorkspace(): Promise<Workspace | null> {
   return ws && ws.kind === "NEWS" ? ws : null;
 }
 
-const NOT_NEWS = { ok: false as const, error: "ئەم بەشە تەنها بۆ پەیجی هەواڵە." };
+/** The workspace when it is a news desk, and the messages in the user's language. */
+async function desk() {
+  const [ws, t] = await Promise.all([newsWorkspace(), getLang().then(dict)]);
+  return { ws, t, m: { ...t.nr.news.actions, notAllowed: t.nr.team.roles.notAllowed } };
+}
 
 /** A path must sit under this workspace's own folder and never contain a `..` segment. */
 function isOwnPath(path: string, tenantId: string): boolean {
@@ -74,15 +79,15 @@ function view(d: {
 }
 
 export async function refreshNewsAction(): Promise<Result<{ added: number; failed: string[] }>> {
-  const ws = await newsWorkspace();
-  if (!ws) return NOT_NEWS;
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
   try {
     const r = await ingest(ws.id, { force: true });
     after(() => classifyPending(ws.id));
     revalidatePath("/newsroom/news");
     return { ok: true, added: r.added, failed: r.failed };
   } catch {
-    return { ok: false, error: "نوێکردنەوە سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە." };
+    return { ok: false, error: m.refreshFailed };
   }
 }
 
@@ -93,12 +98,12 @@ export async function refreshNewsAction(): Promise<Result<{ added: number; faile
  */
 export async function draftNewsAction(itemId: string, strength: Strength): Promise<Result<{ draft: DraftView }>> {
   const actionStart = Date.now();
-  const ws = await newsWorkspace();
-  if (!ws) return NOT_NEWS;
-  if (!can(ws.role, "draft")) return { ok: false, error: NOT_ALLOWED };
-  if (strength !== "fast" && strength !== "strong") return { ok: false, error: "جۆری داواکراو دروست نییە." };
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "draft")) return { ok: false, error: m.notAllowed };
+  if (strength !== "fast" && strength !== "strong") return { ok: false, error: m.badStrength };
   const item = await db.newsItem.findFirst({ where: { id: itemId, tenantId: ws.id } });
-  if (!item) return { ok: false, error: "هەواڵەکە نەدۆزرایەوە." };
+  if (!item) return { ok: false, error: m.notFound };
   const metric = strength === "strong" ? "improve" : "draft";
   try {
     await assertWithin(ws.id, metric);
@@ -112,9 +117,9 @@ export async function draftNewsAction(itemId: string, strength: Strength): Promi
     if (item.status === "NEW") await db.newsItem.update({ where: { id: itemId }, data: { status: "DRAFTED" } });
     return { ok: true, draft: view(saved) };
   } catch (e) {
-    if (e instanceof LimitReached) return { ok: false, error: limitMessage(e) };
-    if (e instanceof AiUnavailable) return { ok: false, error: "نووسینی خۆکار ئێستا بەردەست نییە. دەتوانیت خۆت بینووسیت." };
-    return { ok: false, error: "ئامادەکردن سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە." };
+    if (e instanceof LimitReached) return { ok: false, error: limitMessage(e, m) };
+    if (e instanceof AiUnavailable) return { ok: false, error: m.aiDown };
+    return { ok: false, error: m.draftFailed };
   }
 }
 
@@ -130,13 +135,13 @@ export interface DraftFields {
 
 /** Save the editor's text. Creates the draft when the editor wrote it by hand. */
 export async function saveNewsDraftAction(itemId: string, f: DraftFields): Promise<Result<{ draftId: string }>> {
-  const ws = await newsWorkspace();
-  if (!ws) return NOT_NEWS;
-  if (!can(ws.role, "draft")) return { ok: false, error: NOT_ALLOWED };
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "draft")) return { ok: false, error: m.notAllowed };
   const item = await db.newsItem.findFirst({ where: { id: itemId, tenantId: ws.id } });
-  if (!item) return { ok: false, error: "هەواڵەکە نەدۆزرایەوە." };
-  if (!CARD_KINDS.includes(f.cardKind)) return { ok: false, error: "جۆری کارت دروست نییە." };
-  if (f.photoPath && !isOwnPath(f.photoPath, ws.id)) return { ok: false, error: "وێنەکە ناناسرێتەوە." };
+  if (!item) return { ok: false, error: m.notFound };
+  if (!CARD_KINDS.includes(f.cardKind)) return { ok: false, error: m.badKind };
+  if (f.photoPath && !isOwnPath(f.photoPath, ws.id)) return { ok: false, error: m.badPhoto };
   const clip = (s: string | null, max: number) => (s ? [...s.trim()].slice(0, max).join("") || null : null);
   const data = {
     headline: [...f.headline.trim()].slice(0, LIMITS.headline + 40).join(""),
@@ -161,22 +166,22 @@ export async function saveNewsDraftAction(itemId: string, f: DraftFields): Promi
 
 /** Accept the rendered card, after checking the rules again on the server. */
 export async function attachCardAction(itemId: string, card: { url: string; pathname: string }): Promise<Result<{ draftId: string }>> {
-  const ws = await newsWorkspace();
-  if (!ws) return NOT_NEWS;
-  if (!can(ws.role, "draft")) return { ok: false, error: NOT_ALLOWED };
+  const { ws, t, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "draft")) return { ok: false, error: m.notAllowed };
   const draft = await db.newsDraft.findFirst({ where: { itemId, tenantId: ws.id }, include: { item: true } });
-  if (!draft) return { ok: false, error: "سەرەتا دەقەکە پاشەکەوت بکە." };
-  const problems = checkDraft(draft, draft.item);
+  if (!draft) return { ok: false, error: m.saveFirst };
+  const problems = checkDraft(draft, draft.item, t.nr.news);
   if (problems.length) return { ok: false, error: problems[0].message };
-  if (!isOwnPath(card.pathname, ws.id) || !/^https:\/\//.test(card.url)) return { ok: false, error: "کارتەکە ناناسرێتەوە." };
+  if (!isOwnPath(card.pathname, ws.id) || !/^https:\/\//.test(card.url)) return { ok: false, error: m.badCard };
   await db.newsDraft.update({ where: { id: draft.id }, data: { cardUrl: card.url, cardPath: card.pathname } });
   return { ok: true, draftId: draft.id };
 }
 
 export async function dismissNewsAction(itemId: string): Promise<Result> {
-  const ws = await newsWorkspace();
-  if (!ws) return NOT_NEWS;
-  if (!can(ws.role, "draft")) return { ok: false, error: NOT_ALLOWED };
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "draft")) return { ok: false, error: m.notAllowed };
   await db.newsItem.updateMany({ where: { id: itemId, tenantId: ws.id }, data: { status: "DISMISSED" } });
   revalidatePath("/newsroom/news");
   return { ok: true };
@@ -185,9 +190,9 @@ export async function dismissNewsAction(itemId: string): Promise<Result> {
 // ─── Settings ───────────────────────────────────────────────────────────────
 
 export async function saveKeywordsAction(raw: string): Promise<Result<{ keywords: string[] }>> {
-  const ws = await newsWorkspace();
-  if (!ws) return NOT_NEWS;
-  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
   const keywords = [...new Set(raw.split(/[,،\n]/).map((k) => k.trim()).filter((k) => k.length >= 2 && k.length <= 40 && !k.includes("|")))].slice(
     0,
     20,
@@ -206,13 +211,13 @@ async function underSourceLimit(tenantId: string): Promise<boolean> {
 }
 
 export async function toggleCatalogSourceAction(catalogId: string, enabled: boolean): Promise<Result> {
-  const ws = await newsWorkspace();
-  if (!ws) return NOT_NEWS;
-  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
   const entry = catalogEntry(catalogId);
-  if (!entry) return { ok: false, error: "ئەم سەرچاوەیە بەردەست نییە." };
+  if (!entry) return { ok: false, error: m.sourceUnavailable };
   const existing = await db.newsSource.findUnique({ where: { tenantId_catalogId: { tenantId: ws.id, catalogId } } });
-  if (enabled && !existing?.enabled && !(await underSourceLimit(ws.id))) return { ok: false, error: "سنووری ژمارەی سەرچاوەکانی پاکێجەکەت پڕ بووە." };
+  if (enabled && !existing?.enabled && !(await underSourceLimit(ws.id))) return { ok: false, error: m.sourceLimit };
   await db.newsSource.upsert({
     where: { tenantId_catalogId: { tenantId: ws.id, catalogId } },
     create: { tenantId: ws.id, catalogId, name: entry.name, enabled },
@@ -223,32 +228,32 @@ export async function toggleCatalogSourceAction(catalogId: string, enabled: bool
 
 /** Add the page's own feed; it must answer with at least one story. */
 export async function addRssSourceAction(url: string, name: string): Promise<Result> {
-  const ws = await newsWorkspace();
-  if (!ws) return NOT_NEWS;
-  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
   const u = url.trim();
   const n = name.trim().slice(0, 60);
-  if (!/^https?:\/\/[^\s]+$/i.test(u)) return { ok: false, error: "لینکەکە دروست نییە." };
-  if (!n) return { ok: false, error: "ناوی سەرچاوەکە بنووسە." };
-  if (!(await underSourceLimit(ws.id))) return { ok: false, error: "سنووری ژمارەی سەرچاوەکانی پاکێجەکەت پڕ بووە." };
+  if (!/^https?:\/\/[^\s]+$/i.test(u)) return { ok: false, error: m.badLink };
+  if (!n) return { ok: false, error: m.needName };
+  if (!(await underSourceLimit(ws.id))) return { ok: false, error: m.sourceLimit };
   try {
     const items = await fetchFeed(u, n);
-    if (!items.length) return { ok: false, error: "ئەم لینکە هیچ هەواڵێکی تێدا نییە." };
+    if (!items.length) return { ok: false, error: m.emptyFeed };
   } catch {
-    return { ok: false, error: "ئەم لینکە RSS نییە یان وەڵام ناداتەوە." };
+    return { ok: false, error: m.notRss };
   }
   try {
     await db.newsSource.create({ data: { tenantId: ws.id, rssUrl: u, name: n } });
   } catch {
-    return { ok: false, error: "ئەم سەرچاوەیە پێشتر زیاد کراوە." };
+    return { ok: false, error: m.duplicate };
   }
   return { ok: true };
 }
 
 export async function removeSourceAction(id: string): Promise<Result> {
-  const ws = await newsWorkspace();
-  if (!ws) return NOT_NEWS;
-  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
   await db.newsSource.deleteMany({ where: { id, tenantId: ws.id, rssUrl: { not: null } } });
   return { ok: true };
 }
@@ -262,12 +267,12 @@ export async function saveBrandKitAction(kit: {
   text: string;
   headingFont: "kufi" | "sans";
 }): Promise<Result> {
-  const ws = await newsWorkspace();
-  if (!ws) return NOT_NEWS;
-  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
-  if (![kit.primary, kit.accent, kit.text].every((c) => HEX.test(c))) return { ok: false, error: "ڕەنگەکان دروست نین." };
-  if (kit.headingFont !== "kufi" && kit.headingFont !== "sans") return { ok: false, error: "فۆنتەکە دروست نییە." };
-  if (kit.logoPath && !isOwnPath(kit.logoPath, ws.id)) return { ok: false, error: "لۆگۆکە ناناسرێتەوە." };
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
+  if (![kit.primary, kit.accent, kit.text].every((c) => HEX.test(c))) return { ok: false, error: m.badColors };
+  if (kit.headingFont !== "kufi" && kit.headingFont !== "sans") return { ok: false, error: m.badFont };
+  if (kit.logoPath && !isOwnPath(kit.logoPath, ws.id)) return { ok: false, error: m.badLogo };
   const data = { logoPath: kit.logoPath, primary: kit.primary, accent: kit.accent, text: kit.text, headingFont: kit.headingFont };
   await db.brandKit.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, ...data }, update: data });
   return { ok: true };
@@ -275,9 +280,9 @@ export async function saveBrandKitAction(kit: {
 
 /** The outlet's own writing style, added to every draft's instructions. Empty clears it. */
 export async function saveVoiceNoteAction(raw: string): Promise<Result<{ voiceNote: string }>> {
-  const ws = await newsWorkspace();
-  if (!ws) return NOT_NEWS;
-  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
   const voiceNote = cleanVoiceNote(typeof raw === "string" ? raw : "");
   await db.newsSettings.upsert({
     where: { tenantId: ws.id },
@@ -294,17 +299,17 @@ export async function saveVoiceNoteAction(raw: string): Promise<Result<{ voiceNo
  * it, and only connected Facebook and Instagram pages are ever saved as its targets.
  */
 export async function saveAutopilotAction(input: { mode: string; targets: string[]; dailyMax: number; minGapMin: number }): Promise<Result> {
-  const ws = await newsWorkspace();
-  if (!ws) return NOT_NEWS;
-  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
   const choice = parseAutopilot(input);
-  if (!choice) return { ok: false, error: "ڕێکخستنەکانی ئۆتۆپایلۆت دروست نین." };
+  if (!choice) return { ok: false, error: m.badAutopilot };
   const conns = await loadConnections(ws.id);
   const targets = autoTargetsFor(choice.targets, { FB: conns.META_FACEBOOK.connected, IG: conns.META_INSTAGRAM.connected });
   if (choice.mode === "PUBLISH") {
     const tenant = await db.tenant.findUnique({ where: { id: ws.id }, select: { plan: true } });
-    if (!canAutoPublish(tenant?.plan)) return { ok: false, error: "بڵاوکردنەوەی خۆکار تەنها لە پلانی پرۆ و دامەزراوە بەردەستە." };
-    if (!targets.length) return { ok: false, error: "بۆ بڵاوکردنەوەی خۆکار، لانیکەم فەیسبووک یان ئینستاگرامێکی پەیوەستکراو هەڵبژێرە." };
+    if (!canAutoPublish(tenant?.plan)) return { ok: false, error: m.autoPlan };
+    if (!targets.length) return { ok: false, error: m.autoTargets };
   }
   const data = { autoMode: choice.mode, autoTargets: targets, autoDailyMax: choice.dailyMax, autoMinGapMin: choice.minGapMin };
   await db.newsSettings.upsert({
@@ -318,9 +323,9 @@ export async function saveAutopilotAction(input: { mode: string; targets: string
 
 /** Which categories the desk keeps. An empty list keeps everything. */
 export async function saveCategoriesAction(list: string[]): Promise<Result> {
-  const ws = await newsWorkspace();
-  if (!ws) return NOT_NEWS;
-  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
   const categories = normalizeChoice(Array.isArray(list) ? list.slice(0, 60).map(String) : []);
   await db.newsSettings.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, keywords: [], categories }, update: { categories } });
   return { ok: true };
@@ -328,9 +333,9 @@ export async function saveCategoriesAction(list: string[]): Promise<Result> {
 
 /** RSS stories must also match the keywords (off: categories alone decide). */
 export async function setKeywordFilterAction(on: boolean): Promise<Result> {
-  const ws = await newsWorkspace();
-  if (!ws) return NOT_NEWS;
-  if (!can(ws.role, "configure")) return { ok: false, error: NOT_ALLOWED };
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
   await db.newsSettings.upsert({
     where: { tenantId: ws.id },
     create: { tenantId: ws.id, keywords: [], keywordFilter: !!on },

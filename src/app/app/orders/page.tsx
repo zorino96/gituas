@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
-import { getLang } from "@/lib/i18n";
-import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
+import { dict, getLang } from "@/lib/i18n";
+import { can } from "@/lib/newsroom/roles";
 import { ordersByCity } from "@/lib/orders/stats";
 import { currentWorkspace } from "../data";
 import { OrdersClient, type CityCard, type OrderView } from "./orders-client";
@@ -12,9 +12,9 @@ const LIST_LIMIT = 200;
 
 export default async function OrdersPage() {
   const ws = (await currentWorkspace())!;
-  if (!can(ws.role, "engage")) return <p className="gm-note warn">{NOT_ALLOWED}</p>;
-
   const lang = await getLang();
+  if (!can(ws.role, "engage")) return <p className="gm-note warn">{dict(lang).nr.team.roles.notAllowed}</p>;
+
   const [orders, forStats, products] = await Promise.all([
     db.order.findMany({ where: { tenantId: ws.id }, orderBy: { createdAt: "desc" }, take: LIST_LIMIT }),
     db.order.findMany({ where: { tenantId: ws.id }, select: { city: true, amountMinor: true, status: true, currency: true } }),

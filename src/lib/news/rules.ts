@@ -1,6 +1,8 @@
 // The legal rules of the news desk, enforced in code (spec: "Legal rules").
 // Pure: the editor runs checkDraft live in the browser, and the server runs it
 // again before a card is accepted.
+import { nrNewsCkb, type NrNewsText } from "@/lib/i18n/nr/news.ckb";
+
 import { shingles, words } from "./text";
 
 export const LIMITS = { headline: 120, body: 600 } as const;
@@ -14,8 +16,6 @@ export interface Problem {
   code: ProblemCode;
   message: string;
 }
-
-const ku = (n: number) => new Intl.NumberFormat("ar-IQ").format(n);
 
 /** Share of the text's word 4-grams that also appear in the source. Short texts are compared whole. */
 export function overlapRatio(text: string, source: string): number {
@@ -68,23 +68,21 @@ export function copyPart(d: { headline: string; body: string }, src: { title: st
   return null;
 }
 
-const COPY_MESSAGE: Record<Exclude<CopyPart, null>, string> = {
-  headline: "سەردێڕەکە زۆر لە سەردێڕی سەرچاوەکە دەچێت. بە وشەی خۆت بینووسەوە.",
-  body: "دەقەکە زۆر لە دەقی سەرچاوەکە دەچێت. بە وشەی خۆت بینووسەوە.",
-  both: "سەردێڕ و دەقەکە زۆر لە سەرچاوەکە دەچن. بە وشەی خۆت بینووسەوە.",
-};
-
 /** Every problem blocks publishing until the editor fixes it. */
-export function checkDraft(d: { headline: string; body: string }, src: { title: string; snippet: string }): Problem[] {
+export function checkDraft(
+  d: { headline: string; body: string },
+  src: { title: string; snippet: string },
+  t: Pick<NrNewsText, "rules"> = nrNewsCkb,
+): Problem[] {
   const out: Problem[] = [];
   const headline = d.headline.trim();
   const body = d.body.trim();
-  if (!headline || !body) out.push({ code: "EMPTY", message: "سەردێڕ و دەق هەردووکیان پێویستن." });
-  if ([...headline].length > LIMITS.headline) out.push({ code: "HEADLINE_LONG", message: `سەردێڕ لە ${ku(LIMITS.headline)} پیت درێژترە.` });
-  if ([...body].length > LIMITS.body) out.push({ code: "BODY_LONG", message: `دەق لە ${ku(LIMITS.body)} پیت درێژترە.` });
+  if (!headline || !body) out.push({ code: "EMPTY", message: t.rules.empty });
+  if ([...headline].length > LIMITS.headline) out.push({ code: "HEADLINE_LONG", message: t.rules.headlineLong(LIMITS.headline) });
+  if ([...body].length > LIMITS.body) out.push({ code: "BODY_LONG", message: t.rules.bodyLong(LIMITS.body) });
   const part = copyPart(d, src);
   if (part) {
-    out.push({ code: "COPY", message: COPY_MESSAGE[part] });
+    out.push({ code: "COPY", message: t.rules.copy[part] });
   }
   return out;
 }

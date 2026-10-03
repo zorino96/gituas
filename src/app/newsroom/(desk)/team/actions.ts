@@ -9,9 +9,11 @@ import { NEWSROOM_ORIGIN } from "@/lib/hosts";
 import { db } from "@/lib/db";
 import { currentWorkspace, type Workspace } from "@/app/app/data";
 import { NEWS_LIMITS, seatsLeft } from "@/lib/billing/plans";
+import { dict, getLang } from "@/lib/i18n";
+import { ckb } from "@/lib/i18n/ckb";
 import { emailEnabled, inviteEmail, sendEmail } from "@/lib/mailer";
 import { INVITE_TTL_MS, INVITES_PER_DAY, inviteLink, newInviteToken, normalizeEmail } from "@/lib/newsroom/invite";
-import { can, isInvitableRole, OWNER_ONLY, ROLE_LABEL, type InvitableRole } from "@/lib/newsroom/roles";
+import { can, isInvitableRole, ROLE_LABEL, type InvitableRole } from "@/lib/newsroom/roles";
 
 export type TeamResult = { ok: true; link?: string; emailed?: boolean } | { ok: false; error: string };
 
@@ -30,6 +32,10 @@ async function ownedDesk(): Promise<Workspace | null> {
   return ws && ws.kind === "NEWS" && can(ws.role, "team") ? ws : null;
 }
 
+async function teamText() {
+  return dict(await getLang()).nr.team;
+}
+
 async function audit(tenantId: string, action: string, reasoning: string, metadata: Prisma.InputJsonObject) {
   await db.auditLog.create({ data: { tenantId, actor: "USER", action, reasoning, metadata } });
 }
@@ -43,19 +49,21 @@ async function invitesToday(tenantId: string): Promise<number> {
 
 async function deliver(ws: Workspace, email: string, role: InvitableRole, token: string): Promise<{ link: string; emailed: boolean }> {
   const session = await auth();
-  const inviter = session?.user?.name || session?.user?.email || "گیتواس";
+  const inviter = session?.user?.name || session?.user?.email || ckb.brand;
   const link = inviteLink(await inviteOrigin(), token);
+  // The invite email is written in Sorani, so its role name is too.
   const emailed = emailEnabled && (await sendEmail({ to: email, ...inviteEmail({ desk: ws.name, inviter, role: ROLE_LABEL[role], link }) })).ok;
   return { link, emailed };
 }
 
 export async function inviteMemberAction(input: { email: string; role: string }): Promise<TeamResult> {
+  const t = await teamText();
   const ws = await ownedDesk();
-  if (!ws) return { ok: false, error: OWNER_ONLY };
+  if (!ws) return { ok: false, error: t.roles.ownerOnly };
   const session = await auth();
   const email = normalizeEmail(input.email);
-  if (!email) return { ok: false, error: "ئیمەیڵەکە دروست نییە." };
-  if (!isInvitableRole(input.role)) return { ok: false, error: "ڕۆڵەکە دروست نییە." };
+  if (!email) return { ok: false, error: t.errors.badEmail };
+  if (!isInvitableRole(input.role)) return { ok: false, error: t.errors.badRole };
   const role = input.role;
   const now = new Date();
 
@@ -66,10 +74,10 @@ export async function inviteMemberAction(input: { email: string; role: string })
     db.membership.findFirst({ where: { tenantId: ws.id, user: { email: { equals: email, mode: "insensitive" } } }, select: { id: true } }),
     db.tenant.findUnique({ where: { id: ws.id }, select: { plan: true } }),
   ]);
-  if (already) return { ok: false, error: "ئەم کەسە پێشتر لە تیمەکەدایە." };
-  if (sentToday >= INVITES_PER_DAY) return { ok: false, error: "ئەمڕۆ بانگهێشتی زۆرت ناردووە. سبەی هەوڵ بدەرەوە." };
+  if (already) return { ok: false, error: t.errors.alreadyMember };
+  if (sentToday >= INVITES_PER_DAY) return { ok: false, error: t.errors.tooMany };
   if (seatsLeft(NEWS_LIMITS[tenant?.plan ?? "MANUAL"].seats, members, pending) === 0) {
-    return { ok: false, error: "هەموو شوێنەکانی پلانەکەت پڕن." };
+    return { ok: false, error: t.errors.seatsFull };
   }
 
   const { token, tokenHash } = newInviteToken();
@@ -87,14 +95,15 @@ export async function inviteMemberAction(input: { email: string; role: string })
 }
 
 export async function resendInviteAction(inviteId: string): Promise<TeamResult> {
+  const t = await teamText();
   const ws = await ownedDesk();
-  if (!ws) return { ok: false, error: OWNER_ONLY };
+  if (!ws) return { ok: false, error: t.roles.ownerOnly };
   const invite = await db.invite.findFirst({
     where: { id: inviteId, tenantId: ws.id, acceptedAt: null },
     select: { id: true, email: true, role: true, expiresAt: true },
   });
-  if (!invite || !isInvitableRole(invite.role)) return { ok: false, error: "بانگهێشتەکە نەدۆزرایەوە." };
-  if ((await invitesToday(ws.id)) >= INVITES_PER_DAY) return { ok: false, error: "ئەمڕۆ بانگهێشتی زۆرت ناردووە. سبەی هەوڵ بدەرەوە." };
+  if (!invite || !isInvitableRole(invite.role)) return { ok: false, error: t.errors.inviteNotFound };
+  if ((await invitesToday(ws.id)) >= INVITES_PER_DAY) return { ok: false, error: t.errors.tooMany };
   // An expired invite no longer holds a seat, so bringing it back needs one free.
   const now = new Date();
   if (invite.expiresAt <= now) {
@@ -104,7 +113,7 @@ export async function resendInviteAction(inviteId: string): Promise<TeamResult> 
       db.tenant.findUnique({ where: { id: ws.id }, select: { plan: true } }),
     ]);
     if (seatsLeft(NEWS_LIMITS[tenant?.plan ?? "MANUAL"].seats, members, live) === 0) {
-      return { ok: false, error: "هەموو شوێنەکانی پلانەکەت پڕن." };
+      return { ok: false, error: t.errors.seatsFull };
     }
   }
   const { token, tokenHash } = newInviteToken();
@@ -117,7 +126,7 @@ export async function resendInviteAction(inviteId: string): Promise<TeamResult> 
 
 export async function revokeInviteAction(inviteId: string): Promise<TeamResult> {
   const ws = await ownedDesk();
-  if (!ws) return { ok: false, error: OWNER_ONLY };
+  if (!ws) return { ok: false, error: (await teamText()).roles.ownerOnly };
   const { count } = await db.invite.deleteMany({ where: { id: inviteId, tenantId: ws.id, acceptedAt: null } });
   if (count) await audit(ws.id, "member.invite_revoked", "Revoked an invite.", { inviteId });
   revalidatePath("/newsroom/team");
@@ -125,12 +134,13 @@ export async function revokeInviteAction(inviteId: string): Promise<TeamResult> 
 }
 
 export async function changeRoleAction(membershipId: string, role: string): Promise<TeamResult> {
+  const t = await teamText();
   const ws = await ownedDesk();
-  if (!ws) return { ok: false, error: OWNER_ONLY };
-  if (!isInvitableRole(role)) return { ok: false, error: "ڕۆڵەکە دروست نییە." };
+  if (!ws) return { ok: false, error: t.roles.ownerOnly };
+  if (!isInvitableRole(role)) return { ok: false, error: t.errors.badRole };
   const m = await db.membership.findFirst({ where: { id: membershipId, tenantId: ws.id }, select: { id: true, role: true, userId: true } });
-  if (!m) return { ok: false, error: "ئەندامەکە نەدۆزرایەوە." };
-  if (m.role === "OWNER") return { ok: false, error: "ڕۆڵی خاوەن ناگۆڕدرێت." };
+  if (!m) return { ok: false, error: t.errors.memberNotFound };
+  if (m.role === "OWNER") return { ok: false, error: t.errors.ownerRoleFixed };
   await db.membership.update({ where: { id: m.id }, data: { role } });
   await audit(ws.id, "member.role_changed", `Changed a member's role to ${role}.`, { userId: m.userId, from: m.role, to: role });
   revalidatePath("/newsroom/team");
@@ -138,11 +148,12 @@ export async function changeRoleAction(membershipId: string, role: string): Prom
 }
 
 export async function removeMemberAction(membershipId: string): Promise<TeamResult> {
+  const t = await teamText();
   const ws = await ownedDesk();
-  if (!ws) return { ok: false, error: OWNER_ONLY };
+  if (!ws) return { ok: false, error: t.roles.ownerOnly };
   const m = await db.membership.findFirst({ where: { id: membershipId, tenantId: ws.id }, select: { id: true, role: true, userId: true } });
-  if (!m) return { ok: false, error: "ئەندامەکە نەدۆزرایەوە." };
-  if (m.role === "OWNER") return { ok: false, error: "خاوەنی مێزەکە لا نابرێت." };
+  if (!m) return { ok: false, error: t.errors.memberNotFound };
+  if (m.role === "OWNER") return { ok: false, error: t.errors.ownerStays };
   await db.membership.delete({ where: { id: m.id } });
   await audit(ws.id, "member.removed", "Removed a member.", { userId: m.userId, role: m.role });
   revalidatePath("/newsroom/team");

@@ -7,7 +7,8 @@ import { assertWithin, LimitReached, limitMessage, newsroomFrozenError } from "@
 import { captionProblems, isJpegPath, isKnownTarget, isOwnBlobUrl, youtubeProblem, type Target } from "@/lib/merchant/caption";
 import type { PublishInput } from "@/lib/merchant/publish-core";
 import { baghdadLocalToUtc, scheduleProblem } from "@/lib/merchant/schedule";
-import { can, NOT_ALLOWED } from "@/lib/newsroom/roles";
+import { dict, getLang } from "@/lib/i18n";
+import { can } from "@/lib/newsroom/roles";
 import { currentWorkspace } from "../data";
 
 export interface ScheduledRow {
@@ -30,51 +31,51 @@ export async function schedulePublishAction(
   input: PublishInput,
   runAtLocal: string,
 ): Promise<{ ok: true; id: string; runAt: string } | { ok: false; error: string }> {
-  const ws = await currentWorkspace();
-  if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
-  if (!can(ws.role, "publish")) return { ok: false, error: NOT_ALLOWED };
+  const [ws, t] = await Promise.all([currentWorkspace(), getLang().then(dict)]);
+  const m = t.actions.publish;
+  if (!ws) return { ok: false, error: t.actions.common.signIn };
+  if (!can(ws.role, "publish")) return { ok: false, error: t.nr.team.roles.notAllowed };
   const userId = (await auth())?.user?.id;
-  if (!userId) return { ok: false, error: "چوونەژوورەوە پێویستە." };
+  if (!userId) return { ok: false, error: t.actions.common.signIn };
 
   const targets = [...new Set(input.targets)];
-  if (!targets.length) return { ok: false, error: "لانیکەم یەک شوێن هەڵبژێرە." };
-  if (!targets.every(isKnownTarget)) return { ok: false, error: "ئامانجێکی نەناسراو." };
+  if (!targets.length) return { ok: false, error: t.publish.blockPickTarget };
+  if (!targets.every(isKnownTarget)) return { ok: false, error: m.unknownTarget };
   // A frozen newsroom may not schedule anything, not only drafts from the news desk.
   if (ws.kind === "NEWS") {
-    const frozen = await newsroomFrozenError(ws.id);
+    const frozen = await newsroomFrozenError(ws.id, t.nr.news.actions);
     if (frozen) return { ok: false, error: frozen };
   }
   const runAt = baghdadLocalToUtc(runAtLocal);
-  const problem = scheduleProblem(targets, runAt, new Date());
+  const problem = scheduleProblem(targets, runAt, new Date(), m);
   if (problem) return { ok: false, error: problem };
 
   if (input.newsDraftId) {
     try {
       await assertWithin(ws.id, "publish");
     } catch (e) {
-      if (e instanceof LimitReached) return { ok: false, error: limitMessage(e) };
+      if (e instanceof LimitReached) return { ok: false, error: limitMessage(e, t.nr.news.actions) };
       throw e;
     }
   }
 
   const caption = input.caption.trim();
-  if (!caption && !input.media) return { ok: false, error: "دەق یان وێنە/ڤیدیۆیەک زیاد بکە." };
-  if (targets.includes("IG") && !input.media) return { ok: false, error: "ئینستاگرام وێنە یان ڤیدیۆی دەوێت." };
-  const ytProblem = youtubeProblem(targets, input.media);
-  if (ytProblem) return { ok: false, error: ytProblem };
+  if (!caption && !input.media) return { ok: false, error: t.publish.blockNeedContent };
+  if (targets.includes("IG") && !input.media) return { ok: false, error: m.igNeedsMedia };
+  if (youtubeProblem(targets, input.media)) return { ok: false, error: t.publish.ytVideoOnly };
   if (input.media) {
     const expected = `merchant/${ws.id}/`;
     if (!input.media.pathname.startsWith(expected) || !/^https:\/\//.test(input.media.url)) {
-      return { ok: false, error: "فایلەکە ناناسرێتەوە. دووبارە بارکردنی بکە." };
+      return { ok: false, error: m.badFile };
     }
     if (targets.includes("YT") && !isOwnBlobUrl(input.media.url, ws.id)) {
-      return { ok: false, error: "فایلەکە ناناسرێتەوە. دووبارە بارکردنی بکە." };
+      return { ok: false, error: m.badFile };
     }
     if (input.media.type === "IMAGE" && targets.includes("IG") && !isJpegPath(input.media.pathname)) {
-      return { ok: false, error: "ئینستاگرام تەنها وێنەی JPG وەردەگرێت." };
+      return { ok: false, error: m.igJpgOnly };
     }
   }
-  if (captionProblems(caption, targets).length) return { ok: false, error: "دەقەکە بۆ یەکێک لە شوێنەکان درێژە." };
+  if (captionProblems(caption, targets).length) return { ok: false, error: t.publish.blockCaptionLong };
 
   // Store only what publishing reads; TikTok's options never belong to a scheduled post.
   const stored: PublishInput = {
@@ -93,11 +94,11 @@ export async function schedulePublishAction(
 
 /** Cancel a post that has not started. Only this workspace's own posts. */
 export async function cancelScheduledAction(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  const ws = await currentWorkspace();
-  if (!ws) return { ok: false, error: "چوونەژوورەوە پێویستە." };
-  if (!can(ws.role, "publish")) return { ok: false, error: NOT_ALLOWED };
+  const [ws, t] = await Promise.all([currentWorkspace(), getLang().then(dict)]);
+  if (!ws) return { ok: false, error: t.actions.common.signIn };
+  if (!can(ws.role, "publish")) return { ok: false, error: t.nr.team.roles.notAllowed };
   const r = await db.scheduledPost.updateMany({ where: { id, tenantId: ws.id, status: "PENDING" }, data: { status: "CANCELLED" } });
-  if (r.count !== 1) return { ok: false, error: "ئەم پۆستە ئێستا ناتوانرێت هەڵبوەشێنرێتەوە." };
+  if (r.count !== 1) return { ok: false, error: t.actions.publish.cantCancel };
   return { ok: true };
 }
 

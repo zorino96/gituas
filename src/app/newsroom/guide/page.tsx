@@ -2,13 +2,14 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 
 import { currentWorkspace } from "@/app/app/data";
+import { dict, getLang } from "@/lib/i18n";
 import { DeskShell, NewsroomRoot } from "../desk-shell";
 import { GuideArticle } from "./guide-article";
 
-export const metadata: Metadata = {
-  title: "ڕێنمایی — گیتواس نیوزڕووم",
-  description: "چۆن کەناڵەکەت لە نیوزڕووم دەست پێ بکات: پەیج بەستنەوە، براند، سەرچاوە، کارت و بڵاوکردنەوە.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = dict(await getLang()).nr.shell;
+  return { title: t.guide.metaTitle, description: t.guide.metaDescription };
+}
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export default async function GuidePage() {
       </DeskShell>
     );
   }
+  const t = dict(await getLang()).nr.shell;
   return (
     <NewsroomRoot>
       <div className="nr-land">
@@ -28,11 +30,11 @@ export default async function GuidePage() {
           <div className="nr-wrap">
             <Link href="/newsroom" className="nr-brand kufi" style={{ padding: 0 }}>
               <span className="nr-live" aria-hidden="true" />
-              گیتواس نیوزڕووم
+              {t.name}
             </Link>
             {!ws && (
               <Link href="/login?next=/newsroom/news" className="gm-btn quiet small">
-                چوونەژوورەوە
+                {t.signIn}
               </Link>
             )}
           </div>

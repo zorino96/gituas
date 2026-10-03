@@ -4,9 +4,11 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 
+import { useT } from "@/lib/i18n/client";
 import { refreshNewsAction } from "./actions";
 
 export function RefreshButton() {
+  const t = useT();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [note, setNote] = useState<string | null>(null);
@@ -20,13 +22,13 @@ export function RefreshButton() {
           start(async () => {
             const r = await refreshNewsAction();
             if (!r.ok) setNote(r.error);
-            else setNote(r.failed.length ? `وەڵامی نەدایەوە: ${r.failed.join("، ")}` : null);
+            else setNote(r.failed.length ? t.nr.news.list.noAnswer(r.failed.join("، ")) : null);
             router.refresh();
           })
         }
       >
         <RefreshCw size={14} aria-hidden="true" />
-        {pending ? "نوێ دەکرێتەوە…" : "نوێکردنەوە"}
+        {pending ? t.nr.news.list.refreshing : t.common.refreshLabel}
       </button>
       {note && <small className="gm-hint">{note}</small>}
     </div>

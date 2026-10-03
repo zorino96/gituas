@@ -2,68 +2,22 @@
 // Codes are stored on NewsItem; labels are Sorani. A desk's choice is a list of
 // "category" or "category/sub" codes; an empty list means everything.
 
+import { nrNewsCkb, type NrNewsText } from "@/lib/i18n/nr/news.ckb";
+
+// The labels are in the dictionaries: t.nr.news.topics, .subtopics and .regions, keyed by these ids.
 export const TAXONOMY = [
-  {
-    id: "politics",
-    label: "سیاسەت",
-    subs: [
-      { id: "government", label: "حکومەت و پەرلەمان" },
-      { id: "elections", label: "هەڵبژاردن" },
-      { id: "diplomacy", label: "پەیوەندیی نێودەوڵەتی" },
-      { id: "parties", label: "پارتە سیاسییەکان" },
-    ],
-  },
-  {
-    id: "economy",
-    label: "ئابووری",
-    subs: [
-      { id: "energy", label: "نەوت و وزە" },
-      { id: "salaries", label: "مووچە و بودجە" },
-      { id: "markets", label: "بازاڕ و دراو" },
-      { id: "trade", label: "بازرگانی و وەبەرهێنان" },
-    ],
-  },
-  {
-    id: "security",
-    label: "ئاسایش",
-    subs: [
-      { id: "conflict", label: "جەنگ و ململانێ" },
-      { id: "terrorism", label: "تیرۆر" },
-      { id: "crime", label: "تاوان و پۆلیس" },
-      { id: "accidents", label: "ڕووداو و کارەسات" },
-    ],
-  },
-  {
-    id: "sports",
-    label: "وەرزش",
-    subs: [
-      { id: "football", label: "تۆپی پێ" },
-      { id: "local", label: "وەرزشی کوردستان و عێراق" },
-      { id: "other", label: "وەرزشەکانی تر" },
-    ],
-  },
-  { id: "health", label: "تەندروستی", subs: [] },
-  { id: "tech", label: "زانست و تەکنەلۆژیا", subs: [] },
-  {
-    id: "society",
-    label: "کۆمەڵگە",
-    subs: [
-      { id: "education", label: "پەروەردە و خوێندن" },
-      { id: "environment", label: "ژینگە و کەشوهەوا" },
-      { id: "services", label: "کارەبا، ئاو و خزمەتگوزاری" },
-      { id: "humanitarian", label: "کۆچ و بارودۆخی مرۆیی" },
-    ],
-  },
-  { id: "culture", label: "کلتوور و هونەر", subs: [] },
-  { id: "other", label: "ئەوانی تر", subs: [] },
+  { id: "politics", subs: [{ id: "government" }, { id: "elections" }, { id: "diplomacy" }, { id: "parties" }] },
+  { id: "economy", subs: [{ id: "energy" }, { id: "salaries" }, { id: "markets" }, { id: "trade" }] },
+  { id: "security", subs: [{ id: "conflict" }, { id: "terrorism" }, { id: "crime" }, { id: "accidents" }] },
+  { id: "sports", subs: [{ id: "football" }, { id: "local" }, { id: "other" }] },
+  { id: "health", subs: [] },
+  { id: "tech", subs: [] },
+  { id: "society", subs: [{ id: "education" }, { id: "environment" }, { id: "services" }, { id: "humanitarian" }] },
+  { id: "culture", subs: [] },
+  { id: "other", subs: [] },
 ] as const;
 
-export const REGIONS = [
-  { id: "kurdistan", label: "کوردستان" },
-  { id: "iraq", label: "عێراق" },
-  { id: "region", label: "ناوچەکە" },
-  { id: "world", label: "جیهان" },
-] as const;
+export const REGIONS = [{ id: "kurdistan" }, { id: "iraq" }, { id: "region" }, { id: "world" }] as const;
 
 export type CategoryId = (typeof TAXONOMY)[number]["id"];
 export type RegionId = (typeof REGIONS)[number]["id"];
@@ -128,13 +82,22 @@ export function matchesChoice(category: string | null, subcategory: string | nul
   });
 }
 
-export function categoryLabel(category: string | null, subcategory: string | null): string | null {
+type TopicText = Pick<NrNewsText, "topics" | "subtopics">;
+
+/** A subcategory's own label; null when the pair is unknown. */
+export function subcategoryLabel(category: string, subcategory: string, t: TopicText = nrNewsCkb): string | null {
+  const subs: Record<string, Record<string, string> | undefined> = t.subtopics;
+  return subs[category]?.[subcategory] ?? null;
+}
+
+export function categoryLabel(category: string | null, subcategory: string | null, t: TopicText = nrNewsCkb): string | null {
   const c = category ? byId.get(category) : undefined;
   if (!c) return null;
   const s = subcategory ? c.subs.find((x) => x.id === subcategory) : undefined;
-  return s ? `${c.label} · ${s.label}` : c.label;
+  return s ? `${t.topics[c.id]} · ${subcategoryLabel(c.id, s.id, t)}` : t.topics[c.id];
 }
 
-export function regionLabel(region: string | null): string | null {
-  return REGIONS.find((r) => r.id === region)?.label ?? null;
+export function regionLabel(region: string | null, t: Pick<NrNewsText, "regions"> = nrNewsCkb): string | null {
+  const r = REGIONS.find((x) => x.id === region);
+  return r ? t.regions[r.id] : null;
 }

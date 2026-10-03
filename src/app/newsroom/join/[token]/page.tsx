@@ -3,22 +3,26 @@ import Link from "next/link";
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { dict, getLang } from "@/lib/i18n";
 import { hashInviteToken, inviteState } from "@/lib/newsroom/invite";
-import { ROLE_LABEL } from "@/lib/newsroom/roles";
 import { NewsroomRoot } from "../../desk-shell";
 import { JoinButton, SwitchAccountButton } from "./join-client";
 
-export const metadata: Metadata = { title: "بانگهێشت — گیتواس نیوزڕووم", robots: { index: false, follow: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = dict(await getLang()).nr.shell;
+  return { title: t.join.metaTitle, robots: { index: false, follow: false } };
+}
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 export const dynamic = "force-dynamic";
 
-function Frame({ children }: { children: React.ReactNode }) {
+async function Frame({ children }: { children: React.ReactNode }) {
+  const t = dict(await getLang()).nr.shell;
   return (
     <NewsroomRoot>
       <div className="gm-auth">
         <p className="nr-brand kufi" style={{ padding: 0 }}>
           <span className="nr-live" aria-hidden="true" />
-          گیتواس نیوزڕووم
+          {t.name}
         </p>
         <div className="gm-card gm-stack" style={{ marginTop: 18 }}>
           {children}
@@ -30,31 +34,33 @@ function Frame({ children }: { children: React.ReactNode }) {
 
 export default async function JoinPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  const { nr } = dict(await getLang());
+  const t = nr.shell.join;
   const invite = await db.invite.findUnique({
     where: { tokenHash: hashInviteToken(token) },
     select: { email: true, role: true, acceptedAt: true, expiresAt: true, tenant: { select: { name: true } } },
   });
-  if (!invite) return <Frame><p style={{ margin: 0 }}>ئەم بانگهێشتە نەدۆزرایەوە یان هەڵوەشێنراوەتەوە.</p></Frame>;
+  if (!invite) return <Frame><p style={{ margin: 0 }}>{t.notFound}</p></Frame>;
 
   const state = inviteState(invite);
   if (state === "used") {
     return (
       <Frame>
-        <p style={{ margin: 0 }}>ئەم بانگهێشتە پێشتر بەکارهاتووە.</p>
-        <Link href="/newsroom/news" className="gm-btn block">بچۆ نیوزڕووم</Link>
+        <p style={{ margin: 0 }}>{t.used}</p>
+        <Link href="/newsroom/news" className="gm-btn block">{t.goNewsroom}</Link>
       </Frame>
     );
   }
   if (state === "expired") {
-    return <Frame><p style={{ margin: 0 }}>ئەم بانگهێشتە بەسەرچووە. داوای بانگهێشتێکی نوێ لە خاوەنی مێزەکە بکە.</p></Frame>;
+    return <Frame><p style={{ margin: 0 }}>{t.expired}</p></Frame>;
   }
 
   const here = `/newsroom/join/${token}`;
   const intro = (
     <>
-      <h1 className="gm-title kufi" style={{ margin: 0 }}>بانگهێشت بۆ «{invite.tenant.name}»</h1>
+      <h1 className="gm-title kufi" style={{ margin: 0 }}>{t.title(invite.tenant.name)}</h1>
       <p className="gm-sub" style={{ margin: 0 }}>
-        وەک {ROLE_LABEL[invite.role]} · <span className="gm-ltr" dir="ltr">{invite.email}</span>
+        {t.as(nr.team.roles.label[invite.role])} · <span className="gm-ltr" dir="ltr">{invite.email}</span>
       </p>
     </>
   );
@@ -64,9 +70,9 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
     return (
       <Frame>
         {intro}
-        <Link href={`/login?next=${encodeURIComponent(here)}`} className="gm-btn block">بچۆ ژوورەوە</Link>
-        <Link href={`/signup?next=${encodeURIComponent(here)}`} className="gm-btn quiet block">هەژمارێکی نوێ دروست بکە</Link>
-        <p className="gm-hint" style={{ margin: 0 }}>بە هەمان ئیمەیڵی سەرەوە بچۆ ژوورەوە یان خۆت تۆمار بکە.</p>
+        <Link href={`/login?next=${encodeURIComponent(here)}`} className="gm-btn block">{t.signIn}</Link>
+        <Link href={`/signup?next=${encodeURIComponent(here)}`} className="gm-btn quiet block">{t.signUp}</Link>
+        <p className="gm-hint" style={{ margin: 0 }}>{t.sameEmail}</p>
       </Frame>
     );
   }
@@ -77,7 +83,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
       <Frame>
         {intro}
         <p className="gm-note warn" style={{ margin: 0 }}>
-          ئێستا بە <span className="gm-ltr" dir="ltr">{me?.email ?? "—"}</span> چوویتە ژوورەوە. ئەم بانگهێشتە بۆ ئیمەیڵێکی ترە.
+          {t.otherBefore} <span className="gm-ltr" dir="ltr">{me?.email ?? "—"}</span> {t.otherAfter}
         </p>
         <SwitchAccountButton next={here} />
       </Frame>
@@ -88,11 +94,10 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
       <Frame>
         {intro}
         <p className="gm-note warn" style={{ margin: 0 }}>
-          ئیمەیڵی ئەم هەژمارە هێشتا پشتڕاست نەکراوەتەوە. کۆدێک بۆ ئیمەیڵەکەت دەنێرین. دوای دانانی وشەی نهێنیی نوێ، ئیمەیڵەکەت پشتڕاست دەبێتەوە و
-          دەتوانیت بێیتە ناو مێزەکە.
+          {t.unverified}
         </p>
         <Link href={`/forgot?next=${encodeURIComponent(here)}`} className="gm-btn block">
-          ئیمەیڵەکەم پشتڕاست بکەرەوە
+          {t.verify}
         </Link>
       </Frame>
     );

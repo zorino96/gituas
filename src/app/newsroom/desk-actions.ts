@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { deskLimit } from "@/lib/billing/plans";
+import { dict, getLang } from "@/lib/i18n";
 import { safeNext } from "@/lib/safe-next";
 import { rememberWorkspace, setupNewsDesk } from "@/app/app/data";
 
@@ -31,11 +32,12 @@ export type DeskResult = { ok: false; error: string };
 
 /** Create another newsroom desk (e.g. a second language) owned by the signed-in person, within their plan's desk limit. */
 export async function createDeskAction(_prev: DeskResult | null, formData: FormData): Promise<DeskResult> {
+  const t = dict(await getLang()).nr.shell.newDesk;
   const session = await auth();
   const userId = session?.user?.id;
-  if (!userId) return { ok: false, error: "دووبارە بچۆ ژوورەوە." };
+  if (!userId) return { ok: false, error: t.signInAgain };
   const name = String(formData.get("name") ?? "").trim();
-  if (!name || [...name].length > 60) return { ok: false, error: "ناوێک بۆ مێزەکە بنووسە، تا ٦٠ پیت." };
+  if (!name || [...name].length > 60) return { ok: false, error: t.nameMissing };
 
   // Counting and creating happen under a per-person lock, so two quick submits
   // can't both pass the limit. An unclaimed workspace the person owns (the
@@ -73,7 +75,7 @@ export async function createDeskAction(_prev: DeskResult | null, formData: FormD
     });
     return id;
   }, { timeout: 15_000 }); // six round trips; the 5 s default is too tight far from the database
-  if (!deskId) return { ok: false, error: "گەیشتیتە سنووری مێزەکانی پلانەکەت." };
+  if (!deskId) return { ok: false, error: t.limit };
   await rememberWorkspace(deskId);
   redirect("/newsroom/news");
 }

@@ -1,4 +1,7 @@
 import { num } from "./num";
+import { nrNewsCkb } from "./nr/news.ckb";
+import { nrShellCkb } from "./nr/shell.ckb";
+import { nrTeamCkb } from "./nr/team.ckb";
 
 /**
  * The Sorani dictionary — the source of truth for keys. `ar.ts` must have exactly the same keys
@@ -633,6 +636,79 @@ export const ckb = {
     save: "پاشەکەوت",
     cancel: "پاشگەزبوونەوە",
   },
+
+  /**
+   * What the shop's server actions (the actions.ts files under src/app/app) and the libraries they
+   * call answer with. "Not allowed" is t.nr.team.roles.notAllowed.
+   */
+  actions: {
+    common: {
+      signIn: "چوونەژوورەوە پێویستە.",
+      aiDown: "AI کار ناکات.",
+      productNotFound: "بەرهەمەکە نەدۆزرایەوە.",
+      badDeliveryFee: "کرێی گەیاندن دروست نییە.",
+    },
+    inbox: {
+      emptyText: "دەقەکە بەتاڵە.",
+      textTooLong: (max: number) => `دەقەکە لە ${max} پیت درێژترە.`,
+      sendFailed: "ناردن سەرکەوتوو نەبوو.",
+      failed: "نەکرا.",
+      deleteFailed: "سڕینەوە نەکرا.",
+      nothingToReply: "هیچ دەقێک نییە بۆ وەڵامدانەوە.",
+      aiNoReply: "AI هیچ وەڵامێکی نەدایەوە.",
+    },
+    settings: {
+      noEmail: "ئەم هەژمارە ئیمەیڵی نییە.",
+      passwordShort: "وشەی نهێنیی نوێ دەبێت لانیکەم ٨ پیت بێت.",
+      passwordLong: "وشەی نهێنیی نوێ زۆر درێژە.",
+      tooManyTries: "زۆر جار هەڵە کرا. ١٥ خولەک چاوەڕێ بکە.",
+      wrongPassword: "وشەی نهێنیی ئێستا هەڵەیە.",
+      whatsappShopOnly: "ژمارەی وەتسئەپ تەنها بۆ دووکانە.",
+      badWhatsapp: "ژمارەکە دروست نییە. بۆ نموونە: 0750 123 4567",
+    },
+    publish: {
+      aiNoCaption: "AI هیچ دەقێکی نەنووسی.",
+      unknownTarget: "ئامانجێکی نەناسراو.",
+      needMedia: "ئینستاگرام و تیکتۆک وێنە یان ڤیدیۆیان دەوێت.",
+      igNeedsMedia: "ئینستاگرام وێنە یان ڤیدیۆی دەوێت.",
+      badFile: "فایلەکە ناناسرێتەوە. دووبارە بارکردنی بکە.",
+      jpgOnly: "ئینستاگرام و تیکتۆک تەنها وێنەی JPG وەردەگرن.",
+      igJpgOnly: "ئینستاگرام تەنها وێنەی JPG وەردەگرێت.",
+      cardChanged: "کارتەکە گۆڕاوە. لە مێزی هەواڵ دووبارە ئامادەی بکەوە.",
+      ttNoSettings: "ڕێکخستنەکانی تیکتۆک دیاری نەکراون.",
+      ttIncomplete: (problems: string) => `ڕێکخستنی تیکتۆک تەواو نییە (${problems}).`,
+      // Scheduling (src/lib/merchant/schedule.ts).
+      noTiktokSchedule: "بۆ تیکتۆک خشتەکردن نییە — ڕاستەوخۆ بڵاوی بکەرەوە.",
+      tooSoon: "کاتەکە دەبێت لانیکەم ١٠ خولەک دوای ئێستا بێت.",
+      tooFar: "کاتەکە دەبێت لە ماوەی ٦٠ ڕۆژدا بێت.",
+      badTime: "کاتەکە دروست نییە.",
+      cantCancel: "ئەم پۆستە ئێستا ناتوانرێت هەڵبوەشێنرێتەوە.",
+    },
+    automation: {
+      storeNotFound: "دووکانەکە نەدۆزرایەوە.",
+      badDays: "ڕۆژەکان دەبێت لە ١ تا ٣٦٥ بن.",
+      badDate: "ڕێکەوتەکە دروست نییە.",
+      templateName: "ناوێک بۆ تێمپلەیتەکە بنووسە.",
+      templateNotFound: "تێمپلەیتەکە نەدۆزرایەوە.",
+      badPost: "پۆستەکە دروست نییە.",
+      productName: "ناوی بەرهەمەکە بنووسە.",
+      badPhoto: "وێنەیەک دروست نییە.",
+      needPrice: "لانیکەم یەک نرخ پێویستە.",
+      badRowPrice: (row: number) => `نرخی ڕیزی ${row} دروست نییە.`,
+      rowLabel: (row: number) => `ناوی جۆری ڕیزی ${row} بنووسە (قیاس یان ڕەنگ).`,
+    },
+    orders: {
+      customerName: "ناوی کڕیار بنووسە.",
+      badPhone: "ژمارەی مۆبایل دروست نییە.",
+      badCity: "شارەکە دروست نییە.",
+      badStatus: "دۆخەکە دروست نییە.",
+      badPrice: "نرخەکە دروست نییە.",
+      notFound: "داواکارییەکە نەدۆزرایەوە.",
+    },
+  },
+
+  // The newsroom's own screens, one file per area in ./nr/.
+  nr: { shell: nrShellCkb, news: nrNewsCkb, team: nrTeamCkb },
 };
 
 export type Dict = typeof ckb;

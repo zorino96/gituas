@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { Check, ChevronDown, Plus } from "lucide-react";
 
+import { useT } from "@/lib/i18n/client";
 import { switchWorkspaceAction } from "./desk-actions";
 
 export type DeskOption = { id: string; name: string; role: string };
@@ -11,6 +12,7 @@ export type DeskOption = { id: string; name: string; role: string };
 /** The desk name in the top bar opens a list of the person's desks and "new desk". Escape or a click outside closes it. */
 export function DeskSwitcher({ currentId, currentName, desks }: { currentId: string; currentName: string; desks: DeskOption[] }) {
   const ref = useRef<HTMLDetailsElement>(null);
+  const t = useT().nr.shell.desk;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -33,7 +35,7 @@ export function DeskSwitcher({ currentId, currentName, desks }: { currentId: str
 
   return (
     <details ref={ref} className="nr-switch">
-      <summary className="nr-desk" aria-label={`مێز: ${currentName} — گۆڕین`}>
+      <summary className="nr-desk" aria-label={t.switchLabel(currentName)}>
         <span className="nr-desk-name kufi">{currentName}</span>
         <ChevronDown size={16} aria-hidden="true" />
       </summary>
@@ -51,7 +53,7 @@ export function DeskSwitcher({ currentId, currentName, desks }: { currentId: str
         ))}
         <Link href="/newsroom/desks/new" className="gm-navlink">
           <Plus aria-hidden="true" />
-          مێزی نوێ
+          {t.newDesk}
         </Link>
       </div>
     </details>

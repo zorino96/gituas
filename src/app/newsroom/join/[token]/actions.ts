@@ -6,26 +6,26 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { rememberWorkspace } from "@/app/app/data";
 import { NEWS_LIMITS } from "@/lib/billing/plans";
+import { dict, getLang } from "@/lib/i18n";
 import { hashInviteToken, inviteState } from "@/lib/newsroom/invite";
 
 export type JoinResult = { ok: false; error: string };
 
-const GONE = "ئەم بانگهێشتە چیتر کار ناکات.";
-
 /** Join the desk once: only the invited, verified email, and the invite is consumed atomically. */
 export async function acceptInviteAction(_prev: JoinResult | null, formData: FormData): Promise<JoinResult> {
+  const t = dict(await getLang()).nr.shell.join;
   const session = await auth();
   const userId = session?.user?.id;
-  if (!userId) return { ok: false, error: "سەرەتا بچۆ ژوورەوە." };
+  if (!userId) return { ok: false, error: t.signInFirst };
   const token = String(formData.get("token") ?? "");
   const invite = await db.invite.findUnique({
     where: { tokenHash: hashInviteToken(token) },
     select: { id: true, tenantId: true, email: true, role: true, acceptedAt: true, expiresAt: true },
   });
-  if (!invite || inviteState(invite) !== "ok") return { ok: false, error: GONE };
+  if (!invite || inviteState(invite) !== "ok") return { ok: false, error: t.gone };
   const me = await db.user.findUnique({ where: { id: userId }, select: { email: true, emailVerified: true } });
   if (!me?.emailVerified || me.email?.toLowerCase() !== invite.email) {
-    return { ok: false, error: "ئەم بانگهێشتە بۆ ئیمەیڵێکی ترە." };
+    return { ok: false, error: t.wrongEmail };
   }
 
   const now = new Date();
@@ -56,8 +56,8 @@ export async function acceptInviteAction(_prev: JoinResult | null, formData: For
     },
     { timeout: 15_000 },
   );
-  if (outcome === "full") return { ok: false, error: "هەموو شوێنەکانی ئەم مێزە پڕن. بە خاوەنی مێزەکە بڵێ." };
-  if (outcome === "gone") return { ok: false, error: GONE };
+  if (outcome === "full") return { ok: false, error: t.full };
+  if (outcome === "gone") return { ok: false, error: t.gone };
   await rememberWorkspace(invite.tenantId);
   redirect("/newsroom/news");
 }
