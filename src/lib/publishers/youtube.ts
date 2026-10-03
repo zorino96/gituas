@@ -42,8 +42,9 @@ export async function validYouTubeToken(tenantId: string): Promise<string | null
 
   // Expired → refresh.
   if (!cred.refreshTokenEncrypted) return null;
-  const clientId = process.env.YOUTUBE_CLIENT_ID;
-  const clientSecret = process.env.YOUTUBE_CLIENT_SECRET;
+  // The same Google client the connection was made with (src/lib/oauth/registry.ts).
+  const clientId = process.env.AUTH_GOOGLE_ID;
+  const clientSecret = process.env.AUTH_GOOGLE_SECRET;
   if (!clientId || !clientSecret) return null;
   let refreshToken: string;
   try {

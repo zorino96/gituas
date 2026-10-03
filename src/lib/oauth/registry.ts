@@ -153,16 +153,17 @@ export const PROVIDERS: ProviderConfig[] = [
     // (YouTube branch) so the exchange returns a refresh_token — YouTube access
     // tokens live only 1h, so the publisher (publishers/youtube.ts) refreshes.
     // youtube.upload (videos.insert) + youtube.readonly (channel lookup) are both
-    // "sensitive" scopes — Google's audit is required for NON-test users, but the
-    // owner + added test users can connect + upload without it.
+    // "sensitive" scopes, verified by Google per project. The client is the same
+    // "Gituas web" client as Google sign-in (project gituas-sign-in), so one
+    // project carries the branding and the verification for both.
     scopes: [
       "https://www.googleapis.com/auth/youtube.upload",
       "https://www.googleapis.com/auth/youtube.readonly",
     ],
     authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
     tokenUrl: "https://oauth2.googleapis.com/token",
-    envClientIdKey: "YOUTUBE_CLIENT_ID",
-    envClientSecretKey: "YOUTUBE_CLIENT_SECRET",
+    envClientIdKey: "AUTH_GOOGLE_ID",
+    envClientSecretKey: "AUTH_GOOGLE_SECRET",
     category: "social",
     docs: "https://developers.google.com/youtube/v3/guides/uploading_a_video",
   },
