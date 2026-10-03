@@ -13,7 +13,7 @@ import type { Dict } from "@/lib/i18n/ckb";
 import { useBase } from "../use-base";
 import { deleteCommentAction, replyToCommentAction, setCommentHiddenAction } from "../actions";
 import { ReplyComposer } from "../reply-composer";
-import { ago, friendlyError, num } from "../format";
+import { ago, friendlyError } from "../format";
 
 type Filter = "all" | "needs" | CommentState;
 
@@ -137,7 +137,7 @@ export function CommentsClient({
             aria-pressed={filter === key}
             onClick={() => setFilter(key)}
           >
-            {filterLabel(t, key)} {num(key === "all" ? total : key === "needs" ? needsCount : counts[key])}
+            {filterLabel(t, key)} {t.fmt.num(key === "all" ? total : key === "needs" ? needsCount : counts[key])}
           </button>
         ))}
       </div>

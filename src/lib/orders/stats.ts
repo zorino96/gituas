@@ -2,6 +2,7 @@ import { cityLabel, type CityLang } from "./cities";
 
 export const UNKNOWN_CITY = "نەزانراو";
 export const UNKNOWN_CITY_AR = "غير معروف";
+export const UNKNOWN_CITY_EN = "Unknown";
 
 export interface CityRow {
   city: string;
@@ -19,7 +20,7 @@ export function ordersByCity(orders: { city: string | null; amountMinor: number;
   const rows = new Map<string, CityRow>();
   for (const o of orders) {
     if (o.status === "CANCELLED" || o.status === "RETURNED") continue;
-    const label = cityLabel(o.city, lang) || (lang === "ar" ? UNKNOWN_CITY_AR : UNKNOWN_CITY);
+    const label = cityLabel(o.city, lang) || (lang === "ar" ? UNKNOWN_CITY_AR : lang === "en" ? UNKNOWN_CITY_EN : UNKNOWN_CITY);
     const row = rows.get(label) ?? { city: label, count: 0, totalMinor: 0 };
     row.count += 1;
     row.totalMinor += o.amountMinor;

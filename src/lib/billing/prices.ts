@@ -29,8 +29,19 @@ export const PLAN_LABEL_AR: Record<string, string> = {
 };
 
 /** A plan's display name in `lang`; an unknown plan code is shown as it is. */
-export function planLabel(plan: string, lang: "ckb" | "ar" = "ckb"): string {
-  return (lang === "ar" ? PLAN_LABEL_AR : PLAN_LABEL)[plan] ?? plan;
+/** The same names in English. */
+export const PLAN_LABEL_EN: Record<string, string> = {
+  FREE: "Free",
+  MERCHANT: "Merchant",
+  PRO: "Pro",
+  LITE: "Small page",
+  MANUAL: "Basic",
+  AUTO: "Pro",
+  ENTERPRISE: "Enterprise",
+};
+
+export function planLabel(plan: string, lang: "ckb" | "ar" | "en" = "ckb"): string {
+  return (lang === "ar" ? PLAN_LABEL_AR : lang === "en" ? PLAN_LABEL_EN : PLAN_LABEL)[plan] ?? plan;
 }
 
 /** The price of a plan that is for sale, or null. */

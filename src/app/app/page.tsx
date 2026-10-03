@@ -4,7 +4,7 @@ import { MessageCircle, MessagesSquare, Phone, SquarePlus } from "lucide-react";
 import { currentWorkspace, loadConnections, loadConversations, loadInsights, loadPosts } from "./data";
 import { dict, getLang } from "@/lib/i18n";
 import { commentState, countStates } from "@/lib/merchant/state";
-import { ago, num } from "./format";
+import { ago } from "./format";
 
 export const maxDuration = 60;
 
@@ -47,22 +47,22 @@ export default async function TodayPage() {
       <div className="gm-stats">
         <Link href="/app/comments" className={`gm-stat ${counts.unanswered ? "hot" : ""}`}>
           <span className="gm-stat-icon" aria-hidden="true"><MessagesSquare /></span>
-          <b>{num(counts.unanswered)}</b>
+          <b>{t.fmt.num(counts.unanswered)}</b>
           <span>{t.home.unansweredComments}</span>
         </Link>
         <Link href="/app/messages" className={`gm-stat ${waitingConvs.length ? "hot" : ""}`}>
           <span className="gm-stat-icon" aria-hidden="true"><MessageCircle /></span>
-          <b>{num(waitingConvs.length)}</b>
+          <b>{t.fmt.num(waitingConvs.length)}</b>
           <span>{t.home.waitingMessages}</span>
         </Link>
         <Link href="/app/publish" className="gm-stat">
           <span className="gm-stat-icon" aria-hidden="true"><SquarePlus /></span>
-          <b>{num(postsThisWeek)}</b>
+          <b>{t.fmt.num(postsThisWeek)}</b>
           <span>{t.home.postsThisWeek}</span>
         </Link>
         <Link href="/app/insights" className="gm-stat">
           <span className="gm-stat-icon" aria-hidden="true"><Phone /></span>
-          <b>{num(insights.waTaps7d)}</b>
+          <b>{t.fmt.num(insights.waTaps7d)}</b>
           <span>{t.home.whatsappTaps}</span>
         </Link>
       </div>

@@ -1,4 +1,4 @@
-/** One platform account shown under a plan on the billing page. */
+/** One platform account shown under a plan on the billing page; the page names the platform from `t.platform[platform]`. */
 export interface PlatformChip {
   platform: "FB" | "IG" | "TT" | "YT";
   name: string;
@@ -17,13 +17,6 @@ export interface WorkspaceAccounts {
   tt: Account;
   yt: Account;
 }
-
-export const CHIP_LABEL: Record<PlatformChip["platform"], string> = {
-  FB: "فەیسبووک",
-  IG: "ئینستاگرام",
-  TT: "تیکتۆک",
-  YT: "یوتیوب",
-};
 
 const at = (name: string) => (name.startsWith("@") ? name : `@${name}`);
 

@@ -199,6 +199,9 @@ a.gm-card:hover, button.gm-card:hover { border-color: var(--line-strong); box-sh
 
 /* ---------- chips, badges ---------- */
 .gm-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+/* The language switch on the pages before sign-in. */
+.gm-langs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; padding: 12px 16px 0; }
+.gm-langs .gm-chip { padding: 4px 10px; font-size: 12.5px; }
 .gm-chip {
   font: inherit; font-size: 12.5px; font-weight: 500; line-height: 1.4; display: inline-flex; align-items: center; gap: 6px;
   min-height: 32px; padding: 4px 14px; border-radius: 999px; cursor: pointer; text-decoration: none;
@@ -312,8 +315,8 @@ select.gm-input {
    direction; physical sides keep them anchored: theirs right, ours left. */
 .gm-bubble { width: fit-content; max-width: min(84%, 560px); padding: 9px 13px; border-radius: 16px; font-size: 14px; margin-bottom: 8px;
   white-space: pre-wrap; overflow-wrap: anywhere; }
-.gm-bubble.them { background: var(--raised); border: 1px solid var(--line-soft); border-top-right-radius: 4px; margin-left: auto; }
-.gm-bubble.us { background: var(--accent-soft); border: 1px solid var(--accent-line); border-top-left-radius: 4px; margin-right: auto; }
+.gm-bubble.them { background: var(--raised); border: 1px solid var(--line-soft); border-start-start-radius: 4px; margin-inline-end: auto; }
+.gm-bubble.us { background: var(--accent-soft); border: 1px solid var(--accent-line); border-start-end-radius: 4px; margin-inline-start: auto; }
 
 /* ---------- publish ---------- */
 .gm-drop { display: block; padding: 24px 16px; text-align: center; cursor: pointer; color: var(--muted);

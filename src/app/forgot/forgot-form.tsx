@@ -5,6 +5,7 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { Eye, EyeOff } from "lucide-react";
 
+import { useT } from "@/lib/i18n/client";
 import { requestResetAction, resetPasswordAction } from "./actions";
 
 const RESEND_WAIT_S = 60;
@@ -18,7 +19,8 @@ export function ForgotForm({
   enabled: boolean;
   product?: "shop" | "newsroom";
 }) {
-  const brand = product === "newsroom" ? "گیتواس نیوزڕووم" : "گیتواس";
+  const t = useT();
+  const brand = product === "newsroom" ? t.nr.shell.name : t.brand;
   const [email, setEmail] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [code, setCode] = useState("");
@@ -31,8 +33,8 @@ export function ForgotForm({
 
   useEffect(() => {
     if (wait <= 0) return;
-    const t = setTimeout(() => setWait((w) => w - 1), 1000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setWait((w) => w - 1), 1000);
+    return () => clearTimeout(timer);
   }, [wait]);
 
   function request(address: string) {
@@ -44,7 +46,7 @@ export function ForgotForm({
         setError(r.error);
         return;
       }
-      if (sentTo) setNotice("کۆدێکی نوێ نێردرا.");
+      if (sentTo) setNotice(t.auth.forgot.newCodeSent);
       setSentTo(r.email);
       setCode("");
       setWait(RESEND_WAIT_S);
@@ -73,7 +75,7 @@ export function ForgotForm({
 
   const back = (
     <p className="gm-sub" style={{ textAlign: "center", marginTop: 16 }}>
-      <Link href={`/login?next=${encodeURIComponent(next)}`} className="gm-link">گەڕانەوە بۆ چوونەژوورەوە</Link>
+      <Link href={`/login?next=${encodeURIComponent(next)}`} className="gm-link">{t.auth.forgot.back}</Link>
     </p>
   );
 
@@ -82,7 +84,7 @@ export function ForgotForm({
       <div className="gm-auth">
         <p className="gm-brand kufi">{brand}</p>
         <div className="gm-card" style={{ marginTop: 18 }}>
-          <p style={{ margin: 0 }}>ئەم خزمەتگوزارییە ئێستا بەردەست نییە.</p>
+          <p style={{ margin: 0 }}>{t.auth.common.unavailable}</p>
         </div>
         {back}
       </div>
@@ -93,7 +95,7 @@ export function ForgotForm({
     return (
       <div className="gm-auth">
         <p className="gm-brand kufi">{brand}</p>
-        <p className="gm-sub" style={{ marginTop: 4 }}>ئیمەیڵی هەژمارەکەت بنووسە، کۆدێکت بۆ دەنێرین بۆ دانانی وشەی نهێنیی نوێ.</p>
+        <p className="gm-sub" style={{ marginTop: 4 }}>{t.auth.forgot.subtitle}</p>
         <div className="gm-card" style={{ marginTop: 18 }}>
           <form
             onSubmit={(e) => {
@@ -103,12 +105,12 @@ export function ForgotForm({
             noValidate
           >
             <div className="gm-field">
-              <label htmlFor="fp-email">ئیمەیڵ</label>
+              <label htmlFor="fp-email">{t.auth.common.email}</label>
               <input id="fp-email" type="email" className="gm-input gm-ltr" dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" autoFocus required />
             </div>
             {error && <p className="gm-err" role="alert" style={{ margin: 0 }}>{error}</p>}
             <button type="submit" className="gm-btn block" disabled={pending || !email.trim()}>
-              {pending ? "دەنێردرێت…" : "کۆدم بۆ بنێرە"}
+              {pending ? t.auth.forgot.sending : t.auth.forgot.send}
             </button>
           </form>
         </div>
@@ -121,13 +123,13 @@ export function ForgotForm({
     <div className="gm-auth">
       <p className="gm-brand kufi">{brand}</p>
       <p className="gm-sub" style={{ marginTop: 4 }}>
-        ئەگەر هەژمارێک بە <bdi className="gm-ltr" dir="ltr">{sentTo}</bdi> هەبێت، کۆدێکی ٦ ژمارەییمان بۆ ناردووە.
+        {t.auth.forgot.sentBefore} <bdi className="gm-ltr" dir="ltr">{sentTo}</bdi>{t.auth.forgot.sentAfter}
       </p>
 
       <div className="gm-card" style={{ marginTop: 18 }}>
         <form onSubmit={reset} noValidate>
           <div className="gm-field">
-            <label htmlFor="fp-code">کۆدی ئیمەیڵ</label>
+            <label htmlFor="fp-code">{t.auth.common.emailCode}</label>
             <input
               id="fp-code"
               className="gm-input gm-ltr gm-code"
@@ -142,7 +144,7 @@ export function ForgotForm({
             />
           </div>
           <div className="gm-field">
-            <label htmlFor="fp-password">وشەی نهێنیی نوێ (لانیکەم ٨ پیت)</label>
+            <label htmlFor="fp-password">{t.auth.forgot.newPasswordLabel}</label>
             <div className="gm-row" style={{ gap: 6 }}>
               <input
                 id="fp-password"
@@ -155,7 +157,7 @@ export function ForgotForm({
                 minLength={8}
                 required
               />
-              <button type="button" className="gm-btn quiet small" onClick={() => setShow((s) => !s)} aria-label={show ? "شاردنەوەی وشەی نهێنی" : "پیشاندانی وشەی نهێنی"}>
+              <button type="button" className="gm-btn quiet small" onClick={() => setShow((s) => !s)} aria-label={show ? t.auth.common.hidePassword : t.auth.common.showPassword}>
                 {show ? <EyeOff size={15} aria-hidden="true" /> : <Eye size={15} aria-hidden="true" />}
               </button>
             </div>
@@ -163,13 +165,13 @@ export function ForgotForm({
           {error && <p className="gm-err" role="alert" style={{ margin: 0 }}>{error}</p>}
           {notice && <p className="gm-ok" style={{ margin: 0 }}>{notice}</p>}
           <button type="submit" className="gm-btn block" disabled={pending || !code.trim() || !password}>
-            {pending ? "پاشەکەوت دەکرێت…" : "وشەی نهێنیی نوێ دابنێ"}
+            {pending ? t.auth.forgot.saving : t.auth.forgot.submit}
           </button>
         </form>
         <p className="gm-sub" style={{ marginTop: 12, marginBottom: 0 }}>
-          ئیمەیڵەکە نەگەیشت؟ فۆڵدەری Spam بپشکنە، یان{" "}
+          {t.auth.common.noEmail}{" "}
           <button type="button" className="gm-link gm-linkbtn" onClick={() => request(sentTo)} disabled={pending || wait > 0}>
-            {wait > 0 ? `دوای ${new Intl.NumberFormat("ar-IQ").format(wait)} چرکە کۆدێکی تر بنێرە` : "کۆدێکی تر بنێرە"}
+            {wait > 0 ? t.auth.resendIn(wait) : t.auth.common.resend}
           </button>
         </p>
       </div>
@@ -184,7 +186,7 @@ export function ForgotForm({
             setNotice(null);
           }}
         >
-          ئیمەیڵەکە بگۆڕە
+          {t.auth.common.changeEmail}
         </button>
       </p>
     </div>

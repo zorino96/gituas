@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ar } from "@/lib/i18n/ar";
 import { ckb } from "@/lib/i18n/ckb";
+import { en } from "@/lib/i18n/en";
 
 const cookieJar = vi.hoisted(() => ({ value: undefined as string | undefined }));
 vi.mock("next/headers", () => ({
@@ -28,17 +29,21 @@ function leaves(node: unknown, path = ""): Map<string, unknown> {
 // Letters Sorani has and Arabic does not (Persian/Kurdish kaf and yeh, ە ێ ۆ ڕ ڵ ڤ پ چ ژ گ). They only show up in
 // Arabic text when a Kurdish string was left behind.
 const KURDISH_ONLY = /[کیەێۆڕڵڤپچژگ]/;
+// Any Arabic-script letter in the English is a Sorani or Arabic string left behind.
+const ARABIC_SCRIPT = /[؀-ۿ]/;
 
 describe("dictionaries", () => {
   const k = leaves(ckb);
   const a = leaves(ar);
+  const e = leaves(en);
 
-  it("ckb and ar have identical key sets", () => {
+  it("ckb, ar and en have identical key sets", () => {
     expect([...a.keys()].sort()).toEqual([...k.keys()].sort());
+    expect([...e.keys()].sort()).toEqual([...k.keys()].sort());
   });
 
   it("has no empty value in either language", () => {
-    for (const [name, d] of [["ckb", k], ["ar", a]] as const) {
+    for (const [name, d] of [["ckb", k], ["ar", a], ["en", e]] as const) {
       for (const [key, v] of d) {
         if (typeof v === "function") {
           const s = (v as (...x: unknown[]) => unknown)(2, 3, 2026);
@@ -53,7 +58,23 @@ describe("dictionaries", () => {
   });
 
   it("keeps the same kind of value (string / function) under every key", () => {
-    for (const [key, v] of k) expect(typeof a.get(key), key).toBe(typeof v);
+    for (const [key, v] of k) {
+      expect(typeof a.get(key), key).toBe(typeof v);
+      expect(typeof e.get(key), key).toBe(typeof v);
+    }
+  });
+
+  it("leaves no Sorani or Arabic in the English", () => {
+    for (const [key, v] of e) {
+      const s = typeof v === "function" ? (v as (...x: unknown[]) => string)("x", 3, 2026) : (v as string);
+      expect(ARABIC_SCRIPT.test(s), `en.${key} still has Arabic-script text: ${s}`).toBe(false);
+    }
+  });
+
+  it("writes English numbers with Western digits", () => {
+    expect(en.fmt.num(1500)).toBe("1,500");
+    expect(en.fmt.digits("15:30")).toBe("15:30");
+    expect(ckb.fmt.digits("15:30")).toBe("١٥:٣٠");
   });
 
   it("leaves no Kurdish-only letters in the Arabic", () => {
@@ -88,6 +109,7 @@ describe("getLang / dict", () => {
   it("returns the matching dictionary", () => {
     expect(dict("ar")).toBe(ar);
     expect(dict("ckb")).toBe(ckb);
-    expect(isLang("ar") && isLang("ckb") && !isLang("en")).toBe(true);
+    expect(dict("en")).toBe(en);
+    expect(isLang("ar") && isLang("ckb") && isLang("en") && !isLang("fr")).toBe(true);
   });
 });

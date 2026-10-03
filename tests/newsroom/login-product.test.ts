@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { loginTitle, productFor } from "@/app/login/product";
+import { ar } from "@/lib/i18n/ar";
+import { en } from "@/lib/i18n/en";
 
 describe("productFor", () => {
   it("maps newsroom paths to the newsroom", () => {
@@ -20,6 +22,11 @@ describe("loginTitle", () => {
   it("names the newsroom and the shop in Kurdish", () => {
     expect(loginTitle("newsroom")).toBe("چوونەژوورەوە — گیتواس نیوزڕووم");
     expect(loginTitle("shop")).toBe("چوونەژوورەوە — گیتواس");
+  });
+  it("follows the dictionary it is given", () => {
+    expect(loginTitle("newsroom", en)).toBe("Sign in — Gituas Newsroom");
+    expect(loginTitle("shop", en)).toBe("Sign in — Gituas");
+    expect(loginTitle("shop", ar)).toBe("تسجيل الدخول — Gituas");
   });
   it("leaves the operator title to the root layout", () => {
     expect(loginTitle("operator")).toBeUndefined();

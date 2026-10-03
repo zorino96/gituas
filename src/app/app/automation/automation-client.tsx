@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 
 import { useT } from "@/lib/i18n/client";
 
-import { num } from "../format";
 import { saveStoreSettingsAction } from "./actions";
 import { PostsSection } from "./posts-section";
 import { CommentsSection, DeliverySection } from "./settings-sections";
@@ -41,7 +40,8 @@ function Check({ done, label, hint, action }: { done: boolean; label: string; hi
 
 export function AutomationClient({ store, stores, templates, products, postAutomations, posts, postErrors, usage }: AutomationProps) {
   const router = useRouter();
-  const a = useT().automation;
+  const t = useT();
+  const a = t.automation;
   const status = useSaver();
   // The last saved settings, for display. A save sends only the fields its own control or section owns.
   const [settings, setSettings] = useState<StoreSettings>(() => ({
@@ -99,19 +99,19 @@ export function AutomationClient({ store, stores, templates, products, postAutom
             <div className="gm-target">
               <p>{a.activePosts}</p>
               <span className="gm-ltr">
-                {num(usage.activePosts)} / {usage.postSlots == null ? a.allPosts : num(usage.postSlots)}
+                {t.fmt.num(usage.activePosts)} / {usage.postSlots == null ? a.allPosts : t.fmt.num(usage.postSlots)}
               </span>
             </div>
             <div className="gm-target">
               <p>{a.sentToday}</p>
               <span className="gm-ltr">
-                {num(usage.sentToday)} / {num(usage.cap)}
+                {t.fmt.num(usage.sentToday)} / {t.fmt.num(usage.cap)}
               </span>
             </div>
             <div className="gm-target">
               <p>{a.aiVaried}</p>
               <span className="gm-ltr">
-                {num(usage.aiUsed)} / {num(usage.aiLimit)}
+                {t.fmt.num(usage.aiUsed)} / {t.fmt.num(usage.aiLimit)}
               </span>
             </div>
             <small className="gm-hint" style={{ display: "block" }}>

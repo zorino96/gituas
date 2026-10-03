@@ -3,7 +3,7 @@ import Link from "next/link";
 import { baseFor, currentWorkspace, loadConnections, loadInsights, loadPosts, loadYouTube } from "../data";
 import { rankPosts } from "@/lib/merchant/state";
 import { dict, getLang } from "@/lib/i18n";
-import { ago, num } from "../format";
+import { ago } from "../format";
 
 export const maxDuration = 60;
 
@@ -40,7 +40,7 @@ export default async function InsightsPage() {
       <div className="gm-kpis">
         {tiles.map((tile) => (
           <div key={tile.key} className="gm-kpi">
-            <b>{num(tile.value)}</b>
+            <b>{t.fmt.num(tile.value)}</b>
             <span>{tile.label}</span>
           </div>
         ))}
@@ -58,7 +58,7 @@ export default async function InsightsPage() {
               <div className="gm-kpis">
                 {youtube.tiles.map((tile) => (
                   <div key={tile.key} className="gm-kpi">
-                    <b>{num(tile.value)}</b>
+                    <b>{t.fmt.num(tile.value)}</b>
                     <span>{(t.insights.yt as Record<string, string>)[tile.key] ?? tile.label}</span>
                   </div>
                 ))}
@@ -84,7 +84,7 @@ export default async function InsightsPage() {
                         {v.title || t.insights.noTitle}
                       </a>
                       <b>
-                        {num(v.views)} <span className="gm-time">{t.common.views}</span>
+                        {t.fmt.num(v.views)} <span className="gm-time">{t.common.views}</span>
                       </b>
                     </div>
                   ))}
@@ -119,7 +119,7 @@ export default async function InsightsPage() {
                   {p.caption || t.common.noText}
                 </div>
               </div>
-              <b>{num(p.commentCount)}</b>
+              <b>{t.fmt.num(p.commentCount)}</b>
             </div>
           ))
         )}

@@ -6,7 +6,6 @@ import { useState, useTransition } from "react";
 import { planFeatures, type PlanFeature } from "@/lib/billing/features";
 import { planLabel, priceFor, type BillingProduct } from "@/lib/billing/prices";
 import { useLang, useT } from "@/lib/i18n/client";
-import { num } from "@/lib/i18n/num";
 import type { Dict } from "@/lib/i18n";
 import { formatMoney } from "@/lib/shop/money";
 import { kuDate } from "../format";
@@ -53,12 +52,13 @@ export interface BillingProps {
 }
 
 /** One feature row's value in the reader's language: a count, a refresh interval, or one of the fixed phrases. */
-function featureValue(f: Dict["billing"]["features"], feature: PlanFeature): string {
+function featureValue(t: Dict, feature: PlanFeature): string {
+  const f = t.billing.features;
   const v = feature.value;
   if (v === "autoDraft") return f.autoDraft;
   if (v === "autoPublish") return f.autoPublish;
   if (v === "all") return f.all;
-  return feature.key === "refresh" ? f.refresh(v) : num(v);
+  return feature.key === "refresh" ? f.refresh(v) : t.fmt.num(v);
 }
 
 function StatusBadge({ status }: { status: InvoiceRow["status"] }) {
@@ -151,7 +151,7 @@ export function BillingClient({ product, configured, env, result, targets, invoi
                         <li key={f.key}>
                           <Check size={16} strokeWidth={2.4} aria-hidden="true" />
                           <span>
-                            {b.features.label[f.key]}: <b>{featureValue(b.features, f)}</b>
+                            {b.features.label[f.key]}: <b>{featureValue(tr, f)}</b>
                           </span>
                         </li>
                       ))}

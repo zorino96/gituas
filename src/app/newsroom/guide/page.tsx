@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 
 import { currentWorkspace } from "@/app/app/data";
+import { LangSwitch } from "@/app/app/lang-switch";
 import { dict, getLang } from "@/lib/i18n";
 import { DeskShell, NewsroomRoot } from "../desk-shell";
 import { GuideArticle } from "./guide-article";
@@ -26,6 +27,7 @@ export default async function GuidePage() {
   return (
     <NewsroomRoot>
       <div className="nr-land">
+        {!ws && <LangSwitch />}
         <header className="nr-land-bar">
           <div className="nr-wrap">
             <Link href="/newsroom" className="nr-brand kufi" style={{ padding: 0 }}>

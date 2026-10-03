@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { hashPassword, normalizeEmail, passwordProblem } from "@/lib/password";
 import { clearEmailCodes, consumeEmailCode, issueEmailCode } from "@/lib/email-code-store";
 import { emailEnabled } from "@/lib/mailer";
+import { dict, getLang } from "@/lib/i18n";
 
 export type ResetResult = { ok: true; email: string } | { ok: false; error: string; field?: "email" | "code" | "password" };
 
@@ -13,13 +14,14 @@ export type ResetResult = { ok: true; email: string } | { ok: false; error: stri
  * used to find out who has one; only an existing account gets an email.
  */
 export async function requestResetAction(input: { email: string }): Promise<ResetResult> {
-  if (!emailEnabled) return { ok: false, field: "email", error: "ئەم خزمەتگوزارییە ئێستا بەردەست نییە." };
+  const t = dict(await getLang());
+  if (!emailEnabled) return { ok: false, field: "email", error: t.auth.common.unavailable };
   const email = normalizeEmail(input.email);
-  if (!email) return { ok: false, field: "email", error: "ئیمەیڵەکە دروست نییە." };
+  if (!email) return { ok: false, field: "email", error: t.auth.common.badEmail };
 
   const user = await db.user.findUnique({ where: { email }, select: { id: true } });
   if (user) {
-    const r = await issueEmailCode(email, "reset");
+    const r = await issueEmailCode(email, "reset", {}, t);
     if (!r.ok) return r;
   }
   return { ok: true, email };
@@ -32,19 +34,20 @@ export async function requestResetAction(input: { email: string }): Promise<Rese
  * out by the guesses that sent them here.
  */
 export async function resetPasswordAction(input: { email: string; code: string; password: string }): Promise<ResetResult> {
+  const t = dict(await getLang());
   const email = normalizeEmail(input.email);
-  if (!email) return { ok: false, field: "email", error: "دووبارە هەوڵ بدەرەوە." };
+  if (!email) return { ok: false, field: "email", error: t.auth.forgot.retry };
 
   // Checked before the code, so a short password doesn't use up a guess.
   const problem = passwordProblem(input.password);
-  if (problem === "too-short") return { ok: false, field: "password", error: "وشەی نهێنی دەبێت لانیکەم ٨ پیت بێت." };
-  if (problem === "too-long") return { ok: false, field: "password", error: "وشەی نهێنی زۆر درێژە." };
+  if (problem === "too-short") return { ok: false, field: "password", error: t.auth.common.passwordShort };
+  if (problem === "too-long") return { ok: false, field: "password", error: t.auth.common.passwordLong };
 
-  const r = await consumeEmailCode(email, "reset", input.code);
+  const r = await consumeEmailCode(email, "reset", input.code, t);
   if (!r.ok) return r;
 
   const user = await db.user.findUnique({ where: { email }, select: { id: true, emailVerified: true } });
-  if (!user) return { ok: false, field: "code", error: "کۆدێکی نوێ داوا بکە." };
+  if (!user) return { ok: false, field: "code", error: t.auth.common.newCode };
 
   await db.user.update({
     where: { id: user.id },

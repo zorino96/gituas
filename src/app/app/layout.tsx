@@ -10,7 +10,7 @@ import { SideNav, Tabs } from "./nav";
 import { switchWorkspaceAction } from "@/app/newsroom/desk-actions";
 import { NEWSROOM_ORIGIN } from "@/lib/hosts";
 import { createShopAction } from "./shop-actions";
-import { dict, getLang, type Lang } from "@/lib/i18n";
+import { dict, dirOf, getLang, type Lang } from "@/lib/i18n";
 import { LangProvider } from "@/lib/i18n/client";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -39,7 +39,7 @@ async function Shell({ lang, children }: { lang: Lang; children: React.ReactNode
     if (shops.length === 0) {
       // A newsroom account opening the shop: offer it a shop of its own instead of bouncing to the newsroom.
       return (
-        <div className={`gm ${gmFontVars}`} dir="rtl" lang={lang}>
+        <div className={`gm ${gmFontVars}`} dir={dirOf(lang)} lang={lang}>
           <div className="gm-auth">
             <p className="gm-brand kufi">{t.brand}</p>
             <div className="gm-card" style={{ marginTop: 18 }}>
@@ -58,7 +58,7 @@ async function Shell({ lang, children }: { lang: Lang; children: React.ReactNode
       );
     }
     return (
-      <div className={`gm ${gmFontVars}`} dir="rtl" lang={lang}>
+      <div className={`gm ${gmFontVars}`} dir={dirOf(lang)} lang={lang}>
         <div className="gm-auth">
           <p className="gm-brand kufi">{t.brand}</p>
           <div className="gm-card" style={{ marginTop: 18 }}>
@@ -82,7 +82,7 @@ async function Shell({ lang, children }: { lang: Lang; children: React.ReactNode
   }
 
   return (
-    <div className={`gm ${gmFontVars}`} dir="rtl" lang={lang}>
+    <div className={`gm ${gmFontVars}`} dir={dirOf(lang)} lang={lang}>
       <SideNav kind={ws.kind} workspace={ws.name} />
       <div className="gm-shell">
         <header className="gm-head">

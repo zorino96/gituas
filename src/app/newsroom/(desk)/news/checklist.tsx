@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
 
-import { num } from "@/app/app/format";
 import { dict, getLang } from "@/lib/i18n";
 import type { ChecklistStep } from "@/lib/newsroom/checklist";
 
 /** A new desk's first steps. The page hides it once every step is done. */
 export async function Checklist({ steps }: { steps: ChecklistStep[] }) {
-  const tc = dict(await getLang()).nr.news.checklist;
+  const t = dict(await getLang());
+  const tc = t.nr.news.checklist;
   const done = steps.filter((s) => s.done).length;
   return (
     <section className="gm-card nr-check" aria-labelledby="nr-check-title">
@@ -16,7 +16,7 @@ export async function Checklist({ steps }: { steps: ChecklistStep[] }) {
           {tc.title}
         </h3>
         <small className="gm-sub" style={{ margin: 0 }}>
-          {num(done)} / {num(steps.length)}
+          {t.fmt.num(done)} / {t.fmt.num(steps.length)}
         </small>
       </div>
       <div className="nr-meter" aria-hidden="true">

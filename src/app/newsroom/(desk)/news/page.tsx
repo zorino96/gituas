@@ -15,7 +15,7 @@ import { ingest } from "@/lib/news/ingest";
 import { dict, getLang } from "@/lib/i18n";
 import { categoryLabel, categoryWhere, regionLabel, REGIONS, TAXONOMY } from "@/lib/news/taxonomy";
 import { currentWorkspace } from "@/app/app/data";
-import { ago, num } from "@/app/app/format";
+import { ago } from "@/app/app/format";
 import { checklist, checklistDone } from "@/lib/newsroom/checklist";
 import { AutoRefresh } from "./auto-refresh";
 import { Checklist } from "./checklist";
@@ -157,21 +157,21 @@ export default async function NewsPage({
           <div className="nr-stat">
             <span className="gm-stat-icon" aria-hidden="true"><Newspaper /></span>
             <div>
-              <b>{num(tabTotal)}</b>
+              <b>{t.fmt.num(tabTotal)}</b>
               <span>{tn.list.tabs[tab.key]}</span>
             </div>
           </div>
           <div className="nr-stat">
             <span className="gm-stat-icon" aria-hidden="true"><Sparkles /></span>
             <div>
-              <b>{num(drafts)} / {num(limit)}</b>
+              <b>{t.fmt.num(drafts)} / {t.fmt.num(limit)}</b>
               <span>{tn.list.statDrafts}</span>
             </div>
           </div>
           <div className="nr-stat">
             <span className="gm-stat-icon" aria-hidden="true"><Rss /></span>
             <div>
-              <b>{num(sources)}</b>
+              <b>{t.fmt.num(sources)}</b>
               <span>{tn.list.statSources}</span>
             </div>
           </div>
@@ -201,7 +201,7 @@ export default async function NewsPage({
           {tn.list.noKeywords} <Link href="/newsroom/settings" className="gm-link">{tn.list.noKeywordsLink}</Link>.
         </p>
       )}
-      {ingestResult?.failed.length ? <p className="gm-hint">{tn.list.noAnswer(ingestResult.failed.join("، "))}</p> : null}
+      {ingestResult?.failed.length ? <p className="gm-hint">{tn.list.noAnswer(ingestResult.failed.join(t.fmt.listSep))}</p> : null}
 
       {groups.length === 0 ? (
         <p className="gm-empty">{tn.list.empty}</p>

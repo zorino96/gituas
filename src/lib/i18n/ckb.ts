@@ -17,6 +17,15 @@ import { nrTeamCkb } from "./nr/team.ckb";
 export const ckb = {
   brand: "گیتواس",
 
+  /** How numbers are written: Arabic-Indic digits here and in Arabic, Western digits in English. */
+  fmt: {
+    num,
+    /** Rewrites the Western digits in a string, e.g. a clock time "15:30". */
+    digits: (s: string | number) => String(s).replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[Number(d)]),
+    /** Between a date and a time, or two names. */
+    listSep: "، ",
+  },
+
   platform: { FB: "فەیسبووک", IG: "ئینستاگرام", TT: "تیکتۆک", YT: "یوتیوب" },
 
   common: {
@@ -205,6 +214,9 @@ export const ckb = {
     tooBig: "فایلەکە لە ٢٥٠ مێگابایت گەورەترە.",
     uploadFailed: (msg: string) => `بارکردن سەرکەوتوو نەبوو: ${msg}`,
     uploadAria: "بارکردن",
+    /** imageToJpeg (to-jpeg.ts) throws these when a PNG or WebP cannot be redrawn as JPEG. */
+    canvasMissing: "کانڤاس بەردەست نییە.",
+    jpegFailed: "گۆڕینی وێنە بۆ JPEG سەرکەوتوو نەبوو.",
     ready: "ئامادەیە",
     videoSecs: (n: number) => `ڤیدیۆ · ${num(n)} چرکە`,
     uploading: (percent: number) => `بارکردن… ${num(percent)}٪`,
@@ -705,6 +717,112 @@ export const ckb = {
       badPrice: "نرخەکە دروست نییە.",
       notFound: "داواکارییەکە نەدۆزرایەوە.",
     },
+  },
+
+  /** The sign-in, sign-up and password-reset pages and their server actions (src/app/login, signup, forgot; src/lib/email-code-store.ts). */
+  auth: {
+    /** The resend button while its 60-second wait runs. */
+    resendIn: (s: number) => `دوای ${num(s)} چرکە کۆدێکی تر بنێرە`,
+
+    /** Text the three pages share, on screen and in server answers. */
+    common: {
+      email: "ئیمەیڵ",
+      password: "وشەی نهێنی",
+      showPassword: "پیشاندانی وشەی نهێنی",
+      hidePassword: "شاردنەوەی وشەی نهێنی",
+      orEmail: "یان بە ئیمەیڵ",
+      signIn: "بچۆ ژوورەوە",
+      emailCode: "کۆدی ئیمەیڵ",
+      /** Before the resend button. */
+      noEmail: "ئیمەیڵەکە نەگەیشت؟ فۆڵدەری Spam بپشکنە، یان",
+      resend: "کۆدێکی تر بنێرە",
+      changeEmail: "ئیمەیڵەکە بگۆڕە",
+      badEmail: "ئیمەیڵەکە دروست نییە.",
+      passwordShort: "وشەی نهێنی دەبێت لانیکەم ٨ پیت بێت.",
+      passwordLong: "وشەی نهێنی زۆر درێژە.",
+      newCode: "کۆدێکی نوێ داوا بکە.",
+      unavailable: "ئەم خزمەتگوزارییە ئێستا بەردەست نییە.",
+    },
+
+    /** What the emailed-code check answers (issueEmailCode and consumeEmailCode in src/lib/email-code-store.ts). */
+    code: {
+      justSent: "کۆدێک تازە نێردرا. یەک خولەک چاوەڕێ بکە پێش داواکردنی کۆدێکی تر.",
+      tooMany: "کۆدی زۆر داواکراوە. دوای کاتژمێرێک هەوڵ بدەرەوە.",
+      sendFailed: "نەتوانرا ئیمەیڵ بنێردرێت. ئیمەیڵەکە بپشکنە و دووبارە هەوڵ بدەرەوە.",
+      sixDigits: "کۆدەکە ٦ ژمارەیە.",
+      expired: "کاتی کۆدەکە بەسەرچووە. کۆدێکی نوێ داوا بکە.",
+      tooManyWrong: "زۆر جار هەڵە کرا. کۆدێکی نوێ داوا بکە.",
+      wrong: "کۆدەکە هەڵەیە.",
+    },
+
+    login: {
+      /** The tab title is this, a dash, then the product name. */
+      pageTitle: "چوونەژوورەوە",
+      subtitleShop: "بچۆ ژوورەوە بۆ کۆمێنت، نامە و بڵاوکردنەوەی دووکانەکەت.",
+      subtitleNewsroom: "بچۆ ژوورەوە بۆ ژووری هەواڵی کەناڵەکەت.",
+      /** Google came back with an address that already has a password. */
+      emailHasPassword: "ئەم ئیمەیڵە پێشتر بە وشەی نهێنی تۆمار کراوە — بە ئیمەیڵ و وشەی نهێنی بچۆ ژوورەوە.",
+      oauthFailed: "چوونەژوورەوە سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە.",
+      wrongCredentials: "ئیمەیڵ یان وشەی نهێنی هەڵەیە. ئەگەر زۆر جار هەڵەت کردووە، ١٥ خولەک چاوەڕێ بکە.",
+      google: "بە گووگڵ بچۆ ژوورەوە",
+      github: "بە GitHub بچۆ ژوورەوە",
+      forgot: "وشەی نهێنیت لەبیرچووە؟",
+      submitting: "چوونەژوورەوە…",
+      noAccount: "هەژمارت نییە؟",
+      signUp: "خۆت تۆمار بکە",
+    },
+
+    signup: {
+      /** The tab title is this, a dash, then the product name. */
+      pageTitle: "خۆتۆمارکردن",
+      subtitleShop: "هەژمارێکی نوێ دروست بکە — کۆمێنت، نامە و بڵاوکردنەوە لە یەک شوێن.",
+      subtitleNewsroom: "هەژمارێک بۆ کەناڵەکەت دروست بکە — هەواڵ، کارت و بڵاوکردنەوە لە یەک شوێن.",
+      /** The two halves of one sentence around the address; the second half starts with its own punctuation or space. */
+      codeSentBefore: "کۆدێکی ٦ ژمارەییمان نارد بۆ",
+      codeSentAfter: ". بینووسە بۆ تەواوکردنی تۆمارکردن.",
+      verify: "دڵنیاکردنەوە",
+      verifying: "دەپشکنرێت…",
+      google: "بە گووگڵ خۆت تۆمار بکە",
+      nameShop: "ناوی دووکان یان ناوی خۆت",
+      nameNewsroom: "ناوی کەناڵ",
+      passwordLabel: "وشەی نهێنی (لانیکەم ٨ پیت)",
+      submit: "هەژمار دروست بکە",
+      submitting: "دروست دەکرێت…",
+      haveAccount: "هەژمارت هەیە؟",
+      autoSignInFailed: "هەژمارەکە دروست کرا، بەڵام چوونەژوورەوە سەرکەوتوو نەبوو. لە پەڕەی چوونەژوورەوە هەوڵ بدەرەوە.",
+      nameMissing: "ناوی دووکان یان ناوی خۆت بنووسە.",
+      taken: "ئەم ئیمەیڵە پێشتر تۆمار کراوە — بچۆ ژوورەوە.",
+      signUpAgain: "دووبارە خۆت تۆمار بکەرەوە.",
+      expired: "کاتی ئەم تۆمارکردنە بەسەرچووە. دووبارە خۆت تۆمار بکەرەوە.",
+    },
+
+    forgot: {
+      /** The tab title is this, a dash, then the product name. */
+      pageTitle: "وشەی نهێنیی نوێ",
+      subtitle: "ئیمەیڵی هەژمارەکەت بنووسە، کۆدێکت بۆ دەنێرین بۆ دانانی وشەی نهێنیی نوێ.",
+      send: "کۆدم بۆ بنێرە",
+      sending: "دەنێردرێت…",
+      /** The two halves of one sentence around the address; the second half starts with its own punctuation or space. */
+      sentBefore: "ئەگەر هەژمارێک بە",
+      sentAfter: " هەبێت، کۆدێکی ٦ ژمارەییمان بۆ ناردووە.",
+      newPasswordLabel: "وشەی نهێنیی نوێ (لانیکەم ٨ پیت)",
+      submit: "وشەی نهێنیی نوێ دابنێ",
+      saving: "پاشەکەوت دەکرێت…",
+      newCodeSent: "کۆدێکی نوێ نێردرا.",
+      back: "گەڕانەوە بۆ چوونەژوورەوە",
+      retry: "دووبارە هەوڵ بدەرەوە.",
+    },
+  },
+
+  /** The page chooser shown after Facebook sign-in (src/app/connect/facebook/page.tsx). */
+  connectFacebook: {
+    metaTitle: "پەیجەکەت هەڵبژێرە — گیتواس",
+    expired: "کاتی هەڵبژاردن بەسەرچوو یان ئەم بەستەرە بۆ تۆ نییە. لە ڕێکخستن دووبارە فەیسبووک پەیوەست بکەوە.",
+    title: "کام پەیج پەیوەست بکرێت؟",
+    subDesk: "ئەم پەیجانە لە فەیسبووک بەڕێوە دەبەیت. ئەوەی بۆ ئەم مێزەیە هەڵبژێرە.",
+    subShop: "ئەم پەیجانە لە فەیسبووک بەڕێوە دەبەیت. ئەوەی بۆ ئەم دووکانەیە هەڵبژێرە.",
+    error: "پەیوەستکردن سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە.",
+    cancel: "پاشگەزبوونەوە",
   },
 
   // The newsroom's own screens, one file per area in ./nr/.

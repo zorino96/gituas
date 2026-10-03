@@ -5,6 +5,8 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { Eye, EyeOff } from "lucide-react";
 
+import { useT } from "@/lib/i18n/client";
+
 /** Sign-in for the merchant app or the newsroom: email and password, Google when configured; GitHub (the owner's own sign-in) only on the shop's page. */
 export function MerchantLogin({
   next,
@@ -19,16 +21,17 @@ export function MerchantLogin({
   oauthError?: string;
   product?: "shop" | "newsroom";
 }) {
-  const brand = product === "newsroom" ? "گیتواس نیوزڕووم" : "گیتواس";
-  const subtitle = product === "newsroom" ? "بچۆ ژوورەوە بۆ ژووری هەواڵی کەناڵەکەت." : "بچۆ ژوورەوە بۆ کۆمێنت، نامە و بڵاوکردنەوەی دووکانەکەت.";
+  const t = useT();
+  const brand = product === "newsroom" ? t.nr.shell.name : t.brand;
+  const subtitle = product === "newsroom" ? t.auth.login.subtitleNewsroom : t.auth.login.subtitleShop;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [error, setError] = useState<string | null>(
     oauthError === "OAuthAccountNotLinked"
-      ? "ئەم ئیمەیڵە پێشتر بە وشەی نهێنی تۆمار کراوە — بە ئیمەیڵ و وشەی نهێنی بچۆ ژوورەوە."
+      ? t.auth.login.emailHasPassword
       : oauthError
-        ? "چوونەژوورەوە سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە."
+        ? t.auth.login.oauthFailed
         : null,
   );
   const [pending, start] = useTransition();
@@ -41,7 +44,7 @@ export function MerchantLogin({
       if (r?.error) {
         // One message for a wrong address, a wrong password, or too many tries:
         // telling them apart would tell a stranger which addresses exist.
-        setError("ئیمەیڵ یان وشەی نهێنی هەڵەیە. ئەگەر زۆر جار هەڵەت کردووە، ١٥ خولەک چاوەڕێ بکە.");
+        setError(t.auth.login.wrongCredentials);
         return;
       }
       window.location.href = next;
@@ -57,19 +60,19 @@ export function MerchantLogin({
         {googleEnabled && (
           <>
             <button type="button" className="gm-btn block gm-google" onClick={() => signIn("google", { callbackUrl: next })}>
-              <span className="gm-g" aria-hidden="true">G</span> بە گووگڵ بچۆ ژوورەوە
+              <span className="gm-g" aria-hidden="true">G</span> {t.auth.login.google}
             </button>
-            <div className="gm-or">یان بە ئیمەیڵ</div>
+            <div className="gm-or">{t.auth.common.orEmail}</div>
           </>
         )}
 
         <form onSubmit={submit} noValidate>
           <div className="gm-field">
-            <label htmlFor="li-email">ئیمەیڵ</label>
+            <label htmlFor="li-email">{t.auth.common.email}</label>
             <input id="li-email" type="email" className="gm-input gm-ltr" dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
           </div>
           <div className="gm-field">
-            <label htmlFor="li-password">وشەی نهێنی</label>
+            <label htmlFor="li-password">{t.auth.common.password}</label>
             <div className="gm-row" style={{ gap: 6 }}>
               <input
                 id="li-password"
@@ -81,31 +84,31 @@ export function MerchantLogin({
                 autoComplete="current-password"
                 required
               />
-              <button type="button" className="gm-btn quiet small" onClick={() => setShow((s) => !s)} aria-label={show ? "شاردنەوەی وشەی نهێنی" : "پیشاندانی وشەی نهێنی"}>
+              <button type="button" className="gm-btn quiet small" onClick={() => setShow((s) => !s)} aria-label={show ? t.auth.common.hidePassword : t.auth.common.showPassword}>
                 {show ? <EyeOff size={15} aria-hidden="true" /> : <Eye size={15} aria-hidden="true" />}
               </button>
             </div>
             {resetEnabled && (
               <Link href={`/forgot?next=${encodeURIComponent(next)}`} className="gm-link" style={{ display: "inline-block", fontSize: 12, marginTop: 6 }}>
-                وشەی نهێنیت لەبیرچووە؟
+                {t.auth.login.forgot}
               </Link>
             )}
           </div>
           {error && <p className="gm-err" role="alert" style={{ margin: 0 }}>{error}</p>}
           <button type="submit" className="gm-btn block" disabled={pending || !email || !password}>
-            {pending ? "چوونەژوورەوە…" : "بچۆ ژوورەوە"}
+            {pending ? t.auth.login.submitting : t.auth.common.signIn}
           </button>
         </form>
       </div>
 
       <p className="gm-sub" style={{ textAlign: "center", marginTop: 16 }}>
-        هەژمارت نییە؟{" "}
-        <Link href={`/signup?next=${encodeURIComponent(next)}`} className="gm-link">خۆت تۆمار بکە</Link>
+        {t.auth.login.noAccount}{" "}
+        <Link href={`/signup?next=${encodeURIComponent(next)}`} className="gm-link">{t.auth.login.signUp}</Link>
       </p>
       {product !== "newsroom" && (
         <p style={{ textAlign: "center", marginTop: 4 }}>
           <button type="button" className="gm-link" style={{ background: "none", border: 0, cursor: "pointer", font: "inherit", fontSize: 12, fontWeight: 500 }} onClick={() => signIn("github", { callbackUrl: next })}>
-            بە GitHub بچۆ ژوورەوە
+            {t.auth.login.github}
           </button>
         </p>
       )}

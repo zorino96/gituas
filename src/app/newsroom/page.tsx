@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { BarChart3, LayoutTemplate, ShieldCheck, Sparkles, Send, Users } from "lucide-react";
 
 import { currentWorkspace, listWorkspaces } from "@/app/app/data";
+import { LangSwitch } from "@/app/app/lang-switch";
 import { dict, getLang } from "@/lib/i18n";
 import { NewsroomRoot } from "./desk-shell";
 import { ShopNotice } from "./shop-notice";
@@ -39,6 +40,7 @@ export default async function NewsroomLandingPage() {
   return (
     <NewsroomRoot>
       <div className="nr-land">
+        <LangSwitch />
         <header className="nr-land-bar">
           <div className="nr-wrap">
             <p className="nr-brand kufi" style={{ padding: 0 }}>

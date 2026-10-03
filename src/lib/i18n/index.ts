@@ -1,5 +1,6 @@
 /**
- * The UI language of the shop and the newsroom: Sorani Kurdish ("ckb", the default) or Arabic ("ar").
+ * The UI language of the shop and the newsroom: Sorani Kurdish ("ckb", the default), Arabic ("ar")
+ * or English ("en"). English is laid out left to right: wrappers take `dir={dirOf(lang)}`.
  *
  *   Server component / action:   const t = dict(await getLang());     t.home.title
  *   Client component:            const t = useT();                    (import from "@/lib/i18n/client")
@@ -27,20 +28,22 @@ import { cookies } from "next/headers";
 
 import { ar } from "./ar";
 import { ckb, type Dict } from "./ckb";
+import { en } from "./en";
+import type { Lang } from "./lang";
 
-export type Lang = "ckb" | "ar";
+export { dirOf, LANGS, type Lang } from "./lang";
 export type { Dict };
 
 export const LANG_COOKIE = "gm_lang";
 export const DEFAULT_LANG: Lang = "ckb";
 
 export function isLang(v: unknown): v is Lang {
-  return v === "ckb" || v === "ar";
+  return v === "ckb" || v === "ar" || v === "en";
 }
 
 /** The dictionary for a language. */
 export function dict(lang: Lang): Dict {
-  return lang === "ar" ? ar : ckb;
+  return lang === "ar" ? ar : lang === "en" ? en : ckb;
 }
 
 /** The language from the gm_lang cookie; Sorani when it is missing or unknown. Server only. */

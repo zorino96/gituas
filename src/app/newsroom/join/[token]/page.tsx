@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 
+import { LangSwitch } from "@/app/app/lang-switch";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { dict, getLang } from "@/lib/i18n";
@@ -19,6 +20,7 @@ async function Frame({ children }: { children: React.ReactNode }) {
   const t = dict(await getLang()).nr.shell;
   return (
     <NewsroomRoot>
+      <LangSwitch />
       <div className="gm-auth">
         <p className="nr-brand kufi" style={{ padding: 0 }}>
           <span className="nr-live" aria-hidden="true" />

@@ -12,6 +12,7 @@ import {
   newCode,
   normalizeCode,
 } from "@/lib/email-code";
+import { ckb, type Dict } from "@/lib/i18n/ckb";
 import { codeEmail, sendEmail } from "@/lib/mailer";
 
 /** What a code proves: a new account's address, or the right to set a new password. */
@@ -35,11 +36,13 @@ async function clientIp(): Promise<string | null> {
  * Store a new code for this address and email it. Refuses when the address
  * or the connection has asked for too many, so the form can't be used to
  * flood someone's inbox or burn the sending domain's reputation.
+ * The refusals are worded in `t`'s language (Sorani when it is left out).
  */
 export async function issueEmailCode(
   email: string,
   purpose: CodePurpose,
   pending: { name?: string; passwordHash?: string } = {},
+  t: Dict = ckb,
 ): Promise<{ ok: true } | Failure> {
   const now = Date.now();
   const ip = await clientIp();
@@ -49,10 +52,10 @@ export async function issueEmailCode(
     ip ? db.emailCode.count({ where: { ip, createdAt: { gte: new Date(now - HOUR_MS) } } }) : 0,
   ]);
   if (last && now - last.createdAt.getTime() < RESEND_COOLDOWN_MS) {
-    return { ok: false, field: "code", error: "کۆدێک تازە نێردرا. یەک خولەک چاوەڕێ بکە پێش داواکردنی کۆدێکی تر." };
+    return { ok: false, field: "code", error: t.auth.code.justSent };
   }
   if (perEmail >= MAX_SENDS_PER_HOUR || perIp >= MAX_SENDS_PER_IP_PER_HOUR) {
-    return { ok: false, field: "code", error: "کۆدی زۆر داواکراوە. دوای کاتژمێرێک هەوڵ بدەرەوە." };
+    return { ok: false, field: "code", error: t.auth.code.tooMany };
   }
 
   const code = newCode();
@@ -72,7 +75,7 @@ export async function issueEmailCode(
   if (!sent.ok) {
     // An unsent code must not count against their limits or sit waiting.
     await db.emailCode.delete({ where: { id: row.id } });
-    return { ok: false, field: "email", error: "نەتوانرا ئیمەیڵ بنێردرێت. ئیمەیڵەکە بپشکنە و دووبارە هەوڵ بدەرەوە." };
+    return { ok: false, field: "email", error: t.auth.code.sendFailed };
   }
   return { ok: true };
 }
@@ -81,29 +84,31 @@ export async function issueEmailCode(
  * Check a typed code against the newest one for this address — sending a new
  * code retires the old — and claim it exactly once. Wrong guesses count
  * against the code; after MAX_ATTEMPTS a new one has to be sent.
+ * The refusals are worded in `t`'s language (Sorani when it is left out).
  */
 export async function consumeEmailCode(
   email: string,
   purpose: CodePurpose,
   rawCode: string,
+  t: Dict = ckb,
 ): Promise<{ ok: true; name: string | null; passwordHash: string | null } | Failure> {
   const code = normalizeCode(rawCode);
-  if (!code) return { ok: false, field: "code", error: "کۆدەکە ٦ ژمارەیە." };
+  if (!code) return { ok: false, field: "code", error: t.auth.code.sixDigits };
 
   const row = await db.emailCode.findFirst({ where: { email, purpose }, orderBy: { createdAt: "desc" } });
-  if (!row || row.usedAt) return { ok: false, field: "code", error: "کۆدێکی نوێ داوا بکە." };
-  if (row.expiresAt.getTime() < Date.now()) return { ok: false, field: "code", error: "کاتی کۆدەکە بەسەرچووە. کۆدێکی نوێ داوا بکە." };
-  if (row.attempts >= MAX_ATTEMPTS) return { ok: false, field: "code", error: "زۆر جار هەڵە کرا. کۆدێکی نوێ داوا بکە." };
+  if (!row || row.usedAt) return { ok: false, field: "code", error: t.auth.common.newCode };
+  if (row.expiresAt.getTime() < Date.now()) return { ok: false, field: "code", error: t.auth.code.expired };
+  if (row.attempts >= MAX_ATTEMPTS) return { ok: false, field: "code", error: t.auth.code.tooManyWrong };
 
   if (!codeMatches(email, code, row.codeHash)) {
     await db.emailCode.update({ where: { id: row.id }, data: { attempts: { increment: 1 } } });
     const left = MAX_ATTEMPTS - row.attempts - 1;
-    return { ok: false, field: "code", error: left > 0 ? "کۆدەکە هەڵەیە." : "زۆر جار هەڵە کرا. کۆدێکی نوێ داوا بکە." };
+    return { ok: false, field: "code", error: left > 0 ? t.auth.code.wrong : t.auth.code.tooManyWrong };
   }
 
   // Claim the code exactly once, even if the button is pressed twice.
   const claimed = await db.emailCode.updateMany({ where: { id: row.id, usedAt: null }, data: { usedAt: new Date() } });
-  if (claimed.count !== 1) return { ok: false, field: "code", error: "کۆدێکی نوێ داوا بکە." };
+  if (claimed.count !== 1) return { ok: false, field: "code", error: t.auth.common.newCode };
   return { ok: true, name: row.name, passwordHash: row.passwordHash };
 }
 

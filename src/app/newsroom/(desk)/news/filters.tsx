@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { num } from "@/app/app/format";
 import { dict, getLang } from "@/lib/i18n";
 import { REGIONS, TAXONOMY } from "@/lib/news/taxonomy";
 
@@ -29,7 +28,8 @@ export async function NewsFilters(props: {
   sources: string[];
 }) {
   const { q, categoryCounts, regionCounts, langs, sources } = props;
-  const tn = dict(await getLang()).nr.news;
+  const t = dict(await getLang());
+  const tn = t.nr.news;
   const langNames: Record<string, string> = tn.langs;
   const cats = TAXONOMY.filter((c) => categoryCounts[c.id] || c.id === q.cat);
   // An active filter always stays visible, so it can be cleared.
@@ -44,7 +44,7 @@ export async function NewsFilters(props: {
             <Chip href={newsHref(q, { cat: undefined })} on={!q.cat}>{tn.filters.allTopics}</Chip>
             {cats.map((c) => (
               <Chip key={c.id} href={newsHref(q, { cat: q.cat === c.id ? undefined : c.id })} on={q.cat === c.id}>
-                {tn.topics[c.id]} · {num(categoryCounts[c.id])}
+                {tn.topics[c.id]} · {t.fmt.num(categoryCounts[c.id])}
               </Chip>
             ))}
           </div>

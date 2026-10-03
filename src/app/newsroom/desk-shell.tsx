@@ -4,7 +4,7 @@ import { gmFontVars } from "@/app/app/fonts";
 import { listWorkspaces, type Workspace } from "@/app/app/data";
 import { newsroomAccess } from "@/lib/billing/trial";
 import { db } from "@/lib/db";
-import { dict, getLang } from "@/lib/i18n";
+import { dict, dirOf, getLang } from "@/lib/i18n";
 import { LangProvider } from "@/lib/i18n/client";
 import { BottomNav, HelpLink, SideNav } from "./desk-nav";
 import { DeskSwitcher } from "./desk-switcher";
@@ -17,7 +17,7 @@ import { DeskSwitcher } from "./desk-switcher";
 export async function NewsroomRoot({ children }: { children: React.ReactNode }) {
   const lang = await getLang();
   return (
-    <div className={`gm nr ${gmFontVars}`} dir="rtl" lang={lang}>
+    <div className={`gm nr ${gmFontVars}`} dir={dirOf(lang)} lang={lang}>
       <LangProvider lang={lang}>{children}</LangProvider>
     </div>
   );

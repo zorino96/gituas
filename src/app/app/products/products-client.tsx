@@ -77,7 +77,7 @@ function ProductEditor({
       const added: string[] = [];
       for (const file of files.slice(0, room)) {
         // Instagram and the shop cards want JPEG — convert anything else before it is uploaded.
-        const upFile = file.type !== "image/jpeg" ? await imageToJpeg(file) : file;
+        const upFile = file.type !== "image/jpeg" ? await imageToJpeg(file, t.publish) : file;
         const blob = await upload(`merchant/${workspaceId}/product-${Date.now()}.jpg`, upFile, {
           access: "public",
           handleUploadUrl: "/api/app/upload",

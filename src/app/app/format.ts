@@ -39,8 +39,8 @@ export function kuDateTime(iso: string | null | undefined, t: Dict = ckb): strin
   if (!date || !iso) return "";
   const parts = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Baghdad", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(iso));
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
-  const time = `${get("hour")}:${get("minute")}`.replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[Number(d)]);
-  return `${date}، ${time}`;
+  const time = t.fmt.digits(`${get("hour")}:${get("minute")}`);
+  return `${date}${t.fmt.listSep}${time}`;
 }
 
 /** Sorani platform names. In a screen, prefer `t.platform` so the name follows the language. */

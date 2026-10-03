@@ -1,12 +1,12 @@
 import Link from "next/link";
 
-import { num } from "@/app/app/format";
-import { dict, getLang } from "@/lib/i18n";
+import { dict, dirOf, getLang } from "@/lib/i18n";
 import { guideFor } from "@/lib/newsroom/guide";
 
 export async function GuideArticle() {
   const lang = await getLang();
-  const t = dict(lang).nr.shell.guide;
+  const d = dict(lang);
+  const t = d.nr.shell.guide;
   const guide = guideFor(lang);
   return (
     <article className="nr-guide">
@@ -26,7 +26,7 @@ export async function GuideArticle() {
         {guide.map((s, i) => (
           <section key={s.id} id={s.id} className="gm-card" aria-labelledby={`${s.id}-title`}>
             <h2 id={`${s.id}-title`} className="kufi">
-              {num(i + 1)}. {s.title}
+              {d.fmt.num(i + 1)}. {s.title}
             </h2>
             <p>{s.intro}</p>
             {s.steps && (
@@ -48,7 +48,7 @@ export async function GuideArticle() {
             )}
             {s.link && (
               <Link href={s.link.href} className="gm-link nr-more-link">
-                {s.link.label} ←
+                {s.link.label} {dirOf(lang) === "ltr" ? "→" : "←"}
               </Link>
             )}
           </section>

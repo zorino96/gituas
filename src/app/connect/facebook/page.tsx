@@ -5,10 +5,14 @@ import "@/app/app/app.css";
 import "@/app/newsroom/newsroom.css";
 import { auth } from "@/auth";
 import { gmFontVars } from "@/app/app/fonts";
+import { dict, dirOf, getLang } from "@/lib/i18n";
 import { loadPageChoice } from "@/lib/oauth/flow";
 import { cancelPageChoiceAction, choosePageAction } from "./actions";
 
-export const metadata: Metadata = { title: "پەیجەکەت هەڵبژێرە — گیتواس", robots: { index: false, follow: false } };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = dict(await getLang());
+  return { title: t.connectFacebook.metaTitle, robots: { index: false, follow: false } };
+}
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 export const dynamic = "force-dynamic";
 
@@ -19,22 +23,25 @@ export default async function ChooseFacebookPage({ searchParams }: { searchParam
   if (!session?.user?.id) redirect(`/login?next=${encodeURIComponent(`/connect/facebook?c=${c}`)}`);
   const choice = await loadPageChoice(c, session.user.id);
   const newsroom = !!choice?.redirectTo.startsWith("/newsroom");
+  const lang = await getLang();
+  const t = dict(lang);
+  const cf = t.connectFacebook;
 
   return (
-    <div className={`gm ${newsroom ? "nr " : ""}${gmFontVars}`} dir="rtl" lang="ckb">
+    <div className={`gm ${newsroom ? "nr " : ""}${gmFontVars}`} dir={dirOf(lang)} lang={lang}>
       <div className="gm-auth">
-        <p className="gm-brand kufi">{newsroom ? "گیتواس نیوزڕووم" : "گیتواس"}</p>
+        <p className="gm-brand kufi">{newsroom ? t.nr.shell.name : t.brand}</p>
         {!choice ? (
           <div className="gm-card" style={{ marginTop: 18 }}>
-            <p style={{ margin: 0 }}>کاتی هەڵبژاردن بەسەرچوو یان ئەم بەستەرە بۆ تۆ نییە. لە ڕێکخستن دووبارە فەیسبووک پەیوەست بکەوە.</p>
+            <p style={{ margin: 0 }}>{cf.expired}</p>
           </div>
         ) : (
           <>
-            <h1 className="gm-title kufi" style={{ marginTop: 12 }}>کام پەیج پەیوەست بکرێت؟</h1>
-            <p className="gm-sub">ئەم پەیجانە لە فەیسبووک بەڕێوە دەبەیت. ئەوەی بۆ ئەم {newsroom ? "مێزە" : "دووکانە"}یە هەڵبژێرە.</p>
+            <h1 className="gm-title kufi" style={{ marginTop: 12 }}>{cf.title}</h1>
+            <p className="gm-sub">{newsroom ? cf.subDesk : cf.subShop}</p>
             {error && (
               <p className="gm-err" role="alert">
-                پەیوەستکردن سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە.
+                {cf.error}
               </p>
             )}
             <div className="gm-stack">
@@ -51,7 +58,7 @@ export default async function ChooseFacebookPage({ searchParams }: { searchParam
             <form action={cancelPageChoiceAction} style={{ marginTop: 16, textAlign: "center" }}>
               <input type="hidden" name="c" value={c} />
               <button type="submit" className="gm-linkbtn gm-link">
-                پاشگەزبوونەوە
+                {cf.cancel}
               </button>
             </form>
           </>

@@ -6,6 +6,9 @@ import "@/app/app/app.css";
 import "@/app/newsroom/newsroom.css";
 import { auth, googleEnabled } from "@/auth";
 import { gmFontVars } from "@/app/app/fonts";
+import { LangSwitch } from "@/app/app/lang-switch";
+import { dict, dirOf, getLang } from "@/lib/i18n";
+import { LangProvider } from "@/lib/i18n/client";
 import { emailEnabled } from "@/lib/mailer";
 import { safeNext } from "@/lib/safe-next";
 import { LoginCard } from "./login-card";
@@ -55,7 +58,7 @@ export async function generateMetadata({
 }: {
   searchParams: Promise<LoginParams>;
 }): Promise<Metadata> {
-  const title = loginTitle(productFor(await resolveNext(await searchParams)));
+  const title = loginTitle(productFor(await resolveNext(await searchParams)), dict(await getLang()));
   return title ? { title } : {};
 }
 
@@ -74,15 +77,19 @@ export default async function LoginPage({
   // dashboard keeps its GitHub card.
   const product = productFor(next);
   if (product !== "operator") {
+    const lang = await getLang();
     return (
-      <div className={`gm ${product === "newsroom" ? "nr " : ""}${gmFontVars}`} dir="rtl" lang="ckb">
-        <MerchantLogin
-          next={next}
-          googleEnabled={googleEnabled}
-          resetEnabled={emailEnabled}
-          oauthError={sp.error}
-          product={product}
-        />
+      <div className={`gm ${product === "newsroom" ? "nr " : ""}${gmFontVars}`} dir={dirOf(lang)} lang={lang}>
+        <LangProvider lang={lang}>
+          <LangSwitch />
+          <MerchantLogin
+            next={next}
+            googleEnabled={googleEnabled}
+            resetEnabled={emailEnabled}
+            oauthError={sp.error}
+            product={product}
+          />
+        </LangProvider>
       </div>
     );
   }

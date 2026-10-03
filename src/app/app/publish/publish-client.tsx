@@ -12,7 +12,7 @@ import { tiktokProblems } from "@/lib/merchant/tiktok-rules";
 import { useT } from "@/lib/i18n/client";
 import { useBase } from "../use-base";
 import { publishAction, suggestCaptionAction, tiktokContextAction, tiktokStatusAction, type TikTokContext } from "../actions";
-import { friendlyError, kuDateTime, num } from "../format";
+import { friendlyError, kuDateTime } from "../format";
 import { cancelScheduledAction, listScheduled, schedulePublishAction, type ScheduledRow } from "./schedule-actions";
 import { imageToJpeg } from "./to-jpeg";
 
@@ -165,7 +165,7 @@ export function PublishClient({
     try {
       const durationSec = type === "VIDEO" ? await readDuration(file) : undefined;
       // Instagram accepts only JPEG, and TikTok's photo posts accept JPEG/WebP — convert everything else.
-      const upFile = type === "IMAGE" && file.type !== "image/jpeg" ? await imageToJpeg(file) : file;
+      const upFile = type === "IMAGE" && file.type !== "image/jpeg" ? await imageToJpeg(file, t.publish) : file;
       const ext = type === "IMAGE" ? "jpg" : (file.name.split(".").pop() || "mp4").toLowerCase().replace(/[^a-z0-9]/g, "");
       const blob = await upload(`merchant/${workspaceId}/${Date.now()}.${ext}`, upFile, {
         access: "public",
@@ -440,7 +440,7 @@ export function PublishClient({
           )}
         </div>
         <span className={`gm-time ${captionIssues.length ? "gm-err" : ""}`} style={{ margin: 0 }}>
-          {num([...caption].length)} / {num(limit)}
+          {t.fmt.num([...caption].length)} / {t.fmt.num(limit)}
         </span>
       </div>
       {captionError && <p className="gm-err">{captionError}</p>}
@@ -676,7 +676,7 @@ export function PublishClient({
           : publishing
             ? t.publish.publishing
             : targets.length
-              ? t.publish.publishTo(targets.map((x) => t.platform[x]).join("، "))
+              ? t.publish.publishTo(targets.map((x) => t.platform[x]).join(t.fmt.listSep))
               : t.publish.publishBtn}
       </button>
       {publishing && !later && on.IG && isVideo && <p className="gm-hint">{t.publish.igVideoWait}</p>}
@@ -691,7 +691,7 @@ export function PublishClient({
                 <div>
                   <p dir="auto">{p.caption || "—"}</p>
                   <small>
-                    {kuDateTime(p.runAt, t)} · {p.targets.map((x) => t.platform[x]).join("، ")}
+                    {kuDateTime(p.runAt, t)} · {p.targets.map((x) => t.platform[x]).join(t.fmt.listSep)}
                   </small>
                   {p.status === "FAILED" && p.lastError && (
                     <small className="gm-err" style={{ display: "block", margin: 0 }}>{friendlyError(p.lastError, t)}</small>

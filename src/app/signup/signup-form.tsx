@@ -5,6 +5,7 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { Eye, EyeOff } from "lucide-react";
 
+import { useT } from "@/lib/i18n/client";
 import { resendSignupCodeAction, signupAction, verifySignupAction } from "./actions";
 
 const RESEND_WAIT_S = 60;
@@ -18,11 +19,9 @@ export function SignupForm({
   googleEnabled: boolean;
   product?: "shop" | "newsroom";
 }) {
-  const brand = product === "newsroom" ? "گیتواس نیوزڕووم" : "گیتواس";
-  const subtitle =
-    product === "newsroom"
-      ? "هەژمارێک بۆ کەناڵەکەت دروست بکە — هەواڵ، کارت و بڵاوکردنەوە لە یەک شوێن."
-      : "هەژمارێکی نوێ دروست بکە — کۆمێنت، نامە و بڵاوکردنەوە لە یەک شوێن.";
+  const t = useT();
+  const brand = product === "newsroom" ? t.nr.shell.name : t.brand;
+  const subtitle = product === "newsroom" ? t.auth.signup.subtitleNewsroom : t.auth.signup.subtitleShop;
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,14 +35,14 @@ export function SignupForm({
 
   useEffect(() => {
     if (wait <= 0) return;
-    const t = setTimeout(() => setWait((w) => w - 1), 1000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setWait((w) => w - 1), 1000);
+    return () => clearTimeout(timer);
   }, [wait]);
 
   async function signInAndGo(address: string) {
     const s = await signIn("credentials", { email: address, password, redirect: false });
     if (s?.error) {
-      setError({ text: "هەژمارەکە دروست کرا، بەڵام چوونەژوورەوە سەرکەوتوو نەبوو. لە پەڕەی چوونەژوورەوە هەوڵ بدەرەوە." });
+      setError({ text: t.auth.signup.autoSignInFailed });
       return;
     }
     window.location.href = next;
@@ -101,13 +100,13 @@ export function SignupForm({
       <div className="gm-auth">
         <p className="gm-brand kufi">{brand}</p>
         <p className="gm-sub" style={{ marginTop: 4 }}>
-          کۆدێکی ٦ ژمارەییمان نارد بۆ <bdi className="gm-ltr" dir="ltr">{sentTo}</bdi>. بینووسە بۆ تەواوکردنی تۆمارکردن.
+          {t.auth.signup.codeSentBefore} <bdi className="gm-ltr" dir="ltr">{sentTo}</bdi>{t.auth.signup.codeSentAfter}
         </p>
 
         <div className="gm-card" style={{ marginTop: 18 }}>
           <form onSubmit={verify} noValidate>
             <div className="gm-field">
-              <label htmlFor="su-code">کۆدی ئیمەیڵ</label>
+              <label htmlFor="su-code">{t.auth.common.emailCode}</label>
               <input
                 id="su-code"
                 className="gm-input gm-ltr gm-code"
@@ -123,13 +122,13 @@ export function SignupForm({
             </div>
             {error && <p className="gm-err" role="alert" style={{ margin: 0 }}>{error.text}</p>}
             <button type="submit" className="gm-btn block" disabled={pending || !code.trim()}>
-              {pending ? "دەپشکنرێت…" : "دڵنیاکردنەوە"}
+              {pending ? t.auth.signup.verifying : t.auth.signup.verify}
             </button>
           </form>
           <p className="gm-sub" style={{ marginTop: 12, marginBottom: 0 }}>
-            ئیمەیڵەکە نەگەیشت؟ فۆڵدەری Spam بپشکنە، یان{" "}
+            {t.auth.common.noEmail}{" "}
             <button type="button" className="gm-link gm-linkbtn" onClick={resend} disabled={pending || wait > 0}>
-              {wait > 0 ? `دوای ${new Intl.NumberFormat("ar-IQ").format(wait)} چرکە کۆدێکی تر بنێرە` : "کۆدێکی تر بنێرە"}
+              {wait > 0 ? t.auth.resendIn(wait) : t.auth.common.resend}
             </button>
           </p>
         </div>
@@ -143,7 +142,7 @@ export function SignupForm({
               setError(null);
             }}
           >
-            ئیمەیڵەکە بگۆڕە
+            {t.auth.common.changeEmail}
           </button>
         </p>
       </div>
@@ -159,23 +158,23 @@ export function SignupForm({
         {googleEnabled && (
           <>
             <button type="button" className="gm-btn block gm-google" onClick={() => signIn("google", { callbackUrl: next })}>
-              <span className="gm-g" aria-hidden="true">G</span> بە گووگڵ خۆت تۆمار بکە
+              <span className="gm-g" aria-hidden="true">G</span> {t.auth.signup.google}
             </button>
-            <div className="gm-or">یان بە ئیمەیڵ</div>
+            <div className="gm-or">{t.auth.common.orEmail}</div>
           </>
         )}
 
         <form onSubmit={submit} noValidate>
           <div className="gm-field">
-            <label htmlFor="su-name">{product === "newsroom" ? "ناوی کەناڵ" : "ناوی دووکان یان ناوی خۆت"}</label>
+            <label htmlFor="su-name">{product === "newsroom" ? t.auth.signup.nameNewsroom : t.auth.signup.nameShop}</label>
             <input id="su-name" className="gm-input" value={name} onChange={(e) => setName(e.target.value)} autoComplete="organization" maxLength={60} required />
           </div>
           <div className="gm-field">
-            <label htmlFor="su-email">ئیمەیڵ</label>
+            <label htmlFor="su-email">{t.auth.common.email}</label>
             <input id="su-email" type="email" className="gm-input gm-ltr" dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
           </div>
           <div className="gm-field">
-            <label htmlFor="su-password">وشەی نهێنی (لانیکەم ٨ پیت)</label>
+            <label htmlFor="su-password">{t.auth.signup.passwordLabel}</label>
             <div className="gm-row" style={{ gap: 6 }}>
               <input
                 id="su-password"
@@ -188,21 +187,21 @@ export function SignupForm({
                 minLength={8}
                 required
               />
-              <button type="button" className="gm-btn quiet small" onClick={() => setShow((s) => !s)} aria-label={show ? "شاردنەوەی وشەی نهێنی" : "پیشاندانی وشەی نهێنی"}>
+              <button type="button" className="gm-btn quiet small" onClick={() => setShow((s) => !s)} aria-label={show ? t.auth.common.hidePassword : t.auth.common.showPassword}>
                 {show ? <EyeOff size={15} aria-hidden="true" /> : <Eye size={15} aria-hidden="true" />}
               </button>
             </div>
           </div>
           {error && <p className="gm-err" role="alert" style={{ margin: 0 }}>{error.text}</p>}
           <button type="submit" className="gm-btn block" disabled={pending}>
-            {pending ? "دروست دەکرێت…" : "هەژمار دروست بکە"}
+            {pending ? t.auth.signup.submitting : t.auth.signup.submit}
           </button>
         </form>
       </div>
 
       <p className="gm-sub" style={{ textAlign: "center", marginTop: 16 }}>
-        هەژمارت هەیە؟{" "}
-        <Link href={`/login?next=${encodeURIComponent(next)}`} className="gm-link">بچۆ ژوورەوە</Link>
+        {t.auth.signup.haveAccount}{" "}
+        <Link href={`/login?next=${encodeURIComponent(next)}`} className="gm-link">{t.auth.common.signIn}</Link>
       </p>
     </div>
   );
