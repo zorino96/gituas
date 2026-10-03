@@ -4,7 +4,7 @@
 import { existsSync } from "node:fs";
 
 import { del, put } from "@vercel/blob";
-import puppeteer, { type Browser } from "puppeteer-core";
+import puppeteer, { type Browser, type Page } from "puppeteer-core";
 
 import { db } from "@/lib/db";
 import { checkDraft } from "@/lib/news/rules";
@@ -50,6 +50,10 @@ async function launch(): Promise<Browser> {
  * Runs in the page, so it is a string: nothing the bundler does to this file can reach it.
  * Loads the fonts the card's own text needs, waits for its images, lets the headline fit
  * itself once more, then says what it sees.
+ *
+ * next/font adds a metric-matched fallback face for each font, src: local("Arial"). A serverless
+ * Chromium has no Arial, so that face fails to load and would sink the whole batch: loads are
+ * settled one by one, and only a failed face that is not a fallback counts as broken.
  */
 const SETTLE = `(async () => {
   const card = document.getElementById("card");
@@ -61,8 +65,12 @@ const SETTLE = `(async () => {
     const cs = getComputedStyle(el);
     loads.push(document.fonts.load(cs.fontStyle + " " + cs.fontWeight + " " + cs.fontSize + " " + cs.fontFamily, own));
   }
-  const faces = (await Promise.all(loads)).reduce((n, list) => n + list.length, 0);
+  const settled = await Promise.allSettled(loads);
+  const faces = settled.reduce((n, r) => n + (r.status === "fulfilled" ? r.value.length : 0), 0);
   await document.fonts.ready;
+  const broken = Array.from(document.fonts)
+    .filter((f) => f.status === "error" && !/fallback/i.test(f.family))
+    .map((f) => f.family);
   const images = await Promise.all(Array.from(card.querySelectorAll("img")).map((img) =>
     img.complete
       ? img.naturalWidth > 0
@@ -76,6 +84,7 @@ const SETTLE = `(async () => {
   return {
     found: true,
     faces,
+    broken,
     imagesOk: images.every(Boolean),
     overflow: !!card.querySelector('[data-overflow="1"]'),
     box: [box.left, box.top, box.width, box.height],
@@ -85,6 +94,7 @@ const SETTLE = `(async () => {
 interface Settled {
   found: boolean;
   faces?: number;
+  broken?: string[];
   imagesOk?: boolean;
   overflow?: boolean;
   box?: number[];
@@ -92,6 +102,24 @@ interface Settled {
 
 async function shoot(browser: Browser, url: string): Promise<Buffer> {
   const page = await browser.newPage();
+  // What the page asked for and did not get, by path only: named in the error if the render fails.
+  const failed: string[] = [];
+  page.on("requestfailed", (r) => {
+    try {
+      failed.push(new URL(r.url()).pathname);
+    } catch {
+      // Not a URL worth naming.
+    }
+  });
+  try {
+    return await shootPage(page, url);
+  } catch (e) {
+    const why = e instanceof Error ? e.message : String(e);
+    throw new Error(failed.length ? `${why} (did not load: ${failed.slice(0, 3).join(", ")})` : why);
+  }
+}
+
+async function shootPage(page: Page, url: string): Promise<Buffer> {
   page.setDefaultTimeout(STEP_TIMEOUT_MS);
   await page.setViewport(VIEWPORT);
   const res = await page.goto(url, { waitUntil: "load", timeout: STEP_TIMEOUT_MS });
@@ -101,6 +129,7 @@ async function shoot(browser: Browser, url: string): Promise<Buffer> {
   const state = (await page.evaluate(SETTLE)) as Settled;
   if (!state.found) throw new Error("The card page has no card.");
   if (!state.faces) throw new Error("The card's fonts did not load.");
+  if (state.broken?.length) throw new Error(`A font did not load: ${state.broken[0]}.`);
   if (!state.imagesOk) throw new Error("An image on the card did not load.");
   if (state.overflow) throw new Error("The headline is too long for the card.");
   if (state.box?.join() !== [0, 0, CARD_W, CARD_H].join()) throw new Error(`The card is not ${CARD_W}×${CARD_H} at the page's corner.`);

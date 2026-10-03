@@ -24,6 +24,7 @@ let visited: string[] = [];
 /** A browser that renders any card after a short while, and counts itself. */
 function browser(): unknown {
   const page = {
+    on: () => undefined,
     setDefaultTimeout: () => undefined,
     setViewport: async () => undefined,
     goto: async (url: string) => {
