@@ -15,6 +15,7 @@ const nextConfig: NextConfig = {
   // route that imports the autopilot or the renderer must be added here.
   outputFileTracingIncludes: {
     "/api/cron/news": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/api/cron/card-check": ["./node_modules/@sparticuz/chromium/bin/**"],
   },
 };
 
