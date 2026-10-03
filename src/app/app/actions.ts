@@ -267,7 +267,9 @@ export async function tiktokContextAction(): Promise<{ ok: true; ctx: TikTokCont
   };
 }
 
-export type { PublishInput, PublishOutcome };
+// No `export type { … }` re-exports in this file: every export of a "use server" module becomes a
+// server reference, and a type has no value at run time (ReferenceError on /app/publish). Import
+// PublishInput and PublishOutcome from @/lib/merchant/publish-core instead.
 
 /**
  * Publish one post to every selected platform. The signed-in part lives here;
