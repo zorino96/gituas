@@ -4,7 +4,7 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 4
     steps:
       - name: Render the newest draft's card on the server, without storing or posting it
         env:
@@ -14,3 +14,10 @@ jobs:
           out=$(curl -fsS -m 70 -H "Authorization: Bearer $CRON_SECRET" "https://gituas.com/api/cron/card-check")
           echo "$out"
           echo "$out" | grep -q '"ok":true'
+          curl -fsS -m 70 -H "Authorization: Bearer $CRON_SECRET" -o card.jpg "https://gituas.com/api/cron/card-check?image=1"
+      - name: Keep the card to look at
+        uses: actions/upload-artifact@v4
+        with:
+          name: card
+          path: card.jpg
+          retention-days: 1
