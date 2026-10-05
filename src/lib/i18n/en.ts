@@ -299,6 +299,8 @@ export const en: Dict = {
     ttBusyPost: "TikTok is receiving and processing the post…",
     succeeded: "Succeeded",
     newPost: "New post",
+    draftRestored: "Your unpublished draft was restored.",
+    discardDraft: "Discard draft",
   },
 
   insights: {

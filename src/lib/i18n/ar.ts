@@ -295,6 +295,8 @@ export const ar: Dict = {
     ttBusyPost: "يستلم تيك توك المنشور ويعالجه…",
     succeeded: "نجح",
     newPost: "منشور جديد",
+    draftRestored: "تمت استعادة مسودتك غير المنشورة.",
+    discardDraft: "حذف المسودة",
   },
 
   insights: {

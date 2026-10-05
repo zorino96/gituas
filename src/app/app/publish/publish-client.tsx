@@ -13,6 +13,7 @@ import { useT } from "@/lib/i18n/client";
 import { useBase } from "../use-base";
 import { publishAction, suggestCaptionAction, tiktokContextAction, tiktokStatusAction, type TikTokContext } from "../actions";
 import { friendlyError, kuDateTime } from "../format";
+import { browserStore, clearDraft, readDraft, writeDraft } from "./draft";
 import { cancelScheduledAction, listScheduled, schedulePublishAction, type ScheduledRow } from "./schedule-actions";
 import { imageToJpeg } from "./to-jpeg";
 
@@ -107,9 +108,53 @@ export function PublishClient({
   const [cancelling, startCancel] = useTransition();
   const later = mode === "later";
 
+  // draft — the work survives leaving the page (./draft.ts); restored once on arrival, then kept as it changes
+  const [draftReady, setDraftReady] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+
   const targets = (Object.keys(on) as Target[]).filter((t) => on[t]);
   const isVideo = media?.type === "VIDEO";
   const uploading = progress !== null && !media;
+
+  // Bring back this workspace's unpublished draft, unless the page opened with a news draft of its own.
+  useEffect(() => {
+    const d = initial ? null : readDraft(browserStore(), workspaceId);
+    if (d) {
+      setCaption(d.caption);
+      if (d.media) {
+        setMedia(d.media);
+        setPreview({ src: d.media.url, type: d.media.type });
+        setProgress(100);
+      }
+      setOn({
+        FB: d.targets.includes("FB") && !!accounts.FB,
+        IG: d.targets.includes("IG") && !!accounts.IG && !!d.media,
+        TT: d.targets.includes("TT") && !!accounts.TT && !!d.media && d.mode === "now",
+        YT: d.targets.includes("YT") && !!accounts.YT && d.media?.type === "VIDEO",
+      });
+      setProductId(products.some((p) => p.id === d.productId) ? d.productId : "");
+      setMode(d.mode);
+      setRunAtLocal(d.runAtLocal);
+      setDraftRestored(true);
+    }
+    setDraftReady(true);
+    // Once, on arrival: what changes afterwards is saved by the effect below, never restored over.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep the work as it changes. A news draft's post is not kept: its card belongs to that draft.
+  useEffect(() => {
+    if (!draftReady || newsDraftId) return;
+    writeDraft(browserStore(), workspaceId, {
+      caption,
+      media,
+      targets: (Object.keys(on) as Target[]).filter((k) => on[k]),
+      productId,
+      mode,
+      runAtLocal,
+      savedAt: Date.now(),
+    });
+  }, [draftReady, newsDraftId, workspaceId, caption, media, on, productId, mode, runAtLocal]);
 
   // Instagram and TikTok need media (photo or video); YouTube needs a video. Switch them off when that stops being true.
   useEffect(() => {
@@ -246,6 +291,8 @@ export function PublishClient({
         return;
       }
       setResults(r.results);
+      // Out on at least one platform: the draft is done. If everything failed it stays, to try again.
+      if (r.results.some((x) => x.ok)) clearDraft(browserStore(), workspaceId);
       const ttResult = r.results.find((x) => x.target === "TT" && x.ok && x.publishId);
       if (ttResult?.publishId) pollTikTok(ttResult.publishId);
     });
@@ -265,6 +312,7 @@ export function PublishClient({
       }
       reset();
       setRunAtLocal("");
+      clearDraft(browserStore(), workspaceId);
       setScheduledMsg(t.publish.scheduledMsg(kuDateTime(r.runAt, t)));
       setScheduled(await listScheduled());
     });
@@ -309,6 +357,15 @@ export function PublishClient({
     setYourBrand(false);
     setBranded(false);
     setProductId("");
+  }
+
+  function discardDraft() {
+    reset();
+    setOn({ FB: !!accounts.FB, IG: false, TT: false, YT: false });
+    setMode("now");
+    setRunAtLocal("");
+    clearDraft(browserStore(), workspaceId);
+    setDraftRestored(false);
   }
 
   if (results) {
@@ -364,6 +421,14 @@ export function PublishClient({
           {t.publish.newsHintPre}{" "}
           <Link href="/newsroom/news" className="gm-link">{t.publish.newsHintLink}</Link>{" "}
           {t.publish.newsHintPost}
+        </p>
+      )}
+      {draftRestored && (caption.trim() || media) && (
+        <p className="gm-note">
+          {t.publish.draftRestored}{" "}
+          <button type="button" className="gm-link gm-linkbtn" onClick={discardDraft}>
+            {t.publish.discardDraft}
+          </button>
         </p>
       )}
 

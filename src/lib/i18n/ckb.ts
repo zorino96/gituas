@@ -307,6 +307,8 @@ export const ckb = {
     ttBusyPost: "تیکتۆک پۆستەکە وەردەگرێت و پرۆسێسی دەکات…",
     succeeded: "سەرکەوتوو",
     newPost: "پۆستێکی نوێ",
+    draftRestored: "ڕەشنووسە بڵاونەکراوەکەت گەڕێندرایەوە.",
+    discardDraft: "سڕینەوەی ڕەشنووس",
   },
 
   insights: {
