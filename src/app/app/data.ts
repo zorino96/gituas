@@ -322,5 +322,7 @@ export async function loadYouTube(tenantId: string, conns: Connections): Promise
     fetchChannelStats(tenantId).catch(failed),
     fetchRecentVideos(tenantId, 10).catch(failed),
   ]);
+  // The screen only says "didn't load"; the reason (Google's own message, never a token) goes to the log.
+  if (!stats.ok || !recent.ok) console.error("[youtube insights]", stats.ok ? "" : stats.error, "|", recent.ok ? "" : recent.error);
   return youtubeBlock(stats, recent);
 }
