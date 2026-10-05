@@ -23,6 +23,11 @@ const UPLOAD_URL =
  *  the stored one is (near) expired. Persists the refreshed token.
  *  Shared with the integrations probe (lib/integrations/probe.ts). */
 export async function validYouTubeToken(tenantId: string): Promise<string | null> {
+  return (await youTubeCredential(tenantId))?.token ?? null;
+}
+
+/** The connection to act with, and a live token for it (see validYouTubeToken). */
+async function youTubeCredential(tenantId: string): Promise<{ id: string; token: string } | null> {
   // Expired rows stay eligible here — the refresh below trades them for a live
   // token — but a row with neither a live token nor a refresh token is dead.
   const cred = await db.oAuthCredential.findFirst({
@@ -34,7 +39,7 @@ export async function validYouTubeToken(tenantId: string): Promise<string | null
   // Still valid (60s safety margin)?
   if (cred.expiresAt && cred.expiresAt.getTime() - Date.now() > 60_000) {
     try {
-      return vaultDecrypt(cred.tokenEncrypted);
+      return { id: cred.id, token: vaultDecrypt(cred.tokenEncrypted) };
     } catch {
       return null;
     }
@@ -73,7 +78,7 @@ export async function validYouTubeToken(tenantId: string): Promise<string | null
       expiresAt: j.expires_in ? new Date(Date.now() + j.expires_in * 1000) : null,
     },
   });
-  return j.access_token as string;
+  return { id: cred.id, token: j.access_token as string };
 }
 
 export async function publishToYouTube(
@@ -83,8 +88,9 @@ export async function publishToYouTube(
   if (!content.videoUrl || !/^https:\/\//i.test(content.videoUrl)) {
     return { ok: false, error: "YouTube needs a public https video URL (sourceAssetType VIDEO)." };
   }
-  const token = await validYouTubeToken(tenantId);
-  if (!token) return { ok: false, error: "YouTube not connected (or token refresh failed — reconnect)." };
+  const cred = await youTubeCredential(tenantId);
+  if (!cred) return { ok: false, error: "YouTube not connected (or token refresh failed — reconnect)." };
+  const token = cred.token;
 
   try {
     // Pull the video bytes. Fine for short clips; large files should move to a
@@ -122,10 +128,9 @@ export async function publishToYouTube(
       return { ok: false, error: `YouTube upload ${up.status}: ${JSON.stringify(j?.error ?? j).slice(0, 250)}` };
     }
 
-    await db.oAuthCredential.updateMany({
-      where: { tenantId, provider: "YOUTUBE" },
-      data: { lastUsedAt: new Date() },
-    });
+    // Only the row that was used: touching every YouTube row gave them all the same updatedAt, and
+    // the next pick could then land on an old, broken connection.
+    await db.oAuthCredential.update({ where: { id: cred.id }, data: { lastUsedAt: new Date() } });
     return { ok: true, externalId: String(j.id), permalinkUrl: `https://youtu.be/${j.id}` };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "YouTube call failed" };

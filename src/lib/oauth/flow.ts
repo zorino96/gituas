@@ -394,6 +394,11 @@ async function saveCredential(
     create: { tenantId, provider, providerAccountId: account.id, ...fields },
     update: { ...fields, lastUsedAt: null },
   });
+  // One YouTube channel per workspace: connecting replaces whatever was connected before, so an old
+  // or wrong Google account (say, one whose YouTube is suspended) can never be picked again.
+  if (provider === "YOUTUBE") {
+    await db.oAuthCredential.deleteMany({ where: { tenantId, provider, NOT: { providerAccountId: account.id } } });
+  }
   await db.auditLog.create({
     data: {
       tenantId,

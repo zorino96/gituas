@@ -1,3 +1,5 @@
+import type { Prisma } from "@/generated/prisma/client";
+
 /** Choosing which stored credential to act with.
  *
  *  Every loader used to order by `lastUsedAt: { sort: "desc", nulls: "last" }`,
@@ -8,8 +10,9 @@
  *  each reconnect adds another row that loses the same way.
  *
  *  The newest row is the one the account owner just authorised, so that is the
- *  one to use. */
-export const newestFirst = { updatedAt: "desc" } as const;
+ *  one to use. When two rows share an updatedAt (one statement touched both),
+ *  the one created last wins rather than whichever the database returns first. */
+export const newestFirst: Prisma.OAuthCredentialOrderByWithRelationInput[] = [{ updatedAt: "desc" }, { createdAt: "desc" }];
 
 /** Rows that can still be used right now: no expiry, or not yet expired.
  *  For providers with no refresh path (TikTok, Instagram, Facebook Pages, Meta
