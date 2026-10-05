@@ -30,8 +30,9 @@ export async function validYouTubeToken(tenantId: string): Promise<string | null
 async function youTubeCredential(tenantId: string): Promise<{ id: string; token: string } | null> {
   // Expired rows stay eligible here — the refresh below trades them for a live
   // token — but a row with neither a live token nor a refresh token is dead.
+  // A row whose channel could not be read when it was connected ("unknown") is never acted with.
   const cred = await db.oAuthCredential.findFirst({
-    where: { tenantId, provider: "YOUTUBE", ...usableOrRefreshable() },
+    where: { tenantId, provider: "YOUTUBE", NOT: { providerAccountId: "unknown" }, ...usableOrRefreshable() },
     orderBy: newestFirst,
   });
   if (!cred) return null;

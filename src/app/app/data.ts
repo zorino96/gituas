@@ -174,9 +174,10 @@ export async function loadConnections(tenantId: string): Promise<Connections> {
       orderBy: newestFirst,
       select: pick,
     }),
-    // YouTube access tokens last an hour; the refresh token keeps the connection alive.
+    // YouTube access tokens last an hour; the refresh token keeps the connection alive. A row whose
+    // channel could not be read at connect time ("unknown", e.g. a suspended YouTube) never works.
     db.oAuthCredential.findFirst({
-      where: { tenantId, provider: "YOUTUBE", ...usableOrRefreshable() },
+      where: { tenantId, provider: "YOUTUBE", NOT: { providerAccountId: "unknown" }, ...usableOrRefreshable() },
       orderBy: newestFirst,
       select: pick,
     }),
