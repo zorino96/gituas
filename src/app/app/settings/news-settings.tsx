@@ -14,6 +14,8 @@ import { AUTO_DAILY_MAX, AUTO_MIN_GAP, AUTO_MODES, AUTO_TARGETS, type AutoMode, 
 import { GROUPS, type SourceGroup, type SourceLang } from "@/lib/news/catalog";
 import { subcategoryLabel, TAXONOMY } from "@/lib/news/taxonomy";
 import { VOICE_NOTE_MAX } from "@/lib/news/voice";
+import { FOCUS_PROMPT_MAX, type FilterMode } from "@/lib/news/focus-shared";
+import type { PromptFilter } from "@/lib/billing/plans";
 import {
   addRssSourceAction,
   removeSourceAction,
@@ -21,6 +23,7 @@ import {
   saveBrandKitAction,
   saveCategoriesAction,
   saveKeywordsAction,
+  saveNewsFilterAction,
   saveVoiceNoteAction,
   setKeywordFilterAction,
   toggleCatalogSourceAction,
@@ -33,6 +36,8 @@ export interface NewsSettingsProps {
   catalog: Array<{ id: string; name: string; group: SourceGroup; lang: SourceLang | null; description: string | null; enabled: boolean; lastError: string | null }>;
   categories: string[];
   keywordFilter: boolean;
+  /** Keywords or a prompt; `level` is what the plan includes (none on LITE and MANUAL). */
+  filter: { level: PromptFilter; mode: FilterMode; focus: string; exclude: string; broad: boolean };
   voiceNote: string;
   autopilot: {
     mode: AutoMode;
@@ -65,6 +70,8 @@ export function NewsSettings(p: NewsSettingsProps) {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [cats, setCats] = useState<string[]>(p.categories);
   const [voiceNote, setVoiceNote] = useState(p.voiceNote);
+  const [filter, setFilter] = useState(p.filter);
+  const promptOn = filter.level !== "none" && filter.mode === "PROMPT";
   const ap = p.autopilot;
   const [auto, setAuto] = useState({ mode: ap.mode, targets: ap.targets, dailyMax: String(ap.dailyMax), minGapMin: String(ap.minGapMin) });
 
@@ -103,6 +110,84 @@ export function NewsSettings(p: NewsSettingsProps) {
 
   return (
     <>
+      <p className="gm-sec">{tn.filterSec}</p>
+      <div className="gm-card gm-stack">
+        <div className="gm-chips">
+          {(["KEYWORDS", "PROMPT"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              className="gm-chip"
+              aria-pressed={filter.mode === m || (m === "KEYWORDS" && filter.level === "none")}
+              disabled={m === "PROMPT" && filter.level === "none"}
+              onClick={() => setFilter((f) => ({ ...f, mode: m }))}
+            >
+              {tn.filterMode[m]}
+            </button>
+          ))}
+        </div>
+        {filter.level === "none" ? (
+          <p className="gm-hint" style={{ margin: 0 }}>
+            <Link href="/newsroom/billing" className="gm-link">{tn.filterPlanOnly}</Link>
+          </p>
+        ) : (
+          promptOn && (
+            <>
+              <div className="gm-field">
+                <label htmlFor="ns-focus">{tn.focusLabel}</label>
+                <textarea
+                  id="ns-focus"
+                  className="gm-textarea"
+                  dir="auto"
+                  maxLength={FOCUS_PROMPT_MAX}
+                  value={filter.focus}
+                  placeholder={tn.focusPlaceholder}
+                  onChange={(e) => setFilter((f) => ({ ...f, focus: e.target.value }))}
+                />
+              </div>
+              {filter.level === "full" ? (
+                <>
+                  <div className="gm-field">
+                    <label htmlFor="ns-exclude">{tn.excludeLabel}</label>
+                    <textarea
+                      id="ns-exclude"
+                      className="gm-textarea"
+                      dir="auto"
+                      maxLength={FOCUS_PROMPT_MAX}
+                      value={filter.exclude}
+                      placeholder={tn.excludePlaceholder}
+                      onChange={(e) => setFilter((f) => ({ ...f, exclude: e.target.value }))}
+                    />
+                  </div>
+                  <div className="gm-chips">
+                    {([false, true] as const).map((b) => (
+                      <button key={String(b)} type="button" className="gm-chip" aria-pressed={filter.broad === b} onClick={() => setFilter((f) => ({ ...f, broad: b }))}>
+                        {b ? tn.focusBroad : tn.focusStrict}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="gm-hint" style={{ margin: 0 }}>
+                  <Link href="/newsroom/billing" className="gm-link">{tn.filterFullOnly}</Link>
+                </p>
+              )}
+              <p className="gm-hint" style={{ margin: 0 }}>{tn.focusHint}</p>
+            </>
+          )
+        )}
+        {filter.level !== "none" && (
+          <button
+            type="button"
+            className="gm-btn"
+            disabled={pending}
+            onClick={() => run(() => saveNewsFilterAction({ mode: filter.mode, focus: filter.focus, exclude: filter.exclude, broad: filter.broad }), tn.saved)}
+          >
+            {tn.save}
+          </button>
+        )}
+      </div>
+
       <p className="gm-sec">{tn.keywordsSec}</p>
       <div className="gm-card gm-stack">
         <textarea className="gm-textarea" value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder={tn.keywordsPlaceholder} />

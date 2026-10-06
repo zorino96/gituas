@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { refreshSecFor } from "@/lib/billing/plans";
 import { catalogEntry } from "./catalog";
 import { clusterKeyFor } from "./cluster";
+import { activeFocus } from "./focus";
 import { fetchGdelt } from "./sources/gdelt";
 import { fetchNewsdata } from "./sources/newsdata";
 import { fetchFeedConditional, type FeedValidators } from "./sources/rss";
@@ -137,6 +138,8 @@ export async function ingest(tenantId: string, { force = false, graceMs = 0 }: {
   }
 
   const keywords = settings.keywords;
+  // A desk that filters by prompt leaves RSS unfiltered here; the AI judges every story after ingest (./focus.ts).
+  const keywordFilter = settings.keywordFilter && !activeFocus(tenant?.plan, settings);
   const kwKey = keywords.map((k) => k.trim().toLowerCase()).filter(Boolean).sort().join("|");
   const sources = await db.newsSource.findMany({ where: { tenantId, enabled: true } });
 
@@ -160,7 +163,7 @@ export async function ingest(tenantId: string, { force = false, graceMs = 0 }: {
           if (url) {
             const r = await cached(`rss:${url}`, rssTtl(refreshSec), (prev) => fetchFeedConditional(url, s.name, prev));
             items = r.items
-              .filter((i) => !settings.keywordFilter || matchesKeywords(`${i.title} ${i.snippet}`, keywords))
+              .filter((i) => !keywordFilter || matchesKeywords(`${i.title} ${i.snippet}`, keywords))
               .map((i) => ({ ...i, sourceName: s.name }));
             error = r.error;
           } else {

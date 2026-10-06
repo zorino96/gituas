@@ -703,6 +703,15 @@ model NewsSettings {
   /// The outlet's own style preference, appended to the house style (never overrides the facts-only rules).
   voiceNote     String?
   lastAutoAt    DateTime?
+  /// KEYWORDS (the keyword filter above) or PROMPT (the AI keeps only stories that fit the prompts).
+  /// PROMPT runs only on plans that include it (src/lib/billing/plans.ts promptFilter).
+  filterMode    String    @default("KEYWORDS")
+  /// What the desk wants, in the owner's words, e.g. "only news about Donald Trump".
+  focusPrompt   String?
+  /// ENTERPRISE: what the desk never wants; wins over focusPrompt.
+  excludePrompt String?
+  /// ENTERPRISE: also keep stories that are only related to the focus.
+  focusBroad    Boolean   @default(false)
 }
 
 /// One source a news page reads: a catalog entry or the page's own RSS feed.
@@ -744,6 +753,8 @@ model NewsItem {
   classifyTries Int        @default(0)
   /// When the autopilot last handled this story, so a failure is never retried in a loop.
   autoTriedAt   DateTime?
+  /// The desk's news prompt: true keeps the story, false hides it, null = not judged yet (shown).
+  focusMatch    Boolean?
 
   @@unique([tenantId, url])
   @@index([tenantId, status, publishedAt])

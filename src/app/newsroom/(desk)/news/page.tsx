@@ -4,6 +4,7 @@ import { after } from "next/server";
 import { Newspaper, Rss, Sparkles } from "lucide-react";
 
 import { classifyPending } from "@/lib/news/classify";
+import { FOCUS_VISIBLE, loadActiveFocus } from "@/lib/news/focus";
 
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
@@ -61,7 +62,7 @@ export default async function NewsPage({
   after(() => fetching.then(() => classifyPending(ws.id)));
   const ingestResult = await Promise.race([fetching, new Promise<null>((r) => setTimeout(() => r(null), INGEST_WAIT_MS))]);
 
-  const settings = await db.newsSettings.findUnique({ where: { tenantId: ws.id } });
+  const [settings, focus] = await Promise.all([db.newsSettings.findUnique({ where: { tenantId: ws.id } }), loadActiveFocus(ws.id)]);
   // Only single string values, and only known category/region ids (a repeated or odd param must not break the page).
   const one = (v: unknown) => (typeof v === "string" && v ? v.slice(0, 120) : undefined);
   const q: NewsQuery = {
@@ -74,7 +75,7 @@ export default async function NewsPage({
   const base: Prisma.NewsItemWhereInput = {
     tenantId: ws.id,
     status: { in: [...tab.statuses] },
-    AND: [categoryWhere(settings?.categories ?? []) as Prisma.NewsItemWhereInput],
+    AND: [categoryWhere(settings?.categories ?? []) as Prisma.NewsItemWhereInput, ...(focus ? [FOCUS_VISIBLE] : [])],
   };
   const where: Prisma.NewsItemWhereInput = {
     ...base,

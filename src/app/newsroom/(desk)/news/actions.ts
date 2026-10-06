@@ -5,11 +5,12 @@ import { after } from "next/server";
 
 import { db } from "@/lib/db";
 import { assertWithin, countUsage, LimitReached, limitMessage } from "@/lib/billing/limits";
-import { canAutoPublish, NEWS_LIMITS } from "@/lib/billing/plans";
+import { canAutoPublish, NEWS_LIMITS, promptFilterFor } from "@/lib/billing/plans";
 import { AiUnavailable, type Strength } from "@/lib/ai/provider";
 import { autoTargetsFor, parseAutopilot } from "@/lib/news/autopilot-settings";
 import { catalogEntry } from "@/lib/news/catalog";
 import { classifyPending } from "@/lib/news/classify";
+import { cleanFocusPrompt, isFilterMode, judgeFocus, resetFocus } from "@/lib/news/focus";
 import { ingest } from "@/lib/news/ingest";
 import { checkDraft, LIMITS } from "@/lib/news/rules";
 import { fetchFeed } from "@/lib/news/sources/rss";
@@ -341,5 +342,38 @@ export async function setKeywordFilterAction(on: boolean): Promise<Result> {
     create: { tenantId: ws.id, keywords: [], keywordFilter: !!on },
     update: { keywordFilter: !!on },
   });
+  return { ok: true };
+}
+
+/** Keywords or a prompt decide which stories the desk gets. The prompt is for plans that include it. */
+export async function saveNewsFilterAction(input: { mode: string; focus: string; exclude: string; broad: boolean }): Promise<Result> {
+  const { ws, m, t } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
+  const tenant = await db.tenant.findUnique({ where: { id: ws.id }, select: { plan: true } });
+  const level = promptFilterFor(tenant?.plan);
+  const mode = isFilterMode(input?.mode) ? input.mode : "KEYWORDS";
+  if (mode === "PROMPT" && level === "none") return { ok: false, error: t.settings.news.filterPlanOnly };
+  const data = {
+    filterMode: mode,
+    focusPrompt: cleanFocusPrompt(input?.focus),
+    // Only ENTERPRISE has these; on AUTO what was saved before stays as it is.
+    ...(level === "full" ? { excludePrompt: cleanFocusPrompt(input?.exclude), focusBroad: !!input?.broad } : {}),
+  };
+  if (mode === "PROMPT" && !data.focusPrompt && !(level === "full" && data.excludePrompt)) {
+    return { ok: false, error: t.settings.news.filterEmpty };
+  }
+  const before = await db.newsSettings.findUnique({ where: { tenantId: ws.id } });
+  await db.newsSettings.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, keywords: [], ...data }, update: data });
+  const changed =
+    before?.filterMode !== data.filterMode ||
+    before?.focusPrompt !== data.focusPrompt ||
+    (level === "full" && (before?.excludePrompt !== data.excludePrompt || before?.focusBroad !== data.focusBroad));
+  if (changed) {
+    // New prompts: the recent stories are judged again, right after this response.
+    await resetFocus(ws.id);
+    after(() => judgeFocus(ws.id));
+  }
+  revalidatePath("/newsroom/news");
   return { ok: true };
 }

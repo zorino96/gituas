@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { canAutoPublish, refreshSecFor } from "@/lib/billing/plans";
+import { canAutoPublish, promptFilterFor, refreshSecFor } from "@/lib/billing/plans";
 import { dict, getLang } from "@/lib/i18n";
 import { AUTO_DAILY_MAX, AUTO_MIN_GAP, autoTargetsFor, isAutoMode } from "@/lib/news/autopilot-settings";
 import { catalogAvailable } from "@/lib/news/catalog";
@@ -50,6 +50,13 @@ export default async function SettingsPage({
       }),
       categories: settings?.categories ?? [],
       keywordFilter: settings?.keywordFilter ?? false,
+      filter: {
+        level: promptFilterFor(tenant?.plan),
+        mode: settings?.filterMode === "PROMPT" ? "PROMPT" : "KEYWORDS",
+        focus: settings?.focusPrompt ?? "",
+        exclude: settings?.excludePrompt ?? "",
+        broad: settings?.focusBroad ?? false,
+      },
       voiceNote: settings?.voiceNote ?? "",
       autopilot: {
         // What is shown is what runs: on a plan that may not post by itself, PUBLISH runs as DRAFT.

@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { completeJson } from "@/lib/ai/provider";
+import { judgeFocus } from "./focus";
 import { parseClassification, REGIONS, TAXONOMY, type Classification } from "./taxonomy";
 
 const BATCH = 20;
@@ -76,6 +77,8 @@ export async function classifyPending(tenantId: string): Promise<number> {
         return data.filter(Boolean).length;
       }),
     );
+    // Then the desk's news prompt, when it has one (never throws).
+    await judgeFocus(tenantId);
     return counts.reduce((a, n) => a + n, 0);
   } catch (e) {
     console.error("[news] classify failed:", e instanceof Error ? e.message : "unknown error");

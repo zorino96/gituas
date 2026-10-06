@@ -24,6 +24,7 @@ import { NEWSROOM_ORIGIN } from "@/lib/hosts";
 import { publishForWorkspace } from "@/lib/merchant/publish-core";
 import { AUTO_TARGETS, autoTargetsFor, type AutoMode, type AutoTarget } from "./autopilot-settings";
 import { RETRY_DEADLINE_MS } from "./draft";
+import { loadActiveFocus } from "./focus";
 import { matchesChoice, normalizeChoice } from "./taxonomy";
 import { sameStoryTooClose } from "./voice";
 import { writeDraft } from "./write";
@@ -247,8 +248,17 @@ async function noteFailure(tenantId: string, action: string, reasoning: string, 
 
 /** The fresh stories of this desk, with one cluster lookup: which of their clusters are already taken. */
 async function pickStories(tenantId: string, chosen: readonly string[], now: number): Promise<Story[]> {
+  // With a news prompt, only stories the prompt kept (an unjudged story waits for its verdict).
+  const focus = await loadActiveFocus(tenantId);
   const fresh = await db.newsItem.findMany({
-    where: { tenantId, status: "NEW", autoTriedAt: null, category: { not: null }, publishedAt: { gte: new Date(now - AUTO_MAX_AGE_MS) } },
+    where: {
+      tenantId,
+      status: "NEW",
+      autoTriedAt: null,
+      category: { not: null },
+      publishedAt: { gte: new Date(now - AUTO_MAX_AGE_MS) },
+      ...(focus ? { focusMatch: true } : {}),
+    },
     orderBy: { publishedAt: "asc" },
     take: 200,
     select: {
