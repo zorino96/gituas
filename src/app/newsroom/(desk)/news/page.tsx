@@ -4,7 +4,7 @@ import { after } from "next/server";
 import { Newspaper, Rss, Sparkles } from "lucide-react";
 
 import { classifyPending } from "@/lib/news/classify";
-import { FOCUS_VISIBLE, loadActiveFocus } from "@/lib/news/focus";
+import { focusVisible, loadActiveFocus } from "@/lib/news/focus";
 
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
@@ -75,7 +75,7 @@ export default async function NewsPage({
   const base: Prisma.NewsItemWhereInput = {
     tenantId: ws.id,
     status: { in: [...tab.statuses] },
-    AND: [categoryWhere(settings?.categories ?? []) as Prisma.NewsItemWhereInput, ...(focus ? [FOCUS_VISIBLE] : [])],
+    AND: [categoryWhere(settings?.categories ?? []) as Prisma.NewsItemWhereInput, ...(focus ? [focusVisible(Date.now())] : [])],
   };
   const where: Prisma.NewsItemWhereInput = {
     ...base,

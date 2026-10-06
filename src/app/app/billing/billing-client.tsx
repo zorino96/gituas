@@ -58,6 +58,8 @@ function featureValue(t: Dict, feature: PlanFeature): string {
   if (v === "autoDraft") return f.autoDraft;
   if (v === "autoPublish") return f.autoPublish;
   if (v === "all") return f.all;
+  if (v === "promptFocus") return f.promptFocus;
+  if (v === "promptFull") return f.promptFull;
   return feature.key === "refresh" ? f.refresh(v) : t.fmt.num(v);
 }
 

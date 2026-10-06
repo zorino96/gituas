@@ -12,6 +12,7 @@ export type FeatureKey =
   | "seats"
   | "desks"
   | "mode"
+  | "prompt"
   | "shopPosts"
   | "shopReplies"
   | "shopAi";
@@ -20,7 +21,7 @@ export type FeatureKey =
  * A number is a count (for `refresh`, a number of seconds); the words are the few values that are
  * not numbers: the two autopilot modes, and "every post" for a shop plan with no post cap.
  */
-export type FeatureValue = number | "autoDraft" | "autoPublish" | "all";
+export type FeatureValue = number | "autoDraft" | "autoPublish" | "all" | "promptFocus" | "promptFull";
 
 export interface PlanFeature {
   key: FeatureKey;
@@ -41,6 +42,8 @@ export function planFeatures(product: BillingProduct, plan: string): PlanFeature
       { key: "seats", value: l.seats },
       { key: "desks", value: l.desks },
       { key: "mode", value: l.autoPublish ? "autoPublish" : "autoDraft" },
+      // Listed only on the plans that include it.
+      ...(l.promptFilter === "none" ? [] : [{ key: "prompt", value: l.promptFilter === "full" ? "promptFull" : "promptFocus" } as const]),
     ];
   }
   if (!Object.hasOwn(SHOP_LIMITS, plan)) return [];

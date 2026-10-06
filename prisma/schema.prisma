@@ -755,6 +755,8 @@ model NewsItem {
   autoTriedAt   DateTime?
   /// The desk's news prompt: true keeps the story, false hides it, null = not judged yet (shown).
   focusMatch    Boolean?
+  /// Failed prompt judgements; after three the story is left unjudged (shown, never auto-posted).
+  focusTries    Int        @default(0)
 
   @@unique([tenantId, url])
   @@index([tenantId, status, publishedAt])

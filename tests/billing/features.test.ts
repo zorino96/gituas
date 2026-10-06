@@ -6,10 +6,17 @@ import { NEWS_LIMITS } from "@/lib/billing/plans";
 import { SHOP_LIMITS } from "@/lib/shop/plans";
 
 describe("planFeatures NEWS", () => {
-  it("lists the eight features in order, from the plan's limits", () => {
+  it("lists the features in order, from the plan's limits", () => {
     const f = planFeatures("NEWS", "AUTO");
-    expect(f.map((x) => x.key)).toEqual(["refresh", "drafts", "improves", "publishes", "sources", "seats", "desks", "mode"]);
-    expect(f.map((x) => x.value)).toEqual([60, 3000, 300, 3000, 30, 5, 3, "autoPublish"]);
+    expect(f.map((x) => x.key)).toEqual(["refresh", "drafts", "improves", "publishes", "sources", "seats", "desks", "mode", "prompt"]);
+    expect(f.map((x) => x.value)).toEqual([60, 3000, 300, 3000, 30, 5, 3, "autoPublish", "promptFocus"]);
+  });
+  it("lists news by prompt only on the two top plans", () => {
+    const prompt = (p: string) => planFeatures("NEWS", p).find((x) => x.key === "prompt")?.value;
+    expect(prompt("LITE")).toBeUndefined();
+    expect(prompt("MANUAL")).toBeUndefined();
+    expect(prompt("AUTO")).toBe("promptFocus");
+    expect(prompt("ENTERPRISE")).toBe("promptFull");
   });
   it("follows NEWS_LIMITS for every plan", () => {
     for (const plan of ["LITE", "MANUAL", "AUTO", "ENTERPRISE"] as const) {
@@ -24,6 +31,7 @@ describe("planFeatures NEWS", () => {
         seats: l.seats,
         desks: l.desks,
         mode: l.autoPublish ? "autoPublish" : "autoDraft",
+        ...(l.promptFilter === "none" ? {} : { prompt: l.promptFilter === "full" ? "promptFull" : "promptFocus" }),
       });
     }
   });

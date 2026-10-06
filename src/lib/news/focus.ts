@@ -18,6 +18,7 @@ export { cleanFocusPrompt, FILTER_MODES, FOCUS_PROMPT_MAX, isFilterMode, type Fi
 
 const BATCH = 20;
 const PER_RUN = 60;
+const MAX_TRIES = 3;
 /** Stories older than this are not judged (and re-judged after a prompt change). */
 export const FOCUS_RECENT_MS = 3 * 24 * 60 * 60 * 1000;
 
@@ -106,7 +107,13 @@ export async function judgeFocus(tenantId: string): Promise<number> {
     const f = await loadActiveFocus(tenantId);
     if (!f) return 0;
     const items = await db.newsItem.findMany({
-      where: { tenantId, focusMatch: null, status: "NEW", publishedAt: { gte: new Date(Date.now() - FOCUS_RECENT_MS) } },
+      where: {
+        tenantId,
+        focusMatch: null,
+        focusTries: { lt: MAX_TRIES },
+        status: "NEW",
+        publishedAt: { gte: new Date(Date.now() - FOCUS_RECENT_MS) },
+      },
       orderBy: { publishedAt: "desc" },
       take: PER_RUN,
       select: { id: true, title: true, snippet: true },
@@ -115,18 +122,20 @@ export async function judgeFocus(tenantId: string): Promise<number> {
     for (let i = 0; i < items.length; i += BATCH) batches.push(items.slice(i, i + BATCH));
     const counts = await Promise.all(
       batches.map(async (b) => {
+        let data: (boolean | null)[] = b.map(() => null);
         try {
           const { system, user } = focusPrompt(f, b);
-          const { data } = await completeJson({ system, user, strength: "fast", thinking: false }, (d) => parseFocus(d, b.length));
-          // Unanswered stories stay null: shown, and judged again on the next run.
-          await Promise.all(
-            data.map((keep, i) => (keep === null ? null : db.newsItem.updateMany({ where: { id: b[i].id }, data: { focusMatch: keep } }))),
-          );
-          return data.filter((v) => v !== null).length;
+          data = (await completeJson({ system, user, strength: "fast", thinking: false }, (d) => parseFocus(d, b.length))).data;
         } catch (e) {
           console.error("[news] focus failed:", e instanceof Error ? e.message : "unknown error");
-          return 0;
         }
+        // An unanswered story stays unjudged (shown) and counts a try, so it is not sent to the AI forever.
+        await Promise.all(
+          data.map((keep, i) =>
+            db.newsItem.updateMany({ where: { id: b[i].id }, data: keep === null ? { focusTries: { increment: 1 } } : { focusMatch: keep } }),
+          ),
+        );
+        return data.filter((v) => v !== null).length;
       }),
     );
     return counts.reduce((a, n) => a + n, 0);
@@ -139,10 +148,26 @@ export async function judgeFocus(tenantId: string): Promise<number> {
 /** After the prompts change: the desk's recent stories are judged again. */
 export async function resetFocus(tenantId: string): Promise<void> {
   await db.newsItem.updateMany({
-    where: { tenantId, focusMatch: { not: null }, publishedAt: { gte: new Date(Date.now() - FOCUS_RECENT_MS) } },
-    data: { focusMatch: null },
+    where: {
+      tenantId,
+      publishedAt: { gte: new Date(Date.now() - FOCUS_RECENT_MS) },
+      OR: [{ focusMatch: { not: null } }, { focusTries: { gt: 0 } }],
+    },
+    data: { focusMatch: null, focusTries: 0 },
   });
 }
 
-/** List filter: hide what the prompt rejected (unjudged stories stay visible). */
-export const FOCUS_VISIBLE = { OR: [{ focusMatch: null }, { focusMatch: true }] };
+/**
+ * List filter: what the prompt kept, plus what it has not judged yet while that can still happen
+ * (a fresh story) or no longer matters (one an editor already took up). A rejected story is hidden,
+ * and so is an old unjudged one, so turning a prompt on does not leave the desk full of old news.
+ */
+export function focusVisible(now: number) {
+  return {
+    OR: [
+      { focusMatch: true },
+      { focusMatch: null, publishedAt: { gte: new Date(now - FOCUS_RECENT_MS) } },
+      { focusMatch: null, status: { not: "NEW" } },
+    ],
+  };
+}
