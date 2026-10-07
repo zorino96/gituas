@@ -41,3 +41,6 @@ src/generated
 
 # brainstorming visual companion mockups
 .superpowers/
+
+.vercel
+.env*
