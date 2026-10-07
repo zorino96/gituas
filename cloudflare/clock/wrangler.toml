@@ -1,4 +1,6 @@
 name = "gituas-clock"
+# Zorinonsd@gmail.com's Account (the one that holds gituas.com).
+account_id = "fda39435bb3fd6d0845e402471db1f62"
 main = "worker.js"
 compatibility_date = "2026-10-01"
 
