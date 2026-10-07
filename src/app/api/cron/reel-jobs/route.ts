@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
 
 import { db } from "@/lib/db";
-import { VIDEO_CLAIM_MS, VIDEO_MAX_TRIES } from "@/lib/news/video";
+import { prepareVideo, VIDEO_CLAIM_MS, VIDEO_MAX_TRIES } from "@/lib/news/video";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /** Renders handed out per call: the GitHub Actions worker (reel/worker.mjs) renders them one by one. */
 const PER_CALL = 3;
@@ -30,10 +31,20 @@ export async function GET(req: Request) {
     tries: { lt: VIDEO_MAX_TRIES },
   };
   if (new URL(req.url).searchParams.get("peek")) {
-    return NextResponse.json({ waiting: await db.newsVideo.count({ where: waiting }) });
+    const queued = await db.newsVideo.count({ where: { status: "QUEUED", tries: { lt: VIDEO_MAX_TRIES } } });
+    return NextResponse.json({ waiting: queued + (await db.newsVideo.count({ where: waiting })) });
   }
   const token = process.env.BLOB_READ_WRITE_TOKEN;
   if (!token) return NextResponse.json({ error: "blob not configured" }, { status: 500 });
+
+  // Videos still waiting for their script and voice (the autopilot usually does this) are voiced
+  // here too, oldest first, while the call has time: the worker then never waits on a quiet desk.
+  const started = Date.now();
+  const queued = await db.newsVideo.findMany({ where: { status: "QUEUED", tries: { lt: VIDEO_MAX_TRIES } }, orderBy: { createdAt: "asc" }, take: 2, select: { id: true } });
+  for (const q of queued) {
+    if (Date.now() - started > 25_000) break;
+    await prepareVideo(q.id);
+  }
 
   const candidates = await db.newsVideo.findMany({ where: waiting, orderBy: { createdAt: "asc" }, take: PER_CALL });
   const jobs = [];
