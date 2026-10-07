@@ -30,6 +30,7 @@ export const nrShellAr: typeof nrShellCkb = {
     items: {
       news: "الأخبار",
       publish: "النشر",
+      videos: "الفيديوهات",
       comments: "التعليقات",
       messages: "الرسائل",
       insights: "الإحصائيات",

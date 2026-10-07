@@ -33,6 +33,7 @@ export const nrShellEn: typeof nrShellCkb = {
     items: {
       news: "News",
       publish: "Publish",
+      videos: "Videos",
       comments: "Comments",
       messages: "Messages",
       insights: "Insights",

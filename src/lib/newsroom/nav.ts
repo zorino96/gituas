@@ -4,7 +4,7 @@
 
 import type { GuideId } from "./guide";
 
-export type NavKey = "news" | "publish" | "comments" | "messages" | "insights" | "team" | "settings" | "guide";
+export type NavKey = "news" | "publish" | "videos" | "comments" | "messages" | "insights" | "team" | "settings" | "guide";
 export type NavGroup = "desk" | "audience" | "account";
 
 export interface NavItem {
@@ -22,6 +22,7 @@ export const NAV_GROUPS: readonly { key: NavGroup }[] = [{ key: "desk" }, { key:
 export const NAV: readonly NavItem[] = [
   { key: "news", href: "/newsroom/news", group: "desk", mobile: true, guide: "stories" },
   { key: "publish", href: "/newsroom/publish", group: "desk", mobile: true, guide: "publish" },
+  { key: "videos", href: "/newsroom/videos", group: "desk", mobile: false, guide: "publish" },
   { key: "comments", href: "/newsroom/comments", group: "audience", mobile: true, guide: "comments" },
   { key: "messages", href: "/newsroom/messages", group: "audience", mobile: false, guide: "comments" },
   { key: "insights", href: "/newsroom/insights", group: "audience", mobile: true, guide: "insights" },

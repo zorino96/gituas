@@ -51,7 +51,8 @@ export function PublishClient({
   workspaceId: string;
   accounts: Record<Target, string | null>;
   products: { id: string; name: string }[];
-  initial?: { newsDraftId: string; caption: string; media: Media };
+  /** A news draft to post; `targets`, when given, are the only platforms switched on (e.g. TikTok from the videos list). */
+  initial?: { newsDraftId: string; caption: string; media: Media; targets?: Target[] };
   scheduled: ScheduledRow[];
 }) {
   const router = useRouter();
@@ -62,7 +63,7 @@ export function PublishClient({
   // media
   const fileInput = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<{ src: string; type: "IMAGE" | "VIDEO" } | null>(
-    initial ? { src: initial.media.url, type: "IMAGE" } : null,
+    initial ? { src: initial.media.url, type: initial.media.type } : null,
   );
   const [media, setMedia] = useState<Media | null>(initial?.media ?? null);
   const [progress, setProgress] = useState<number | null>(null);
@@ -80,7 +81,11 @@ export function PublishClient({
   const [productId, setProductId] = useState("");
 
   // targets
-  const [on, setOn] = useState<Record<Target, boolean>>({ FB: !!accounts.FB, IG: !!initial && !!accounts.IG, TT: false, YT: false });
+  const [on, setOn] = useState<Record<Target, boolean>>(
+    initial?.targets?.length
+      ? { FB: false, IG: false, TT: false, YT: false, ...Object.fromEntries(initial.targets.filter((k) => !!accounts[k]).map((k) => [k, true])) }
+      : { FB: !!accounts.FB, IG: !!initial && !!accounts.IG, TT: false, YT: false },
+  );
 
   // tiktok
   const [tt, setTt] = useState<TikTokContext | null>(null);

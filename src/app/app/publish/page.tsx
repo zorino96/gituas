@@ -10,7 +10,7 @@ import { listScheduled } from "./schedule-actions";
 // Instagram video containers are polled for up to ~45 s before publishing.
 export const maxDuration = 60;
 
-export default async function PublishPage({ searchParams }: { searchParams: Promise<{ draft?: string; video?: string }> }) {
+export default async function PublishPage({ searchParams }: { searchParams: Promise<{ draft?: string; video?: string; to?: string }> }) {
   const t = dict(await getLang());
   const ws = (await currentWorkspace())!;
   if (!can(ws.role, "publish")) {
@@ -20,7 +20,9 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
       </p>
     );
   }
-  const { draft: draftId, video: videoId } = await searchParams;
+  const { draft: draftId, video: videoId, to } = await searchParams;
+  // "?to=TT" or "?to=YT": open with only that platform on (the videos list's one-click links).
+  const targets = (typeof to === "string" ? to.split(",") : []).filter((x): x is "TT" | "YT" | "FB" | "IG" => ["TT", "YT", "FB", "IG"].includes(x));
   const [conns, draft, products, scheduled, video] = await Promise.all([
     loadConnections(ws.id),
     draftId ? db.newsDraft.findFirst({ where: { id: draftId, tenantId: ws.id }, include: { item: true } }) : null,
@@ -40,6 +42,7 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
         media: hasVideo
           ? { url: video!.videoUrl!, pathname: video!.videoPath!, type: "VIDEO" as const }
           : { url: draft.cardUrl!, pathname: draft.cardPath!, type: "IMAGE" as const },
+        ...(targets.length ? { targets } : {}),
       }
     : undefined;
   return (

@@ -25,6 +25,7 @@ export const nrShellCkb = {
     items: {
       news: "هەواڵەکان",
       publish: "بڵاوکردنەوە",
+      videos: "ڤیدیۆکان",
       comments: "کۆمێنت",
       messages: "نامە",
       insights: "ئامار",

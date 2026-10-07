@@ -16,6 +16,7 @@ import {
   Settings,
   SquarePlus,
   Users,
+  Video,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -27,6 +28,7 @@ import { activeItem, NAV, NAV_GROUPS, type NavKey } from "@/lib/newsroom/nav";
 const ICONS: Record<NavKey, LucideIcon> = {
   news: Newspaper,
   publish: SquarePlus,
+  videos: Video,
   comments: MessagesSquare,
   messages: MessageCircle,
   insights: BarChart3,
