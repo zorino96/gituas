@@ -712,6 +712,46 @@ model NewsSettings {
   excludePrompt String?
   /// ENTERPRISE: also keep stories that are only related to the focus.
   focusBroad    Boolean   @default(false)
+  /// Auto-video (src/lib/news/video.ts): OFF | AUTO. Only plans with a video quota make videos.
+  videoMode     String    @default("OFF")
+  /// TEMPLATE (brand reel) | HIGHLIGHT (footage the desk may use; not built yet).
+  videoStyle    String    @default("TEMPLATE")
+  /// "category" or "category/sub" codes that become videos; empty = every story the autopilot posts.
+  videoTopics   String[]  @default([])
+  videoDailyMax Int       @default(5)
+  /// A Pawan.krd voice for Sorani desks (src/lib/voice/tts.ts PAWAN_VOICES); Arabic/English use Gemini.
+  videoVoice    String    @default("male")
+  videoSpeed    Float     @default(1)
+  /// ENTERPRISE: only stories the AI judges to fit this prompt become videos.
+  videoPrompt   String?
+}
+
+/// One automatic news video. Script and voice are made on our server, the render runs on GitHub
+/// Actions (reel/), then the autopilot posts it; a video that does not arrive in time is replaced by the card.
+model NewsVideo {
+  id        String    @id @default(cuid())
+  tenantId  String
+  itemId    String
+  draftId   String
+  /// QUEUED → VOICED → RENDERING → RENDERED → POSTED, or FAILED → CARD (the card went out instead).
+  status    String    @default("QUEUED")
+  style     String    @default("TEMPLATE")
+  voice     String
+  speed     Float     @default(1)
+  /// The reel's props: brand, labels and segments with their voice files.
+  props     Json?
+  videoPath String?
+  videoUrl  String?
+  /// False for a test video: it is made but never posted.
+  autoPost  Boolean   @default(true)
+  tries     Int       @default(0)
+  error     String?
+  claimedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([tenantId, status])
+  @@index([status, updatedAt])
 }
 
 /// One source a news page reads: a catalog entry or the page's own RSS feed.

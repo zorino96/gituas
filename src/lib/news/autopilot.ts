@@ -25,6 +25,7 @@ import { publishForWorkspace } from "@/lib/merchant/publish-core";
 import { AUTO_TARGETS, autoTargetsFor, type AutoMode, type AutoTarget } from "./autopilot-settings";
 import { RETRY_DEADLINE_MS } from "./draft";
 import { loadActiveFocus } from "./focus";
+import { isLate, prepareQueuedVideos, prepareVideo, queueVideoIfWanted } from "./video";
 import { matchesChoice, normalizeChoice } from "./taxonomy";
 import { sameStoryTooClose } from "./voice";
 import { writeDraft } from "./write";
@@ -46,6 +47,8 @@ const MIN_STORY_MS = 12_000;
 const POST_MIN_MS = 35_000;
 /** The longest the Instagram part of an automatic post may take. */
 const IG_PUBLISH_MS = 30_000;
+/** How long Instagram may take to process an auto-video reel, at most. */
+const IG_VIDEO_MS = 45_000;
 /** The card is only rendered with this much left; redrafting in publish mode stops this early too. */
 const RENDER_MIN_MS = POST_MIN_MS + 5_000;
 /**
@@ -358,13 +361,15 @@ async function alreadyCovered(tenantId: string, draft: { id: string; headline: s
  */
 async function postDraft(
   run: Run,
-  story: Story,
+  story: { id: string },
   draft: { id: string; headline: string; body: string },
   targets: AutoTarget[],
   gapMs: number,
+  /** The story's auto-video, posted instead of the card. */
+  video?: { url: string; pathname: string },
 ): Promise<"next" | "stop"> {
   const { tenantId } = run;
-  const meta = { itemId: story.id, draftId: draft.id };
+  const meta = { itemId: story.id, draftId: draft.id, ...(video ? { video: video.pathname } : {}) };
   const failed = async (reasoning: string, e: unknown): Promise<"stop"> => {
     await noteFailure(tenantId, "news.autopilot_publish_failed", `${reasoning} The draft waits for a person.`, e, meta);
     return "stop";
@@ -393,19 +398,24 @@ async function postDraft(
       return "stop";
     }
 
-    const card = await renderAndStoreCard(draft.id, tenantId, renderOrigin());
-    if (run.deadline - Date.now() < POST_MIN_MS) return await failed("This run had no time left to post the card.", "out of time");
+    let post: { caption: string; media: { url: string; pathname: string; type: "IMAGE" | "VIDEO" }; igMs: number };
+    if (video) {
+      // A reel takes Instagram longer to process than a photo: give it what the run has left.
+      post = {
+        caption: `${draft.headline.trim()}\n\n${draft.body.trim()}`,
+        media: { url: video.url, pathname: video.pathname, type: "VIDEO" },
+        igMs: Math.max(IG_PUBLISH_MS, Math.min(IG_VIDEO_MS, run.deadline - Date.now() - 5_000)),
+      };
+    } else {
+      const card = await renderAndStoreCard(draft.id, tenantId, renderOrigin());
+      // The caption is the text the card was rendered from, never an earlier copy of the draft.
+      post = { caption: `${card.headline.trim()}\n\n${card.body.trim()}`, media: { url: card.url, pathname: card.pathname, type: "IMAGE" }, igMs: IG_PUBLISH_MS };
+    }
+    if (run.deadline - Date.now() < POST_MIN_MS) return await failed("This run had no time left to post.", "out of time");
 
     const results = await publishForWorkspace(
       { id: tenantId, kind: "NEWS", role: "OWNER" },
-      {
-        // The caption is the text the card was rendered from, never an earlier copy of the draft.
-        caption: `${card.headline.trim()}\n\n${card.body.trim()}`,
-        targets: allowed,
-        media: { url: card.url, pathname: card.pathname, type: "IMAGE" },
-        newsDraftId: draft.id,
-        igDeadlineMs: IG_PUBLISH_MS,
-      },
+      { caption: post.caption, targets: allowed, media: post.media, newsDraftId: draft.id, igDeadlineMs: post.igMs },
     );
     if (!Array.isArray(results)) return await failed("The post was refused.", results.error);
     const sent = results.filter((r) => r.ok);
@@ -489,8 +499,63 @@ async function handleStory(run: Run, story: Story): Promise<"next" | "stop"> {
   await note(tenantId, "news.autopilot_drafted", "The autopilot wrote a draft.", { itemId: story.id, draftId: saved.id, model: written.model });
 
   if (budget.mode !== "PUBLISH" || budget.publish < 1) return "next";
+  // A story chosen for video waits for its reel (posted by advanceVideos); the card replaces it if it is late.
+  const videoId = await queueVideoIfWanted(tenantId, run.plan, story, saved.id);
+  if (videoId) {
+    await note(tenantId, "news.autopilot_video_queued", "The story was chosen for a video; it is posted when the video is ready.", {
+      itemId: story.id,
+      draftId: saved.id,
+      videoId,
+    });
+    if (run.deadline - Date.now() > 25_000) await prepareVideo(videoId);
+    return "next";
+  }
   // A post that fails ends the run: the next story would most likely fail the same way.
   return postDraft(run, story, saved, targets, plan.gapMs);
+}
+
+/**
+ * The desk's videos: voice the queued ones, post the ones that are rendered, and give the card to
+ * stories whose video failed or is late. At most one post per run (the gap rules still apply).
+ * Never throws.
+ */
+async function advanceVideos(run: Run): Promise<void> {
+  const { tenantId } = run;
+  try {
+    await prepareQueuedVideos(tenantId, run.deadline);
+    const now = Date.now();
+    const jobs = await db.newsVideo.findMany({
+      where: { tenantId, autoPost: true, status: { in: ["RENDERED", "FAILED", "QUEUED", "VOICED", "RENDERING"] } },
+      orderBy: { createdAt: "asc" },
+      take: 20,
+    });
+    const job = jobs.find((j) => j.status === "RENDERED") ?? jobs.find((j) => isLate(j, now));
+    if (!job) return;
+    if (run.deadline - Date.now() < POST_STORY_MS) return;
+    const plan = await budgetNow(run);
+    // Autopilot no longer posting: the drafts stay for a person, the jobs are closed.
+    if (!plan || plan.budget.mode !== "PUBLISH" || plan.budget.publish < 1) {
+      if (plan && plan.budget.mode !== "PUBLISH") await db.newsVideo.update({ where: { id: job.id }, data: { status: "CARD", error: "autopilot not posting" } });
+      return;
+    }
+    const draft = await db.newsDraft.findUnique({ where: { id: job.draftId }, select: { id: true, headline: true, body: true, publishedAt: true } });
+    if (!draft || draft.publishedAt) {
+      await db.newsVideo.update({ where: { id: job.id }, data: { status: draft ? "POSTED" : "CARD", error: draft ? null : "draft gone" } });
+      return;
+    }
+    const before = run.done.published;
+    const asVideo = job.status === "RENDERED" && job.videoUrl && job.videoPath ? { url: job.videoUrl, pathname: job.videoPath } : undefined;
+    // Claim the job first, so two runs never post it twice.
+    const claim = await db.newsVideo.updateMany({ where: { id: job.id, status: job.status }, data: { status: asVideo ? "POSTING" : "CARD" } });
+    if (claim.count !== 1) return;
+    await postDraft(run, { id: job.itemId }, draft, plan.targets, plan.gapMs, asVideo);
+    const posted = run.done.published > before;
+    if (asVideo) {
+      await db.newsVideo.update({ where: { id: job.id }, data: posted ? { status: "POSTED" } : { status: "FAILED", error: "the reel could not be posted" } });
+    }
+  } catch (e) {
+    await noteFailure(tenantId, "news.autopilot_video_failed", "The autopilot could not move a video on.", e);
+  }
 }
 
 async function work(tenantId: string, deadline: number, startBy: number, done: AutopilotResult): Promise<void> {
@@ -505,6 +570,8 @@ async function work(tenantId: string, deadline: number, startBy: number, done: A
   if (settings.categories.length && !chosen.length) return;
   const stories = await pickStories(tenantId, chosen, Date.now());
   const run: Run = { tenantId, plan: tenant.plan, deadline, done, connected: null };
+  // Videos first: a reel that is ready (or a card that is due instead) goes out before new stories.
+  await advanceVideos(run);
 
   for (const story of stories.slice(0, AUTO_MAX_PER_TICK)) {
     if (deadline - Date.now() < MIN_STORY_MS || Date.now() > startBy) break;

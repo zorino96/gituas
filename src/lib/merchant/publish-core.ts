@@ -117,7 +117,13 @@ export async function publishForWorkspace(
   if (input.newsDraftId) {
     const draft = await db.newsDraft.findFirst({ where: { id: input.newsDraftId, tenantId: ws.id }, include: { item: true } });
     if (!draft) return { error: t.nr.news.actions.notFound };
-    if (!draft.cardPath || draft.cardPath !== input.media?.pathname) {
+    // The media is the draft's own card, or the auto-video made from it (src/lib/news/video.ts).
+    const isCard = !!draft.cardPath && draft.cardPath === input.media?.pathname;
+    const isVideo =
+      !isCard &&
+      input.media?.type === "VIDEO" &&
+      (await db.newsVideo.count({ where: { tenantId: ws.id, draftId: draft.id, videoPath: input.media.pathname } })) > 0;
+    if (!isCard && !isVideo) {
       return { error: m.cardChanged };
     }
     const copyProblem = checkDraft({ headline: "", body: typedCaption }, { title: draft.item.title, snippet: draft.item.snippet }, t.nr.news).find(

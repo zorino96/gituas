@@ -8,8 +8,8 @@ import { SHOP_LIMITS } from "@/lib/shop/plans";
 describe("planFeatures NEWS", () => {
   it("lists the features in order, from the plan's limits", () => {
     const f = planFeatures("NEWS", "AUTO");
-    expect(f.map((x) => x.key)).toEqual(["refresh", "drafts", "improves", "publishes", "sources", "seats", "desks", "mode", "prompt"]);
-    expect(f.map((x) => x.value)).toEqual([60, 3000, 300, 3000, 30, 5, 3, "autoPublish", "promptFocus"]);
+    expect(f.map((x) => x.key)).toEqual(["refresh", "drafts", "improves", "publishes", "sources", "seats", "desks", "mode", "prompt", "videos"]);
+    expect(f.map((x) => x.value)).toEqual([60, 3000, 300, 3000, 30, 5, 3, "autoPublish", "promptFocus", 300]);
   });
   it("lists news by prompt only on the two top plans", () => {
     const prompt = (p: string) => planFeatures("NEWS", p).find((x) => x.key === "prompt")?.value;
@@ -32,6 +32,7 @@ describe("planFeatures NEWS", () => {
         desks: l.desks,
         mode: l.autoPublish ? "autoPublish" : "autoDraft",
         ...(l.promptFilter === "none" ? {} : { prompt: l.promptFilter === "full" ? "promptFull" : "promptFocus" }),
+        ...(l.video > 0 ? { videos: l.video } : {}),
       });
     }
   });

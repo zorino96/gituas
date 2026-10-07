@@ -1,0 +1,22 @@
+{
+  "name": "gituas-reel",
+  "private": true,
+  "description": "Renders Hawalnoos auto-videos (9:16 news reels) on GitHub Actions. Kept apart from the Next.js app so its build never bundles Remotion.",
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "work": "node worker.mjs"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.527",
+    "@remotion/media-utils": "4.0.527",
+    "@vercel/blob": "2.8.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "4.0.527"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "typescript": "^5.5.4"
+  }
+}

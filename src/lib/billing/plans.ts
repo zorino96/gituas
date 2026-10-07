@@ -1,4 +1,4 @@
-export type Metric = "draft" | "improve" | "publish";
+export type Metric = "draft" | "improve" | "publish" | "video";
 export type Plan = "LITE" | "MANUAL" | "AUTO" | "ENTERPRISE";
 
 export interface NewsLimits extends Record<Metric, number> {
@@ -17,11 +17,16 @@ export type PromptFilter = "none" | "focus" | "full";
 
 /** Monthly quotas plus team size (seats, owner included), desks a person may own, and the plan's speed and autopilot. */
 export const NEWS_LIMITS: Record<Plan, NewsLimits> = {
-  LITE: { draft: 100, improve: 10, publish: 100, sources: 5, seats: 1, desks: 1, refreshSec: 300, autoPublish: false, promptFilter: "none" },
-  MANUAL: { draft: 300, improve: 30, publish: 300, sources: 10, seats: 2, desks: 1, refreshSec: 120, autoPublish: false, promptFilter: "none" },
-  AUTO: { draft: 3000, improve: 300, publish: 3000, sources: 30, seats: 5, desks: 3, refreshSec: 60, autoPublish: true, promptFilter: "focus" },
-  ENTERPRISE: { draft: 20000, improve: 2000, publish: 20000, sources: 100, seats: 1000, desks: 20, refreshSec: 30, autoPublish: true, promptFilter: "full" },
+  LITE: { draft: 100, improve: 10, publish: 100, video: 0, sources: 5, seats: 1, desks: 1, refreshSec: 300, autoPublish: false, promptFilter: "none" },
+  MANUAL: { draft: 300, improve: 30, publish: 300, video: 0, sources: 10, seats: 2, desks: 1, refreshSec: 120, autoPublish: false, promptFilter: "none" },
+  AUTO: { draft: 3000, improve: 300, publish: 3000, video: 300, sources: 30, seats: 5, desks: 3, refreshSec: 60, autoPublish: true, promptFilter: "focus" },
+  ENTERPRISE: { draft: 20000, improve: 2000, publish: 20000, video: 3000, sources: 100, seats: 1000, desks: 20, refreshSec: 30, autoPublish: true, promptFilter: "full" },
 };
+
+/** Automatic videos a plan may make in a month; an unknown plan makes none. */
+export function videoQuotaFor(plan: Plan | string | null | undefined): number {
+  return isPlan(plan) ? NEWS_LIMITS[plan].video : 0;
+}
 
 /** What news-by-prompt a plan includes; an unknown plan gets none. */
 export function promptFilterFor(plan: Plan | string | null | undefined): PromptFilter {

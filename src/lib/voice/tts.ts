@@ -32,11 +32,9 @@ const TIMEOUT_MS = 45_000;
 
 const PAWAN_URL = "https://api.pawan.krd/v1/audio/speech";
 const PAWAN_MODEL = "pkrd/tts-ku";
-/** Pawan.krd's named voices; "male" and "female" are its defaults. */
-export const PAWAN_VOICES = [
-  "male", "female", "aram", "rebin", "shwan", "karwan", "hemin", "soran", "bakhtiyar", "kamaran", "dilshad",
-  "rostam", "shilan", "lana", "rozhin", "shno", "hawnaz", "nazanin", "kazhal", "sozan", "gulala", "shirin",
-] as const;
+import { cleanSpeed, isPawanVoice, SPEECH_SPEED } from "./voices";
+
+export { cleanSpeed, isPawanVoice, PAWAN_VOICES, SPEECH_SPEED } from "./voices";
 
 const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent";
 const GEMINI_VOICE: Record<VoiceGender, string> = { male: "Charon", female: "Kore" };
@@ -89,16 +87,16 @@ export function pcmToWav(pcm: Buffer, rate = 24_000): Buffer {
   return Buffer.concat([h, pcm]);
 }
 
-async function pawan(text: string, gender: VoiceGender, voice?: string): Promise<Speech> {
+async function pawan(text: string, gender: VoiceGender, voice?: string, speed: number = SPEECH_SPEED.fallback): Promise<Speech> {
   const res = await fetch(PAWAN_URL, {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.PAWAN_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: PAWAN_MODEL,
       input: text,
-      voice: voice && (PAWAN_VOICES as readonly string[]).includes(voice) ? voice : gender,
+      voice: isPawanVoice(voice) ? voice : gender,
       response_format: "mp3",
-      speed: 1,
+      speed: cleanSpeed(speed),
     }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
@@ -153,14 +151,14 @@ async function geminiOnce(text: string, lang: VoiceLang, gender: VoiceGender): P
 }
 
 /** Read `text` aloud in `lang`: the first provider that answers wins. */
-export async function speak(input: { text: string; lang: VoiceLang; gender?: VoiceGender; voice?: string }): Promise<Speech> {
+export async function speak(input: { text: string; lang: VoiceLang; gender?: VoiceGender; voice?: string; speed?: number }): Promise<Speech> {
   const text = speechText(input.text);
   const gender = input.gender ?? "male";
   if (!text) throw new SpeechUnavailable(["empty text"]);
   const reasons: string[] = [];
   for (const p of providersFor(input.lang)) {
     try {
-      return p === "pawan" ? await pawan(text, gender, input.voice) : await gemini(text, input.lang, gender);
+      return p === "pawan" ? await pawan(text, gender, input.voice, input.speed) : await gemini(text, input.lang, gender);
     } catch (e) {
       const why = e instanceof Error ? e.message : String(e);
       reasons.push(why);

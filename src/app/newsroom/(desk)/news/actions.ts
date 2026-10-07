@@ -5,7 +5,10 @@ import { after } from "next/server";
 
 import { db } from "@/lib/db";
 import { assertWithin, countUsage, LimitReached, limitMessage } from "@/lib/billing/limits";
-import { canAutoPublish, NEWS_LIMITS, promptFilterFor } from "@/lib/billing/plans";
+import { canAutoPublish, NEWS_LIMITS, promptFilterFor, videoQuotaFor } from "@/lib/billing/plans";
+import { put } from "@vercel/blob";
+import { cleanDailyMax, isVideoMode } from "@/lib/news/video";
+import { cleanSpeed, isPawanVoice, speak } from "@/lib/voice/tts";
 import { AiUnavailable, type Strength } from "@/lib/ai/provider";
 import { autoTargetsFor, parseAutopilot } from "@/lib/news/autopilot-settings";
 import { catalogEntry } from "@/lib/news/catalog";
@@ -23,6 +26,8 @@ import { dict, getLang } from "@/lib/i18n";
 import { currentWorkspace, loadConnections, type Workspace } from "@/app/app/data";
 
 export type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
+
+const VOICE_SAMPLE = "ئەمە دەنگی هەواڵنووسە. هەواڵەکانی ئەمڕۆ بەم دەنگە دەخوێنرێنەوە.";
 
 export interface DraftView {
   draftId: string;
@@ -343,6 +348,57 @@ export async function setKeywordFilterAction(on: boolean): Promise<Result> {
     update: { keywordFilter: !!on },
   });
   return { ok: true };
+}
+
+/** Which autopilot stories become videos, how many, and in which voice. Only plans with a video quota. */
+export async function saveVideoSettingsAction(input: {
+  mode: string;
+  topics: string[];
+  dailyMax: number;
+  voice: string;
+  speed: number;
+  prompt: string;
+}): Promise<Result> {
+  const { ws, m, t } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
+  const tenant = await db.tenant.findUnique({ where: { id: ws.id }, select: { plan: true } });
+  if (videoQuotaFor(tenant?.plan) < 1) return { ok: false, error: t.settings.news.videoPlanOnly };
+  const data = {
+    videoMode: isVideoMode(input?.mode) ? input.mode : "OFF",
+    videoStyle: "TEMPLATE",
+    videoTopics: normalizeChoice(Array.isArray(input?.topics) ? input.topics.slice(0, 60).map(String) : []),
+    videoDailyMax: cleanDailyMax(input?.dailyMax),
+    videoVoice: isPawanVoice(input?.voice) ? input.voice : "male",
+    videoSpeed: cleanSpeed(input?.speed),
+    // The prompt is ENTERPRISE's; on other plans what was saved stays as it is.
+    ...(tenant?.plan === "ENTERPRISE" ? { videoPrompt: cleanFocusPrompt(input?.prompt) } : {}),
+  };
+  await db.newsSettings.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, keywords: [], ...data }, update: data });
+  return { ok: true };
+}
+
+/** A few seconds of one Pawan voice at a speed, so the desk can hear it before choosing. */
+export async function previewVoiceAction(voice: string, speed: number): Promise<Result<{ url: string }>> {
+  const { ws, m, t } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
+  const tenant = await db.tenant.findUnique({ where: { id: ws.id }, select: { plan: true } });
+  if (videoQuotaFor(tenant?.plan) < 1) return { ok: false, error: t.settings.news.videoPlanOnly };
+  if (!isPawanVoice(voice)) return { ok: false, error: t.common.error };
+  const s = cleanSpeed(speed);
+  try {
+    const audio = await speak({ text: VOICE_SAMPLE, lang: "ckb", voice, speed: s });
+    const blob = await put(`merchant/${ws.id}/voice-preview/${voice}-${s}.mp3`, audio.audio, {
+      access: "public",
+      contentType: audio.mime,
+      addRandomSuffix: false,
+      allowOverwrite: true,
+    });
+    return { ok: true, url: blob.url };
+  } catch {
+    return { ok: false, error: t.settings.news.videoVoiceFailed };
+  }
 }
 
 /** Keywords or a prompt decide which stories the desk gets. The prompt is for plans that include it. */

@@ -152,6 +152,7 @@ export const nrNewsEn: typeof nrNewsCkb = {
       `You have reached this month's limit for improving stories (${n(max)}). Upgrade your plan for more.`,
     limitPublish: (max: number) =>
       `You have reached this month's publishing limit (${n(max)}). Upgrade your plan for more.`,
+    limitVideo: (max: number) => `You have reached this month's video limit (${n(max)}). Upgrade your plan for more.`,
     frozen: "Your free trial has ended — to continue, choose a plan in “Plan & billing”.",
     aiDown: "Automatic writing isn't available right now. You can write it yourself.",
     draftFailed: "Preparing the story failed. Try again.",

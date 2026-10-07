@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { canAutoPublish, promptFilterFor, refreshSecFor } from "@/lib/billing/plans";
+import { canAutoPublish, promptFilterFor, refreshSecFor, videoQuotaFor } from "@/lib/billing/plans";
+import { usageOf } from "@/lib/billing/limits";
 import { dict, getLang } from "@/lib/i18n";
 import { AUTO_DAILY_MAX, AUTO_MIN_GAP, autoTargetsFor, isAutoMode } from "@/lib/news/autopilot-settings";
 import { catalogAvailable } from "@/lib/news/catalog";
@@ -50,6 +51,17 @@ export default async function SettingsPage({
       }),
       categories: settings?.categories ?? [],
       keywordFilter: settings?.keywordFilter ?? false,
+      video: {
+        quota: videoQuotaFor(tenant?.plan),
+        used: await usageOf(ws.id, "video"),
+        full: tenant?.plan === "ENTERPRISE",
+        mode: settings?.videoMode === "AUTO" ? "AUTO" : "OFF",
+        topics: settings?.videoTopics ?? [],
+        dailyMax: settings?.videoDailyMax ?? 5,
+        voice: settings?.videoVoice ?? "male",
+        speed: settings?.videoSpeed ?? 1,
+        prompt: settings?.videoPrompt ?? "",
+      },
       filter: {
         level: promptFilterFor(tenant?.plan),
         mode: settings?.filterMode === "PROMPT" ? "PROMPT" : "KEYWORDS",

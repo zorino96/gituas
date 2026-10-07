@@ -1,0 +1,43 @@
+name: reel
+# Renders Hawalnoos auto-videos: claims voiced jobs from the app, renders them with Remotion (reel/),
+# uploads each to Blob with a one-file token and reports back. Quiet when nothing is waiting.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+concurrency:
+  group: reel
+  cancel-in-progress: false
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Anything to render?
+        id: peek
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then echo "n=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          body=$(curl -fsS -m 30 -H "Authorization: Bearer $CRON_SECRET" "https://gituas.com/api/cron/reel-jobs?peek=1" || echo '{"waiting":0}')
+          n=$(echo "$body" | sed -nE 's/.*"waiting":([0-9]+).*/\1/p')
+          echo "waiting: ${n:-0}"
+          echo "n=${n:-0}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        if: steps.peek.outputs.n != '0'
+      - uses: actions/setup-node@v4
+        if: steps.peek.outputs.n != '0'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: reel/package-lock.json
+      - name: Install
+        if: steps.peek.outputs.n != '0'
+        working-directory: reel
+        run: npm ci --no-audit --no-fund
+      - name: Render
+        if: steps.peek.outputs.n != '0'
+        working-directory: reel
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: node worker.mjs

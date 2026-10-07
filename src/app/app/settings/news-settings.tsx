@@ -16,6 +16,8 @@ import { subcategoryLabel, TAXONOMY } from "@/lib/news/taxonomy";
 import { VOICE_NOTE_MAX } from "@/lib/news/voice";
 import { FOCUS_PROMPT_MAX, type FilterMode } from "@/lib/news/focus-shared";
 import type { PromptFilter } from "@/lib/billing/plans";
+import { PAWAN_VOICES, SPEECH_SPEED, VOICE_NAMES } from "@/lib/voice/voices";
+import { useLang } from "@/lib/i18n/client";
 import {
   addRssSourceAction,
   removeSourceAction,
@@ -24,6 +26,8 @@ import {
   saveCategoriesAction,
   saveKeywordsAction,
   saveNewsFilterAction,
+  saveVideoSettingsAction,
+  previewVoiceAction,
   saveVoiceNoteAction,
   setKeywordFilterAction,
   toggleCatalogSourceAction,
@@ -38,6 +42,8 @@ export interface NewsSettingsProps {
   keywordFilter: boolean;
   /** Keywords or a prompt; `level` is what the plan includes (none on LITE and MANUAL). */
   filter: { level: PromptFilter; mode: FilterMode; focus: string; exclude: string; broad: boolean };
+  /** Auto-video: `quota` 0 means the plan has none; `full` is ENTERPRISE (the prompt). */
+  video: { quota: number; used: number; full: boolean; mode: "OFF" | "AUTO"; topics: string[]; dailyMax: number; voice: string; speed: number; prompt: string };
   voiceNote: string;
   autopilot: {
     mode: AutoMode;
@@ -70,7 +76,23 @@ export function NewsSettings(p: NewsSettingsProps) {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [cats, setCats] = useState<string[]>(p.categories);
   const [voiceNote, setVoiceNote] = useState(p.voiceNote);
+  const lang = useLang();
+  const [video, setVideo] = useState({ ...p.video, dailyMax: String(p.video.dailyMax) });
+  const [hearing, setHearing] = useState<string | null>(null);
   const [filter, setFilter] = useState(p.filter);
+
+  async function listen(voice: string) {
+    setHearing(voice);
+    try {
+      const r = await previewVoiceAction(voice, video.speed);
+      if (!r.ok) return setMsg({ ok: false, text: r.error });
+      await new Audio(r.url).play();
+    } catch {
+      setMsg({ ok: false, text: tn.videoVoiceFailed });
+    } finally {
+      setHearing(null);
+    }
+  }
   const promptOn = filter.level !== "none" && filter.mode === "PROMPT";
   const ap = p.autopilot;
   const [auto, setAuto] = useState({ mode: ap.mode, targets: ap.targets, dailyMax: String(ap.dailyMax), minGapMin: String(ap.minGapMin) });
@@ -412,6 +434,136 @@ export function NewsSettings(p: NewsSettingsProps) {
         <button type="button" className="gm-btn" disabled={pending} onClick={saveAutopilot}>
           {tn.save}
         </button>
+      </div>
+
+      <p className="gm-sec">{tn.videoSec}</p>
+      <div className="gm-card gm-stack">
+        {video.quota < 1 ? (
+          <p className="gm-hint" style={{ margin: 0 }}>
+            <Link href="/newsroom/billing" className="gm-link">{tn.videoPlanOnly}</Link>
+          </p>
+        ) : (
+          <>
+            <p className="gm-hint" style={{ margin: 0 }}>{tn.videoHint}</p>
+            <div className="gm-chips">
+              {(["OFF", "AUTO"] as const).map((m) => (
+                <button key={m} type="button" className="gm-chip" aria-pressed={video.mode === m} onClick={() => setVideo((v) => ({ ...v, mode: m }))}>
+                  {tn.videoMode[m]}
+                </button>
+              ))}
+            </div>
+            {video.mode === "AUTO" && (
+              <>
+                <div className="gm-chips">
+                  <button type="button" className="gm-chip" aria-pressed>
+                    {tn.videoStyle.TEMPLATE}
+                  </button>
+                  <button type="button" className="gm-chip" aria-pressed={false} disabled>
+                    {tn.videoStyle.HIGHLIGHT} · {tn.videoSoon}
+                  </button>
+                </div>
+                <p className="gm-hint" style={{ margin: 0 }}>{tn.videoTopicsHint}</p>
+                <div className="gm-chips">
+                  {TAXONOMY.map((c) => {
+                    const on = video.topics.includes(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className="gm-chip"
+                        aria-pressed={on}
+                        onClick={() => setVideo((v) => ({ ...v, topics: on ? v.topics.filter((x) => x !== c.id) : [...v.topics, c.id] }))}
+                      >
+                        {nr.topics[c.id]}
+                      </button>
+                    );
+                  })}
+                </div>
+                {video.full && (
+                  <div className="gm-field">
+                    <label htmlFor="ns-video-prompt">{tn.videoPrompt}</label>
+                    <textarea
+                      id="ns-video-prompt"
+                      className="gm-textarea"
+                      dir="auto"
+                      maxLength={FOCUS_PROMPT_MAX}
+                      value={video.prompt}
+                      placeholder={tn.videoPromptPlaceholder}
+                      onChange={(e) => setVideo((v) => ({ ...v, prompt: e.target.value }))}
+                    />
+                  </div>
+                )}
+                <div className="gm-field">
+                  <label htmlFor="ns-video-max">{tn.videoDailyMax}</label>
+                  <input
+                    id="ns-video-max"
+                    className="gm-input gm-ltr"
+                    dir="ltr"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={50}
+                    value={video.dailyMax}
+                    onChange={(e) => setVideo((v) => ({ ...v, dailyMax: e.target.value }))}
+                  />
+                </div>
+                <p className="gm-hint" style={{ margin: 0, fontWeight: 700 }}>{tn.videoVoice}</p>
+                <div className="gm-chips">
+                  {PAWAN_VOICES.map((voice) => (
+                    <span key={voice} className="gm-row" style={{ gap: 4 }}>
+                      <button type="button" className="gm-chip" aria-pressed={video.voice === voice} onClick={() => setVideo((v) => ({ ...v, voice }))}>
+                        {lang === "en" ? VOICE_NAMES[voice].en : VOICE_NAMES[voice].ku}
+                      </button>
+                      <button
+                        type="button"
+                        className="gm-btn quiet small"
+                        aria-label={`${tn.videoListen}: ${VOICE_NAMES[voice].en}`}
+                        disabled={hearing !== null}
+                        onClick={() => listen(voice)}
+                      >
+                        {hearing === voice ? "…" : "▶"}
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <div className="gm-field">
+                  <label htmlFor="ns-video-speed">{tn.videoSpeed(video.speed.toFixed(2))}</label>
+                  <input
+                    id="ns-video-speed"
+                    type="range"
+                    min={SPEECH_SPEED.min}
+                    max={SPEECH_SPEED.max}
+                    step={0.05}
+                    value={video.speed}
+                    onChange={(e) => setVideo((v) => ({ ...v, speed: Number(e.target.value) }))}
+                  />
+                </div>
+              </>
+            )}
+            <p className="gm-hint" style={{ margin: 0 }}>{tn.videoUsage(video.used, video.quota)}</p>
+            <button
+              type="button"
+              className="gm-btn"
+              disabled={pending}
+              onClick={() =>
+                run(
+                  () =>
+                    saveVideoSettingsAction({
+                      mode: video.mode,
+                      topics: video.topics,
+                      dailyMax: Number(video.dailyMax),
+                      voice: video.voice,
+                      speed: video.speed,
+                      prompt: video.prompt,
+                    }),
+                  tn.saved,
+                )
+              }
+            >
+              {tn.save}
+            </button>
+          </>
+        )}
       </div>
 
       <p className="gm-sec">{tn.brandSec}</p>

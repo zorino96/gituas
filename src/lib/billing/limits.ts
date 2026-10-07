@@ -19,12 +19,12 @@ export class LimitReached extends Error {
   }
 }
 
-type LimitText = Pick<NrNewsText["actions"], "limitDraft" | "limitImprove" | "limitPublish" | "frozen">;
+type LimitText = Pick<NrNewsText["actions"], "limitDraft" | "limitImprove" | "limitPublish" | "limitVideo" | "frozen">;
 
 /** The message for a LimitReached, in the given newsroom wording (Sorani by default). */
 export function limitMessage(e: LimitReached, t: LimitText = nrNewsCkb.actions): string {
   if (e.frozen) return t.frozen;
-  const byMetric: Record<Metric, (max: number) => string> = { draft: t.limitDraft, improve: t.limitImprove, publish: t.limitPublish };
+  const byMetric: Record<Metric, (max: number) => string> = { draft: t.limitDraft, improve: t.limitImprove, publish: t.limitPublish, video: t.limitVideo };
   return byMetric[e.metric](e.limit);
 }
 

@@ -13,6 +13,7 @@ export type FeatureKey =
   | "desks"
   | "mode"
   | "prompt"
+  | "videos"
   | "shopPosts"
   | "shopReplies"
   | "shopAi";
@@ -44,6 +45,7 @@ export function planFeatures(product: BillingProduct, plan: string): PlanFeature
       { key: "mode", value: l.autoPublish ? "autoPublish" : "autoDraft" },
       // Listed only on the plans that include it.
       ...(l.promptFilter === "none" ? [] : [{ key: "prompt", value: l.promptFilter === "full" ? "promptFull" : "promptFocus" } as const]),
+      ...(l.video > 0 ? [{ key: "videos", value: l.video } as const] : []),
     ];
   }
   if (!Object.hasOwn(SHOP_LIMITS, plan)) return [];
