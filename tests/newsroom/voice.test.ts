@@ -5,10 +5,10 @@ import { pcmToWav, providersFor, speak, SpeechUnavailable, speechText, SPEECH_MA
 const both = { PAWAN_API_KEY: "p", GOOGLE_AI_API_KEY: "g" };
 
 describe("voice routing", () => {
-  it("sends Sorani to Pawan first, Gemini as the fallback", () => {
-    expect(providersFor("ckb", both)).toEqual(["pawan", "gemini"]);
-    expect(providersFor("ckb", { ...both, TTS_SORANI: "gemini" })).toEqual(["gemini", "pawan"]);
-    expect(providersFor("ckb", { GOOGLE_AI_API_KEY: "g" })).toEqual(["gemini"]);
+  it("sends Sorani to Pawan only, unless switched to Gemini", () => {
+    expect(providersFor("ckb", both)).toEqual(["pawan"]);
+    expect(providersFor("ckb", { ...both, TTS_SORANI: "gemini" })).toEqual(["gemini"]);
+    expect(providersFor("ckb", { GOOGLE_AI_API_KEY: "g" })).toEqual([]);
   });
   it("never sends Arabic or English to Pawan", () => {
     expect(providersFor("ar", both)).toEqual(["gemini"]);
@@ -59,24 +59,31 @@ describe("speak", () => {
     expect(JSON.parse(init.body as string)).toMatchObject({ model: "pkrd/tts-ku", input: "سڵاو", voice: "shilan", response_format: "mp3" });
   });
 
-  it("falls back to Gemini when Pawan fails, and returns a WAV", async () => {
+  it("never falls back to Google for Sorani when Pawan fails", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ error: "quota" }), { status: 429, headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(speak({ text: "سڵاو", lang: "ckb" })).rejects.toBeInstanceOf(SpeechUnavailable);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads Sorani with Gemini when switched, and returns a WAV", async () => {
+    process.env.TTS_SORANI = "gemini";
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "quota" }), { status: 429, headers: { "content-type": "application/json" } }))
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { data: Buffer.alloc(4800).toString("base64") } }] } }] })),
       );
     vi.stubGlobal("fetch", fetchMock);
-    vi.spyOn(console, "error").mockImplementation(() => {});
     const s = await speak({ text: "سڵاو", lang: "ckb", gender: "female" });
     expect(s).toMatchObject({ provider: "gemini", mime: "audio/wav" });
-    const body = JSON.parse((fetchMock.mock.calls[1] as [string, RequestInit])[1].body as string);
+    const body = JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string);
     expect(body.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName).toBe("Kore");
     expect(body.contents[0].parts[0].text).toMatch(/Central Kurdish \(Sorani\):\nسڵاو$/);
   });
 
   it("asks Gemini a second time when it answers without audio", async () => {
-    delete process.env.PAWAN_API_KEY;
+    process.env.TTS_SORANI = "gemini";
     const audio = { candidates: [{ content: { parts: [{ inlineData: { data: Buffer.alloc(4800).toString("base64") } }] } }] };
     const fetchMock = vi
       .fn()

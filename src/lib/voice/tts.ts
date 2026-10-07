@@ -2,11 +2,10 @@
 //  Text to speech for the newsroom's videos (the Story Reel builds on this).
 // ---------------------------------------------------------------------------
 //
-//  Sorani goes to Pawan.krd (pkrd/tts-ku, an OpenAI-compatible API; the owner
-//  has the provider's permission to use it inside Hawalnoos). Arabic and
-//  English go to Gemini 2.5 Flash TTS, which is also Sorani's fallback: the
-//  owner approved its Sorani samples on 2026-10-07. TTS_SORANI=gemini puts
-//  Gemini first for Sorani without a code change.
+//  Sorani goes to Pawan.krd only (pkrd/tts-ku, an OpenAI-compatible API; the
+//  owner has the provider's permission to use it inside Hawalnoos and chose its
+//  voice). Arabic and English go to Gemini 2.5 Flash TTS. TTS_SORANI=gemini
+//  switches Sorani to Gemini (its samples were approved too) without a code change.
 //
 //  Never throws for a provider failure on its own: the next provider is tried,
 //  and SpeechUnavailable is thrown only when none produced audio.
@@ -66,8 +65,9 @@ export function providersFor(lang: VoiceLang, env: Record<string, string | undef
   const pawan = !!env.PAWAN_API_KEY;
   const gemini = !!env.GOOGLE_AI_API_KEY;
   if (lang !== "ckb") return gemini ? ["gemini"] : [];
-  const order: VoiceProvider[] = env.TTS_SORANI === "gemini" ? ["gemini", "pawan"] : ["pawan", "gemini"];
-  return order.filter((p) => (p === "pawan" ? pawan : gemini));
+  // The owner wants Pawan's voice for Sorani; Gemini reads Sorani only when TTS_SORANI=gemini.
+  if (env.TTS_SORANI === "gemini") return gemini ? ["gemini"] : [];
+  return pawan ? ["pawan"] : [];
 }
 
 /** 16-bit mono PCM (Gemini's output) wrapped as a WAV file. */
