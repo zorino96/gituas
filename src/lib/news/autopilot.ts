@@ -599,6 +599,12 @@ async function work(tenantId: string, deadline: number, startBy: number, done: A
   const run: Run = { tenantId, plan: tenant.plan, deadline, done, connected: null };
   // Videos first: a reel that is ready (or a card that is due instead) goes out before new stories.
   await advanceVideos(run);
+  // A story waiting for its video holds the next posting slot: drafting more now would only pile
+  // up videos that then wait (and age) behind the gap.
+  const waiting = await db.newsVideo.count({
+    where: { tenantId, autoPost: true, status: { in: ["QUEUED", "VOICED", "RENDERING", "RENDERED", "POSTING"] } },
+  });
+  if (waiting > 0) return;
 
   for (const story of stories.slice(0, AUTO_MAX_PER_TICK)) {
     if (deadline - Date.now() < MIN_STORY_MS || Date.now() > startBy) break;

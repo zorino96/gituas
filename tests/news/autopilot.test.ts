@@ -17,6 +17,7 @@ vi.mock("@/lib/db", () => ({
     newsItem: { findMany: vi.fn(), updateMany: vi.fn(), count: vi.fn() },
     newsDraft: { count: vi.fn(), create: vi.fn(), findMany: vi.fn() },
     auditLog: { create: vi.fn() },
+    newsVideo: { findMany: vi.fn(), count: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
   },
 }));
 vi.mock("@/app/app/data", () => ({ loadConnections: vi.fn() }));
@@ -409,6 +410,9 @@ describe("runAutopilot", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     for (const table of Object.values(m)) for (const fn of Object.values(table)) fn.mockReset();
+    // No auto-videos waiting, unless a test says so.
+    (db.newsVideo.findMany as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (db.newsVideo.count as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(0);
     errors = vi.spyOn(console, "error").mockImplementation(() => {});
   });
   afterEach(() => errors.mockRestore());
@@ -426,6 +430,13 @@ describe("runAutopilot", () => {
     expect(m.newsItem.findMany).not.toHaveBeenCalled();
     expect(m.newsItem.updateMany).not.toHaveBeenCalled();
     expect(publishForWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("drafts nothing new while a story waits for its video (it holds the next posting slot)", async () => {
+    desk({ mode: "DRAFT" });
+    (db.newsVideo.count as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(1);
+    expect(await runAutopilot("t1")).toEqual({ drafted: 0, published: 0 });
+    expect(writeDraft).not.toHaveBeenCalled();
   });
 
   it("claims the story before it writes, drafts it fast in the desk's voice, and counts one draft", async () => {
