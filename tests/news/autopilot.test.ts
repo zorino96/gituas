@@ -38,6 +38,7 @@ import {
   AUTO_MAX_AGE_MS,
   AUTO_MAX_PER_TICK,
   autoBudget,
+  autoPostBudget,
   autopilotCandidates,
   renderOrigin,
   runAutopilot,
@@ -135,6 +136,34 @@ describe("autopilotCandidates", () => {
   it("returns the stories oldest first", () => {
     const items = [story("mid", { publishedAt: minsAgo(60) }), story("new", { publishedAt: minsAgo(5) }), story("old", { publishedAt: minsAgo(300) })];
     expect(ids(autopilotCandidates(items, [], NOW))).toEqual(["old", "mid", "new"]);
+  });
+});
+
+describe("autoPostBudget (stories already drafted, such as rendered videos)", () => {
+  const base: BudgetInput = {
+    mode: "PUBLISH",
+    plan: "AUTO",
+    draftsUsed: 10,
+    draftLimit: 3000,
+    publishesUsed: 10,
+    publishLimit: 3000,
+    autoDraftsToday: 20,
+    autoPostsToday: 16,
+    autoDailyMax: 20,
+    lastAutoAt: minsAgo(10),
+    autoMinGapMin: 3,
+    now: NOW,
+  };
+  it("still posts when today's drafts are used up but posts are not", () => {
+    expect(autoBudget(base).publish).toBe(0);
+    expect(autoPostBudget(base)).toBe(true);
+  });
+  it("stops at the day's posts, the publish quota, the gap, or without auto-publish", () => {
+    expect(autoPostBudget({ ...base, autoPostsToday: 20 })).toBe(false);
+    expect(autoPostBudget({ ...base, publishesUsed: 3000 })).toBe(false);
+    expect(autoPostBudget({ ...base, lastAutoAt: minsAgo(1) })).toBe(false);
+    expect(autoPostBudget({ ...base, mode: "DRAFT" })).toBe(false);
+    expect(autoPostBudget({ ...base, plan: "MANUAL" })).toBe(false);
   });
 });
 

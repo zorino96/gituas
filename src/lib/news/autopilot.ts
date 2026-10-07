@@ -179,6 +179,19 @@ export function autoBudget(b: BudgetInput): Budget {
   return { mode, draft: publish, publish, stop: null };
 }
 
+/**
+ * Whether a story that is already drafted (a video that finished rendering, or the card that
+ * replaces a late one) may be posted now. Unlike autoBudget it does not look at today's drafts:
+ * those were counted when the story was written, so a full day of drafts must not strand the
+ * videos still waiting to go out. The posts of the day, the publish quota and the gap still apply.
+ */
+export function autoPostBudget(b: BudgetInput): boolean {
+  if (b.mode !== "PUBLISH" || !canAutoPublish(b.plan)) return false;
+  if (left(b.publishLimit, b.publishesUsed) === 0 || left(b.autoDailyMax, b.autoPostsToday) === 0) return false;
+  const gapMs = gapMsOf(b.autoMinGapMin);
+  return !(gapMs > 0 && b.lastAutoAt && b.now - b.lastAutoAt.getTime() < gapMs);
+}
+
 // ─── Small pure helpers ─────────────────────────────────────────────────────
 
 /**
@@ -292,7 +305,7 @@ async function pickStories(tenantId: string, chosen: readonly string[], now: num
 }
 
 /** The budget for the next story, from fresh numbers, and where it may be posted. */
-async function budgetNow(run: Run): Promise<{ budget: Budget; targets: AutoTarget[]; voiceNote: string | null; gapMs: number } | null> {
+async function budgetNow(run: Run): Promise<{ budget: Budget; canPostDrafted: boolean; targets: AutoTarget[]; voiceNote: string | null; gapMs: number } | null> {
   const { tenantId } = run;
   const now = Date.now();
   const dayStart = utcDayStart(now);
@@ -320,7 +333,7 @@ async function budgetNow(run: Run): Promise<{ budget: Budget; targets: AutoTarge
     if (!targets.length) mode = "DRAFT";
   }
   const limits = NEWS_LIMITS[run.plan];
-  const budget = autoBudget({
+  const input: BudgetInput = {
     mode,
     plan: run.plan,
     draftsUsed,
@@ -333,8 +346,14 @@ async function budgetNow(run: Run): Promise<{ budget: Budget; targets: AutoTarge
     lastAutoAt: settings.lastAutoAt,
     autoMinGapMin: settings.autoMinGapMin,
     now,
-  });
-  return { budget, targets, voiceNote: settings.voiceNote, gapMs: gapMsOf(settings.autoMinGapMin) };
+  };
+  return {
+    budget: autoBudget(input),
+    canPostDrafted: autoPostBudget(input),
+    targets,
+    voiceNote: settings.voiceNote,
+    gapMs: gapMsOf(settings.autoMinGapMin),
+  };
 }
 
 /**
@@ -524,6 +543,12 @@ async function advanceVideos(run: Run): Promise<void> {
   try {
     await prepareQueuedVideos(tenantId, run.deadline);
     const now = Date.now();
+    // News that waited longer than the autopilot would ever pick a story is not posted any more:
+    // its draft stays for a person.
+    await db.newsVideo.updateMany({
+      where: { tenantId, autoPost: true, status: { in: ["RENDERED", "FAILED", "QUEUED", "VOICED", "RENDERING"] }, createdAt: { lt: new Date(now - AUTO_MAX_AGE_MS) } },
+      data: { status: "STALE" },
+    });
     const jobs = await db.newsVideo.findMany({
       where: { tenantId, autoPost: true, status: { in: ["RENDERED", "FAILED", "QUEUED", "VOICED", "RENDERING"] } },
       orderBy: { createdAt: "asc" },
@@ -534,10 +559,12 @@ async function advanceVideos(run: Run): Promise<void> {
     if (run.deadline - Date.now() < POST_STORY_MS) return;
     const plan = await budgetNow(run);
     // Autopilot no longer posting: the drafts stay for a person, the jobs are closed.
-    if (!plan || plan.budget.mode !== "PUBLISH" || plan.budget.publish < 1) {
-      if (plan && plan.budget.mode !== "PUBLISH") await db.newsVideo.update({ where: { id: job.id }, data: { status: "CARD", error: "autopilot not posting" } });
+    if (!plan || plan.budget.mode !== "PUBLISH") {
+      if (plan) await db.newsVideo.update({ where: { id: job.id }, data: { status: "CARD", error: "autopilot not posting" } });
       return;
     }
+    // Already drafted, so only the day's posts, the publish quota and the gap decide (not today's drafts).
+    if (!plan.canPostDrafted || !plan.targets.length) return;
     const draft = await db.newsDraft.findUnique({ where: { id: job.draftId }, select: { id: true, headline: true, body: true, publishedAt: true } });
     if (!draft || draft.publishedAt) {
       await db.newsVideo.update({ where: { id: job.id }, data: { status: draft ? "POSTED" : "CARD", error: draft ? null : "draft gone" } });
