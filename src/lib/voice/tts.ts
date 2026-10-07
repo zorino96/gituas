@@ -110,7 +110,24 @@ async function pawan(text: string, gender: VoiceGender, voice?: string): Promise
   return { audio, mime: "audio/mpeg", provider: "pawan" };
 }
 
+/** Gemini does not officially speak Kurdish and now and then answers without audio; a second try usually speaks. */
+const GEMINI_TRIES = 2;
+
 async function gemini(text: string, lang: VoiceLang, gender: VoiceGender): Promise<Speech> {
+  let last: unknown;
+  for (let i = 0; i < GEMINI_TRIES; i++) {
+    try {
+      return await geminiOnce(text, lang, gender);
+    } catch (e) {
+      last = e;
+      // Only an answer without audio is worth repeating; a refused key or quota is not.
+      if (!(e instanceof Error && /no audio/.test(e.message))) break;
+    }
+  }
+  throw last;
+}
+
+async function geminiOnce(text: string, lang: VoiceLang, gender: VoiceGender): Promise<Speech> {
   const res = await fetch(GEMINI_URL, {
     method: "POST",
     headers: { "x-goog-api-key": process.env.GOOGLE_AI_API_KEY ?? "", "Content-Type": "application/json" },
@@ -124,11 +141,14 @@ async function gemini(text: string, lang: VoiceLang, gender: VoiceGender): Promi
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   const j = (await res.json().catch(() => null)) as {
-    candidates?: { content?: { parts?: { inlineData?: { data?: string } }[] } }[];
+    candidates?: { content?: { parts?: { inlineData?: { data?: string } }[] }; finishReason?: string }[];
     error?: { message?: string };
   } | null;
   const b64 = j?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)?.inlineData?.data;
-  if (!res.ok || !b64) throw new Error(`gemini ${res.status}: ${(j?.error?.message ?? "no audio").slice(0, 160)}`);
+  if (!res.ok || !b64) {
+    const why = j?.error?.message ?? `no audio (${j?.candidates?.[0]?.finishReason ?? "no candidate"})`;
+    throw new Error(`gemini ${res.status}: ${why.slice(0, 160)}`);
+  }
   return { audio: pcmToWav(Buffer.from(b64, "base64")), mime: "audio/wav", provider: "gemini" };
 }
 

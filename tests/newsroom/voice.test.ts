@@ -75,6 +75,18 @@ describe("speak", () => {
     expect(body.contents[0].parts[0].text).toMatch(/Central Kurdish \(Sorani\):\nسڵاو$/);
   });
 
+  it("asks Gemini a second time when it answers without audio", async () => {
+    delete process.env.PAWAN_API_KEY;
+    const audio = { candidates: [{ content: { parts: [{ inlineData: { data: Buffer.alloc(4800).toString("base64") } }] } }] };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ candidates: [{ finishReason: "OTHER" }] })))
+      .mockResolvedValueOnce(new Response(JSON.stringify(audio)));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(speak({ text: "سڵاو", lang: "ckb" })).resolves.toMatchObject({ provider: "gemini" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("says why when no provider produced audio", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 500 })));
     vi.spyOn(console, "error").mockImplementation(() => {});
