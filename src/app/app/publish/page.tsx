@@ -10,7 +10,7 @@ import { listScheduled } from "./schedule-actions";
 // Instagram video containers are polled for up to ~45 s before publishing.
 export const maxDuration = 60;
 
-export default async function PublishPage({ searchParams }: { searchParams: Promise<{ draft?: string }> }) {
+export default async function PublishPage({ searchParams }: { searchParams: Promise<{ draft?: string; video?: string }> }) {
   const t = dict(await getLang());
   const ws = (await currentWorkspace())!;
   if (!can(ws.role, "publish")) {
@@ -20,24 +20,31 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
       </p>
     );
   }
-  const { draft: draftId } = await searchParams;
-  const [conns, draft, products, scheduled] = await Promise.all([
+  const { draft: draftId, video: videoId } = await searchParams;
+  const [conns, draft, products, scheduled, video] = await Promise.all([
     loadConnections(ws.id),
     draftId ? db.newsDraft.findFirst({ where: { id: draftId, tenantId: ws.id }, include: { item: true } }) : null,
     db.product.findMany({ where: { active: true, store: { tenantId: ws.id } }, select: { id: true, name: true }, orderBy: { updatedAt: "desc" } }),
     listScheduled(),
+    // The draft's own rendered video (src/lib/news/video.ts), posted instead of its card.
+    draftId && videoId
+      ? db.newsVideo.findFirst({ where: { id: videoId, tenantId: ws.id, draftId, status: "RENDERED" }, select: { videoUrl: true, videoPath: true } })
+      : null,
   ]);
   const hasCard = !!(draft?.cardUrl && draft?.cardPath);
-  const initial = draft && hasCard
+  const hasVideo = !!(video?.videoUrl && video.videoPath);
+  const initial = draft && (hasCard || hasVideo)
     ? {
         newsDraftId: draft.id,
         caption: `${draft.headline.trim()}\n\n${draft.body.trim()}`,
-        media: { url: draft.cardUrl!, pathname: draft.cardPath!, type: "IMAGE" as const },
+        media: hasVideo
+          ? { url: video!.videoUrl!, pathname: video!.videoPath!, type: "VIDEO" as const }
+          : { url: draft.cardUrl!, pathname: draft.cardPath!, type: "IMAGE" as const },
       }
     : undefined;
   return (
     <>
-      {draft && !hasCard && (
+      {draft && !hasCard && !hasVideo && (
         <p className="gm-note warn" style={{ marginBottom: 12 }}>
           {t.publish.draftStale}{" "}
           <Link href={`${baseFor(ws.kind)}/news/${draft.itemId}`} className="gm-link">{t.common.open}</Link>

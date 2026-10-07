@@ -742,8 +742,10 @@ model NewsVideo {
   props     Json?
   videoPath String?
   videoUrl  String?
-  /// False for a test video: it is made but never posted.
+  /// False when a person made it (or a test): it is made but never posted by the autopilot.
   autoPost  Boolean   @default(true)
+  /// HIGHLIGHT: the desk's own footage (Blob URLs under merchant/<tenant>/), shown in turn.
+  clips     String[]  @default([])
   tries     Int       @default(0)
   error     String?
   claimedAt DateTime?

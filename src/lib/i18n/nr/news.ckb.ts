@@ -100,6 +100,19 @@ export const nrNewsCkb = {
 
   /** One story: the source, the draft and the card (/newsroom/news/[id]). */
   editor: {
+    /** The draft's video: a highlight from the team's own clips, or the brand template. */
+    videoSec: "ڤیدیۆی ئەم هەواڵە",
+    videoHint: "تا ٣ ڤیدیۆی خۆتان بار بکەن (ئەوەی ڕۆژنامەنووسەکانتان گرتوویانە). هەواڵنووس دەیکاتە هایلایتێکی ٩:١٦ بە دەنگ و ژێرنووس. ئەگەر ڤیدیۆتان نییە، ڤیدیۆی دیزاینی هەواڵنووس دروست دەکرێت. تەنها ڤیدیۆیەک بار بکەن کە مافی خۆتانە.",
+    videoPick: "ڤیدیۆ هەڵبژێرە",
+    videoUploading: (n: number, of: number) => `بارکردن… ${num(n)}/${num(of)}`,
+    videoClips: (n: number) => `${num(n)} ڤیدیۆ ئامادەیە`,
+    videoMakeHighlight: "دروستکردنی هایلایت",
+    videoMakeTemplate: "دروستکردنی ڤیدیۆی دیزاین",
+    videoWorking: "ڤیدیۆکە دروست دەکرێت… نزیکەی ٥ بۆ ١٠ خولەک. دەتوانیت ئەم پەڕەیە جێبهێڵیت.",
+    videoFailed: "ڤیدیۆکە دروست نەبوو. دووبارە هەوڵ بدەرەوە.",
+    videoReady: "ڤیدیۆکە ئامادەیە.",
+    videoPublish: "بڵاوکردنەوەی ڤیدیۆکە",
+    videoTooMany: "زۆرترین ٣ ڤیدیۆ.",
     sourceSec: "سەرچاوە",
     open: "کردنەوە",
     summarySec: "کورتەی کوردی",

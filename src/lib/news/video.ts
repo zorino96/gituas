@@ -244,6 +244,9 @@ export async function prepareVideo(jobId: string): Promise<boolean> {
     }
     const handle = ig?.providerAccountName ? (ig.providerAccountName.startsWith("@") ? ig.providerAccountName : `@${ig.providerAccountName}`) : "";
     const props = {
+      style: job.style,
+      // HIGHLIGHT: the desk's own footage, muted under our voice. No "sample" label: it is theirs.
+      clips: job.style === "HIGHLIGHT" ? job.clips : [],
       brand: { name: tenant.name, primary: kit?.primary ?? "#1f4fd6", accent: kit?.accent ?? "#e0262f", logoUrl: kit?.logoPath ? `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://gituas.com"}/m/${kit.logoPath}` : null },
       category: categoryLabel(item.category, item.subcategory) ?? "",
       place: script.place,
@@ -261,6 +264,26 @@ export async function prepareVideo(jobId: string): Promise<boolean> {
     console.error("[video] prepare failed:", error);
     return false;
   }
+}
+
+/** Footage a person may turn into a highlight: at most this many clips, each one of this desk's own files. */
+export const HIGHLIGHT_MAX_CLIPS = 3;
+
+export function ownClips(tenantId: string, clips: unknown): string[] | null {
+  if (!Array.isArray(clips) || clips.length > HIGHLIGHT_MAX_CLIPS) return null;
+  const out: string[] = [];
+  for (const c of clips) {
+    try {
+      const u = new URL(String(c));
+      if (u.protocol !== "https:" || !u.hostname.endsWith(".public.blob.vercel-storage.com")) return null;
+      if (!u.pathname.startsWith(`/merchant/${tenantId}/`) || u.pathname.includes("..")) return null;
+      if (!/\.(mp4|mov)$/i.test(u.pathname)) return null;
+      out.push(u.toString());
+    } catch {
+      return null;
+    }
+  }
+  return out;
 }
 
 /** Prepare this desk's queued videos while time allows. Never throws. */

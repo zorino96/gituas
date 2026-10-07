@@ -25,6 +25,9 @@ export interface ReelSegment {
 
 // A type, not an interface: Remotion needs props it can treat as a plain record.
 export type ReelProps = {
+  /** TEMPLATE (this file) or HIGHLIGHT (Highlight.tsx, the desk's own clips). */
+  style?: string;
+  clips?: string[];
   brand: { name: string; primary: string; accent: string; logoUrl: string | null };
   category: string;
   place: string;
@@ -92,7 +95,7 @@ const Background: React.FC<{ primary: string; accent: string }> = ({ primary, ac
   );
 };
 
-const Mark: React.FC<{ size: number; brand: ReelProps["brand"] }> = ({ size, brand }) =>
+export const Mark: React.FC<{ size: number; brand: ReelProps["brand"] }> = ({ size, brand }) =>
   brand.logoUrl ? (
     <Img src={brand.logoUrl} style={{ width: size, height: size, borderRadius: size * 0.29, objectFit: "cover", background: "#fff", boxShadow: "0 12px 40px rgba(0,0,0,0.3)" }} />
   ) : (

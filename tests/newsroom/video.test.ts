@@ -4,7 +4,7 @@ vi.mock("@/lib/db", () => ({ db: {} }));
 vi.mock("@/lib/ai/provider", () => ({ completeJson: vi.fn() }));
 vi.mock("@vercel/blob", () => ({ put: vi.fn() }));
 
-import { cleanDailyMax, isLate, parseReelScript, reelPrompt, soraniDate, wantsVideo, VIDEO_LATE_MS, type VideoSettings } from "@/lib/news/video";
+import { cleanDailyMax, isLate, ownClips, parseReelScript, reelPrompt, soraniDate, wantsVideo, VIDEO_LATE_MS, type VideoSettings } from "@/lib/news/video";
 
 const on: VideoSettings = {
   videoMode: "AUTO",
@@ -58,6 +58,21 @@ describe("parseReelScript", () => {
   });
   it("keeps the post as data between markers", () => {
     expect(reelPrompt({ headline: "H", body: "B" }).user).toBe("<<<POST\nH\n\nB\nPOST>>>");
+  });
+});
+
+describe("ownClips", () => {
+  const base = "https://abc.public.blob.vercel-storage.com/merchant/t1/footage";
+  it("takes up to three of the desk's own mp4/mov files", () => {
+    expect(ownClips("t1", [`${base}/a.mp4`, `${base}/b.MOV`])).toHaveLength(2);
+    expect(ownClips("t1", [])).toEqual([]);
+  });
+  it("refuses another desk's file, other hosts, other types and too many clips", () => {
+    expect(ownClips("t1", ["https://abc.public.blob.vercel-storage.com/merchant/t2/a.mp4"])).toBeNull();
+    expect(ownClips("t1", ["https://evil.example.com/merchant/t1/a.mp4"])).toBeNull();
+    expect(ownClips("t1", [`${base}/a.exe`])).toBeNull();
+    expect(ownClips("t1", [1, 2, 3, 4].map((i) => `${base}/${i}.mp4`))).toBeNull();
+    expect(ownClips("t1", "x")).toBeNull();
   });
 });
 

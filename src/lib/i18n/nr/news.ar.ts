@@ -99,6 +99,18 @@ export const nrNewsAr: typeof nrNewsCkb = {
   },
 
   editor: {
+    videoSec: "فيديو هذا الخبر",
+    videoHint: "ارفعوا حتى ٣ مقاطع من تصويركم (ما صوّره مراسلوكم). يحوّلها Hawalnoos إلى مقتطف ٩:١٦ بصوت وترجمة نصية. إن لم يكن لديكم فيديو، يُصنع فيديو بتصميم Hawalnoos. ارفعوا فقط فيديو تملكون حقوقه.",
+    videoPick: "اختر فيديو",
+    videoUploading: (n: number, of: number) => `جارٍ الرفع… ${num(n)}/${num(of)}`,
+    videoClips: (n: number) => `${num(n)} مقطع جاهز`,
+    videoMakeHighlight: "صنع المقتطف",
+    videoMakeTemplate: "صنع فيديو بالتصميم",
+    videoWorking: "يتم صنع الفيديو… نحو ٥ إلى ١٠ دقائق. يمكنك مغادرة هذه الصفحة.",
+    videoFailed: "تعذّر صنع الفيديو. حاول مرة أخرى.",
+    videoReady: "الفيديو جاهز.",
+    videoPublish: "نشر الفيديو",
+    videoTooMany: "٣ مقاطع كحد أقصى.",
     sourceSec: "المصدر",
     open: "فتح",
     summarySec: "الملخص الكردي",

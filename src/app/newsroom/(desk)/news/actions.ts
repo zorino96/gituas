@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { assertWithin, countUsage, LimitReached, limitMessage } from "@/lib/billing/limits";
 import { canAutoPublish, NEWS_LIMITS, promptFilterFor, videoQuotaFor } from "@/lib/billing/plans";
 import { put } from "@vercel/blob";
-import { cleanDailyMax, isVideoMode } from "@/lib/news/video";
+import { cleanDailyMax, isVideoMode, ownClips, prepareVideo } from "@/lib/news/video";
 import { cleanSpeed, isPawanVoice, speak } from "@/lib/voice/tts";
 import { AiUnavailable, type Strength } from "@/lib/ai/provider";
 import { autoTargetsFor, parseAutopilot } from "@/lib/news/autopilot-settings";
@@ -376,6 +376,67 @@ export async function saveVideoSettingsAction(input: {
   };
   await db.newsSettings.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, keywords: [], ...data }, update: data });
   return { ok: true };
+}
+
+export interface VideoView {
+  id: string;
+  status: string;
+  style: string;
+  videoUrl: string | null;
+}
+
+/**
+ * A person makes a video of one draft: a HIGHLIGHT from their own uploaded clips, or the brand
+ * TEMPLATE when there are none. It is rendered like the automatic ones but never posted by itself.
+ */
+export async function makeVideoAction(draftId: string, clips: string[]): Promise<Result<{ video: VideoView }>> {
+  const { ws, m, t } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "publish")) return { ok: false, error: m.notAllowed };
+  const [tenant, settings, draft] = await Promise.all([
+    db.tenant.findUnique({ where: { id: ws.id }, select: { plan: true } }),
+    db.newsSettings.findUnique({ where: { tenantId: ws.id }, select: { videoVoice: true, videoSpeed: true } }),
+    db.newsDraft.findFirst({ where: { id: draftId, tenantId: ws.id }, select: { id: true, itemId: true } }),
+  ]);
+  if (videoQuotaFor(tenant?.plan) < 1) return { ok: false, error: t.settings.news.videoPlanOnly };
+  if (!draft) return { ok: false, error: m.notFound };
+  const own = ownClips(ws.id, clips);
+  if (!own) return { ok: false, error: t.common.error };
+  try {
+    await assertWithin(ws.id, "video");
+  } catch (e) {
+    if (e instanceof LimitReached) return { ok: false, error: limitMessage(e, t.nr.news.actions) };
+    throw e;
+  }
+  const job = await db.newsVideo.create({
+    data: {
+      tenantId: ws.id,
+      itemId: draft.itemId,
+      draftId: draft.id,
+      style: own.length ? "HIGHLIGHT" : "TEMPLATE",
+      clips: own,
+      voice: isPawanVoice(settings?.videoVoice) ? settings!.videoVoice : "male",
+      speed: cleanSpeed(settings?.videoSpeed),
+      autoPost: false,
+    },
+    select: { id: true, status: true, style: true, videoUrl: true },
+  });
+  await countUsage(ws.id, "video");
+  // Script and voice right after the answer; the render worker picks it up within a few minutes.
+  after(() => prepareVideo(job.id).then(() => undefined));
+  return { ok: true, video: job };
+}
+
+/** The newest video of a draft, to follow its progress. */
+export async function videoStatusAction(draftId: string): Promise<Result<{ video: VideoView | null }>> {
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  const video = await db.newsVideo.findFirst({
+    where: { tenantId: ws.id, draftId },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, status: true, style: true, videoUrl: true },
+  });
+  return { ok: true, video };
 }
 
 /** A few seconds of one Pawan voice at a speed, so the desk can hear it before choosing. */

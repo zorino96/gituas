@@ -100,6 +100,18 @@ export const nrNewsEn: typeof nrNewsCkb = {
   },
 
   editor: {
+    videoSec: "Video for this story",
+    videoHint: "Upload up to 3 clips your team filmed. Hawalnoos turns them into a 9:16 highlight with voice and captions. No clips? A Hawalnoos-design video is made instead. Only upload video you own the rights to.",
+    videoPick: "Choose video",
+    videoUploading: (done: number, of: number) => `Uploading… ${n(done)}/${n(of)}`,
+    videoClips: (count: number) => `${n(count)} clip(s) ready`,
+    videoMakeHighlight: "Make highlight",
+    videoMakeTemplate: "Make design video",
+    videoWorking: "Making the video… about 5 to 10 minutes. You can leave this page.",
+    videoFailed: "The video could not be made. Try again.",
+    videoReady: "The video is ready.",
+    videoPublish: "Publish the video",
+    videoTooMany: "At most 3 clips.",
     sourceSec: "Source",
     open: "Open",
     summarySec: "Kurdish summary",

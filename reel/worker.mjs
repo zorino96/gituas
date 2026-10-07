@@ -39,7 +39,7 @@ for (const job of jobs) {
     fs.writeFileSync(propsFile, JSON.stringify(job.props));
     const r = spawnSync(
       "npx",
-      ["remotion", "render", "src/index.ts", "NewsReel", outFile, `--props=${propsFile}`, "--codec", "h264", "--crf", "22", "--log", "error"],
+      ["remotion", "render", "src/index.ts", job.props?.style === "HIGHLIGHT" ? "Highlight" : "NewsReel", outFile, `--props=${propsFile}`, "--codec", "h264", "--crf", "22", "--log", "error"],
       { stdio: "inherit" },
     );
     if (r.status !== 0) throw new Error(`render exited ${r.status}`);
