@@ -147,8 +147,28 @@ export default function PrivacyPage() {
         You can revoke Gituas&rsquo; access to your Google account at any time from{" "}
         <ExtLink href="https://myaccount.google.com/permissions">
           your Google account permissions page
-        </ExtLink>
-        , or by disconnecting YouTube from your Gituas dashboard, which deletes the stored tokens.
+        </ExtLink>{" "}
+        (also reachable through the{" "}
+        <ExtLink href="https://security.google.com/settings/security/permissions">Google security settings page</ExtLink>
+        ), or by disconnecting YouTube from your Gituas dashboard, which deletes the stored tokens.
+        Information obtained through YouTube API Services (your channel id and title, statistics of your
+        own videos, and the ids of videos Gituas uploaded for you) is kept only while the channel is
+        connected; it is deleted within 30 days after you disconnect or ask us to delete it at{" "}
+        <a href="/data-deletion" className="underline">gituas.com/data-deletion</a>.
+      </P>
+
+      <H2>4c. WhatsApp</H2>
+      <P>
+        When you connect a WhatsApp Business number, Gituas receives the messages people send to that
+        number, their WhatsApp phone number and profile name, and the delivery status of replies. We use
+        them <Strong>only</Strong> to show the conversation to you and to send the replies you or your
+        configured automations authorize, within WhatsApp&rsquo;s customer-service window. We never send
+        unsolicited or bulk messages, never sell or share message content, and never use it for
+        advertising or profiling. Messages are kept for as long as the number stays connected and are
+        deleted within 30 days after you disconnect it or ask us at{" "}
+        <a href="/data-deletion" className="underline">gituas.com/data-deletion</a>. Use of WhatsApp is also
+        subject to the{" "}
+        <ExtLink href="https://www.whatsapp.com/legal/business-terms">WhatsApp Business Terms of Service</ExtLink>.
       </P>
 
       <H2>5. How we share information</H2>

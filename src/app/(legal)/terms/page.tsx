@@ -43,6 +43,23 @@ export default function TermsPage() {
         {" "}— and you are responsible for ensuring your use of Gituas complies with them. You can
         revoke access at any time by disconnecting the platform in your dashboard.
       </P>
+      <P>
+        <strong>YouTube.</strong> Gituas uses YouTube API Services to publish videos to, and read
+        statistics of, a YouTube channel you connect. By using Gituas&rsquo; YouTube features you agree to
+        be bound by the{" "}
+        <ExtLink href="https://www.youtube.com/t/terms">YouTube Terms of Service</ExtLink>. How Gituas
+        handles information from YouTube is described in our{" "}
+        <a href="/privacy" className="underline">Privacy Policy</a>, and Google&rsquo;s handling in the{" "}
+        <ExtLink href="https://policies.google.com/privacy">Google Privacy Policy</ExtLink>.
+      </P>
+      <P>
+        <strong>WhatsApp.</strong> When you connect a WhatsApp Business number, you remain bound by the{" "}
+        <ExtLink href="https://www.whatsapp.com/legal/business-terms">WhatsApp Business Terms of Service</ExtLink>{" "}
+        and the{" "}
+        <ExtLink href="https://business.whatsapp.com/policy">WhatsApp Business Messaging Policy</ExtLink>. Gituas
+        only replies to people who message your business first, within WhatsApp&rsquo;s customer-service
+        window; you may not use Gituas to send unsolicited or bulk messages.
+      </P>
 
       <H2>4. Your content</H2>
       <P>
