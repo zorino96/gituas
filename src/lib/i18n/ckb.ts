@@ -243,7 +243,17 @@ export const ckb = {
     ytVideoOnly: "یوتیوب تەنها ڤیدیۆ وەردەگرێت.",
     addVideoFirst: "سەرەتا ڤیدیۆ زیاد بکە",
     addMediaFirst: "سەرەتا وێنە یان ڤیدیۆ زیاد بکە",
-    ytPrivate: "تا Google ئەپەکە پەسەند دەکات، ڤیدیۆکان وەک تایبەت (Private) بڵاو دەبنەوە.",
+    ytPrivate: "تا Google پێداچوونەوەی گیتواس تەواو دەکات، یوتیوب هەموو ڤیدیۆیەک وەک تایبەت (Private) دادەنێت، هەرچی لێرە هەڵبژێریت.",
+    ytSec: "یوتیوب",
+    ytTitle: "ناونیشان",
+    ytDescription: "وەسف",
+    ytPrivacy: "کێ دەتوانێت ببینێت",
+    ytPrivacyOptions: { public: "گشتی (Public)", unlisted: "تەنها بە لینک (Unlisted)", private: "تایبەت (Private)" },
+    ytFromCaption: "لە نووسینەکەتەوە پڕکراوەتەوە، بە دڵی خۆت بیگۆڕە.",
+    blockYtTitle: "ناونیشانێک بۆ یوتیوب بنووسە (زۆرترین ١٠٠ پیت).",
+    blockYtPrivacy: "هەڵبژێرە کێ دەتوانێت ڤیدیۆکە لە یوتیوب ببینێت.",
+    blockYtBrackets: "یوتیوب نیشانەکانی < و > لە ناونیشان و وەسفدا قبوڵ ناکات.",
+    blockYtOptions: "ناونیشان، وەسف و بینینی ڤیدیۆکە لە یوتیوب بپشکنە.",
 
     // tiktok (the audited elements)
     ttLoading: "زانیاری تیکتۆک دێت…",

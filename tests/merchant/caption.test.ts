@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { captionProblems, isJpegPath, isKnownTarget, isOwnBlobUrl, mergeHashtags, youtubeProblem, youtubeTitle, CAPTION_LIMITS, CITY_TAGS, YT_VIDEO_ONLY } from "@/lib/merchant/caption";
+import { captionProblems, isJpegPath, isKnownTarget, isOwnBlobUrl, mergeHashtags, youtubeProblem, youtubeTitle, CAPTION_LIMITS, CITY_TAGS, YT_VIDEO_ONLY, youtubeOptionProblems } from "@/lib/merchant/caption";
 
 describe("captionProblems", () => {
   it("passes a normal caption everywhere", () => {
@@ -100,5 +100,26 @@ describe("isOwnBlobUrl", () => {
     expect(isOwnBlobUrl("https://abc123.public.blob.vercel-storage.com/merchant/ws1/../ws2/a.mp4", "ws1")).toBe(false);
     expect(isOwnBlobUrl("not a url", "ws1")).toBe(false);
     expect(isOwnBlobUrl("", "ws1")).toBe(false);
+  });
+});
+
+describe("youtubeOptionProblems", () => {
+  const ok = { title: "Kirkuk news", description: "Today in Kirkuk", privacy: "unlisted" as const };
+
+  it("accepts a title, a description and a chosen privacy", () => {
+    expect(youtubeOptionProblems(ok)).toEqual([]);
+    expect(youtubeOptionProblems({ ...ok, description: "" })).toEqual([]);
+  });
+
+  it("needs a title of at most 100 characters and a privacy the person chose", () => {
+    expect(youtubeOptionProblems({ ...ok, title: "  " })).toEqual(["title"]);
+    expect(youtubeOptionProblems({ ...ok, title: "ک".repeat(101) })).toEqual(["title"]);
+    expect(youtubeOptionProblems({ ...ok, title: "ک".repeat(100) })).toEqual([]);
+    expect(youtubeOptionProblems({ ...ok, privacy: null })).toEqual(["privacy"]);
+  });
+
+  it("rejects what YouTube refuses: angle brackets and descriptions over 5000 characters", () => {
+    expect(youtubeOptionProblems({ ...ok, title: "a <b>" })).toEqual(["brackets"]);
+    expect(youtubeOptionProblems({ ...ok, description: "x".repeat(5001) })).toEqual(["description"]);
   });
 });

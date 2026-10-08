@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { assertWithin, LimitReached, limitMessage, newsroomFrozenError } from "@/lib/billing/limits";
-import { captionProblems, isJpegPath, isKnownTarget, isOwnBlobUrl, youtubeProblem, type Target } from "@/lib/merchant/caption";
+import { captionProblems, isJpegPath, isKnownTarget, isOwnBlobUrl, type Target, youtubeOptionProblems, youtubeProblem } from "@/lib/merchant/caption";
 import type { PublishInput } from "@/lib/merchant/publish-core";
 import { baghdadLocalToUtc, scheduleProblem } from "@/lib/merchant/schedule";
 import { dict, getLang } from "@/lib/i18n";
@@ -76,6 +76,7 @@ export async function schedulePublishAction(
     }
   }
   if (captionProblems(caption, targets).length) return { ok: false, error: t.publish.blockCaptionLong };
+  if (targets.includes("YT") && input.youtube && youtubeOptionProblems(input.youtube).length) return { ok: false, error: t.publish.blockYtOptions };
 
   // Store only what publishing reads; TikTok's options never belong to a scheduled post.
   const stored: PublishInput = {
@@ -84,6 +85,7 @@ export async function schedulePublishAction(
     ...(input.media ? { media: input.media } : {}),
     ...(input.newsDraftId ? { newsDraftId: input.newsDraftId } : {}),
     ...(input.productId ? { productId: input.productId } : {}),
+    ...(input.youtube && targets.includes("YT") ? { youtube: input.youtube } : {}),
   };
   const row = await db.scheduledPost.create({
     data: { tenantId: ws.id, createdById: userId, input: stored as unknown as Prisma.InputJsonValue, runAt },

@@ -235,7 +235,17 @@ export const en: Dict = {
     ytVideoOnly: "YouTube only accepts videos.",
     addVideoFirst: "Add a video first",
     addMediaFirst: "Add a photo or video first",
-    ytPrivate: "Until Google approves the app, videos are published as Private.",
+    ytPrivate: "Until Google finishes reviewing Gituas, YouTube keeps every upload Private, whatever you choose here.",
+    ytSec: "YouTube",
+    ytTitle: "Title",
+    ytDescription: "Description",
+    ytPrivacy: "Who can watch",
+    ytPrivacyOptions: { public: "Public", unlisted: "Unlisted", private: "Private" },
+    ytFromCaption: "Filled in from your caption; change it as you like.",
+    blockYtTitle: "Write a YouTube title (at most 100 characters).",
+    blockYtPrivacy: "Choose who can watch the video on YouTube.",
+    blockYtBrackets: "YouTube does not accept < or > in the title or description.",
+    blockYtOptions: "Check the YouTube title, description and privacy.",
 
     // tiktok (the audited elements)
     ttLoading: "Loading TikTok info…",

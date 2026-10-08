@@ -151,10 +151,13 @@ export default function PrivacyPage() {
         (also reachable through the{" "}
         <ExtLink href="https://security.google.com/settings/security/permissions">Google security settings page</ExtLink>
         ), or by disconnecting YouTube from your Gituas dashboard, which deletes the stored tokens.
-        Information obtained through YouTube API Services (your channel id and title, statistics of your
-        own videos, and the ids of videos Gituas uploaded for you) is kept only while the channel is
-        connected; it is deleted within 30 days after you disconnect or ask us to delete it at{" "}
-        <a href="/data-deletion" className="underline">gituas.com/data-deletion</a>.
+        Information obtained through YouTube API Services is handled as follows: statistics of your own
+        videos are read live and never stored; your channel id, title and picture are kept only while the
+        channel is connected, and are checked and refreshed with YouTube every day; links to videos
+        Gituas uploaded for you are kept for at most 30 days. Every day we also confirm that you still
+        authorize Gituas, and if you removed its access in your Google Account the connection and its
+        data are deleted. When you disconnect YouTube in Gituas or ask us to delete your data at{" "}
+        <a href="/data-deletion" className="underline">gituas.com/data-deletion</a>, it is deleted within 7 days.
       </P>
 
       <H2>4c. WhatsApp</H2>

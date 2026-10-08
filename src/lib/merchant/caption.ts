@@ -55,6 +55,31 @@ export function youtubeTitle(caption: string): string {
   return Array.from(firstLine).slice(0, 100).join("") || "ڤیدیۆ";
 }
 
+/** YouTube's privacy settings; the person picks one for every upload. */
+export const YT_PRIVACY = ["public", "unlisted", "private"] as const;
+export type YtPrivacy = (typeof YT_PRIVACY)[number];
+
+/** What the person sets for a YouTube upload (videos.insert snippet.title, snippet.description, status.privacyStatus). */
+export interface YouTubeOptions {
+  title: string;
+  description: string;
+  privacy: YtPrivacy | null;
+}
+
+export const YT_TITLE_MAX = 100;
+export const YT_DESCRIPTION_MAX = 5000;
+
+/** Why YouTube would refuse these options: no title, too long, angle brackets (YouTube rejects them), or no privacy chosen. */
+export function youtubeOptionProblems(o: YouTubeOptions): ("title" | "description" | "brackets" | "privacy")[] {
+  const out: ("title" | "description" | "brackets" | "privacy")[] = [];
+  const title = o.title.trim();
+  if (!title || Array.from(title).length > YT_TITLE_MAX) out.push("title");
+  if (Array.from(o.description).length > YT_DESCRIPTION_MAX) out.push("description");
+  if (/[<>]/.test(title + o.description)) out.push("brackets");
+  if (!o.privacy || !(YT_PRIVACY as readonly string[]).includes(o.privacy)) out.push("privacy");
+  return out;
+}
+
 /** TikTok and Instagram photo posts accept only JPEG (WebP works for TikTok, but not Instagram). */
 export function isJpegPath(pathname: string): boolean {
   return /\.jpe?g$/i.test(pathname);

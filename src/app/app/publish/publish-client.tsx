@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import { ImagePlus, Sparkles, X } from "lucide-react";
 
-import { CAPTION_LIMITS, CITY_TAGS, captionProblems, mergeHashtags, type Target } from "@/lib/merchant/caption";
+import { CAPTION_LIMITS, CITY_TAGS, captionProblems, mergeHashtags, YT_DESCRIPTION_MAX, YT_PRIVACY, YT_TITLE_MAX, youtubeOptionProblems, youtubeTitle, type Target, type YtPrivacy } from "@/lib/merchant/caption";
 import type { PublishOutcome } from "@/lib/merchant/publish-core";
 import { tiktokProblems } from "@/lib/merchant/tiktok-rules";
 import { useT } from "@/lib/i18n/client";
@@ -97,6 +97,10 @@ export function PublishClient({
   const [commercial, setCommercial] = useState(false);
   const [yourBrand, setYourBrand] = useState(false);
   const [branded, setBranded] = useState(false);
+  // youtube — title and description follow the caption until the person edits them; privacy has no default
+  const [ytTitle, setYtTitle] = useState<string | null>(null);
+  const [ytDescription, setYtDescription] = useState<string | null>(null);
+  const [ytPrivacy, setYtPrivacy] = useState<YtPrivacy | null>(null);
 
   // publish
   const [publishing, startPublish] = useTransition();
@@ -264,12 +268,17 @@ export function PublishClient({
     [on.TT, tt, privacy, commercial, yourBrand, branded, media?.durationSec],
   );
 
+  const youtube = { title: ytTitle ?? youtubeTitle(caption), description: ytDescription ?? caption, privacy: ytPrivacy };
+  const ytIssues = on.YT ? youtubeOptionProblems(youtube) : [];
   const blockers: string[] = [];
   if (!targets.length) blockers.push(t.publish.blockPickTarget);
   if (!caption.trim() && !media) blockers.push(t.publish.blockNeedContent);
   if (uploading) blockers.push(t.publish.blockUploading);
   if (captionIssues.length) blockers.push(t.publish.blockCaptionLong);
   if (on.YT && !isVideo) blockers.push(t.publish.ytVideoOnly);
+  if (ytIssues.includes("title") || ytIssues.includes("description")) blockers.push(t.publish.blockYtTitle);
+  if (ytIssues.includes("brackets")) blockers.push(t.publish.blockYtBrackets);
+  if (ytIssues.includes("privacy")) blockers.push(t.publish.blockYtPrivacy);
   if (on.TT && !tt) blockers.push(t.publish.blockTtInfo);
   if (on.TT && ttIssues.includes("privacy"))
     blockers.push(isVideo ? t.publish.blockTtPrivacyVideo : t.publish.blockTtPrivacyPost);
@@ -288,6 +297,7 @@ export function PublishClient({
         targets,
         media: media ?? undefined,
         tiktok: on.TT ? { privacy, allowComment, allowDuet, allowStitch, commercial, yourBrand, branded } : undefined,
+        youtube: on.YT ? youtube : undefined,
         newsDraftId: newsDraftId ?? undefined,
         productId: productId || undefined,
       });
@@ -308,7 +318,7 @@ export function PublishClient({
     setScheduledMsg(null);
     startPublish(async () => {
       const r = await schedulePublishAction(
-        { caption, targets, media: media ?? undefined, newsDraftId: newsDraftId ?? undefined, productId: productId || undefined },
+        { caption, targets, media: media ?? undefined, newsDraftId: newsDraftId ?? undefined, productId: productId || undefined, youtube: on.YT ? youtube : undefined },
         runAtLocal,
       );
       if (!r.ok) {
@@ -362,6 +372,9 @@ export function PublishClient({
     setYourBrand(false);
     setBranded(false);
     setProductId("");
+    setYtTitle(null);
+    setYtDescription(null);
+    setYtPrivacy(null);
   }
 
   function discardDraft() {
@@ -534,7 +547,7 @@ export function PublishClient({
       {/* targets */}
       <p className="gm-sec">{t.publish.whereSec}</p>
       <div className="gm-card">
-        {(["FB", "IG", "TT", "YT"] as Target[]).filter((tg) => tg !== "YT" || accounts.YT).map((tg) => {
+        {(["FB", "IG", "TT", "YT"] as Target[]).map((tg) => {
           const account = accounts[tg];
           const needsMedia = tg === "YT" ? !isVideo : (tg === "IG" || tg === "TT") && !media;
           const disabled = !account || needsMedia || (later && tg === "TT");
@@ -582,6 +595,49 @@ export function PublishClient({
           );
         })}
       </div>
+
+      {/* youtube — the person sets title, description and privacy for every upload */}
+      {on.YT && (
+        <div className="gm-tt">
+          <p className="gm-sec" style={{ marginTop: 0 }}>{t.publish.ytSec}</p>
+          <div className="gm-field">
+            <label htmlFor="yt-title">{t.publish.ytTitle}</label>
+            <input
+              id="yt-title"
+              className="gm-input"
+              dir="auto"
+              maxLength={YT_TITLE_MAX}
+              value={youtube.title}
+              onChange={(e) => setYtTitle(e.target.value)}
+            />
+            <small className="gm-hint">
+              {Array.from(youtube.title).length} / {YT_TITLE_MAX}
+            </small>
+          </div>
+          <div className="gm-field">
+            <label htmlFor="yt-description">{t.publish.ytDescription}</label>
+            <textarea
+              id="yt-description"
+              className="gm-textarea"
+              dir="auto"
+              rows={4}
+              maxLength={YT_DESCRIPTION_MAX}
+              value={youtube.description}
+              onChange={(e) => setYtDescription(e.target.value)}
+            />
+            {ytTitle === null && ytDescription === null && <small className="gm-hint">{t.publish.ytFromCaption}</small>}
+          </div>
+          <div className="gm-field" role="radiogroup" aria-label={t.publish.ytPrivacy}>
+            <label>{t.publish.ytPrivacy}</label>
+            {YT_PRIVACY.map((p) => (
+              <label key={p} className="gm-radio">
+                <input type="radio" name="yt-privacy" value={p} checked={ytPrivacy === p} onChange={() => setYtPrivacy(p)} />
+                <span>{t.publish.ytPrivacyOptions[p]}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* tiktok — the audited elements, all of them */}
       {on.TT && (
