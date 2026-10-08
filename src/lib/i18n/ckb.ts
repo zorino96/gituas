@@ -378,6 +378,8 @@ export const ckb = {
     connectedBadge: "پەیوەستە",
     notConnectedBadge: "پەیوەست نییە",
     reconnect: "دووبارە پەیوەست بکەوە",
+    disconnect: "پچڕاندن",
+    disconnectYtConfirm: "یوتیوب لە گیتواس بپچڕێنرێت؟ تۆکنەکە یەکسەر دەسڕێتەوە و ئیتر ناتوانیت لێرەوە ڤیدیۆ بنێریت.",
     connect: "پەیوەست بکە",
     igHint:
       "بۆ ئینستاگرام، لە ئەپی ئینستاگرام «Allow access to messages» هەڵبکە (Settings ← Messages and story replies ← Message controls ← Connected tools)، ئەگەرنا نامەکان نایەن.",

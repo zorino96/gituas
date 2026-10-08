@@ -6,7 +6,7 @@ import { signOut } from "next-auth/react";
 
 import { normalizePhone } from "@/lib/merchant/phone";
 import { useBase } from "../use-base";
-import { saveWhatsAppAction } from "../actions";
+import { disconnectYouTubeAction, saveWhatsAppAction } from "../actions";
 import { useT } from "@/lib/i18n/client";
 import { LanguageCard } from "./language-card";
 import { PasswordCard } from "./password-card";
@@ -103,9 +103,23 @@ export function SettingsClient({
               </p>
               <small>{c.connected && c.name ? c.name : c.note}</small>
             </div>
-            <a href={`/api/oauth/${c.provider.toLowerCase()}/start?next=${base}/settings`} className={`gm-btn small ${c.connected ? "quiet" : ""}`}>
-              {c.connected ? s.reconnect : s.connect}
-            </a>
+            <div className="gm-row" style={{ gap: 6 }}>
+              <a href={`/api/oauth/${c.provider.toLowerCase()}/start?next=${base}/settings`} className={`gm-btn small ${c.connected ? "quiet" : ""}`}>
+                {c.connected ? s.reconnect : s.connect}
+              </a>
+              {c.connected && c.provider === "YOUTUBE" && (
+                <button
+                  type="button"
+                  className="gm-btn small quiet"
+                  disabled={pending}
+                  onClick={() => {
+                    if (window.confirm(s.disconnectYtConfirm)) start(async () => void (await disconnectYouTubeAction()));
+                  }}
+                >
+                  {s.disconnect}
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>

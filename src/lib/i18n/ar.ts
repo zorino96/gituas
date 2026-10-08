@@ -362,6 +362,8 @@ export const ar: Dict = {
     connectedBadge: "مرتبط",
     notConnectedBadge: "غير مرتبط",
     reconnect: "أعد الربط",
+    disconnect: "فصل",
+    disconnectYtConfirm: "فصل يوتيوب عن Gituas؟ يُحذف الرمز فورًا ولن تتمكن من الرفع من هنا بعد ذلك.",
     connect: "اربط",
     igHint:
       "لإنستغرام، فعّل خيار «Allow access to messages» من تطبيق إنستغرام (Settings ← Messages and story replies ← Message controls ← Connected tools)، وإلا فلن تصل الرسائل.",

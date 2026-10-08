@@ -366,6 +366,8 @@ export const en: Dict = {
     connectedBadge: "Connected",
     notConnectedBadge: "Not connected",
     reconnect: "Reconnect",
+    disconnect: "Disconnect",
+    disconnectYtConfirm: "Disconnect YouTube from Gituas? Its token is deleted at once and you can no longer upload from here.",
     connect: "Connect",
     igHint:
       "For Instagram, turn on “Allow access to messages” in the Instagram app (Settings → Messages and story replies → Message controls → Connected tools), otherwise messages won't arrive.",

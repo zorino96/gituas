@@ -28,6 +28,7 @@ import { normalizePhone } from "@/lib/merchant/phone";
 import { publishForWorkspace, type PublishInput, type PublishOutcome } from "@/lib/merchant/publish-core";
 import type { Platform } from "@/lib/merchant/types";
 import { pauseThread } from "@/lib/shop/pause";
+import { scrubYouTubeLinks } from "@/lib/publishers/youtube-upkeep";
 
 export type Result = { ok: true } | { ok: false; error: string };
 
@@ -234,6 +235,23 @@ export async function saveWhatsAppAction(raw: string): Promise<{ ok: true; digit
   await audit(ws.id, "app.whatsapp_set", "Set the WhatsApp number.", {});
   revalidatePath(baseFor(ws.kind), "layout");
   return { ok: true, digits: n.digits };
+}
+
+/**
+ * Disconnect YouTube: the tokens go at once, and the links to videos uploaded through Gituas
+ * go with them (YouTube API Services Developer Policies III.D.2, III.E.4).
+ */
+export async function disconnectYouTubeAction(): Promise<Result> {
+  const { ws, t } = await session();
+  if (!ws) return { ok: false, error: t.actions.common.signIn };
+  if (!can(ws.role, "configure")) return { ok: false, error: t.nr.team.roles.notAllowed };
+  const gone = await db.oAuthCredential.deleteMany({ where: { tenantId: ws.id, provider: "YOUTUBE" } });
+  if (gone.count) {
+    await scrubYouTubeLinks();
+    await audit(ws.id, "integrations.disconnected", "Disconnected YouTube.", { provider: "YOUTUBE" });
+  }
+  revalidatePath(baseFor(ws.kind), "layout");
+  return { ok: true };
 }
 
 // ---------- publishing -----------------------------------------------------
