@@ -34,6 +34,20 @@ export interface AutopilotChoice {
   targets: AutoTarget[];
   dailyMax: number;
   minGapMin: number;
+  /** Quiet hours in Baghdad time (whole hours 0–23), or null for none. */
+  quiet: { from: number; to: number } | null;
+}
+
+/** Baghdad is UTC+3 all year. */
+export function baghdadHour(now: number): number {
+  return (new Date(now).getUTCHours() + 3) % 24;
+}
+
+/** Whether `now` falls in the quiet hours [from, to), which may wrap past midnight (e.g. 1 → 8, or 23 → 7). */
+export function inQuietHours(quiet: { from: number | null; to: number | null } | null | undefined, now: number): boolean {
+  if (!quiet || quiet.from === null || quiet.to === null || quiet.from === quiet.to) return false;
+  const h = baghdadHour(now);
+  return quiet.from < quiet.to ? h >= quiet.from && h < quiet.to : h >= quiet.from || h < quiet.to;
 }
 
 function wholeWithin(v: unknown, range: { min: number; max: number }): number | null {
@@ -43,7 +57,7 @@ function wholeWithin(v: unknown, range: { min: number; max: number }): number | 
 /** The settings form as a clean choice, or null when any part of it is not allowed. Nothing is repaired silently. */
 export function parseAutopilot(input: unknown): AutopilotChoice | null {
   if (!input || typeof input !== "object") return null;
-  const r = input as { mode?: unknown; targets?: unknown; dailyMax?: unknown; minGapMin?: unknown };
+  const r = input as { mode?: unknown; targets?: unknown; dailyMax?: unknown; minGapMin?: unknown; quietFrom?: unknown; quietTo?: unknown };
   if (!isAutoMode(r.mode)) return null;
   if (!Array.isArray(r.targets) || r.targets.length > AUTO_TARGETS.length) return null;
   const asked = r.targets;
@@ -51,5 +65,14 @@ export function parseAutopilot(input: unknown): AutopilotChoice | null {
   const dailyMax = wholeWithin(r.dailyMax, AUTO_DAILY_MAX);
   const minGapMin = wholeWithin(r.minGapMin, AUTO_MIN_GAP);
   if (dailyMax === null || minGapMin === null) return null;
-  return { mode: r.mode, targets: AUTO_TARGETS.filter((t) => asked.includes(t)), dailyMax, minGapMin };
+  // Quiet hours: both empty (none), or two whole hours 0–23 that differ.
+  let quiet: AutopilotChoice["quiet"] = null;
+  const unset = (v: unknown) => v === null || v === undefined || v === "";
+  if (!unset(r.quietFrom) || !unset(r.quietTo)) {
+    const from = wholeWithin(r.quietFrom, { min: 0, max: 23 });
+    const to = wholeWithin(r.quietTo, { min: 0, max: 23 });
+    if (from === null || to === null || from === to) return null;
+    quiet = { from, to };
+  }
+  return { mode: r.mode, targets: AUTO_TARGETS.filter((t) => asked.includes(t)), dailyMax, minGapMin, quiet };
 }

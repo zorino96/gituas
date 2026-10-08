@@ -76,6 +76,8 @@ export default async function SettingsPage({
         targets: autoTargetsFor(settings?.autoTargets, { FB: true, IG: true }),
         dailyMax: settings?.autoDailyMax ?? AUTO_DAILY_MAX.fallback,
         minGapMin: settings?.autoMinGapMin ?? AUTO_MIN_GAP.fallback,
+        quietFrom: settings?.autoQuietFrom ?? null,
+        quietTo: settings?.autoQuietTo ?? null,
         canPublish,
         refreshSec: refreshSecFor(tenant?.plan),
         connected: { FB: conns.META_FACEBOOK.connected, IG: conns.META_INSTAGRAM.connected },

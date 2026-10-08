@@ -47,7 +47,7 @@ import {
   type BudgetInput,
   type CandidateItem,
 } from "@/lib/news/autopilot";
-import { autoTargetsFor, parseAutopilot } from "@/lib/news/autopilot-settings";
+import { autoTargetsFor, inQuietHours, parseAutopilot } from "@/lib/news/autopilot-settings";
 import { writeDraft } from "@/lib/news/write";
 
 const NOW = Date.UTC(2026, 9, 2, 12, 0, 0);
@@ -259,7 +259,27 @@ describe("parseAutopilot", () => {
   const good = { mode: "PUBLISH", targets: ["IG", "FB"], dailyMax: 20, minGapMin: 3 };
 
   it("accepts a clean choice", () => {
-    expect(parseAutopilot(good)).toEqual({ mode: "PUBLISH", targets: ["FB", "IG"], dailyMax: 20, minGapMin: 3 });
+    expect(parseAutopilot(good)).toEqual({ mode: "PUBLISH", targets: ["FB", "IG"], dailyMax: 20, minGapMin: 3, quiet: null });
+  });
+
+  it("takes quiet hours as two different whole hours 0–23, or none", () => {
+    expect(parseAutopilot({ ...good, quietFrom: 1, quietTo: 8 })?.quiet).toEqual({ from: 1, to: 8 });
+    expect(parseAutopilot({ ...good, quietFrom: 23, quietTo: 7 })?.quiet).toEqual({ from: 23, to: 7 });
+    expect(parseAutopilot({ ...good, quietFrom: null, quietTo: null })?.quiet).toBeNull();
+    expect(parseAutopilot({ ...good, quietFrom: 1 })).toBeNull();
+    expect(parseAutopilot({ ...good, quietFrom: 5, quietTo: 5 })).toBeNull();
+    expect(parseAutopilot({ ...good, quietFrom: 1, quietTo: 24 })).toBeNull();
+  });
+
+  it("knows quiet hours in Baghdad time, across midnight too", () => {
+    const at = (utcHour: number) => Date.UTC(2026, 9, 8, utcHour, 30);
+    // 1 → 8 Baghdad = 22:00 → 05:00 UTC.
+    expect(inQuietHours({ from: 1, to: 8 }, at(22))).toBe(true);
+    expect(inQuietHours({ from: 1, to: 8 }, at(4))).toBe(true);
+    expect(inQuietHours({ from: 1, to: 8 }, at(5))).toBe(false);
+    expect(inQuietHours({ from: 23, to: 7 }, at(21))).toBe(true);
+    expect(inQuietHours({ from: 23, to: 7 }, at(12))).toBe(false);
+    expect(inQuietHours({ from: null, to: null }, at(22))).toBe(false);
   });
 
   it("refuses an unknown mode, a platform that is not allowed, and numbers out of range", () => {

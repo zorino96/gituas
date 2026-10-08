@@ -50,6 +50,9 @@ export interface NewsSettingsProps {
     targets: AutoTarget[];
     dailyMax: number;
     minGapMin: number;
+    /** Quiet hours in Baghdad time, or null. */
+    quietFrom: number | null;
+    quietTo: number | null;
     /** Whether the plan lets the autopilot post by itself. */
     canPublish: boolean;
     refreshSec: number;
@@ -95,7 +98,14 @@ export function NewsSettings(p: NewsSettingsProps) {
   }
   const promptOn = filter.level !== "none" && filter.mode === "PROMPT";
   const ap = p.autopilot;
-  const [auto, setAuto] = useState({ mode: ap.mode, targets: ap.targets, dailyMax: String(ap.dailyMax), minGapMin: String(ap.minGapMin) });
+  const [auto, setAuto] = useState({
+    mode: ap.mode,
+    targets: ap.targets,
+    dailyMax: String(ap.dailyMax),
+    minGapMin: String(ap.minGapMin),
+    quietFrom: ap.quietFrom === null ? "" : String(ap.quietFrom),
+    quietTo: ap.quietTo === null ? "" : String(ap.quietTo),
+  });
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, okText: string) =>
     start(async () => {
@@ -108,7 +118,19 @@ export function NewsSettings(p: NewsSettingsProps) {
     if (auto.mode === "PUBLISH" && !window.confirm(tn.autoConfirm)) return;
     // Only connected pages are sent; the server checks all of it again.
     const targets = auto.targets.filter((k) => ap.connected[k]);
-    run(() => saveAutopilotAction({ mode: auto.mode, targets, dailyMax: Number(auto.dailyMax), minGapMin: Number(auto.minGapMin) }), tn.saved);
+    const hour = (v: string) => (v.trim() === "" ? null : Number(v));
+    run(
+      () =>
+        saveAutopilotAction({
+          mode: auto.mode,
+          targets,
+          dailyMax: Number(auto.dailyMax),
+          minGapMin: Number(auto.minGapMin),
+          quietFrom: hour(auto.quietFrom),
+          quietTo: hour(auto.quietTo),
+        }),
+      tn.saved,
+    );
   }
 
   async function pickLogo(file: File) {
@@ -429,6 +451,39 @@ export function NewsSettings(p: NewsSettingsProps) {
             value={auto.minGapMin}
             onChange={(e) => setAuto((a) => ({ ...a, minGapMin: e.target.value }))}
           />
+        </div>
+        <div className="gm-field">
+          <label>{tn.autoQuiet}</label>
+          <div className="gm-row" style={{ gap: 8, alignItems: "center" }}>
+            <input
+              className="gm-input gm-ltr"
+              dir="ltr"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={23}
+              placeholder="1"
+              aria-label={tn.autoQuietFrom}
+              value={auto.quietFrom}
+              onChange={(e) => setAuto((a) => ({ ...a, quietFrom: e.target.value }))}
+              style={{ width: 90 }}
+            />
+            <span>{tn.autoQuietTo}</span>
+            <input
+              className="gm-input gm-ltr"
+              dir="ltr"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={23}
+              placeholder="8"
+              aria-label={tn.autoQuietTo}
+              value={auto.quietTo}
+              onChange={(e) => setAuto((a) => ({ ...a, quietTo: e.target.value }))}
+              style={{ width: 90 }}
+            />
+          </div>
+          <p className="gm-hint" style={{ marginBottom: 0 }}>{tn.autoQuietHint}</p>
         </div>
         <p className="gm-note warn" style={{ margin: 0 }}>{tn.autoWarn}</p>
         <button type="button" className="gm-btn" disabled={pending} onClick={saveAutopilot}>

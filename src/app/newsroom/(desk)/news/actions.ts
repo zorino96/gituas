@@ -304,7 +304,14 @@ export async function saveVoiceNoteAction(raw: string): Promise<Result<{ voiceNo
  * numbers are checked again here. Posting by itself is refused on a plan that does not include
  * it, and only connected Facebook and Instagram pages are ever saved as its targets.
  */
-export async function saveAutopilotAction(input: { mode: string; targets: string[]; dailyMax: number; minGapMin: number }): Promise<Result> {
+export async function saveAutopilotAction(input: {
+  mode: string;
+  targets: string[];
+  dailyMax: number;
+  minGapMin: number;
+  quietFrom?: number | null;
+  quietTo?: number | null;
+}): Promise<Result> {
   const { ws, m } = await desk();
   if (!ws) return { ok: false, error: m.notNews };
   if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
@@ -317,7 +324,14 @@ export async function saveAutopilotAction(input: { mode: string; targets: string
     if (!canAutoPublish(tenant?.plan)) return { ok: false, error: m.autoPlan };
     if (!targets.length) return { ok: false, error: m.autoTargets };
   }
-  const data = { autoMode: choice.mode, autoTargets: targets, autoDailyMax: choice.dailyMax, autoMinGapMin: choice.minGapMin };
+  const data = {
+    autoMode: choice.mode,
+    autoTargets: targets,
+    autoDailyMax: choice.dailyMax,
+    autoMinGapMin: choice.minGapMin,
+    autoQuietFrom: choice.quiet?.from ?? null,
+    autoQuietTo: choice.quiet?.to ?? null,
+  };
   await db.newsSettings.upsert({
     where: { tenantId: ws.id },
     create: { tenantId: ws.id, keywords: [], ...data },

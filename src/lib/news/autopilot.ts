@@ -22,7 +22,7 @@ import { renderAndStoreCard } from "@/lib/cards/server-render";
 import { db } from "@/lib/db";
 import { NEWSROOM_ORIGIN } from "@/lib/hosts";
 import { publishForWorkspace } from "@/lib/merchant/publish-core";
-import { AUTO_TARGETS, autoTargetsFor, type AutoMode, type AutoTarget } from "./autopilot-settings";
+import { AUTO_TARGETS, autoTargetsFor, inQuietHours, type AutoMode, type AutoTarget } from "./autopilot-settings";
 import { RETRY_DEADLINE_MS } from "./draft";
 import { loadActiveFocus } from "./focus";
 import { isLate, prepareQueuedVideos, prepareVideo, queueVideoIfWanted } from "./video";
@@ -130,9 +130,11 @@ export interface BudgetInput {
   lastAutoAt: Date | null;
   autoMinGapMin: number;
   now: number;
+  /** Quiet hours in Baghdad time: nothing is posted (or drafted to post) inside them. */
+  quiet?: { from: number | null; to: number | null } | null;
 }
 
-export type BudgetStop = "off" | "draft-quota" | "publish-quota" | "daily-max" | "min-gap";
+export type BudgetStop = "off" | "draft-quota" | "publish-quota" | "daily-max" | "min-gap" | "quiet";
 
 export interface Budget {
   /** The mode that applies: PUBLISH becomes DRAFT on a plan that may not post by itself. */
@@ -171,6 +173,8 @@ export function autoBudget(b: BudgetInput): Budget {
 
   const publishesLeft = left(b.publishLimit, b.publishesUsed);
   if (publishesLeft === 0) return none("publish-quota");
+  // In quiet hours a desk that posts by itself waits: nothing is drafted that could not go out.
+  if (inQuietHours(b.quiet, b.now)) return none("quiet");
   const postsToday = left(b.autoDailyMax, b.autoPostsToday);
   if (postsToday === 0) return none("daily-max");
   const gapMs = gapMsOf(b.autoMinGapMin);
@@ -187,6 +191,7 @@ export function autoBudget(b: BudgetInput): Budget {
  */
 export function autoPostBudget(b: BudgetInput): boolean {
   if (b.mode !== "PUBLISH" || !canAutoPublish(b.plan)) return false;
+  if (inQuietHours(b.quiet, b.now)) return false;
   if (left(b.publishLimit, b.publishesUsed) === 0 || left(b.autoDailyMax, b.autoPostsToday) === 0) return false;
   const gapMs = gapMsOf(b.autoMinGapMin);
   return !(gapMs > 0 && b.lastAutoAt && b.now - b.lastAutoAt.getTime() < gapMs);
@@ -312,7 +317,16 @@ async function budgetNow(run: Run): Promise<{ budget: Budget; canPostDrafted: bo
   const [settings, draftsUsed, publishesUsed, autoDraftsToday, autoPostsToday] = await Promise.all([
     db.newsSettings.findUnique({
       where: { tenantId },
-      select: { autoMode: true, autoTargets: true, autoDailyMax: true, autoMinGapMin: true, lastAutoAt: true, voiceNote: true },
+      select: {
+        autoMode: true,
+        autoTargets: true,
+        autoDailyMax: true,
+        autoMinGapMin: true,
+        lastAutoAt: true,
+        voiceNote: true,
+        autoQuietFrom: true,
+        autoQuietTo: true,
+      },
     }),
     usageOf(tenantId, "draft"),
     usageOf(tenantId, "publish"),
@@ -346,6 +360,7 @@ async function budgetNow(run: Run): Promise<{ budget: Budget; canPostDrafted: bo
     lastAutoAt: settings.lastAutoAt,
     autoMinGapMin: settings.autoMinGapMin,
     now,
+    quiet: { from: settings.autoQuietFrom, to: settings.autoQuietTo },
   };
   return {
     budget: autoBudget(input),

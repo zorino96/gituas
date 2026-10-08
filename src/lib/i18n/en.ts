@@ -461,6 +461,10 @@ export const en: Dict = {
       autoYouTube: "YouTube — only accepts videos",
       autoDailyMax: "Most auto posts per day",
       autoMinGap: "Shortest gap between two posts (minutes)",
+      autoQuiet: "Quiet hours (no automatic posts)",
+      autoQuietFrom: "from",
+      autoQuietTo: "to",
+      autoQuietHint: "Iraq time, 0 to 23. For example 1 to 8: nothing is posted from 1 am to 8 am. Leave both empty for no quiet hours.",
       autoWarn:
         "Autopilot publishes without human review. The AI only rewrites the facts from the source, but you are responsible for the content on your channel. Try “Auto drafts” first.",
       autoConfirm: "Turn on auto publish?",

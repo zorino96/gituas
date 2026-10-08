@@ -700,6 +700,9 @@ model NewsSettings {
   autoDailyMax  Int       @default(20)
   /// Minutes between two automatic posts.
   autoMinGapMin Int       @default(3)
+  /// Quiet hours (Baghdad time, 0–23): no automatic posts from autoQuietFrom until autoQuietTo. Null = none.
+  autoQuietFrom Int?
+  autoQuietTo   Int?
   /// The outlet's own style preference, appended to the house style (never overrides the facts-only rules).
   voiceNote     String?
   lastAutoAt    DateTime?
