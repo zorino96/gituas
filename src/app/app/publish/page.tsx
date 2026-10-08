@@ -30,7 +30,7 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
     listScheduled(),
     // The draft's own rendered video (src/lib/news/video.ts), posted instead of its card.
     draftId && videoId
-      ? db.newsVideo.findFirst({ where: { id: videoId, tenantId: ws.id, draftId, status: "RENDERED" }, select: { videoUrl: true, videoPath: true } })
+      ? db.newsVideo.findFirst({ where: { id: videoId, tenantId: ws.id, draftId, status: { in: ["RENDERED", "POSTING", "POSTED"] } }, select: { videoUrl: true, videoPath: true } })
       : null,
   ]);
   const hasCard = !!(draft?.cardUrl && draft?.cardPath);
