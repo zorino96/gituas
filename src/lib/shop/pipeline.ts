@@ -6,7 +6,8 @@ import { classifyText } from "./classify";
 import { answerText, COPY, DEFAULT_SAMPLES, dmText, fbCardElements, waText, type CardProduct } from "./compose";
 import { gate, gateDm } from "./gate";
 import { buildCommentJobs, buildDmJobs, type JobSpec } from "./jobs";
-import { accountFor, fetchPostCreatedAt, type MetaPlatform } from "./meta-client";
+import { productNamedIn, typedText } from "@/lib/whatsapp/webhook";
+import { accountFor, fetchPostCreatedAt, type MetaPlatform, type ShopPlatform } from "./meta-client";
 import type { Lang } from "./money";
 import { dailyCap, SHOP_LIMITS, type StorePlan } from "./plans";
 import { decideComment, decideDm, limitDecision, MIN_CONFIDENCE } from "./policy";
@@ -212,10 +213,37 @@ async function planComment(msg: Msg): Promise<string[]> {
   return ids;
 }
 
+/** Messenger/Instagram: the product whose card we sent this buyer in the last 7 days. */
+async function boundProduct(storeId: string, senderId: string, now: Date) {
+  const bound = await db.outboxJob.findFirst({
+    where: { storeId, kind: "PRIVATE_REPLY", status: "SENT", recipientId: senderId, updatedAt: { gt: new Date(now.getTime() - PRIVATE_REPLY_WINDOW) } },
+    orderBy: { updatedAt: "desc" },
+    select: { message: { select: { boundProductId: true } } },
+  });
+  return loadProduct(bound?.message.boundProductId ?? null);
+}
+
+/**
+ * WhatsApp has no comment card to bind the thread: the product the message names
+ * (the shop's wa.me link pre-fills "<product> — <price>"), else the one this buyer
+ * asked about in the last 7 days.
+ */
+async function whatsappProduct(storeId: string, senderId: string, text: string, now: Date) {
+  const products = await db.product.findMany({ where: { storeId, active: true }, select: { id: true, name: true } });
+  const named = productNamedIn(text, products);
+  if (named) return loadProduct(named);
+  const last = await db.conversationMessage.findFirst({
+    where: { storeId, platform: "WHATSAPP", authorId: senderId, boundProductId: { not: null }, createdAt: { gt: new Date(now.getTime() - PRIVATE_REPLY_WINDOW) } },
+    orderBy: { createdAt: "desc" },
+    select: { boundProductId: true },
+  });
+  return loadProduct(last?.boundProductId ?? null);
+}
+
 async function planDm(msg: Msg): Promise<string[]> {
   const store = msg.store;
   const now = new Date();
-  const platform = msg.platform as MetaPlatform;
+  const platform = msg.platform as ShopPlatform;
   const senderId = msg.authorId ?? msg.externalThreadId;
   if (!senderId) {
     await finish(msg.id, "SKIPPED", "no_sender");
@@ -231,22 +259,18 @@ async function planDm(msg: Msg): Promise<string[]> {
     return [];
   }
 
-  // The thread is about the product whose card we sent this buyer in the last 7 days.
-  const bound = await db.outboxJob.findFirst({
-    where: { storeId: store.id, kind: "PRIVATE_REPLY", status: "SENT", recipientId: senderId, updatedAt: { gt: new Date(now.getTime() - PRIVATE_REPLY_WINDOW) } },
-    orderBy: { updatedAt: "desc" },
-    select: { message: { select: { boundProductId: true } } },
-  });
-  const product = await loadProduct(bound?.message.boundProductId ?? null);
+  const whatsapp = platform === "WHATSAPP";
+  const text = (whatsapp ? typedText(msg.content ?? "") : (msg.content ?? "")).trim();
+  const product = whatsapp ? await whatsappProduct(store.id, senderId, text, now) : await boundProduct(store.id, senderId, now);
   const photosSent = product ? await db.outboxJob.count({ where: { id: `dmphotos_${store.id}_${senderId}_${product.id}` } }) : 0;
-  const text = (msg.content ?? "").trim();
   const c = text ? await classifyText(text, { channel: "dm", productName: product?.name }) : null;
   const decision = decideDm(c, { boundProduct: !!product, firstReply: photosSent === 0, hasPhotos: (product?.photos.length ?? 0) > 0 });
 
   let answer: string | null = null;
   const ans = decision.actions.find((a) => a.kind === "DM_ANSWER");
   if (ans?.kind === "DM_ANSWER" && product && c) {
-    const wa = ans.whatsapp ? waUrl(store.tenant, waText(product, c.language)) : null;
+    // Inside WhatsApp a "message us on WhatsApp" link points back at the same chat.
+    const wa = ans.whatsapp && !whatsapp ? waUrl(store.tenant, waText(product, c.language)) : null;
     answer = answerText(ans.intent, product, store, c.language, wa);
   }
   const specs = buildDmJobs({ actions: decision.actions, recipientId: senderId, photos: product?.photos ?? [], answerText: answer });

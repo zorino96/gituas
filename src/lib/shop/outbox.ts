@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import type { JobPayload, OutboxKind } from "./jobs";
-import { accountFor, hideComment, likeComment, privateReply, replyToComment, sendDm, type MetaPlatform, type SendResult, type StoreAccount } from "./meta-client";
+import { accountFor, hideComment, likeComment, privateReply, replyToComment, sendDm, type SendResult, type ShopPlatform, type StoreAccount } from "./meta-client";
 import { backoffMs, MAX_ATTEMPTS, retryable } from "./meta-errors";
 
 const HOUR = 3_600_000;
@@ -46,13 +46,13 @@ export async function runJob(jobId: string, opts: { immediate?: boolean } = {}):
   const job = await db.outboxJob.findUnique({
     where: { id: jobId },
     include: {
-      store: { select: { id: true, tenantId: true, fbPageId: true, igUserId: true, automationEnabled: true } },
+      store: { select: { id: true, tenantId: true, fbPageId: true, igUserId: true, waPhoneNumberId: true, automationEnabled: true } },
       message: { select: { platform: true } },
     },
   });
   if (!job) return;
   const payload = job.payload as JobPayload;
-  const platform = job.message.platform as MetaPlatform;
+  const platform = job.message.platform as ShopPlatform;
   const skip = (why: string) => db.outboxJob.update({ where: { id: job.id }, data: { status: "SKIPPED", lastError: why } });
 
   // Retries happen later: the merchant may have switched automation off or taken the thread over.
@@ -71,6 +71,8 @@ export async function runJob(jobId: string, opts: { immediate?: boolean } = {}):
   }
 
   const acc = await accountFor(job.store, platform);
+  // A broken WhatsApp link must not pause the store's Facebook and Instagram replies.
+  if (!acc && platform === "WHATSAPP") return void (await skip("whatsapp_disconnected"));
   if (!acc) {
     await db.store.update({ where: { id: job.storeId }, data: { pausedReason: "token" } });
     await db.outboxJob.update({ where: { id: job.id }, data: { nextAttemptAt: new Date(Date.now() + HOUR), lastError: "no usable credential" } });
@@ -82,6 +84,7 @@ export async function runJob(jobId: string, opts: { immediate?: boolean } = {}):
     await db.outboxJob.update({ where: { id: job.id }, data: { status: "SENT", sentId: r.id, recipientId: r.recipientId ?? job.recipientId, lastError: null, attempts: { increment: 1 } } });
     return;
   }
+  if (r.failure === "token" && platform === "WHATSAPP") return void (await skip(`token: ${r.error}`.slice(0, 300)));
   if (r.failure === "token") {
     await db.store.update({ where: { id: job.storeId }, data: { pausedReason: "token" } });
     await db.outboxJob.update({ where: { id: job.id }, data: { nextAttemptAt: new Date(Date.now() + HOUR), lastError: r.error } });

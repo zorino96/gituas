@@ -2,7 +2,7 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Bot, Home, MessageCircle, MessagesSquare, Newspaper, Package, Settings, SquarePlus } from "lucide-react";
+import { BarChart3, Bot, Home, MessageCircle, MessagesSquare, Newspaper, Package, Phone, Settings, SquarePlus } from "lucide-react";
 
 import { useT } from "@/lib/i18n/client";
 
@@ -27,7 +27,7 @@ function useSections(kind: Kind) {
   ];
   const tabs =
     kind === "MERCHANT"
-      ? [{ href: base, label: t.nav.today, Icon: Home }, { href: `${base}/automation`, label: t.nav.automation, Icon: Bot }, { href: `${base}/orders`, label: t.nav.orders, Icon: Package }, ...shared]
+      ? [{ href: base, label: t.nav.today, Icon: Home }, { href: `${base}/automation`, label: t.nav.automation, Icon: Bot }, { href: `${base}/orders`, label: t.nav.orders, Icon: Package }, { href: `${base}/whatsapp`, label: t.wa.nav, Icon: Phone }, ...shared]
       : [{ href: `${base}/news`, label: t.nav.news, Icon: Newspaper }, ...shared];
   return tabs.map((tab) => ({ ...tab, active: tab.href === base ? path === base : path.startsWith(tab.href) }));
 }

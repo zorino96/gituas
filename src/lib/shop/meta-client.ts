@@ -5,13 +5,14 @@ import { lazyRefresh, V as IG_V } from "@/lib/publishers/instagram";
 import { vaultDecrypt } from "@/lib/vault";
 import type { FbElement } from "./compose";
 import { classifyMetaError, type MetaFailure } from "./meta-errors";
-import type { MetaPlatform } from "./webhook-parse";
+import { sendWaMessage } from "@/lib/whatsapp/cloud";
+import type { MetaPlatform, ShopPlatform } from "./webhook-parse";
 
-export type { MetaPlatform };
+export type { MetaPlatform, ShopPlatform };
 
 export interface StoreAccount {
-  platform: MetaPlatform;
-  /** Facebook Page id or Instagram user id. */
+  platform: ShopPlatform;
+  /** Facebook Page id, Instagram user id or WhatsApp phone number id. */
   accountId: string;
   token: string;
 }
@@ -48,17 +49,20 @@ async function call(target: string, init: RequestInit = {}): Promise<SendResult>
 const post = (target: string, body?: unknown) => call(target, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) });
 
 /** The store's token for one platform, or null when it must be reconnected. */
-export async function accountFor(store: { tenantId: string; fbPageId: string | null; igUserId: string | null }, platform: MetaPlatform): Promise<StoreAccount | null> {
-  const accountId = platform === "META_FACEBOOK" ? store.fbPageId : store.igUserId;
+export async function accountFor(
+  store: { tenantId: string; fbPageId: string | null; igUserId: string | null; waPhoneNumberId?: string | null },
+  platform: ShopPlatform,
+): Promise<StoreAccount | null> {
+  const accountId = platform === "META_FACEBOOK" ? store.fbPageId : platform === "WHATSAPP" ? store.waPhoneNumberId : store.igUserId;
   if (!accountId) return null;
   const cred = await db.oAuthCredential.findFirst({
-    where: { tenantId: store.tenantId, provider: platform, providerAccountId: accountId, ...unexpired() },
+    where: { tenantId: store.tenantId, provider: platform === "WHATSAPP" ? "META_WHATSAPP" : platform, providerAccountId: accountId, ...unexpired() },
     orderBy: newestFirst,
   });
   if (!cred) return null;
   try {
     const token = vaultDecrypt(cred.tokenEncrypted);
-    if (platform === "META_FACEBOOK") return { platform, accountId, token };
+    if (platform !== "META_INSTAGRAM") return { platform, accountId, token };
     const fresh = await lazyRefresh({ id: cred.id, igUserId: accountId, token, expiresAt: cred.expiresAt });
     return { platform, accountId, token: fresh.token };
   } catch {
@@ -88,6 +92,7 @@ export function hideComment(acc: StoreAccount, commentId: string): Promise<SendR
 
 /** Inside the 24-hour window only (the buyer wrote to us). */
 export function sendDm(acc: StoreAccount, recipientId: string, message: MetaMessage): Promise<SendResult> {
+  if (acc.platform === "WHATSAPP") return sendWaMessage(acc.accountId, acc.token, recipientId, message);
   const body = acc.platform === "META_FACEBOOK" ? { recipient: { id: recipientId }, messaging_type: "RESPONSE", message } : { recipient: { id: recipientId }, message };
   return post(url(acc, `${acc.accountId}/messages`), body);
 }

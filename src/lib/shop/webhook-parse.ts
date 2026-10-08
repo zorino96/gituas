@@ -1,4 +1,6 @@
 export type MetaPlatform = "META_FACEBOOK" | "META_INSTAGRAM";
+/** Where the shop answers: Meta comments/DMs, plus WhatsApp DMs (src/lib/whatsapp). */
+export type ShopPlatform = MetaPlatform | "WHATSAPP";
 
 export type ShopEvent =
   | {

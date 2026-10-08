@@ -591,6 +591,8 @@ enum OAuthProvider {
   STRIPE
   META_FACEBOOK
   META_INSTAGRAM
+  /// WhatsApp Cloud API (Gituas Chat app): providerAccountId is the phone number id.
+  META_WHATSAPP
   TIKTOK
   YOUTUBE
   X_TWITTER
@@ -604,6 +606,7 @@ enum OAuthProvider {
 enum Platform {
   META_FACEBOOK
   META_INSTAGRAM
+  WHATSAPP
   TIKTOK
   YOUTUBE
   X_TWITTER
@@ -930,6 +933,13 @@ model Store {
   pausedReason      String?
   /// Last successful webhook subscription.
   webhooksAt        DateTime?
+  /// WhatsApp Cloud API number the shop answers on (Embedded Signup); its token is an OAuthCredential.
+  /// One store per number: connecting it clears it from any other store.
+  waPhoneNumberId   String?
+  waBusinessId      String?
+  waDisplayPhone    String?
+  /// The number's two-step PIN set at registration, vault-encrypted.
+  waPinEncrypted    String?
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
   tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -941,6 +951,7 @@ model Store {
   invoices          Invoice[]
 
   @@index([tenantId])
+  @@index([waPhoneNumberId])
 }
 
 model Product {
