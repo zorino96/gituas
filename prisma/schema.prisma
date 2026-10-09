@@ -736,6 +736,25 @@ model NewsSettings {
 
 /// One automatic news video. Script and voice are made on our server, the render runs on GitHub
 /// Actions (reel/), then the autopilot posts it; a video that does not arrive in time is replaced by the card.
+/// An Instagram post whose video was still processing when publishing ran out of time; the cron publishes it once ready.
+model IgPending {
+  id          String   @id @default(cuid())
+  tenantId    String
+  igUserId    String
+  containerId String   @unique
+  /// The news draft it belongs to, so its result is recorded there.
+  draftId     String?
+  /// WAITING | PUBLISHING | DONE | FAILED | UNKNOWN (publish sent, no answer: never retried)
+  status      String   @default("WAITING")
+  tries       Int      @default(0)
+  mediaId     String?
+  lastError   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status, createdAt])
+}
+
 /// A desk's own photos for card backgrounds. The AI only uses a photo whose label fits the story.
 model NewsPhoto {
   id        String   @id @default(cuid())

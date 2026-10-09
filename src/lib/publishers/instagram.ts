@@ -207,12 +207,18 @@ export async function publishToInstagram(
         status === "IN_PROGRESS"
           ? `Instagram container ${containerId} still processing — retry the publish shortly`
           : `Instagram container ${containerId} status: ${status}`,
+      // Still processing: the caller can park it and publish once Instagram is done.
+      ...(status === "IN_PROGRESS" ? { pending: { containerId, accountId: cred.igUserId } } : {}),
     };
   }
 
   // 3. Publish. Under a deadline this is only sent with time enough to hear the answer.
   if (left() < PUBLISH_RESERVE_MS) {
-    return { ok: false, error: `Instagram container ${containerId} was ready too late to publish in time — retry the publish shortly` };
+    return {
+      ok: false,
+      error: `Instagram container ${containerId} was ready too late to publish in time — retry the publish shortly`,
+      pending: { containerId, accountId: cred.igUserId },
+    };
   }
   let mediaId: string;
   try {

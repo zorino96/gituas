@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { publishForWorkspace, type PublishInput } from "@/lib/merchant/publish-core";
+import { finishPendingInstagram } from "@/lib/publishers/instagram-finish";
 import { SCHEDULE_NO_TIKTOK } from "@/lib/merchant/schedule";
 
 export const runtime = "nodejs";
@@ -44,6 +45,9 @@ export async function GET(req: Request) {
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  // Instagram videos that were still processing when they were published: finish the ready ones.
+  const instagram = await finishPendingInstagram();
+
   // A run that never finished may already have posted, so it is failed, never returned to
   // PENDING: the owner checks the platform and reschedules by hand, and nothing posts twice.
   await db.scheduledPost.updateMany({
@@ -81,5 +85,5 @@ export async function GET(req: Request) {
     }),
   );
 
-  return NextResponse.json({ due: due.length, ran: claimed.length });
+  return NextResponse.json({ due: due.length, ran: claimed.length, instagram });
 }

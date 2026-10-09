@@ -773,6 +773,7 @@ export const ckb = {
       igJpgOnly: "ئینستاگرام تەنها وێنەی JPG وەردەگرێت.",
       cardChanged: "کارتەکە گۆڕاوە. لە مێزی هەواڵ دووبارە ئامادەی بکەوە.",
       ttNoSettings: "ڕێکخستنەکانی تیکتۆک دیاری نەکراون.",
+      igProcessing: "ئینستاگرام هێشتا ڤیدیۆکە ئامادە دەکات؛ لە چەند خولەکێکدا خۆکارانە بڵاو دەبێتەوە.",
       ttIncomplete: (problems: string) => `ڕێکخستنی تیکتۆک تەواو نییە (${problems}).`,
       // Scheduling (src/lib/merchant/schedule.ts).
       noTiktokSchedule: "بۆ تیکتۆک خشتەکردن نییە — ڕاستەوخۆ بڵاوی بکەرەوە.",

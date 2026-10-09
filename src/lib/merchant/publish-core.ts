@@ -15,6 +15,7 @@ import { checkDraft } from "@/lib/news/rules";
 import type { Role } from "@/lib/newsroom/roles";
 import { publishToFacebookPage } from "@/lib/publishers/facebook";
 import { publishToInstagram } from "@/lib/publishers/instagram";
+import { parkInstagramContainer } from "@/lib/publishers/instagram-finish";
 import { publishToYouTube } from "@/lib/publishers/youtube";
 import { getTikTokPostContext, publishPhotoToTikTok, publishToTikTok } from "@/lib/publishers/tiktok";
 import { tagPublishedPost } from "@/lib/shop/state";
@@ -59,6 +60,8 @@ export interface PublishOutcome {
   target: Target;
   /** The account it went to, when one was chosen. */
   accountId?: string;
+  /** Instagram: still processing; published automatically within minutes (src/lib/publishers/instagram-finish.ts). */
+  pending?: boolean;
   accountName?: string;
   ok: boolean;
   url?: string;
@@ -183,6 +186,9 @@ export async function publishForWorkspace(
     }
     if (target === "IG") {
       const r = await publishToInstagram(ws.id, { caption, mediaUrl: input.media!.url, mediaType: input.media!.type }, input.igDeadlineMs);
+      if (!r.ok && r.pending && (await parkInstagramContainer({ tenantId: ws.id, igUserId: r.pending.accountId, containerId: r.pending.containerId, draftId: input.newsDraftId }))) {
+        return { target, ok: false, pending: true, error: m.igProcessing };
+      }
       return { target, ok: r.ok, url: r.permalinkUrl, externalId: r.externalId, error: r.error };
     }
     if (target === "YT") {

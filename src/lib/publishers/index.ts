@@ -19,6 +19,8 @@ export interface PublishResult {
   externalId?: string;
   permalinkUrl?: string;
   error?: string;
+  /** Instagram only: the video was still processing; this container can be published later. */
+  pending?: { containerId: string; accountId: string };
 }
 
 export function platformToProvider(p: Platform): OAuthProvider | null {

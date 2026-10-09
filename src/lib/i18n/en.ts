@@ -749,6 +749,7 @@ export const en: Dict = {
       igJpgOnly: "Instagram only accepts JPG photos.",
       cardChanged: "The card has changed. Prepare it again in the news desk.",
       ttNoSettings: "TikTok settings haven't been set.",
+      igProcessing: "Instagram is still processing the video; it is published automatically within a few minutes.",
       ttIncomplete: (problems: string) => `TikTok settings are incomplete (${problems}).`,
       // Scheduling (src/lib/merchant/schedule.ts).
       noTiktokSchedule: "TikTok posts can't be scheduled — publish it now instead.",
