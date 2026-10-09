@@ -241,18 +241,26 @@ export async function saveWhatsAppAction(raw: string): Promise<{ ok: true; digit
   return { ok: true, digits: n.digits };
 }
 
+const DISCONNECTABLE = ["META_FACEBOOK", "META_INSTAGRAM", "TIKTOK", "YOUTUBE"] as const;
+
 /**
- * Disconnect YouTube: the tokens go at once, and the links to videos uploaded through Gituas
- * go with them (YouTube API Services Developer Policies III.D.2, III.E.4).
+ * Disconnect one account. Its token goes at once. A Facebook Page or Instagram account also
+ * leaves the shop store it fed; for YouTube the links to videos uploaded through Gituas go
+ * too (YouTube API Services Developer Policies III.D.2, III.E.4).
  */
-export async function disconnectYouTubeAction(): Promise<Result> {
+export async function disconnectAccountAction(provider: (typeof DISCONNECTABLE)[number], accountId: string): Promise<Result> {
   const { ws, t } = await session();
   if (!ws) return { ok: false, error: t.actions.common.signIn };
   if (!can(ws.role, "configure")) return { ok: false, error: t.nr.team.roles.notAllowed };
-  const gone = await db.oAuthCredential.deleteMany({ where: { tenantId: ws.id, provider: "YOUTUBE" } });
+  if (!(DISCONNECTABLE as readonly string[]).includes(provider) || typeof accountId !== "string" || !accountId || accountId.startsWith("act_")) {
+    return { ok: false, error: t.common.error };
+  }
+  const gone = await db.oAuthCredential.deleteMany({ where: { tenantId: ws.id, provider, providerAccountId: accountId } });
   if (gone.count) {
-    await scrubYouTubeLinks();
-    await audit(ws.id, "integrations.disconnected", "Disconnected YouTube.", { provider: "YOUTUBE" });
+    if (provider === "YOUTUBE") await scrubYouTubeLinks();
+    if (provider === "META_FACEBOOK") await db.store.updateMany({ where: { tenantId: ws.id, fbPageId: accountId }, data: { fbPageId: null } });
+    if (provider === "META_INSTAGRAM") await db.store.updateMany({ where: { tenantId: ws.id, igUserId: accountId }, data: { igUserId: null, igUsername: null } });
+    await audit(ws.id, "integrations.disconnected", `Disconnected ${provider} ${accountId}.`, { provider, accountId });
   }
   revalidatePath(baseFor(ws.kind), "layout");
   return { ok: true };

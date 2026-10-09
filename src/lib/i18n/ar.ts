@@ -362,6 +362,9 @@ export const ar: Dict = {
     connectedBadge: "مرتبط",
     notConnectedBadge: "غير مرتبط",
     reconnect: "أعد الربط",
+    connectedCount: (n: number) => `${n} مرتبط`,
+    addAnother: "+ حساب آخر",
+    disconnectConfirm: (name: string) => `فصل ${name}؟ يُحذف رمزه فورًا ولن يُستخدم من هنا بعد ذلك.`,
     disconnect: "فصل",
     disconnectYtConfirm: "فصل يوتيوب عن Gituas؟ يُحذف الرمز فورًا ولن تتمكن من الرفع من هنا بعد ذلك.",
     connect: "اربط",
@@ -856,6 +859,8 @@ export const ar: Dict = {
     subShop: "هذه هي الصفحات التي تديرها على فيسبوك. اختر الصفحة الخاصة بهذا المتجر.",
     error: "لم ينجح الربط. حاول مرة أخرى.",
     cancel: "إلغاء",
+    pickHint: "اختر صفحة واحدة أو أكثر.",
+    connectSelected: "ربط الصفحات المختارة",
   },
 
   welcome: {

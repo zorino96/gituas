@@ -366,6 +366,9 @@ export const en: Dict = {
     connectedBadge: "Connected",
     notConnectedBadge: "Not connected",
     reconnect: "Reconnect",
+    connectedCount: (n: number) => `${n} connected`,
+    addAnother: "+ Add another",
+    disconnectConfirm: (name: string) => `Disconnect ${name}? Its token is deleted at once and it is no longer used from here.`,
     disconnect: "Disconnect",
     disconnectYtConfirm: "Disconnect YouTube from Gituas? Its token is deleted at once and you can no longer upload from here.",
     connect: "Connect",
@@ -865,6 +868,8 @@ export const en: Dict = {
     subShop: "These are the pages you manage on Facebook. Choose the one for this shop.",
     error: "Connecting failed. Please try again.",
     cancel: "Cancel",
+    pickHint: "Choose one or more pages.",
+    connectSelected: "Connect the selected pages",
   },
 
   welcome: {

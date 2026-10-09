@@ -44,17 +44,21 @@ export default async function ChooseFacebookPage({ searchParams }: { searchParam
                 {cf.error}
               </p>
             )}
-            <div className="gm-stack">
-              {choice.pages.map((p) => (
-                <form key={p.id} action={choosePageAction}>
-                  <input type="hidden" name="c" value={c} />
-                  <input type="hidden" name="page" value={p.id} />
-                  <button type="submit" className="gm-btn quiet block">
-                    {p.name}
-                  </button>
-                </form>
-              ))}
-            </div>
+            <form action={choosePageAction} className="gm-stack">
+              <input type="hidden" name="c" value={c} />
+              <p className="gm-hint" style={{ margin: 0 }}>{cf.pickHint}</p>
+              <div className="gm-card">
+                {choice.pages.map((p, i) => (
+                  <label key={p.id} className="gm-radio">
+                    <input type="checkbox" name="page" value={p.id} defaultChecked={i === 0} />
+                    <span dir="auto">{p.name}</span>
+                  </label>
+                ))}
+              </div>
+              <button type="submit" className="gm-btn block">
+                {cf.connectSelected}
+              </button>
+            </form>
             <form action={cancelPageChoiceAction} style={{ marginTop: 16, textAlign: "center" }}>
               <input type="hidden" name="c" value={c} />
               <button type="submit" className="gm-linkbtn gm-link">

@@ -25,7 +25,8 @@ export async function choosePageAction(formData: FormData): Promise<void> {
   if (!userId) redirect("/login");
   let done: { redirectTo: string } | null = null;
   try {
-    done = await completeFacebookPageChoice(choiceId, String(formData.get("page") ?? ""), userId);
+    const pageIds = formData.getAll("page").map(String).filter(Boolean).slice(0, 100);
+    done = await completeFacebookPageChoice(choiceId, pageIds, userId);
   } catch (err) {
     console.error("[oauth:facebook] page choice failed:", err instanceof Error ? err.message : "unknown error");
   }

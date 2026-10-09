@@ -17,6 +17,7 @@
 //  engagement layer (comments, DMs, insights) in ./instagram-engage.ts.
 
 import { db } from "@/lib/db";
+import { accountWhere } from "@/lib/oauth/account-scope";
 import { vaultDecrypt, vaultEncrypt } from "@/lib/vault";
 import { newestFirst, unexpired } from "@/lib/oauth/pick";
 import type { PublishResult } from "./index";
@@ -46,7 +47,7 @@ export async function loadCred(tenantId: string): Promise<IgCred | null> {
   // live one to trade in — so skip those rows rather than picking one and
   // rejecting it.
   const cred = await db.oAuthCredential.findFirst({
-    where: { tenantId, provider: "META_INSTAGRAM", ...unexpired() },
+    where: { tenantId, provider: "META_INSTAGRAM", ...unexpired(), ...accountWhere("META_INSTAGRAM") },
     orderBy: newestFirst,
   });
   if (!cred) return null;

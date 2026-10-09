@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { Fragment, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 
 import { normalizePhone } from "@/lib/merchant/phone";
 import { useBase } from "../use-base";
-import { disconnectYouTubeAction, saveWhatsAppAction } from "../actions";
+import { disconnectAccountAction, saveWhatsAppAction } from "../actions";
 import { useT } from "@/lib/i18n/client";
 import { LanguageCard } from "./language-card";
 import { PasswordCard } from "./password-card";
@@ -18,6 +18,8 @@ interface Conn {
   note: string;
   connected: boolean;
   name?: string;
+  /** Every account connected for this platform (a workspace may have several). */
+  accounts: { id: string; name: string; avatarUrl: string | null }[];
 }
 
 /** Iraqi numbers are shown back the way people read them: 0750 123 4567. */
@@ -96,31 +98,45 @@ export function SettingsClient({
       <p className="gm-sec">{s.accountsSec}</p>
       <div className="gm-card">
         {connections.map((c) => (
-          <div key={c.provider} className="gm-target">
-            <div>
-              <p>
-                {c.label} {c.connected ? <span className="gm-badge">{s.connectedBadge}</span> : <span className="gm-badge ghost">{s.notConnectedBadge}</span>}
-              </p>
-              <small>{c.connected && c.name ? c.name : c.note}</small>
-            </div>
-            <div className="gm-row" style={{ gap: 6 }}>
-              <a href={`/api/oauth/${c.provider.toLowerCase()}/start?next=${base}/settings`} className={`gm-btn small ${c.connected ? "quiet" : ""}`}>
-                {c.connected ? s.reconnect : s.connect}
+          <Fragment key={c.provider}>
+            <div className="gm-target">
+              <div>
+                <p>
+                  {c.label} {c.accounts.length ? <span className="gm-badge">{s.connectedCount(c.accounts.length)}</span> : <span className="gm-badge ghost">{s.notConnectedBadge}</span>}
+                </p>
+                {!c.accounts.length && <small>{c.note}</small>}
+              </div>
+              <a href={`/api/oauth/${c.provider.toLowerCase()}/start?next=${base}/settings`} className={`gm-btn small ${c.accounts.length ? "quiet" : ""}`}>
+                {c.accounts.length ? s.addAnother : s.connect}
               </a>
-              {c.connected && c.provider === "YOUTUBE" && (
-                <button
-                  type="button"
-                  className="gm-btn small quiet"
-                  disabled={pending}
-                  onClick={() => {
-                    if (window.confirm(s.disconnectYtConfirm)) start(async () => void (await disconnectYouTubeAction()));
-                  }}
-                >
-                  {s.disconnect}
-                </button>
-              )}
             </div>
-          </div>
+            {c.accounts.map((a) => (
+              <div key={a.id} className="gm-target" style={{ paddingInlineStart: 18 }}>
+                <div className="gm-row" style={{ gap: 8 }}>
+                  {a.avatarUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={a.avatarUrl} alt="" width={26} height={26} style={{ borderRadius: 13 }} />
+                  )}
+                  <small dir="auto">{a.name}</small>
+                </div>
+                <div className="gm-row" style={{ gap: 6 }}>
+                  <a href={`/api/oauth/${c.provider.toLowerCase()}/start?next=${base}/settings`} className="gm-btn small quiet">
+                    {s.reconnect}
+                  </a>
+                  <button
+                    type="button"
+                    className="gm-btn small quiet"
+                    disabled={pending}
+                    onClick={() => {
+                      if (window.confirm(s.disconnectConfirm(a.name))) start(async () => void (await disconnectAccountAction(c.provider, a.id)));
+                    }}
+                  >
+                    {s.disconnect}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </Fragment>
         ))}
       </div>
       <p className="gm-hint">{s.igHint}</p>

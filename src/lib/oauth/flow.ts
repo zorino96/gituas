@@ -394,10 +394,10 @@ async function saveCredential(
     create: { tenantId, provider, providerAccountId: account.id, ...fields },
     update: { ...fields, lastUsedAt: null },
   });
-  // One YouTube channel per workspace: connecting replaces whatever was connected before, so an old
-  // or wrong Google account (say, one whose YouTube is suspended) can never be picked again.
+  // A workspace may connect several YouTube channels. A row whose channel could not be read
+  // ("unknown", e.g. a suspended YouTube) is dropped whenever a channel connects.
   if (provider === "YOUTUBE") {
-    await db.oAuthCredential.deleteMany({ where: { tenantId, provider, NOT: { providerAccountId: account.id } } });
+    await db.oAuthCredential.deleteMany({ where: { tenantId, provider, providerAccountId: "unknown" } });
   }
   await db.auditLog.create({
     data: {
@@ -454,20 +454,22 @@ export async function loadPageChoice(choiceId: string, userId: string): Promise<
 }
 
 /**
- * Connect the Page the person picked. Its token is minted fresh from the
+ * Connect the Pages the person picked (one or several). Each token is minted fresh from the
  * stored user token for that Page id, so a tampered form can only pick among
  * the Pages Facebook itself says the person runs.
  */
-export async function completeFacebookPageChoice(choiceId: string, pageId: string, userId: string): Promise<{ redirectTo: string } | null> {
+export async function completeFacebookPageChoice(choiceId: string, pageIds: string[], userId: string): Promise<{ redirectTo: string } | null> {
   const choice = await ownedChoice(choiceId, userId);
   const cfg = findProvider("META_FACEBOOK");
   if (!choice || !cfg) return null;
   const { pages } = await fetchFacebookPages(vaultDecrypt(choice.userTokenEncrypted));
-  const page = pages.find((p) => p.id === pageId);
-  if (!page) return null;
-  const account = await fetchProviderAccount(cfg, page.access_token);
-  if (account.id === "unknown") account.id = page.id;
-  await saveCredential(choice.tenantId, cfg, { access_token: page.access_token, scope: choice.scopes.join(",") }, account);
+  const chosen = pages.filter((p) => pageIds.includes(p.id));
+  if (!chosen.length) return null;
+  for (const page of chosen) {
+    const account = await fetchProviderAccount(cfg, page.access_token);
+    if (account.id === "unknown") account.id = page.id;
+    await saveCredential(choice.tenantId, cfg, { access_token: page.access_token, scope: choice.scopes.join(",") }, account);
+  }
   await db.oAuthPageChoice.delete({ where: { id: choiceId } }).catch(() => undefined);
   return { redirectTo: choice.redirectTo };
 }

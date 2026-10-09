@@ -3,6 +3,7 @@
 // sees is what their customers see.
 
 import { cookies } from "next/headers";
+import { accountWhere } from "@/lib/oauth/account-scope";
 import { auth, ensureWorkspace } from "@/auth";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
@@ -156,28 +157,65 @@ export interface Connection {
 
 export type Connections = Record<Provider, Connection>;
 
+/** One connected account, for lists (settings, the publish page's account choice, switchers). */
+export interface AccountRef {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+}
+export type AccountLists = Record<Provider, AccountRef[]>;
+
+const LIVE_WHERE: Record<Provider, object> = {
+  META_FACEBOOK: { NOT: { providerAccountId: { startsWith: "act_" } } },
+  META_INSTAGRAM: {},
+  TIKTOK: {},
+  YOUTUBE: { NOT: { providerAccountId: "unknown" } },
+};
+
+/** Every usable account the workspace connected, per provider, oldest first (a stable order). */
+export async function loadAccountLists(tenantId: string): Promise<AccountLists> {
+  const rows = await db.oAuthCredential.findMany({
+    where: { tenantId, provider: { in: ["META_FACEBOOK", "META_INSTAGRAM", "TIKTOK", "YOUTUBE"] } },
+    orderBy: { createdAt: "asc" },
+    select: { provider: true, providerAccountId: true, providerAccountName: true, avatarUrl: true, expiresAt: true, refreshTokenEncrypted: true },
+  });
+  const now = Date.now();
+  const out: AccountLists = { META_FACEBOOK: [], META_INSTAGRAM: [], TIKTOK: [], YOUTUBE: [] };
+  for (const r of rows) {
+    const p = r.provider as Provider;
+    if (p === "META_FACEBOOK" && r.providerAccountId.startsWith("act_")) continue;
+    if (p === "YOUTUBE" && r.providerAccountId === "unknown") continue;
+    // Meta tokens cannot refresh: an expired one means reconnect. TikTok and YouTube refresh.
+    const live = !r.expiresAt || r.expiresAt.getTime() > now || ((p === "TIKTOK" || p === "YOUTUBE") && !!r.refreshTokenEncrypted);
+    if (!live) continue;
+    if (out[p].some((a) => a.id === r.providerAccountId)) continue;
+    out[p].push({ id: r.providerAccountId, name: r.providerAccountName ?? r.providerAccountId, avatarUrl: r.avatarUrl ?? null });
+  }
+  return out;
+}
+
 export async function loadConnections(tenantId: string): Promise<Connections> {
   const pick = { providerAccountId: true, providerAccountName: true, avatarUrl: true } as const;
   const [fb, ig, tt, yt] = await Promise.all([
     db.oAuthCredential.findFirst({
-      where: { tenantId, provider: "META_FACEBOOK", NOT: { providerAccountId: { startsWith: "act_" } }, ...unexpired() },
+      where: { tenantId, provider: "META_FACEBOOK", ...LIVE_WHERE.META_FACEBOOK, ...unexpired(), ...accountWhere("META_FACEBOOK") },
       orderBy: newestFirst,
       select: pick,
     }),
     db.oAuthCredential.findFirst({
-      where: { tenantId, provider: "META_INSTAGRAM", ...unexpired() },
+      where: { tenantId, provider: "META_INSTAGRAM", ...unexpired(), ...accountWhere("META_INSTAGRAM") },
       orderBy: newestFirst,
       select: pick,
     }),
     db.oAuthCredential.findFirst({
-      where: { tenantId, provider: "TIKTOK", ...usableOrRefreshable() },
+      where: { tenantId, provider: "TIKTOK", ...usableOrRefreshable(), ...accountWhere("TIKTOK") },
       orderBy: newestFirst,
       select: pick,
     }),
     // YouTube access tokens last an hour; the refresh token keeps the connection alive. A row whose
     // channel could not be read at connect time ("unknown", e.g. a suspended YouTube) never works.
     db.oAuthCredential.findFirst({
-      where: { tenantId, provider: "YOUTUBE", NOT: { providerAccountId: "unknown" }, ...usableOrRefreshable() },
+      where: { tenantId, provider: "YOUTUBE", ...LIVE_WHERE.YOUTUBE, ...usableOrRefreshable(), ...accountWhere("YOUTUBE") },
       orderBy: newestFirst,
       select: pick,
     }),

@@ -6,7 +6,7 @@ import { usageOf } from "@/lib/billing/limits";
 import { dict, getLang } from "@/lib/i18n";
 import { AUTO_DAILY_MAX, AUTO_MIN_GAP, autoTargetsFor, isAutoMode } from "@/lib/news/autopilot-settings";
 import { catalogAvailable } from "@/lib/news/catalog";
-import { currentWorkspace, loadConnections } from "../data";
+import { currentWorkspace, loadAccountLists, loadConnections } from "../data";
 import { SettingsClient } from "./settings-client";
 import type { NewsSettingsProps } from "./news-settings";
 
@@ -19,8 +19,9 @@ export default async function SettingsPage({
   const t = dict(await getLang());
   const ws = (await currentWorkspace())!;
   const session = await auth();
-  const [conns, me] = await Promise.all([
+  const [conns, lists, me] = await Promise.all([
     loadConnections(ws.id),
+    loadAccountLists(ws.id),
     db.user.findUnique({ where: { id: session!.user!.id! }, select: { email: true, passwordHash: true } }),
   ]);
 
@@ -108,10 +109,10 @@ export default async function SettingsPage({
       account={{ email: me?.email ?? null, hasPassword: !!me?.passwordHash }}
       news={news}
       connections={[
-        { provider: "META_FACEBOOK", label: t.platform.FB, note: t.settings.connNote.META_FACEBOOK, ...conns.META_FACEBOOK },
-        { provider: "META_INSTAGRAM", label: t.platform.IG, note: t.settings.connNote.META_INSTAGRAM, ...conns.META_INSTAGRAM },
-        { provider: "TIKTOK", label: t.platform.TT, note: t.settings.connNote.TIKTOK, ...conns.TIKTOK },
-        { provider: "YOUTUBE", label: t.platform.YT, note: t.settings.connNote.YOUTUBE, ...conns.YOUTUBE },
+        { provider: "META_FACEBOOK", label: t.platform.FB, note: t.settings.connNote.META_FACEBOOK, ...conns.META_FACEBOOK, accounts: lists.META_FACEBOOK },
+        { provider: "META_INSTAGRAM", label: t.platform.IG, note: t.settings.connNote.META_INSTAGRAM, ...conns.META_INSTAGRAM, accounts: lists.META_INSTAGRAM },
+        { provider: "TIKTOK", label: t.platform.TT, note: t.settings.connNote.TIKTOK, ...conns.TIKTOK, accounts: lists.TIKTOK },
+        { provider: "YOUTUBE", label: t.platform.YT, note: t.settings.connNote.YOUTUBE, ...conns.YOUTUBE, accounts: lists.YOUTUBE },
       ]}
     />
   );

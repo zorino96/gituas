@@ -13,6 +13,7 @@
 //  "URL properties" (we verified https://gituas.vercel.app/).
 
 import { db } from "@/lib/db";
+import { accountWhere } from "@/lib/oauth/account-scope";
 import { vaultDecrypt, vaultEncrypt } from "@/lib/vault";
 import { newestFirst, usableOrRefreshable } from "@/lib/oauth/pick";
 import type { PublishResult } from "./index";
@@ -107,7 +108,7 @@ async function tiktokToken(tenantId: string): Promise<string | null> {
   // Expired rows stay eligible: a refresh_token can trade them for a live
   // token. Only a row with neither is dead weight.
   const cred = await db.oAuthCredential.findFirst({
-    where: { tenantId, provider: "TIKTOK", ...usableOrRefreshable() },
+    where: { tenantId, provider: "TIKTOK", ...usableOrRefreshable(), ...accountWhere("TIKTOK") },
     orderBy: newestFirst,
   });
   if (!cred) return null;

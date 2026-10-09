@@ -16,6 +16,7 @@
 //  insights) in ./facebook-engage.ts.
 
 import { db } from "@/lib/db";
+import { accountWhere } from "@/lib/oauth/account-scope";
 import { vaultDecrypt } from "@/lib/vault";
 import { newestFirst, unexpired } from "@/lib/oauth/pick";
 import type { PublishResult } from "./index";
@@ -44,6 +45,7 @@ export async function loadFbCred(tenantId: string): Promise<FbCred | null> {
       provider: "META_FACEBOOK",
       NOT: { providerAccountId: { startsWith: "act_" } },
       ...unexpired(), // page tokens don't refresh — an expired row means reconnect
+      ...accountWhere("META_FACEBOOK"),
     },
     orderBy: newestFirst,
   });

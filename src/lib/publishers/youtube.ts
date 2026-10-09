@@ -11,6 +11,7 @@
 //  audit lifts the restriction for everyone else.
 
 import { db } from "@/lib/db";
+import { accountWhere } from "@/lib/oauth/account-scope";
 import { vaultDecrypt, vaultEncrypt } from "@/lib/vault";
 import { newestFirst, usableOrRefreshable } from "@/lib/oauth/pick";
 import type { PublishResult } from "./index";
@@ -32,7 +33,7 @@ async function youTubeCredential(tenantId: string): Promise<{ id: string; token:
   // token — but a row with neither a live token nor a refresh token is dead.
   // A row whose channel could not be read when it was connected ("unknown") is never acted with.
   const cred = await db.oAuthCredential.findFirst({
-    where: { tenantId, provider: "YOUTUBE", NOT: { providerAccountId: "unknown" }, ...usableOrRefreshable() },
+    where: { tenantId, provider: "YOUTUBE", NOT: { providerAccountId: "unknown" }, ...usableOrRefreshable(), ...accountWhere("YOUTUBE") },
     orderBy: newestFirst,
   });
   if (!cred) return null;

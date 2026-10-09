@@ -378,6 +378,9 @@ export const ckb = {
     connectedBadge: "پەیوەستە",
     notConnectedBadge: "پەیوەست نییە",
     reconnect: "دووبارە پەیوەست بکەوە",
+    connectedCount: (n: number) => `${n} ئەکاونت`,
+    addAnother: "+ ئەکاونتێکی تر",
+    disconnectConfirm: (name: string) => `${name} بپچڕێنرێت؟ تۆکنەکەی یەکسەر دەسڕێتەوە و ئیتر لێرەوە بەکارنایەت.`,
     disconnect: "پچڕاندن",
     disconnectYtConfirm: "یوتیوب لە گیتواس بپچڕێنرێت؟ تۆکنەکە یەکسەر دەسڕێتەوە و ئیتر ناتوانیت لێرەوە ڤیدیۆ بنێریت.",
     connect: "پەیوەست بکە",
@@ -901,6 +904,8 @@ export const ckb = {
     subShop: "ئەم پەیجانە لە فەیسبووک بەڕێوە دەبەیت. ئەوەی بۆ ئەم دووکانەیە هەڵبژێرە.",
     error: "پەیوەستکردن سەرکەوتوو نەبوو. دووبارە هەوڵ بدەرەوە.",
     cancel: "پاشگەزبوونەوە",
+    pickHint: "یەک یان چەند پەیجێک هەڵبژێرە.",
+    connectSelected: "بەستنەوەی پەیجە هەڵبژێردراوەکان",
   },
 
   // gituas.com for visitors who are not signed in: what Gituas is, and the way in.
