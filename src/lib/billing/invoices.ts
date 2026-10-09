@@ -81,6 +81,7 @@ export async function confirmInvoice(invoiceId: string): Promise<"paid" | "paid_
   await db.$transaction(async (tx) => {
     const claimed = await tx.invoice.updateMany({ where: { id: inv.id, status: { in: ["PENDING", "EXPIRED"] } }, data: { status: "PAID", paidAt: now } });
     if (claimed.count !== 1) return;
+    let applied = false;
     if (applyPlan) {
       if (inv.product === "SHOP" && inv.storeId) {
         // Lock the row so two payments at the same moment both count.
@@ -91,6 +92,7 @@ export async function confirmInvoice(invoiceId: string): Promise<"paid" | "paid_
             where: { id: inv.storeId },
             data: { plan: inv.plan as "MERCHANT" | "PRO", planPaidUntil: nextPaidUntil(inv.product as BillingProduct, { plan: s.plan, paidUntil: s.planPaidUntil }, inv.plan, now) },
           });
+          applied = true;
         }
       } else if (inv.product === "NEWS") {
         await tx.$queryRaw`SELECT 1 FROM "Tenant" WHERE "id" = ${inv.tenantId} FOR UPDATE`;
@@ -100,11 +102,19 @@ export async function confirmInvoice(invoiceId: string): Promise<"paid" | "paid_
             where: { id: inv.tenantId },
             data: { plan: inv.plan as "LITE" | "MANUAL" | "AUTO" | "ENTERPRISE", planPaidUntil: nextPaidUntil(inv.product as BillingProduct, { plan: t.plan, paidUntil: t.planPaidUntil }, inv.plan, now) },
           });
+          applied = true;
         }
       }
     }
     await tx.auditLog.create({
-      data: { tenantId: inv.tenantId, actor: "SYSTEM", action: "billing.paid", reasoning: `Paid ${inv.amountIqd} IQD for ${inv.product} ${inv.plan}.`, metadata: { invoiceId: inv.id, env: inv.env, applied: applyPlan } },
+      data: {
+        tenantId: inv.tenantId,
+        actor: "SYSTEM",
+        action: applyPlan && !applied ? "billing.paid_not_applied" : "billing.paid",
+        // Money arrived but its store is gone: someone has to apply or refund it by hand.
+        reasoning: `Paid ${inv.amountIqd} IQD for ${inv.product} ${inv.plan}.${applyPlan && !applied ? " The plan could not be applied (its store no longer exists): apply it or refund by hand." : ""}`,
+        metadata: { invoiceId: inv.id, env: inv.env, applied },
+      },
     });
   });
   return applyPlan ? "paid" : "paid_test";

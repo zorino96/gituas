@@ -62,7 +62,7 @@ export default async function AutomationPage({ searchParams }: { searchParams: P
         id: store.id,
         automationEnabled: store.automationEnabled,
         expiryDays: store.expiryDays,
-        stopBefore: store.stopBefore ? store.stopBefore.toISOString().slice(0, 10) : "",
+        stopBefore: store.stopBefore ? new Date(store.stopBefore.getTime() + 3 * 3_600_000).toISOString().slice(0, 10) : "",
         likeComments: store.likeComments,
         autoHideSpam: store.autoHideSpam,
         deliveryFee: store.deliveryFeeMinor == null ? "" : String(store.deliveryFeeMinor),

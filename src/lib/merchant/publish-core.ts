@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
 import { withAccounts } from "@/lib/oauth/account-scope";
 import { assertWithin, LimitReached, limitMessage, newsroomFrozenError } from "@/lib/billing/limits";
 import { ckb, type Dict } from "@/lib/i18n/ckb";
-import { captionProblems, isJpegPath, isKnownTarget, isOwnBlobUrl, youtubeOptionProblems, youtubeProblem, type Target, type YouTubeOptions } from "@/lib/merchant/caption";
+import { captionProblems, isJpegPath, isKnownTarget, isOwnBlobUrl, isOwnPathname, youtubeOptionProblems, youtubeProblem, type Target, type YouTubeOptions } from "@/lib/merchant/caption";
 import { tiktokProblems } from "@/lib/merchant/tiktok-rules";
 import { recordNewsPublish } from "@/lib/news/publish-record";
 import { checkDraft } from "@/lib/news/rules";
@@ -118,8 +118,7 @@ export async function publishForWorkspace(
   // Every YouTube upload carries the person's own title, description, privacy and audience (YouTube API policy III.E.3.f, III.J.2.b).
   if (targets.includes("YT") && (!input.youtube || youtubeOptionProblems(input.youtube).length)) return { error: t.publish.blockYtOptions };
   if (input.media) {
-    const expected = `merchant/${ws.id}/`;
-    if (!input.media.pathname.startsWith(expected) || !/^https:\/\//.test(input.media.url)) {
+    if (!isOwnPathname(input.media.pathname, ws.id) || !/^https:\/\//.test(input.media.url)) {
       return { error: m.badFile };
     }
     // Our server downloads the YouTube video from this URL, so it must be one of this workspace's own Blob files.

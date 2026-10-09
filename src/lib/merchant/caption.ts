@@ -12,6 +12,14 @@ export function isKnownTarget(t: unknown): t is Target {
  * The URL is parsed, so dot-segments are resolved before the folder is checked. Used wherever the
  * server fetches or republishes a URL the browser sent.
  */
+/**
+ * A Blob pathname in this workspace's folder, with nothing that climbs out of it once a URL is
+ * built from it (`..`, an encoded `%2e%2e`, a backslash or an empty segment).
+ */
+export function isOwnPathname(pathname: unknown, workspaceId: string): pathname is string {
+  return typeof pathname === "string" && pathname.startsWith(`merchant/${workspaceId}/`) && !/\.\.|%|\\|\/\//.test(pathname);
+}
+
 export function isOwnBlobUrl(raw: string, workspaceId: string): boolean {
   try {
     const u = new URL(raw);

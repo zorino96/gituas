@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 
+import { isOwnPathname } from "@/lib/merchant/caption";
 import { db } from "@/lib/db";
 import { assertWithin, countUsage, LimitReached, limitMessage } from "@/lib/billing/limits";
 import { canAutoPublish, NEWS_LIMITS, promptFilterFor, videoQuotaFor } from "@/lib/billing/plans";
@@ -58,7 +59,7 @@ async function desk() {
 
 /** A path must sit under this workspace's own folder and never contain a `..` segment. */
 function isOwnPath(path: string, tenantId: string): boolean {
-  return path.startsWith(`merchant/${tenantId}/`) && !path.includes("..");
+  return isOwnPathname(path, tenantId);
 }
 
 function view(d: {

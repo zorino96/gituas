@@ -17,7 +17,7 @@ export const maxDuration = 60;
 export async function GET(req: Request, ctx: { params: Promise<{ key: string[] }> }): Promise<Response> {
   const { key } = await ctx.params;
   const pathname = key.map(decodeURIComponent).join("/");
-  if (!pathname.startsWith("merchant/") || pathname.includes("..")) {
+  if (!pathname.startsWith("merchant/") || /\.\.|%|\\|\/\//.test(pathname)) {
     return new Response("Not found", { status: 404 });
   }
 
@@ -39,6 +39,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ key: string[] }
   }
   if (!headers.has("accept-ranges")) headers.set("accept-ranges", "bytes");
   headers.set("cache-control", "public, max-age=3600");
+  headers.set("x-content-type-options", "nosniff");
   return new Response(upstream.body, { status: upstream.status, headers });
 }
 

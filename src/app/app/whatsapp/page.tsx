@@ -32,7 +32,8 @@ export default async function WhatsAppPage() {
     const [rows, jobs, acc, cred] = await Promise.all([
       db.conversationMessage.findMany({
         where: { storeId: store.id, platform: "WHATSAPP", createdAt: { gt: since } },
-        orderBy: { createdAt: "asc" },
+        // The newest 3000 (put back in time order below), so a busy shop loses its oldest, not its latest.
+        orderBy: { createdAt: "desc" },
         take: 3000,
         select: { id: true, direction: true, content: true, authorId: true, authorName: true, createdAt: true },
       }),
@@ -56,7 +57,7 @@ export default async function WhatsAppPage() {
       if (!c) byChat.set(id, (c = { id, name: null, lines: [], lastInboundAt: null }));
       return c;
     };
-    for (const r of rows) {
+    for (const r of rows.reverse()) {
       if (!r.authorId) continue;
       const c = chat(r.authorId);
       const inbound = r.direction === "INBOUND";

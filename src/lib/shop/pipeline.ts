@@ -22,6 +22,11 @@ const PRIVATE_REPLY_WINDOW = 7 * DAY;
 export function jitterMs(rand: () => number = Math.random): number {
   return 8_000 + Math.floor(rand() * 22_000);
 }
+/** Midnight in Baghdad (UTC+3 all year), where the shops' days begin. */
+export function startOfShopDay(d: Date): Date {
+  const BAGHDAD = 3 * 3_600_000;
+  return new Date(Math.floor((d.getTime() + BAGHDAD) / 86_400_000) * 86_400_000 - BAGHDAD);
+}
 export function startOfUtcDay(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
@@ -58,7 +63,8 @@ async function finish(id: string, outcome: "AUTO_REPLIED" | "FLAGGED" | "SKIPPED
 
 function sentToday(storeId: string, now: Date): Promise<number> {
   return db.outboxJob.count({
-    where: { storeId, status: "SENT", kind: { in: ["PUBLIC_REPLY", "PRIVATE_REPLY", "DM_ANSWER"] }, updatedAt: { gte: startOfUtcDay(now) } },
+    // Replies waiting to go out count too: a burst of comments must not all pass the cap before the first is sent.
+    where: { storeId, status: { in: ["SENT", "PENDING"] }, kind: { in: ["PUBLIC_REPLY", "PRIVATE_REPLY", "DM_ANSWER"] }, updatedAt: { gte: startOfShopDay(now) } },
   });
 }
 

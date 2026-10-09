@@ -6,6 +6,8 @@ import { backoffMs, MAX_ATTEMPTS, retryable } from "./meta-errors";
 
 const HOUR = 3_600_000;
 const CLAIM_MS = 5 * 60_000;
+/** A reply still waiting for a working connection after this long is dropped. */
+const STALE_MS = 24 * 3_600_000;
 
 async function send(acc: StoreAccount, kind: OutboxKind, p: JobPayload, onPhotoSent?: (rest: string[]) => Promise<unknown>): Promise<SendResult> {
   switch (kind) {
@@ -83,6 +85,9 @@ export async function runJob(jobId: string, opts: { immediate?: boolean } = {}):
   if (!acc && ((platform === "META_FACEBOOK" && !job.store.fbPageId) || (platform === "META_INSTAGRAM" && !job.store.igUserId))) {
     return void (await skip("account_disconnected"));
   }
+  // A reply held back by a broken connection for a day is no longer a reply to anything current:
+  // after a reconnect it would land on a stale comment or chat.
+  if (!acc && now.getTime() - job.createdAt.getTime() > STALE_MS) return void (await skip("expired_waiting_for_token"));
   if (!acc) {
     await db.store.update({ where: { id: job.storeId }, data: { pausedReason: "token" } });
     await db.outboxJob.update({ where: { id: job.id }, data: { nextAttemptAt: new Date(Date.now() + HOUR), lastError: "no usable credential" } });
@@ -97,6 +102,7 @@ export async function runJob(jobId: string, opts: { immediate?: boolean } = {}):
     return;
   }
   if (r.failure === "token" && platform === "WHATSAPP") return void (await skip(`token: ${r.error}`.slice(0, 300)));
+  if (r.failure === "token" && now.getTime() - job.createdAt.getTime() > STALE_MS) return void (await skip(`expired: ${r.error}`.slice(0, 300)));
   if (r.failure === "token") {
     await db.store.update({ where: { id: job.storeId }, data: { pausedReason: "token" } });
     await db.outboxJob.update({ where: { id: job.id }, data: { nextAttemptAt: new Date(Date.now() + HOUR), lastError: r.error } });

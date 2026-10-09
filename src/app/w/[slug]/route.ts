@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
@@ -23,8 +24,17 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
     });
   }
   const text = new URL(req.url).searchParams.get("t")?.slice(0, 500) || undefined;
-  await db.auditLog.create({
-    data: { tenantId: tenant.id, actor: "SYSTEM", action: "wa.tap", reasoning: "A buyer opened the WhatsApp link.", metadata: {} },
+  // One counted tap per visitor per hour, so reloading or scripting the link cannot inflate the
+  // count or fill the log. The visitor is a hash of their address, never the address itself.
+  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
+  const visitor = createHash("sha256").update(`${tenant.id}:${ip}`).digest("hex").slice(0, 16);
+  const seen = await db.auditLog.count({
+    where: { tenantId: tenant.id, action: "wa.tap", createdAt: { gt: new Date(Date.now() - 3_600_000) }, metadata: { path: ["v"], equals: visitor } },
   });
+  if (!seen) {
+    await db.auditLog.create({
+      data: { tenantId: tenant.id, actor: "SYSTEM", action: "wa.tap", reasoning: "A buyer opened the WhatsApp link.", metadata: { v: visitor } },
+    });
+  }
   return NextResponse.redirect(waLink(tenant.whatsappNumber, text), 302);
 }

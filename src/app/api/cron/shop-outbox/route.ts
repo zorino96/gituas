@@ -25,7 +25,8 @@ export async function GET(req: Request) {
     take: 40,
     select: { id: true },
   });
-  for (const j of due) await runJob(j.id);
+  // One bad job or message must not stop the rest of the batch.
+  for (const j of due) await runJob(j.id).catch((e) => console.error("[shop-outbox] job failed:", e instanceof Error ? e.message : "unknown error"));
 
   const stuck = await db.conversationMessage.findMany({
     where: { storeId: { not: null }, direction: "INBOUND", outcome: null, createdAt: { lt: new Date(now - 5 * 60_000), gt: new Date(now - 7 * 86_400_000) } },
@@ -33,7 +34,7 @@ export async function GET(req: Request) {
     take: 15,
     select: { id: true },
   });
-  for (const m of stuck) await processMessage(m.id);
+  for (const m of stuck) await processMessage(m.id).catch((e) => console.error("[shop-outbox] message failed:", e instanceof Error ? e.message : "unknown error"));
 
   return NextResponse.json({ jobs: due.length, messages: stuck.length });
 }

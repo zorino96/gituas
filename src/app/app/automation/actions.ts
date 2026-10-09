@@ -51,7 +51,8 @@ export async function saveStoreSettingsAction(
   if (input.stopBefore !== undefined) {
     const raw = input.stopBefore.trim();
     if (raw) {
-      const stopBefore = new Date(`${raw}T00:00:00Z`);
+      // Midnight in Baghdad, where the merchant picked the date.
+      const stopBefore = new Date(`${raw}T00:00:00+03:00`);
       if (Number.isNaN(stopBefore.getTime())) return { ok: false, error: r.m.badDate };
       data.stopBefore = stopBefore;
     } else {

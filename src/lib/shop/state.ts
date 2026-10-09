@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { newestFirst, unexpired } from "@/lib/oauth/pick";
 import type { MetaPlatform } from "./meta-client";
-import { startOfUtcDay } from "./pipeline";
+import { startOfShopDay } from "./pipeline";
 import { dailyCap, SHOP_LIMITS, type StorePlan } from "./plans";
 import { aiVaryUsed } from "./quota";
 
@@ -20,7 +20,7 @@ export async function loadShopState(tenantId: string, storeId?: string, preferAc
     db.product.findMany({ where: { storeId: store.id, active: true }, include: { variants: { orderBy: { position: "asc" } } }, orderBy: { updatedAt: "desc" } }),
     db.postAutomation.findMany({ where: { storeId: store.id }, orderBy: { postCreatedAt: "desc" }, take: 60 }),
     db.postAutomation.count({ where: { storeId: store.id, enabled: true, activeUntil: { gt: now } } }),
-    db.outboxJob.count({ where: { storeId: store.id, status: "SENT", kind: { in: ["PUBLIC_REPLY", "PRIVATE_REPLY", "DM_ANSWER"] }, updatedAt: { gte: startOfUtcDay(now) } } }),
+    db.outboxJob.count({ where: { storeId: store.id, status: "SENT", kind: { in: ["PUBLIC_REPLY", "PRIVATE_REPLY", "DM_ANSWER"] }, updatedAt: { gte: startOfShopDay(now) } } }),
     aiVaryUsed(store.id),
   ]);
   const plan = store.plan as StorePlan;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { captionProblems, isJpegPath, isKnownTarget, isOwnBlobUrl, mergeHashtags, youtubeProblem, youtubeTitle, CAPTION_LIMITS, CITY_TAGS, YT_VIDEO_ONLY, youtubeOptionProblems } from "@/lib/merchant/caption";
+import { captionProblems, isJpegPath, isKnownTarget, isOwnBlobUrl, isOwnPathname, mergeHashtags, youtubeProblem, youtubeTitle, CAPTION_LIMITS, CITY_TAGS, YT_VIDEO_ONLY, youtubeOptionProblems } from "@/lib/merchant/caption";
 
 describe("captionProblems", () => {
   it("passes a normal caption everywhere", () => {
@@ -129,5 +129,17 @@ describe("youtubeOptionProblems", () => {
   it("needs the person to say whether the video is made for kids, every time", () => {
     expect(youtubeOptionProblems({ ...ok, madeForKids: true })).toEqual([]);
     expect(youtubeOptionProblems({ ...ok, madeForKids: null })).toEqual(["audience"]);
+  });
+});
+
+describe("isOwnPathname", () => {
+  it("accepts a file in the workspace's own folder", () => {
+    expect(isOwnPathname("merchant/w1/1712345678.mp4", "w1")).toBe(true);
+    expect(isOwnPathname("merchant/w1/photos/a-x1Y.jpg", "w1")).toBe(true);
+  });
+  it("refuses anything that could reach another workspace's files once it is a URL", () => {
+    for (const p of ["merchant/w2/a.mp4", "merchant/w1/../w2/a.mp4", "merchant/w1/%2e%2e/w2/a.mp4", "merchant/w1/%2E%2E/w2/a.mp4", "merchant/w1/..\w2/a.mp4", "merchant/w1//a.mp4", null]) {
+      expect(isOwnPathname(p, "w1")).toBe(false);
+    }
   });
 });

@@ -2,6 +2,7 @@
 // With an outlet frame (BrandKit.framePath) the card is this photo behind the frame.
 
 import { db } from "@/lib/db";
+import { isOwnPathname } from "@/lib/merchant/caption";
 import { pickFromLibrary, shuffled } from "./clips";
 
 /** Most photos one desk keeps in its library. */
@@ -9,12 +10,7 @@ export const PHOTO_LIBRARY_MAX = 200;
 
 /** A photo pathname this desk may use: its own Blob file, an image. */
 export function isOwnPhoto(tenantId: string, pathname: unknown): pathname is string {
-  return (
-    typeof pathname === "string" &&
-    pathname.startsWith(`merchant/${tenantId}/`) &&
-    !pathname.includes("..") &&
-    /\.(jpe?g|png|webp)$/i.test(pathname)
-  );
+  return isOwnPathname(pathname, tenantId) && /\.(jpe?g|png|webp)$/i.test(pathname);
 }
 
 /** The library photo for one story's card, or null for none. Never throws. */

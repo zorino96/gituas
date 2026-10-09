@@ -162,7 +162,8 @@ Customer: """${incoming.slice(0, 1000)}"""`;
     if (!reply) return { ok: false, error: t.actions.inbox.aiNoReply };
     return { ok: true, reply };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : t.actions.common.aiDown };
+    console.error("[ai] request failed:", e instanceof Error ? e.message : "unknown error");
+    return { ok: false, error: t.actions.common.aiDown };
   }
 }
 
@@ -190,7 +191,8 @@ Rules:
     if (!caption) return { ok: false, error: t.actions.publish.aiNoCaption };
     return { ok: true, caption };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : t.actions.common.aiDown };
+    console.error("[ai] request failed:", e instanceof Error ? e.message : "unknown error");
+    return { ok: false, error: t.actions.common.aiDown };
   }
 }
 
