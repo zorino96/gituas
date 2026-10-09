@@ -9,6 +9,7 @@ import { dict, getLang } from "@/lib/i18n";
 import { normalizePhone } from "@/lib/merchant/phone";
 import { can } from "@/lib/newsroom/roles";
 import { accountFor, type StoreAccount } from "@/lib/shop/meta-client";
+import { forgetStoredMessages } from "@/lib/shop/forget";
 import { pauseThread } from "@/lib/shop/pause";
 import { vaultEncrypt } from "@/lib/vault";
 import {
@@ -154,6 +155,8 @@ export async function disconnectWhatsAppAction(): Promise<Result> {
   const store = await waStore(ws.id);
   if (store?.waPhoneNumberId) {
     await db.oAuthCredential.deleteMany({ where: { tenantId: ws.id, provider: "META_WHATSAPP", providerAccountId: store.waPhoneNumberId } });
+    // The conversations go with the number, as the privacy policy promises.
+    await forgetStoredMessages(ws.id, "WHATSAPP", store.waPhoneNumberId);
     await db.store.update({ where: { id: store.id }, data: { waPhoneNumberId: null, waBusinessId: null, waDisplayPhone: null, waPinEncrypted: null } });
     await audit(ws.id, "app.whatsapp_disconnect", "Disconnected WhatsApp.", {});
   }

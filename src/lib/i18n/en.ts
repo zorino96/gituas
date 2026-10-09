@@ -244,11 +244,14 @@ export const en: Dict = {
     ytDescription: "Description",
     ytPrivacy: "Who can watch",
     ytPrivacyOptions: { public: "Public", unlisted: "Unlisted", private: "Private" },
+    ytKids: "Is this video made for kids?",
+    ytKidsOptions: { yes: "Yes, it's made for kids", no: "No, it's not made for kids" },
+    ytKidsHint: "YouTube asks this for every video, to meet children's privacy laws.",
     ytFromCaption: "Filled in from your caption; change it as you like.",
     blockYtTitle: "Write a YouTube title (at most 100 characters).",
     blockYtPrivacy: "Choose who can watch the video on YouTube.",
     blockYtBrackets: "YouTube does not accept < or > in the title or description.",
-    blockYtOptions: "Check the YouTube title, description and privacy.",
+    blockYtOptions: "Check the YouTube title, description, privacy and audience.",
 
     // tiktok (the audited elements)
     ttLoading: "Loading TikTok info…",

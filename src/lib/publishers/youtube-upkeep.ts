@@ -6,8 +6,9 @@
 //   - each connected channel: refresh the token (proves the person still
 //     authorizes us) and re-read the channel's title and picture;
 //   - access revoked at Google: the connection is deleted;
-//   - links to videos we uploaded (audit log, news draft results) are kept
-//     30 days at most, and removed at once when the channel is disconnected.
+//   - links and ids of videos we uploaded, and the channel's id and name next
+//     to them (audit log, news draft and scheduled-post results), are kept
+//     30 days at most, and removed at once when that channel is disconnected.
 //  Statistics are never stored: the dashboard reads them live.
 
 import type { Prisma } from "@/generated/prisma/client";
@@ -49,45 +50,75 @@ async function refresh(refreshTokenEncrypted: string | null): Promise<Check> {
   }
 }
 
-/** A YouTube result entry, as stored in audit metadata and news draft results. */
-const isYt = (r: unknown): r is { target: "YT"; url?: string } => !!r && typeof r === "object" && (r as { target?: unknown }).target === "YT";
+/** A YouTube result entry, as stored in audit metadata, news draft results and scheduled-post results. */
+type YtEntry = { target: "YT"; accountId?: string } & Record<string, unknown>;
+const isYt = (r: unknown): r is YtEntry => !!r && typeof r === "object" && (r as { target?: unknown }).target === "YT";
 
-/** Remove YouTube video links: older than 30 days everywhere, and all of them for workspaces with no channel connected. */
+/** What YouTube API Services gave us about an upload: its link, video id and the channel's id and name. */
+const YT_FIELDS = ["url", "externalId", "accountId", "accountName"] as const;
+const hasYtData = (r: Record<string, unknown>) => YT_FIELDS.some((k) => k in r);
+function withoutYtData<T extends Record<string, unknown>>(r: T): T {
+  const rest: Record<string, unknown> = { ...r };
+  for (const k of YT_FIELDS) delete rest[k];
+  return rest as T;
+}
+
+/**
+ * Remove what YouTube API Services gave us about uploads: after 30 days everywhere, and at once for
+ * a channel that is no longer connected. Entries that name their channel are matched by channel;
+ * older ones without a channel id go when their workspace has no channel left.
+ */
 export async function scrubYouTubeLinks(now: Date = new Date()): Promise<number> {
   const cutoff = new Date(now.getTime() - YT_LINK_DAYS * DAY);
-  const connected = new Set(
-    (await db.oAuthCredential.findMany({ where: { provider: "YOUTUBE" }, select: { tenantId: true } })).map((c) => c.tenantId),
-  );
-  const expired = (tenantId: string | null, at: Date) => at < cutoff || !tenantId || !connected.has(tenantId);
+  const creds = await db.oAuthCredential.findMany({ where: { provider: "YOUTUBE" }, select: { tenantId: true, providerAccountId: true } });
+  const channels = new Set(creds.map((c) => `${c.tenantId}:${c.providerAccountId}`));
+  const tenants = new Set(creds.map((c) => c.tenantId));
+  const expired = (tenantId: string | null, r: YtEntry, at: Date) =>
+    at < cutoff || !tenantId || (r.accountId ? !channels.has(`${tenantId}:${r.accountId}`) : !tenants.has(tenantId));
   let removed = 0;
 
   const logs = await db.auditLog.findMany({
-    where: { action: "app.publish", metadata: { path: ["target"], equals: "YT" } },
+    where: { action: { in: ["app.publish", "app.publish_failed"] }, metadata: { path: ["target"], equals: "YT" } },
     select: { id: true, tenantId: true, createdAt: true, metadata: true },
   });
   for (const l of logs) {
-    const meta = (l.metadata ?? {}) as Record<string, unknown>;
-    if (!("url" in meta) || !expired(l.tenantId, l.createdAt)) continue;
-    const { url: _drop, ...rest } = meta;
-    void _drop;
-    await db.auditLog.update({ where: { id: l.id }, data: { metadata: rest as Prisma.InputJsonObject } });
+    const meta = (l.metadata ?? {}) as YtEntry;
+    if (!hasYtData(meta) || !expired(l.tenantId, meta, l.createdAt)) continue;
+    await db.auditLog.update({ where: { id: l.id }, data: { metadata: withoutYtData(meta) as Prisma.InputJsonObject } });
     removed++;
   }
+
+  // News drafts and scheduled posts keep a result list with one entry per target and account.
+  const scrubList = (tenantId: string, list: unknown, at: Date): unknown[] | null => {
+    const results = Array.isArray(list) ? (list as unknown[]) : [];
+    let changed = false;
+    const kept = results.map((r) => {
+      if (!isYt(r) || !hasYtData(r) || !expired(tenantId, r, at)) return r;
+      changed = true;
+      return withoutYtData(r);
+    });
+    return changed ? kept : null;
+  };
 
   const drafts = await db.newsDraft.findMany({
     where: { results: { array_contains: [{ target: "YT" }] } },
     select: { id: true, tenantId: true, publishedAt: true, updatedAt: true, results: true },
   });
   for (const d of drafts) {
-    const results = Array.isArray(d.results) ? (d.results as unknown[]) : [];
-    if (!expired(d.tenantId, d.publishedAt ?? d.updatedAt) || !results.some((r) => isYt(r) && r.url)) continue;
-    const kept = results.map((r) => {
-      if (!isYt(r)) return r;
-      const { url: _drop, ...rest } = r;
-      void _drop;
-      return rest;
-    });
+    const kept = scrubList(d.tenantId, d.results, d.publishedAt ?? d.updatedAt);
+    if (!kept) continue;
     await db.newsDraft.update({ where: { id: d.id }, data: { results: kept as Prisma.InputJsonValue } });
+    removed++;
+  }
+
+  const scheduled = await db.scheduledPost.findMany({
+    where: { result: { array_contains: [{ target: "YT" }] } },
+    select: { id: true, tenantId: true, updatedAt: true, result: true },
+  });
+  for (const p of scheduled) {
+    const kept = scrubList(p.tenantId, p.result, p.updatedAt);
+    if (!kept) continue;
+    await db.scheduledPost.update({ where: { id: p.id }, data: { result: kept as Prisma.InputJsonValue } });
     removed++;
   }
   return removed;

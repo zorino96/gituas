@@ -19,11 +19,16 @@
 // logged loudly below instead of being swallowed. Closing it for real needs
 // the granting user's id stored at connect time (a nullable column), which is
 // a schema change and therefore a separate, deliberate deployment.
+//
+// The same URL can be set as the deletion callback of the Instagram, Facebook Login and WhatsApp
+// apps: the signature is checked against each app's secret. With a credential, the comments and
+// messages stored from that account are deleted too, and the store forgets the account.
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
+import { forgetStoredMessages } from "@/lib/shop/forget";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,11 +45,16 @@ export async function POST(req: Request) {
   }
 
   const [sigPart, payloadPart] = signed.split(".", 2);
-  const secret = process.env.INSTAGRAM_APP_SECRET;
-  if (!secret) return NextResponse.json({ error: "misconfigured" }, { status: 500 });
-  const expected = createHmac("sha256", secret).update(payloadPart).digest();
+  const secrets = [process.env.INSTAGRAM_APP_SECRET, process.env.FACEBOOK_APP_SECRET, process.env.WHATSAPP_APP_SECRET]
+    .map((x) => x?.trim())
+    .filter((x): x is string => !!x);
+  if (!secrets.length) return NextResponse.json({ error: "misconfigured" }, { status: 500 });
   const got = b64url(sigPart);
-  if (expected.length !== got.length || !timingSafeEqual(expected, got)) {
+  const signedBy = (secret: string) => {
+    const expected = createHmac("sha256", secret).update(payloadPart).digest();
+    return expected.length === got.length && timingSafeEqual(expected, got);
+  };
+  if (!secrets.some(signedBy)) {
     return NextResponse.json({ error: "bad signature" }, { status: 400 });
   }
 
@@ -81,10 +91,18 @@ export async function POST(req: Request) {
   for (const tenantId of tenantIds) {
     const creds = await db.oAuthCredential.findMany({
       where: { tenantId, provider: { in: ["META_INSTAGRAM", "META_FACEBOOK"] } },
+      select: { id: true, provider: true, providerAccountId: true },
     });
     await db.oAuthCredential.deleteMany({
       where: { id: { in: creds.map((c) => c.id) } },
     });
+    let messages = 0;
+    for (const c of creds) {
+      const platform = c.provider as "META_INSTAGRAM" | "META_FACEBOOK";
+      messages += await forgetStoredMessages(tenantId, platform, c.providerAccountId);
+      if (platform === "META_FACEBOOK") await db.store.updateMany({ where: { tenantId, fbPageId: c.providerAccountId }, data: { fbPageId: null } });
+      else await db.store.updateMany({ where: { tenantId, igUserId: c.providerAccountId }, data: { igUserId: null, igUsername: null } });
+    }
     await db.auditLog.create({
       data: {
         tenantId,
@@ -92,10 +110,12 @@ export async function POST(req: Request) {
         action: "integrations.data_deletion",
         reasoning:
           `Meta data-deletion request for user ${userId}; removed ${creds.length} ` +
-          `stored Meta credential(s): ${creds.map((c) => c.provider).join(", ") || "none"}.`,
+          `stored Meta credential(s): ${creds.map((c) => c.provider).join(", ") || "none"}, ` +
+          `and ${messages} stored comment(s) and message(s).`,
         metadata: {
           confirmationCode: code,
           providers: creds.map((c) => c.provider),
+          messages,
         },
       },
     });

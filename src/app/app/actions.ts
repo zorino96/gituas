@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { auth, MAX_FAILURES, WINDOW_MS } from "@/auth";
+import { forgetStoredMessages } from "@/lib/shop/forget";
 import { db } from "@/lib/db";
 import { hashPassword, passwordProblem, verifyPassword } from "@/lib/password";
 import type { Prisma } from "@/generated/prisma/client";
@@ -264,6 +265,8 @@ export async function disconnectAccountAction(provider: (typeof DISCONNECTABLE)[
   const gone = await db.oAuthCredential.deleteMany({ where: { tenantId: ws.id, provider, providerAccountId: accountId } });
   if (gone.count) {
     if (provider === "YOUTUBE") await scrubYouTubeLinks();
+    // The comments and messages that came in through this account go with it.
+    if (provider === "META_FACEBOOK" || provider === "META_INSTAGRAM") await forgetStoredMessages(ws.id, provider, accountId);
     if (provider === "META_FACEBOOK") await db.store.updateMany({ where: { tenantId: ws.id, fbPageId: accountId }, data: { fbPageId: null } });
     if (provider === "META_INSTAGRAM") await db.store.updateMany({ where: { tenantId: ws.id, igUserId: accountId }, data: { igUserId: null, igUsername: null } });
     if (provider === "META_FACEBOOK" || provider === "META_INSTAGRAM") {

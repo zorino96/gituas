@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import { ImagePlus, Sparkles, X } from "lucide-react";
 
-import { CAPTION_LIMITS, CITY_TAGS, captionProblems, mergeHashtags, YT_DESCRIPTION_MAX, YT_PRIVACY, YT_TITLE_MAX, youtubeOptionProblems, youtubeTitle, type Target, type YtPrivacy } from "@/lib/merchant/caption";
+import { CAPTION_LIMITS, CITY_TAGS, captionProblems, mergeHashtags, YT_DESCRIPTION_MAX, YT_PRIVACY, YT_TITLE_MAX, ytDescriptionBytes, youtubeOptionProblems, youtubeTitle, type Target, type YtPrivacy } from "@/lib/merchant/caption";
 import type { PublishOutcome } from "@/lib/merchant/publish-core";
 import { tiktokProblems } from "@/lib/merchant/tiktok-rules";
 import { useT } from "@/lib/i18n/client";
@@ -124,6 +124,7 @@ export function PublishClient({
   const [ytTitle, setYtTitle] = useState<string | null>(null);
   const [ytDescription, setYtDescription] = useState<string | null>(null);
   const [ytPrivacy, setYtPrivacy] = useState<YtPrivacy | null>(null);
+  const [ytKids, setYtKids] = useState<boolean | null>(null);
 
   // publish
   const [publishing, startPublish] = useTransition();
@@ -292,7 +293,7 @@ export function PublishClient({
     [on.TT, tt, privacy, commercial, yourBrand, branded, media?.durationSec],
   );
 
-  const youtube = { title: ytTitle ?? youtubeTitle(caption), description: ytDescription ?? caption, privacy: ytPrivacy };
+  const youtube = { title: ytTitle ?? youtubeTitle(caption), description: ytDescription ?? caption, privacy: ytPrivacy, madeForKids: ytKids };
   const ytIssues = on.YT ? youtubeOptionProblems(youtube) : [];
   const blockers: string[] = [];
   if (!targets.length) blockers.push(t.publish.blockPickTarget);
@@ -401,6 +402,7 @@ export function PublishClient({
     setYtTitle(null);
     setYtDescription(null);
     setYtPrivacy(null);
+    setYtKids(null);
   }
 
   function discardDraft() {
@@ -669,11 +671,13 @@ export function PublishClient({
               className="gm-textarea"
               dir="auto"
               rows={4}
-              maxLength={YT_DESCRIPTION_MAX}
               value={youtube.description}
               onChange={(e) => setYtDescription(e.target.value)}
             />
-            {ytTitle === null && ytDescription === null && <small className="gm-hint">{t.publish.ytFromCaption}</small>}
+            <small className="gm-hint">
+              {ytTitle === null && ytDescription === null ? `${t.publish.ytFromCaption} · ` : ""}
+              {ytDescriptionBytes(youtube.description)} / {YT_DESCRIPTION_MAX}
+            </small>
           </div>
           <div role="radiogroup" aria-label={t.publish.ytPrivacy}>
             <p className="gm-sub" style={{ margin: "4px 0 0", fontWeight: 600 }}>{t.publish.ytPrivacy}</p>
@@ -683,6 +687,16 @@ export function PublishClient({
                 <span>{t.publish.ytPrivacyOptions[p]}</span>
               </label>
             ))}
+          </div>
+          <div role="radiogroup" aria-label={t.publish.ytKids}>
+            <p className="gm-sub" style={{ margin: "4px 0 0", fontWeight: 600 }}>{t.publish.ytKids}</p>
+            {([true, false] as const).map((k) => (
+              <label key={String(k)} className="gm-radio">
+                <input type="radio" name="yt-kids" checked={ytKids === k} onChange={() => setYtKids(k)} />
+                <span>{k ? t.publish.ytKidsOptions.yes : t.publish.ytKidsOptions.no}</span>
+              </label>
+            ))}
+            <small className="gm-hint">{t.publish.ytKidsHint}</small>
           </div>
         </div>
       )}
@@ -707,12 +721,16 @@ export function PublishClient({
 
               <p className="gm-sec">{isVideo ? t.publish.ttWhoVideo : t.publish.ttWhoPost}</p>
               <div role="radiogroup" aria-label={isVideo ? t.publish.ttWhoVideo : t.publish.ttWhoPost}>
-                {tt.privacyOptions.map((opt) => (
-                  <label key={opt} className="gm-radio">
-                    <input type="radio" name="tt-privacy" value={opt} checked={privacy === opt} onChange={() => setPrivacy(opt)} />
-                    {(t.privacy as Record<string, string>)[opt] ?? opt}
-                  </label>
-                ))}
+                {tt.privacyOptions.map((opt) => {
+                  // TikTok: branded content cannot be private, so "Only me" is greyed out while it is ticked.
+                  const off = branded && opt === "SELF_ONLY";
+                  return (
+                    <label key={opt} className="gm-radio" title={off ? t.publish.blockTtBranded : undefined} style={off ? { opacity: 0.5 } : undefined}>
+                      <input type="radio" name="tt-privacy" value={opt} checked={privacy === opt} disabled={off} onChange={() => setPrivacy(opt)} />
+                      {(t.privacy as Record<string, string>)[opt] ?? opt}
+                    </label>
+                  );
+                })}
               </div>
               {!privacy && <p className="gm-hint">{t.publish.ttPickOne}</p>}
 
@@ -776,12 +794,21 @@ export function PublishClient({
                     <input type="checkbox" checked={yourBrand} onChange={(e) => setYourBrand(e.target.checked)} />
                     <span>
                       <b>{t.publish.ttYourBrand}</b>
-                      <br />
-                      <small className="gm-time">{t.publish.ttYourBrandHint}</small>
+                      {/* With both ticked TikTok shows only "Paid partnership", so only that label is promised. */}
+                      {!branded && (
+                        <>
+                          <br />
+                          <small className="gm-time">{t.publish.ttYourBrandHint}</small>
+                        </>
+                      )}
                     </span>
                   </label>
-                  <label className="gm-radio" style={{ alignItems: "flex-start" }}>
-                    <input type="checkbox" checked={branded} onChange={(e) => setBranded(e.target.checked)} />
+                  <label
+                    className="gm-radio"
+                    style={{ alignItems: "flex-start", ...(privacy === "SELF_ONLY" ? { opacity: 0.5 } : {}) }}
+                    title={privacy === "SELF_ONLY" ? t.publish.blockTtBranded : undefined}
+                  >
+                    <input type="checkbox" checked={branded} disabled={privacy === "SELF_ONLY" && !branded} onChange={(e) => setBranded(e.target.checked)} />
                     <span>
                       <b>{t.publish.ttBranded}</b>
                       <br />

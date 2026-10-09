@@ -59,24 +59,32 @@ export function youtubeTitle(caption: string): string {
 export const YT_PRIVACY = ["public", "unlisted", "private"] as const;
 export type YtPrivacy = (typeof YT_PRIVACY)[number];
 
-/** What the person sets for a YouTube upload (videos.insert snippet.title, snippet.description, status.privacyStatus). */
+/**
+ * What the person sets for a YouTube upload (videos.insert snippet.title, snippet.description,
+ * status.privacyStatus, status.selfDeclaredMadeForKids). Privacy and audience have no default.
+ */
 export interface YouTubeOptions {
   title: string;
   description: string;
   privacy: YtPrivacy | null;
+  madeForKids: boolean | null;
 }
 
 export const YT_TITLE_MAX = 100;
+/** YouTube counts the description in UTF-8 bytes: Kurdish and Arabic letters take two each. */
 export const YT_DESCRIPTION_MAX = 5000;
+export const ytDescriptionBytes = (s: string): number => new TextEncoder().encode(s).length;
 
-/** Why YouTube would refuse these options: no title, too long, angle brackets (YouTube rejects them), or no privacy chosen. */
-export function youtubeOptionProblems(o: YouTubeOptions): ("title" | "description" | "brackets" | "privacy")[] {
-  const out: ("title" | "description" | "brackets" | "privacy")[] = [];
-  const title = o.title.trim();
+/** Why YouTube would refuse these options: no title, too long, angle brackets (YouTube rejects them), or no privacy or audience chosen. */
+export function youtubeOptionProblems(o: YouTubeOptions): ("title" | "description" | "brackets" | "privacy" | "audience")[] {
+  const out: ("title" | "description" | "brackets" | "privacy" | "audience")[] = [];
+  const title = typeof o.title === "string" ? o.title.trim() : "";
+  const description = typeof o.description === "string" ? o.description : "";
   if (!title || Array.from(title).length > YT_TITLE_MAX) out.push("title");
-  if (Array.from(o.description).length > YT_DESCRIPTION_MAX) out.push("description");
-  if (/[<>]/.test(title + o.description)) out.push("brackets");
+  if (ytDescriptionBytes(description) > YT_DESCRIPTION_MAX) out.push("description");
+  if (/[<>]/.test(title + description)) out.push("brackets");
   if (!o.privacy || !(YT_PRIVACY as readonly string[]).includes(o.privacy)) out.push("privacy");
+  if (typeof o.madeForKids !== "boolean") out.push("audience");
   return out;
 }
 

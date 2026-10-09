@@ -10,19 +10,20 @@ export default function TermsPage() {
   return (
     <article>
       <h1 className="font-display text-4xl md:text-5xl leading-tight">Terms of Service</h1>
-      <Updated date="September 28, 2026" />
+      <Updated date="October 10, 2026" />
 
       <Lead>
-        These Terms govern your access to and use of Gituas. By creating an account or using the
-        service, you agree to these Terms.
+        These Terms govern your access to and use of Gituas (gituas.com) and Hawalnoos
+        (hawalnoos.com). By creating an account or using either service, you agree to these Terms.
       </Lead>
 
       <H2>1. The service</H2>
       <P>
-        Gituas is an autonomous marketing and operations platform. It connects to your code
-        repository and to social and payment accounts you authorize, and uses AI to plan, create,
-        schedule, and publish marketing content on your behalf, subject to the controls and
-        approvals you configure.
+        Gituas connects to the social accounts you authorize (Facebook Pages, Instagram, TikTok,
+        YouTube and WhatsApp Business), publishes the posts and videos you choose, and answers
+        comments and messages from your buyers, by hand or automatically under the settings you
+        configure. Hawalnoos helps news outlets turn news stories into drafts, image cards and short
+        videos and publish them to their own pages. Both use AI to help write content and replies.
       </P>
 
       <H2>2. Eligibility and accounts</H2>
@@ -34,14 +35,15 @@ export default function TermsPage() {
 
       <H2>3. Connected third-party accounts</H2>
       <P>
-        When you connect a platform such as TikTok, X, LinkedIn, Reddit, Meta, or Stripe, you
+        When you connect a platform such as Facebook, Instagram, WhatsApp, TikTok or YouTube, you
         authorize Gituas to act on your behalf within the scopes you grant. You remain bound by each
         platform&rsquo;s own terms — including the{" "}
         <ExtLink href="https://www.tiktok.com/legal/page/global/terms-of-service/en">
           TikTok Terms of Service
         </ExtLink>
         {" "}— and you are responsible for ensuring your use of Gituas complies with them. You can
-        revoke access at any time by disconnecting the platform in your dashboard.
+        revoke access at any time by disconnecting the account in Settings. TikTok posts are always
+        started by you: Gituas never posts to TikTok automatically.
       </P>
       <P>
         <strong>YouTube.</strong> Gituas uses YouTube API Services to publish videos to, and read
@@ -58,7 +60,20 @@ export default function TermsPage() {
         and the{" "}
         <ExtLink href="https://business.whatsapp.com/policy">WhatsApp Business Messaging Policy</ExtLink>. Gituas
         only replies to people who message your business first, within WhatsApp&rsquo;s customer-service
-        window; you may not use Gituas to send unsolicited or bulk messages.
+        window, and sends message templates only to people who have messaged your number and have not
+        asked you to stop. You may not use Gituas to send unsolicited or bulk messages.
+      </P>
+
+      <P>
+        <strong>Selling.</strong> If you sell through Gituas, on Facebook, Instagram or WhatsApp, you
+        must follow the{" "}
+        <ExtLink href="https://www.facebook.com/policies_center/commerce">Meta Commerce Policies</ExtLink>{" "}
+        and the{" "}
+        <ExtLink href="https://business.whatsapp.com/policy">WhatsApp Commerce Policy</ExtLink>. You may
+        not offer items or services they prohibit, such as weapons, ammunition or explosives, drugs and
+        drug paraphernalia, tobacco and e-cigarettes, alcohol, adult products, live animals,
+        prescription medicines, counterfeit goods, or real money gambling. We may remove products or
+        switch off shop features for an account that breaks these policies.
       </P>
 
       <H2>4. Your content</H2>
@@ -79,9 +94,9 @@ export default function TermsPage() {
 
       <H2>6. AI-generated output</H2>
       <P>
-        Marketing content is produced with the help of automated systems and may contain errors. You
-        are responsible for reviewing content before it is published, and Gituas provides approval
-        controls to help you do so. We make no warranty regarding the accuracy or performance of
+        Content and replies are produced with the help of automated systems and may contain errors.
+        You are responsible for what is published and sent from your accounts, including automatic
+        replies you switch on, and Gituas provides review and approval controls to help you check it. We make no warranty regarding the accuracy or performance of
         generated content.
       </P>
       <P>
@@ -90,14 +105,17 @@ export default function TermsPage() {
         source&rsquo;s article text, photos, or video. Whether to credit a source is your page&rsquo;s
         own decision. You are responsible for everything your page publishes, for any feed you add
         yourself and your right to use it, for any media licence your page needs, and for reviewing
-        every draft before approving it. Nothing is published without your approval. Some headlines
+        every draft before approving it. If you turn on autopilot publishing, drafts are published
+        automatically to the pages you choose, under the settings you set, without a review of each
+        one; you remain responsible for them and can switch it off at any time. Otherwise nothing is
+        published without your approval. Some headlines
         are provided by the <ExtLink href="https://www.gdeltproject.org/">GDELT Project</ExtLink>.
       </P>
 
       <H2>7. Fees</H2>
       <P>
         If a paid plan applies, the fees, billing cycle, and refund terms will be presented to you
-        before purchase. Failure to pay may result in suspension of the service.
+        before purchase. Payments are processed by Wayl. Failure to pay may result in suspension of the service.
       </P>
 
       <H2>8. Disclaimers</H2>
@@ -116,7 +134,8 @@ export default function TermsPage() {
 
       <H2>10. Termination</H2>
       <P>
-        You may stop using Gituas and delete your account at any time. We may suspend or terminate
+        You may stop using Gituas and ask us to delete your account at any time (see{" "}
+        <InLink href="/data-deletion">Data Deletion</InLink>). We may suspend or terminate
         access if you breach these Terms or use the service in a way that risks harm to Gituas, its
         users, or any connected platform.
       </P>

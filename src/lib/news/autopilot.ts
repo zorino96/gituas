@@ -350,15 +350,14 @@ async function budgetNow(run: Run): Promise<{ budget: Budget; canPostDrafted: bo
       run.connected = { FB: conns.META_FACEBOOK.connected, IG: conns.META_INSTAGRAM.connected };
     }
     targets = autoTargetsFor(settings.autoTargets, run.connected);
-    run.accounts = autoAccountsFor(settings.autoAccounts);
-    if (!run.accounts) {
-      // Several Pages and none ticked: the first one connected, as the settings screen says.
-      const lists = await loadAccountLists(tenantId);
-      const first: Partial<Record<AutoTarget, string[]>> = {};
-      if (lists.META_FACEBOOK.length > 1) first.FB = [lists.META_FACEBOOK[0].id];
-      if (lists.META_INSTAGRAM.length > 1) first.IG = [lists.META_INSTAGRAM[0].id];
-      if (first.FB || first.IG) run.accounts = first;
-    }
+    const chosen = autoAccountsFor(settings.autoAccounts);
+    // A platform with several accounts and none ticked: the first one connected, as the settings
+    // screen says (publishing refuses to guess when several are connected and none is named).
+    const lists = await loadAccountLists(tenantId);
+    const accounts: Partial<Record<AutoTarget, string[]>> = { ...chosen };
+    if (!accounts.FB?.length && lists.META_FACEBOOK.length > 1) accounts.FB = [lists.META_FACEBOOK[0].id];
+    if (!accounts.IG?.length && lists.META_INSTAGRAM.length > 1) accounts.IG = [lists.META_INSTAGRAM[0].id];
+    run.accounts = accounts.FB?.length || accounts.IG?.length ? accounts : undefined;
     // Nowhere to post: the story is still drafted, and waits for a person.
     if (!targets.length) mode = "DRAFT";
   }

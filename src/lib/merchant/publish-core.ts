@@ -3,12 +3,13 @@
 // session at all, so nothing in here may read cookies, headers or the current
 // user. Everything it needs comes in through `ws` and `input`.
 
+import { loadAccountLists } from "@/app/app/data";
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { withAccounts } from "@/lib/oauth/account-scope";
 import { assertWithin, LimitReached, limitMessage, newsroomFrozenError } from "@/lib/billing/limits";
 import { ckb, type Dict } from "@/lib/i18n/ckb";
-import { captionProblems, isJpegPath, isKnownTarget, isOwnBlobUrl, youtubeOptionProblems, youtubeProblem, youtubeTitle, type Target, type YouTubeOptions } from "@/lib/merchant/caption";
+import { captionProblems, isJpegPath, isKnownTarget, isOwnBlobUrl, youtubeOptionProblems, youtubeProblem, type Target, type YouTubeOptions } from "@/lib/merchant/caption";
 import { tiktokProblems } from "@/lib/merchant/tiktok-rules";
 import { recordNewsPublish } from "@/lib/news/publish-record";
 import { checkDraft } from "@/lib/news/rules";
@@ -114,7 +115,8 @@ export async function publishForWorkspace(
   }
   // youtubeProblem has a single, Sorani answer; the dictionary has the same sentence.
   if (youtubeProblem(targets, input.media)) return { error: t.publish.ytVideoOnly };
-  if (targets.includes("YT") && input.youtube && youtubeOptionProblems(input.youtube).length) return { error: t.publish.blockYtOptions };
+  // Every YouTube upload carries the person's own title, description, privacy and audience (YouTube API policy III.E.3.f, III.J.2.b).
+  if (targets.includes("YT") && (!input.youtube || youtubeOptionProblems(input.youtube).length)) return { error: t.publish.blockYtOptions };
   if (input.media) {
     const expected = `merchant/${ws.id}/`;
     if (!input.media.pathname.startsWith(expected) || !/^https:\/\//.test(input.media.url)) {
@@ -154,9 +156,17 @@ export async function publishForWorkspace(
   // Which accounts each platform goes to: the chosen ones that are really this workspace's, or the default.
   const jobs: { target: Target; accountId?: string; accountName?: string }[] = [];
   const unknownAccount: PublishOutcome[] = [];
+  let lists: Awaited<ReturnType<typeof loadAccountLists>> | null = null;
   for (const target of targets) {
     const asked = [...new Set((input.accounts?.[target] ?? []).filter((x): x is string => typeof x === "string" && !!x))];
     if (!asked.length) {
+      // With several accounts on a platform nobody gets a post they did not pick (an older scheduled
+      // post, or a request that skipped the composer): it fails and says why.
+      lists ??= await loadAccountLists(ws.id);
+      if (lists[TARGET_PROVIDER[target]].length > 1) {
+        unknownAccount.push({ target, ok: false, error: t.publish.blockPickAccount });
+        continue;
+      }
       jobs.push({ target });
       continue;
     }
@@ -193,13 +203,14 @@ export async function publishForWorkspace(
     }
     if (target === "YT") {
       // publishToYouTube downloads the video from its public Blob URL, then uploads it.
-      const yt = input.youtube;
-      const r = await publishToYouTube(
-        ws.id,
-        yt?.privacy
-          ? { title: yt.title.trim(), description: yt.description, privacy: yt.privacy, videoUrl: input.media!.url }
-          : { title: youtubeTitle(caption), description: caption, videoUrl: input.media!.url },
-      );
+      const yt = input.youtube!;
+      const r = await publishToYouTube(ws.id, {
+        title: yt.title.trim(),
+        description: yt.description,
+        privacy: yt.privacy!,
+        madeForKids: yt.madeForKids!,
+        videoUrl: input.media!.url,
+      });
       return { target, ok: r.ok, url: r.permalinkUrl, externalId: r.externalId, error: r.error };
     }
     // TikTok pulls the video from our verified domain, through the media proxy.

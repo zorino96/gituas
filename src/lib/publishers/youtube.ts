@@ -85,8 +85,10 @@ async function youTubeCredential(tenantId: string): Promise<{ id: string; token:
 
 export async function publishToYouTube(
   tenantId: string,
-  content: { title: string; description: string; videoUrl?: string; privacy?: "public" | "unlisted" | "private" },
+  content: { title: string; description: string; videoUrl?: string; privacy: "public" | "unlisted" | "private"; madeForKids: boolean },
 ): Promise<PublishResult> {
+  // The person chose all of these for this upload; nothing is filled in for them.
+  if (!content.title.trim()) return { ok: false, error: "YouTube needs a title." };
   if (!content.videoUrl || !/^https:\/\//i.test(content.videoUrl)) {
     return { ok: false, error: "YouTube needs a public https video URL (sourceAssetType VIDEO)." };
   }
@@ -103,10 +105,10 @@ export async function publishToYouTube(
 
     const metadata = JSON.stringify({
       snippet: {
-        title: content.title.slice(0, 100) || "vidsave",
-        description: content.description.slice(0, 4900),
+        title: content.title.trim(),
+        description: content.description,
       },
-      status: { privacyStatus: content.privacy ?? "public", selfDeclaredMadeForKids: false },
+      status: { privacyStatus: content.privacy, selfDeclaredMadeForKids: content.madeForKids },
     });
 
     const boundary = "gituasYT" + Math.random().toString(36).slice(2);

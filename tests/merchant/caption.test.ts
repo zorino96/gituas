@@ -104,7 +104,7 @@ describe("isOwnBlobUrl", () => {
 });
 
 describe("youtubeOptionProblems", () => {
-  const ok = { title: "Kirkuk news", description: "Today in Kirkuk", privacy: "unlisted" as const };
+  const ok = { title: "Kirkuk news", description: "Today in Kirkuk", privacy: "unlisted" as const, madeForKids: false };
 
   it("accepts a title, a description and a chosen privacy", () => {
     expect(youtubeOptionProblems(ok)).toEqual([]);
@@ -118,8 +118,16 @@ describe("youtubeOptionProblems", () => {
     expect(youtubeOptionProblems({ ...ok, privacy: null })).toEqual(["privacy"]);
   });
 
-  it("rejects what YouTube refuses: angle brackets and descriptions over 5000 characters", () => {
+  it("rejects what YouTube refuses: angle brackets and descriptions over 5000 bytes", () => {
     expect(youtubeOptionProblems({ ...ok, title: "a <b>" })).toEqual(["brackets"]);
     expect(youtubeOptionProblems({ ...ok, description: "x".repeat(5001) })).toEqual(["description"]);
+    // Kurdish letters are two bytes each: 2500 fit, 2501 do not.
+    expect(youtubeOptionProblems({ ...ok, description: "ک".repeat(2500) })).toEqual([]);
+    expect(youtubeOptionProblems({ ...ok, description: "ک".repeat(2501) })).toEqual(["description"]);
+  });
+
+  it("needs the person to say whether the video is made for kids, every time", () => {
+    expect(youtubeOptionProblems({ ...ok, madeForKids: true })).toEqual([]);
+    expect(youtubeOptionProblems({ ...ok, madeForKids: null })).toEqual(["audience"]);
   });
 });

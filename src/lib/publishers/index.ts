@@ -11,7 +11,6 @@ import { vaultDecrypt } from "@/lib/vault";
 import { newestFirst, unexpired } from "@/lib/oauth/pick";
 import { publishToInstagram } from "./instagram";
 import { publishToFacebookPage } from "./facebook";
-import { publishToYouTube } from "./youtube";
 import type { OAuthProvider, Platform } from "@/generated/prisma/client";
 
 export interface PublishResult {
@@ -192,17 +191,11 @@ export async function publishPlatformPost(platformPostId: string): Promise<Publi
     case "LINKEDIN": result = await publishToLinkedIn(tenantId, content); break;
     // TIKTOK is handled by the early return above and so is absent here on
     // purpose — TypeScript has already narrowed it out of this switch.
-    case "YOUTUBE": {
-      const tags = (pp.contentPost.hashtags ?? [])
-        .map((h) => (h.startsWith("#") ? h : `#${h}`))
-        .join(" ");
-      result = await publishToYouTube(tenantId, {
-        title: pp.contentPost.description.slice(0, 100),
-        description: [pp.contentPost.description, tags].filter(Boolean).join("\n\n"),
-        videoUrl: pp.contentPost.sourceAssetType === "VIDEO" ? pp.contentPost.sourceAssetUrl : undefined,
-      });
+    // YouTube uploads need the person's own title, privacy and audience for each video, which only
+    // the composer asks for; this older path never uploads to YouTube.
+    case "YOUTUBE":
+      result = { ok: false, error: "Upload YouTube videos from Publish, where you choose the title, description, privacy and audience." };
       break;
-    }
     case "META_INSTAGRAM": {
       const tags = (pp.contentPost.hashtags ?? [])
         .map((h) => (h.startsWith("#") ? h : `#${h}`))
