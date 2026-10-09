@@ -6,8 +6,8 @@ import { auth, MAX_FAILURES, WINDOW_MS } from "@/auth";
 import { db } from "@/lib/db";
 import { hashPassword, passwordProblem, verifyPassword } from "@/lib/password";
 import type { Prisma } from "@/generated/prisma/client";
-import { getGemini } from "@/lib/gemini";
 import { newsroomFrozenError } from "@/lib/billing/limits";
+import { completeJson } from "@/lib/ai/provider";
 import { dict, getLang, type Dict } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
 import { baseFor, currentWorkspace } from "./data";
@@ -101,13 +101,18 @@ export async function sendMessageAction(platform: Platform, recipientId: string,
 
 // ---------- AI -------------------------------------------------------------
 
-async function gemini(prompt: string, maxOutputTokens = 400): Promise<string> {
-  const res = await getGemini().models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    config: { maxOutputTokens },
-  });
-  return res.text?.trim() ?? "";
+/** Short Kurdish/Arabic text through the shared AI chain (kurd.gg, then DeepSeek, then Gemini). */
+async function aiText(prompt: string): Promise<string> {
+  const { data } = await completeJson<{ text: string }>(
+    {
+      system: 'You write short social media texts for pages in Iraqi Kurdistan. Follow the rules in the request exactly. Reply with JSON only: {"text": "<the text>"}',
+      user: prompt,
+      strength: "fast",
+      thinking: false,
+    },
+    (d) => (typeof (d as { text?: unknown })?.text === "string" ? (d as { text: string }) : null),
+  );
+  return data.text.trim();
 }
 
 export async function draftReplyAction(
@@ -146,7 +151,7 @@ Rules:
 
 Customer: """${incoming.slice(0, 1000)}"""`;
   try {
-    const reply = await gemini(prompt);
+    const reply = await aiText(prompt);
     if (!reply) return { ok: false, error: t.actions.inbox.aiNoReply };
     return { ok: true, reply };
   } catch (e) {
@@ -165,7 +170,7 @@ export async function suggestCaptionAction(
     if (frozen) return { ok: false, error: frozen };
   }
   try {
-    const caption = await gemini(
+    const caption = await aiText(
       `Write a social media caption in Sorani Kurdish (Arabic script) for a small shop in Iraqi Kurdistan.
 ${notes.trim() ? `What the merchant wrote about the post: """${notes.slice(0, 800)}"""` : "The merchant gave no notes; write a short, general, inviting caption."}
 Rules:
@@ -174,7 +179,6 @@ Rules:
 - End with a call to message the shop.
 - No hashtags (they are added separately). At most two emoji.
 - Output only the caption.`,
-      500,
     );
     if (!caption) return { ok: false, error: t.actions.publish.aiNoCaption };
     return { ok: true, caption };

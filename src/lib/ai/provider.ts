@@ -1,9 +1,11 @@
-// One call shape for JSON completions. DeepSeek first (one retry), Gemini as
-// the fallback, so a DeepSeek outage never stops the desk. Every attempt is
-// budgeted against one overall deadline, so a slow DeepSeek can never eat the
-// time Gemini would have needed inside Vercel's 60 s.
+// One call shape for JSON completions. kurd.gg first when it is configured (its
+// Sorani is better), then DeepSeek (one retry), then Gemini, so one provider's
+// outage never stops the desk. Every attempt is budgeted against one overall
+// deadline, so a slow provider can never eat the time the next one needs
+// inside Vercel's 60 s.
 import { isGeminiConfigured } from "@/lib/gemini";
 import { deepseekConfigured, deepseekJson } from "./deepseek";
+import { kurdggConfigured, kurdggJson } from "./kurdgg";
 import { geminiJson } from "./gemini-json";
 
 /** fast = deepseek-flash (default); strong = deepseek-v4-pro (the editor's "improve"). */
@@ -36,6 +38,9 @@ const isTimeout = (e: unknown) => e instanceof Error && (e.name === "TimeoutErro
 const TIMEOUT: Record<Strength, number> = { fast: 20_000, strong: 38_000 };
 const DEADLINE_MS = 50_000;
 
+/** kurd.gg gets one try, shorter than DeepSeek's, so both fallbacks still fit. */
+const KURDGG_TIMEOUT: Record<Strength, number> = { fast: 15_000, strong: 25_000 };
+
 interface DeepseekAttempt<T> {
   ok: boolean;
   result?: { data: T; model: string };
@@ -66,6 +71,20 @@ export async function completeJson<T = unknown>(
       return { ok: false, timedOut: isTimeout(e) };
     }
   };
+
+  if (kurdggConfigured()) {
+    const t0 = Math.min(KURDGG_TIMEOUT[call.strength], remaining() - 15_000);
+    if (t0 >= 5000) {
+      try {
+        const result = await kurdggJson(call, t0);
+        const data = validate(result.data);
+        if (data !== null) return { data, model: result.model };
+        errors.push("kurdgg: the reply did not have the shape we need");
+      } catch (e) {
+        errors.push(`kurdgg: ${message(e)}`);
+      }
+    }
+  }
 
   if (deepseekConfigured()) {
     const t1 = Math.min(TIMEOUT[call.strength], remaining() - 8000);

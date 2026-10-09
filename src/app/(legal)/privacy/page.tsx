@@ -179,7 +179,7 @@ export default function PrivacyPage() {
       <UL>
         <LI><Strong>Hosting &amp; infrastructure</Strong> — Vercel (application) and Neon (database).</LI>
         <LI>
-          <Strong>AI processing</Strong> — Google (Gemini) and DeepSeek to generate and summarise
+          <Strong>AI processing</Strong> — kurd.gg (Pawan.Krd), Google (Gemini) and DeepSeek to generate and summarise
           content. What we send them is the content being drafted; for news pages, that is a public
           headline and summary of a news story.
         </LI>
