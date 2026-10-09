@@ -4,7 +4,7 @@ vi.mock("@/lib/db", () => ({ db: {} }));
 
 import { classifyMetaError } from "@/lib/shop/meta-errors";
 import { templateName, toWaBody } from "@/lib/whatsapp/cloud";
-import { mediaToken, parseWaPayload, productNamedIn, typedText } from "@/lib/whatsapp/webhook";
+import { isStopWord, mediaToken, parseWaPayload, productNamedIn, typedText } from "@/lib/whatsapp/webhook";
 
 const payload = (field: string, value: object) => ({
   object: "whatsapp_business_account",
@@ -100,5 +100,14 @@ describe("WhatsApp sending helpers", () => {
     expect(classifyMetaError(400, { error: { code: 130429 } })).toBe("rate");
     expect(classifyMetaError(400, { error: { code: 131026 } })).toBe("gone");
     expect(classifyMetaError(401, { error: { code: 190 } })).toBe("token");
+  });
+});
+
+describe("isStopWord", () => {
+  it("knows a buyer asking to stop, in each language", () => {
+    for (const w of ["STOP", "stop.", "Unsubscribe", "وەستان", "توقف", "إلغاء!"]) expect(isStopWord(w)).toBe(true);
+  });
+  it("does not read a normal message as a stop", () => {
+    for (const w of ["stop by tomorrow?", "نرخی چەندە", "", "hi"]) expect(isStopWord(w)).toBe(false);
   });
 });

@@ -28,7 +28,7 @@ export async function GET(req: Request) {
   for (const j of due) await runJob(j.id);
 
   const stuck = await db.conversationMessage.findMany({
-    where: { storeId: { not: null }, outcome: null, createdAt: { lt: new Date(now - 5 * 60_000), gt: new Date(now - 7 * 86_400_000) } },
+    where: { storeId: { not: null }, direction: "INBOUND", outcome: null, createdAt: { lt: new Date(now - 5 * 60_000), gt: new Date(now - 7 * 86_400_000) } },
     orderBy: { createdAt: "asc" },
     take: 15,
     select: { id: true },

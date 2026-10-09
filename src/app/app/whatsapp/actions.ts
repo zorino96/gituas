@@ -24,6 +24,7 @@ import {
   TEMPLATE_LANGUAGES,
   type TemplateCategory,
 } from "@/lib/whatsapp/cloud";
+import { isStopWord } from "@/lib/whatsapp/webhook";
 import { currentWorkspace } from "../data";
 
 export type Result = { ok: true } | { ok: false; error: string };
@@ -199,11 +200,22 @@ export async function sendWhatsAppTemplateAction(rawTo: string, name: string, la
   if (!n.ok) return { ok: false, error: e.badPhone };
   const c = await connectedAccount(ws.id);
   if (!c) return { ok: false, error: e.notConnected };
+  // WhatsApp Business Messaging Policy: only people who chose to hear from the shop (they wrote to
+  // it first), and not while their latest message asks to stop.
+  const latest = await db.conversationMessage.findFirst({
+    where: { storeId: c.storeId, platform: "WHATSAPP", direction: "INBOUND", authorId: n.digits },
+    orderBy: { createdAt: "desc" },
+    select: { content: true },
+  });
+  if (!latest) return { ok: false, error: e.notOptedIn };
+  if (isStopWord(latest.content ?? "")) return { ok: false, error: e.optedOut };
   const r = await sendWaTemplate(c.acc.accountId, c.acc.token, n.digits, name, language);
   if (!r.ok) return { ok: false, error: e.failed(r.error) };
   await db.conversationMessage.create({
     data: { storeId: c.storeId, platform: "WHATSAPP", channelType: "DM", direction: "OUTBOUND", status: "SENT", content: `[template] ${name}`, externalMessageId: r.id, externalThreadId: n.digits, authorId: n.digits },
   });
+  // The merchant has started this conversation: the bot stays out of it, as after a manual reply.
+  await pauseThread(ws.id, "WHATSAPP", n.digits);
   await audit(ws.id, "app.whatsapp_template_send", `Sent the WhatsApp template ${name}.`, { name, language });
   revalidatePath(PATH);
   return { ok: true };

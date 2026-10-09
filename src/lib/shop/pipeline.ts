@@ -44,7 +44,8 @@ type Store = Msg["store"];
  */
 export async function processMessage(messageId: string, opts: { delay?: boolean } = {}): Promise<void> {
   const msg = await load(messageId);
-  if (!msg?.store || msg.outcome) return;
+  // Only what buyers sent: the shop's own manual sends and templates are stored too, and must never be "answered".
+  if (!msg?.store || msg.outcome || msg.direction !== "INBOUND") return;
   const jobIds = msg.channelType === "DM" ? await planDm(msg as Msg) : await planComment(msg as Msg);
   if (!jobIds.length) return;
   if (opts.delay) await sleep(jitterMs());
@@ -97,13 +98,17 @@ async function createJobs(storeId: string, messageId: string, specs: JobSpec[], 
       }
       continue;
     }
-    const job = await db.outboxJob.upsert({
-      where: { messageId_kind: { messageId, kind: s.kind } },
-      create: { storeId, messageId, kind: s.kind, payload: s.payload as Prisma.InputJsonValue, recipientId: s.recipientId ?? null, nextAttemptAt },
-      update: {},
-      select: { id: true },
-    });
-    ids.push(job.id);
+    // Only jobs this call created are returned for the immediate run; one that already exists
+    // belongs to the run that made it, or to the sweep.
+    try {
+      const job = await db.outboxJob.create({
+        data: { storeId, messageId, kind: s.kind, payload: s.payload as Prisma.InputJsonValue, recipientId: s.recipientId ?? null, nextAttemptAt },
+        select: { id: true },
+      });
+      ids.push(job.id);
+    } catch (e) {
+      if ((e as { code?: string }).code !== "P2002") throw e;
+    }
   }
   return ids;
 }
@@ -201,6 +206,8 @@ async function planComment(msg: Msg): Promise<string[]> {
   const ids = await createJobs(store.id, msg.id, specs);
   if (limited && !decision.flag && !specs.length) {
     await finish(msg.id, "SKIPPED", "author_limit", { commentType: c.type, intent: c.intent, language: c.language, confidence: c.confidence });
+    // No second reply for this buyer today, but an order is still an order.
+    if (c.type === "ORDER" && c.confidence >= MIN_CONFIDENCE) await openOrder(msg, product);
     return [];
   }
   const replied = specs.some((s) => s.kind === "PUBLIC_REPLY" || s.kind === "PRIVATE_REPLY");

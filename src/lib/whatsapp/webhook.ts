@@ -88,6 +88,11 @@ export function parseWaPayload(body: unknown): WaEvent[] {
   return out;
 }
 
+/** A buyer asking not to be messaged again (English, Sorani, Arabic). */
+export function isStopWord(text: string): boolean {
+  return /^(stop|unsubscribe|cancel|وەستان|بوەستە|ڕاگرتن|توقف|الغاء|إلغاء)$/i.test(typedText(text).trim().replace(/[.!؟?]+$/, ""));
+}
+
 const normalize = (s: string): string =>
   s
     .normalize("NFKC")

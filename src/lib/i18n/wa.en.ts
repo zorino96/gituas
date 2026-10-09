@@ -40,7 +40,7 @@ export const waEn: typeof waCkb = {
   media: { image: "📷 Photo", video: "🎬 Video", audio: "🎤 Voice", document: "📄 File", sticker: "Sticker", location: "📍 Location", contacts: "👤 Contact" },
 
   templatesSec: "Templates",
-  templatesHint: "For a first message, or after 24 hours, WhatsApp only accepts an approved template. Meta reviews each one before it can be used.",
+  templatesHint: "Templates only go to buyers who messaged the shop first (for example after 24 hours), and never after they wrote STOP. Meta reviews each one before it can be used.",
   noTemplates: "No templates.",
   templatesFailed: "Could not load the templates.",
   newTemplate: "New template",
@@ -75,5 +75,7 @@ export const waEn: typeof waCkb = {
     badTemplateName: "The name may only use lowercase letters, digits and _.",
     outsideWindow: "More than 24 hours: send a template.",
     manualBad: "The IDs or the token are not valid, or this token has no access to that number.",
+    notOptedIn: "Templates only go to people who messaged the shop first.",
+    optedOut: "This buyer asked not to be messaged (STOP).",
   },
 };
