@@ -50,36 +50,41 @@ function cleanText(text: string, max: number, m: Dict["actions"]["inbox"]): { ok
   return { ok: true, text: t };
 }
 
+/** Run an engage call as the account the person is looking at (several Pages / Instagram accounts). */
+function asAccount<T>(platform: Platform, accountId: string | undefined, fn: () => Promise<T>): Promise<T> {
+  return withAccounts(platform === "IG" ? { META_INSTAGRAM: accountId } : { META_FACEBOOK: accountId }, fn);
+}
+
 // ---------- comments -------------------------------------------------------
 
-export async function replyToCommentAction(platform: Platform, commentId: string, text: string): Promise<Result> {
+export async function replyToCommentAction(platform: Platform, commentId: string, text: string, accountId?: string): Promise<Result> {
   const { ws, t } = await session();
   if (!ws) return { ok: false, error: t.actions.common.signIn };
   if (!can(ws.role, "engage")) return { ok: false, error: t.nr.team.roles.notAllowed };
   const body = cleanText(text, platform === "IG" ? 2200 : 8000, t.actions.inbox);
   if (!body.ok) return body;
-  const r = platform === "IG" ? await replyToComment(ws.id, commentId, body.text) : await replyToPageComment(ws.id, commentId, body.text);
+  const r = await asAccount(platform, accountId, () => (platform === "IG" ? replyToComment(ws.id, commentId, body.text) : replyToPageComment(ws.id, commentId, body.text)));
   if (!r.ok) return { ok: false, error: r.error ?? t.actions.inbox.sendFailed };
   await pauseThread(ws.id, platform === "IG" ? "META_INSTAGRAM" : "META_FACEBOOK", commentId);
   await audit(ws.id, "app.comment_reply", `Replied to ${platform} comment ${commentId}.`, { platform, commentId });
   return { ok: true };
 }
 
-export async function setCommentHiddenAction(platform: Platform, commentId: string, hidden: boolean): Promise<Result> {
+export async function setCommentHiddenAction(platform: Platform, commentId: string, hidden: boolean, accountId?: string): Promise<Result> {
   const { ws, t } = await session();
   if (!ws) return { ok: false, error: t.actions.common.signIn };
   if (!can(ws.role, "engage")) return { ok: false, error: t.nr.team.roles.notAllowed };
-  const r = platform === "IG" ? await setCommentHidden(ws.id, commentId, hidden) : await hidePageComment(ws.id, commentId, hidden);
+  const r = await asAccount(platform, accountId, () => (platform === "IG" ? setCommentHidden(ws.id, commentId, hidden) : hidePageComment(ws.id, commentId, hidden)));
   if (!r.ok) return { ok: false, error: r.error ?? t.actions.inbox.failed };
   await audit(ws.id, hidden ? "app.comment_hide" : "app.comment_unhide", `${hidden ? "Hid" : "Unhid"} ${platform} comment ${commentId}.`, { platform, commentId });
   return { ok: true };
 }
 
-export async function deleteCommentAction(platform: Platform, commentId: string): Promise<Result> {
+export async function deleteCommentAction(platform: Platform, commentId: string, accountId?: string): Promise<Result> {
   const { ws, t } = await session();
   if (!ws) return { ok: false, error: t.actions.common.signIn };
   if (!can(ws.role, "engage")) return { ok: false, error: t.nr.team.roles.notAllowed };
-  const r = platform === "IG" ? await deleteIgComment(ws.id, commentId) : await deletePageComment(ws.id, commentId);
+  const r = await asAccount(platform, accountId, () => (platform === "IG" ? deleteIgComment(ws.id, commentId) : deletePageComment(ws.id, commentId)));
   if (!r.ok) return { ok: false, error: r.error ?? t.actions.inbox.deleteFailed };
   await audit(ws.id, "app.comment_delete", `Deleted ${platform} comment ${commentId}.`, { platform, commentId });
   return { ok: true };
@@ -87,13 +92,13 @@ export async function deleteCommentAction(platform: Platform, commentId: string)
 
 // ---------- messages -------------------------------------------------------
 
-export async function sendMessageAction(platform: Platform, recipientId: string, text: string): Promise<Result> {
+export async function sendMessageAction(platform: Platform, recipientId: string, text: string, accountId?: string): Promise<Result> {
   const { ws, t } = await session();
   if (!ws) return { ok: false, error: t.actions.common.signIn };
   if (!can(ws.role, "engage")) return { ok: false, error: t.nr.team.roles.notAllowed };
   const body = cleanText(text, 1000, t.actions.inbox);
   if (!body.ok) return body;
-  const r = platform === "IG" ? await sendInstagramDM(ws.id, recipientId, body.text) : await sendMessengerMessage(ws.id, recipientId, body.text);
+  const r = await asAccount(platform, accountId, () => (platform === "IG" ? sendInstagramDM(ws.id, recipientId, body.text) : sendMessengerMessage(ws.id, recipientId, body.text)));
   if (!r.ok) return { ok: false, error: r.error ?? t.actions.inbox.sendFailed };
   await pauseThread(ws.id, platform === "IG" ? "META_INSTAGRAM" : "META_FACEBOOK", recipientId);
   await audit(ws.id, "app.dm_send", `Sent a ${platform} message to ${recipientId}.`, { platform, recipientId });

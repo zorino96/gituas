@@ -1,6 +1,8 @@
 import Link from "next/link";
 
-import { baseFor, currentWorkspace, loadConnections, loadInsights, loadPosts, loadYouTube } from "../data";
+import { withAccounts } from "@/lib/oauth/account-scope";
+import { AccountSwitcher } from "../account-switcher";
+import { accountChoiceFrom, baseFor, currentWorkspace, loadConnections, loadInsights, loadPosts, loadYouTube } from "../data";
 import { rankPosts } from "@/lib/merchant/state";
 import { dict, getLang } from "@/lib/i18n";
 import { ago } from "../format";
@@ -12,11 +14,15 @@ export const maxDuration = 60;
 const IG_KEYS = ["followers", "reach_7d", "reach_28d", "posts"];
 const FB_KEYS = ["page_post_engagements", "page_views_total", "page_total_actions"];
 
-export default async function InsightsPage() {
+export default async function InsightsPage({ searchParams }: { searchParams: Promise<{ fb?: string; ig?: string; yt?: string }> }) {
   const t = dict(await getLang());
   const ws = (await currentWorkspace())!;
-  const conns = await loadConnections(ws.id);
-  const [insights, { posts }, youtube] = await Promise.all([loadInsights(ws.id, conns), loadPosts(ws.id, conns), loadYouTube(ws.id, conns)]);
+  const { choice, lists } = await accountChoiceFrom(ws.id, await searchParams);
+  const { conns, insights, posts, youtube } = await withAccounts(choice, async () => {
+    const conns = await loadConnections(ws.id);
+    const [insights, { posts }, youtube] = await Promise.all([loadInsights(ws.id, conns), loadPosts(ws.id, conns), loadYouTube(ws.id, conns)]);
+    return { conns, insights, posts, youtube };
+  });
   const top = rankPosts(posts, 5).filter((p) => p.commentCount > 0);
   const pick = (list: { name: string; value: number }[], keys: string[], labels: Record<string, string>) =>
     keys.flatMap((k) => {
@@ -33,6 +39,10 @@ export default async function InsightsPage() {
   return (
     <div>
       <h2 className="gm-title kufi">{t.insights.title}</h2>
+      <AccountSwitcher
+        lists={{ FB: lists.META_FACEBOOK, IG: lists.META_INSTAGRAM, YT: lists.YOUTUBE }}
+        selected={{ FB: conns.META_FACEBOOK.accountId, IG: conns.META_INSTAGRAM.accountId, YT: conns.YOUTUBE.accountId }}
+      />
       <p className="gm-sub">
         {ws.kind === "NEWS" ? t.insights.subNews : t.insights.subShop}
       </p>

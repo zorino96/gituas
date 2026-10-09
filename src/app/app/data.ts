@@ -3,7 +3,7 @@
 // sees is what their customers see.
 
 import { cookies } from "next/headers";
-import { accountWhere } from "@/lib/oauth/account-scope";
+import { accountWhere, type AccountChoice } from "@/lib/oauth/account-scope";
 import { auth, ensureWorkspace } from "@/auth";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
@@ -225,6 +225,27 @@ export async function loadConnections(tenantId: string): Promise<Connections> {
       ? { connected: true, name: c.providerAccountName ?? undefined, accountId: c.providerAccountId, avatarUrl: c.avatarUrl }
       : { connected: false };
   return { META_FACEBOOK: shape(fb), META_INSTAGRAM: shape(ig), TIKTOK: shape(tt), YOUTUBE: shape(yt) };
+}
+
+/**
+ * The accounts a page shows, from its address (?fb=…&ig=…&tt=…&yt=…): each one only when it is
+ * really connected here, so a typed-in id can never reach another workspace's account.
+ */
+export async function accountChoiceFrom(
+  tenantId: string,
+  sp: { fb?: string; ig?: string; tt?: string; yt?: string },
+): Promise<{ choice: AccountChoice; lists: AccountLists }> {
+  const lists = await loadAccountLists(tenantId);
+  const valid = (list: AccountRef[], id?: string) => (id && list.some((a) => a.id === id) ? id : undefined);
+  return {
+    lists,
+    choice: {
+      META_FACEBOOK: valid(lists.META_FACEBOOK, sp.fb),
+      META_INSTAGRAM: valid(lists.META_INSTAGRAM, sp.ig),
+      TIKTOK: valid(lists.TIKTOK, sp.tt),
+      YOUTUBE: valid(lists.YOUTUBE, sp.yt),
+    },
+  };
 }
 
 export interface PostsResult {

@@ -18,12 +18,15 @@ export function MessagesClient({
   errors,
   whatsappPath,
   connected,
+  accounts,
 }: {
   initial: MConversation[];
   unreadable: number;
   errors: { platform: Platform; message: string }[];
   whatsappPath: string | null;
   connected: Record<Platform, boolean>;
+  /** The Page / Instagram account shown, so messages go out as that account. */
+  accounts?: Partial<Record<Platform, string | undefined>>;
 }) {
   const router = useRouter();
   const base = useBase();
@@ -73,7 +76,7 @@ export function MessagesClient({
             maxLength={1000}
             autoFocus={false}
             onSend={async (text) => {
-              const r = await sendMessageAction(open.platform, open.participantId!, text);
+              const r = await sendMessageAction(open.platform, open.participantId!, text, accounts?.[open.platform]);
               if (r.ok) {
                 setConvs((prev) =>
                   prev.map((c) =>

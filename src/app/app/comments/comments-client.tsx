@@ -50,12 +50,15 @@ export function CommentsClient({
   outcomes,
   whatsappPath,
   connected,
+  accounts,
 }: {
   initialPosts: MPost[];
   errors: { platform: Platform; message: string }[];
   outcomes: Outcomes;
   whatsappPath: string | null;
   connected: Record<Platform, boolean>;
+  /** The Page / Instagram account shown, so replies go out as that account. */
+  accounts?: Partial<Record<Platform, string | undefined>>;
 }) {
   const router = useRouter();
   const base = useBase();
@@ -176,6 +179,7 @@ export function CommentsClient({
                 <CommentItem
                   key={c.id}
                   comment={c}
+                  accounts={accounts}
                   outcomes={outcomes}
                   waUrl={waUrl}
                   onReplied={(text) =>
@@ -198,6 +202,7 @@ export function CommentsClient({
 
 function CommentItem({
   comment: c,
+  accounts,
   outcomes,
   waUrl,
   onReplied,
@@ -205,6 +210,7 @@ function CommentItem({
   onDeleted,
 }: {
   comment: MComment;
+  accounts?: Partial<Record<Platform, string | undefined>>;
   outcomes: Outcomes;
   waUrl: string | null;
   onReplied: (text: string) => void;
@@ -222,7 +228,7 @@ function CommentItem({
   function toggleHidden() {
     setError(null);
     start(async () => {
-      const r = await setCommentHiddenAction(c.platform, c.id, !c.hidden);
+      const r = await setCommentHiddenAction(c.platform, c.id, !c.hidden, accounts?.[c.platform]);
       if (r.ok) onHidden(!c.hidden);
       else setError(friendlyError(r.error, t));
     });
@@ -231,7 +237,7 @@ function CommentItem({
   function remove() {
     setError(null);
     start(async () => {
-      const r = await deleteCommentAction(c.platform, c.id);
+      const r = await deleteCommentAction(c.platform, c.id, accounts?.[c.platform]);
       if (r.ok) onDeleted();
       else {
         setConfirmDelete(false);
@@ -297,7 +303,7 @@ function CommentItem({
           maxLength={c.platform === "IG" ? 2200 : 8000}
           onCancel={() => setReplying(false)}
           onSend={async (text) => {
-            const r = await replyToCommentAction(c.platform, c.id, text);
+            const r = await replyToCommentAction(c.platform, c.id, text, accounts?.[c.platform]);
             if (r.ok) {
               onReplied(text.trim());
               setReplying(false);
