@@ -502,6 +502,7 @@ export const en: Dict = {
       autoMode: { OFF: "Off", DRAFT: "Auto drafts", PUBLISH: "Auto publish" },
       autoPlanOnly: "Only on the Pro and Enterprise plans",
       autoTopicsAbove: "Topics and sources are set above",
+      autoWhichAccounts: (p: string) => `Post to which ${p} accounts? (none ticked = the first one)`,
       autoTikTok: "TikTok — under TikTok's rules, you must approve every post yourself",
       autoYouTube: "YouTube — only accepts videos",
       autoDailyMax: "Most auto posts per day",

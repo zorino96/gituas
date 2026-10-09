@@ -700,6 +700,8 @@ model NewsSettings {
   autoMode      String    @default("OFF")
   /// Where PUBLISH posts to: FB and/or IG. TikTok and YouTube are never automatic.
   autoTargets   String[]  @default([])
+  /// With several Pages/Instagram accounts: which ones the autopilot posts to ("FB:<id>", "IG:<id>"). Empty = the default one.
+  autoAccounts  String[]  @default([])
   autoDailyMax  Int       @default(20)
   /// Minutes between two automatic posts.
   autoMinGapMin Int       @default(3)

@@ -63,6 +63,10 @@ export interface NewsSettingsProps {
     canPublish: boolean;
     refreshSec: number;
     connected: Record<AutoTarget, boolean>;
+    /** Every connected Page / Instagram account; with several the desk picks which ones get posts. */
+    accountLists: Record<AutoTarget, { id: string; name: string }[]>;
+    /** Saved choice: "FB:<id>" / "IG:<id>". */
+    accounts: string[];
   };
   feeds: Array<{ id: string; name: string; url: string; lastError: string | null }>;
   kit: { logoPath: string | null; primary: string; accent: string; text: string; headingFont: "kufi" | "sans"; framePath: string | null; frameText: FrameText };
@@ -124,6 +128,10 @@ export function NewsSettings(p: NewsSettingsProps) {
       if (r.ok) router.refresh();
     });
 
+  // With several Pages / Instagram accounts: which ones the autopilot posts to (none ticked = the first one).
+  const [autoAccounts, setAutoAccounts] = useState<string[]>(ap.accounts);
+  const toggleAutoAccount = (key: string) => setAutoAccounts((list) => (list.includes(key) ? list.filter((x) => x !== key) : [...list, key]));
+
   function saveAutopilot() {
     if (auto.mode === "PUBLISH" && !window.confirm(tn.autoConfirm)) return;
     // Only connected pages are sent; the server checks all of it again.
@@ -138,6 +146,7 @@ export function NewsSettings(p: NewsSettingsProps) {
           minGapMin: Number(auto.minGapMin),
           quietFrom: hour(auto.quietFrom),
           quietTo: hour(auto.quietTo),
+          accounts: autoAccounts,
         }),
       tn.saved,
     );
@@ -450,6 +459,17 @@ export function NewsSettings(p: NewsSettingsProps) {
               {t.platform[k]}
               {!ap.connected[k] && <span className="gm-badge ghost">{t.settings.notConnectedBadge}</span>}
             </label>
+          ))}
+          {AUTO_TARGETS.filter((k) => auto.targets.includes(k) && ap.accountLists[k].length > 1).map((k) => (
+            <div key={`acc-${k}`} className="gm-stack" style={{ gap: 2, paddingInlineStart: 18 }}>
+              <small className="gm-hint" style={{ margin: 0 }}>{tn.autoWhichAccounts(t.platform[k])}</small>
+              {ap.accountLists[k].map((a) => (
+                <label key={a.id} className="gm-radio" style={{ padding: "4px 0" }}>
+                  <input type="checkbox" checked={autoAccounts.includes(`${k}:${a.id}`)} onChange={() => toggleAutoAccount(`${k}:${a.id}`)} />
+                  <span dir="auto">{a.name}</span>
+                </label>
+              ))}
+            </div>
           ))}
           {[tn.autoTikTok, tn.autoYouTube].map((label) => (
             <label key={label} className="gm-radio" style={{ cursor: "not-allowed", color: "var(--muted)" }}>

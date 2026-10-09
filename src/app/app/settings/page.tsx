@@ -85,6 +85,8 @@ export default async function SettingsPage({
         canPublish,
         refreshSec: refreshSecFor(tenant?.plan),
         connected: { FB: conns.META_FACEBOOK.connected, IG: conns.META_INSTAGRAM.connected },
+        accountLists: { FB: lists.META_FACEBOOK, IG: lists.META_INSTAGRAM },
+        accounts: settings?.autoAccounts ?? [],
       },
       feeds: sources.filter((s) => s.rssUrl && !s.catalogId).map((s) => ({ id: s.id, name: s.name, url: s.rssUrl!, lastError: s.lastError })),
       kit: {

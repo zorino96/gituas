@@ -24,6 +24,19 @@ export function isAutoMode(v: unknown): v is AutoMode {
  * and to the pages that are actually connected. Whatever is saved, the answer can only
  * hold "FB" and "IG".
  */
+/** The saved account choice ("FB:<id>", "IG:<id>") as per-target id lists, or undefined for the defaults. */
+export function autoAccountsFor(saved: readonly unknown[] | null | undefined): Partial<Record<AutoTarget, string[]>> | undefined {
+  const out: Partial<Record<AutoTarget, string[]>> = {};
+  for (const v of saved ?? []) {
+    const m = typeof v === "string" ? /^(FB|IG):([0-9]{3,40})$/.exec(v) : null;
+    if (!m) continue;
+    const target = m[1] as AutoTarget;
+    const list = (out[target] ??= []);
+    if (!list.includes(m[2])) list.push(m[2]);
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 export function autoTargetsFor(saved: readonly unknown[] | null | undefined, connected: { FB: boolean; IG: boolean }): AutoTarget[] {
   const chosen = Array.isArray(saved) ? saved : [];
   return AUTO_TARGETS.filter((t) => chosen.includes(t) && connected[t] === true);

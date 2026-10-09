@@ -12,7 +12,7 @@ import { CLIP_LIBRARY_MAX, cleanClipLabel, type LibraryClip } from "@/lib/news/c
 import { isOwnPhoto, PHOTO_LIBRARY_MAX, photoForStory } from "@/lib/news/photos";
 import { cleanSpeed, isPawanVoice, speak } from "@/lib/voice/tts";
 import { AiUnavailable, type Strength } from "@/lib/ai/provider";
-import { autoTargetsFor, parseAutopilot } from "@/lib/news/autopilot-settings";
+import { autoAccountsFor, autoTargetsFor, parseAutopilot } from "@/lib/news/autopilot-settings";
 import { catalogEntry } from "@/lib/news/catalog";
 import { classifyPending } from "@/lib/news/classify";
 import { cleanFocusPrompt, isFilterMode, judgeFocus, resetFocus } from "@/lib/news/focus";
@@ -26,7 +26,7 @@ import { writeDraft } from "@/lib/news/write";
 import { can } from "@/lib/newsroom/roles";
 import { isFrameText } from "@/lib/cards/brand";
 import { dict, getLang } from "@/lib/i18n";
-import { currentWorkspace, loadConnections, type Workspace } from "@/app/app/data";
+import { currentWorkspace, loadAccountLists, loadConnections, type Workspace } from "@/app/app/data";
 
 export type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -324,9 +324,25 @@ export async function saveVoiceNoteAction(raw: string): Promise<Result<{ voiceNo
  * numbers are checked again here. Posting by itself is refused on a plan that does not include
  * it, and only connected Facebook and Instagram pages are ever saved as its targets.
  */
+/** Keep only accounts this desk really connected, for the targets it turned on. */
+async function ownAutoAccounts(tenantId: string, raw: unknown, targets: string[]): Promise<string[]> {
+  const asked = autoAccountsFor(Array.isArray(raw) ? raw.slice(0, 50) : []);
+  if (!asked) return [];
+  const lists = await loadAccountLists(tenantId);
+  const out: string[] = [];
+  for (const [target, ids] of Object.entries(asked) as ["FB" | "IG", string[]][]) {
+    if (!targets.includes(target)) continue;
+    const list = target === "FB" ? lists.META_FACEBOOK : lists.META_INSTAGRAM;
+    for (const id of ids) if (list.some((a) => a.id === id)) out.push(`${target}:${id}`);
+  }
+  return out;
+}
+
 export async function saveAutopilotAction(input: {
   mode: string;
   targets: string[];
+  /** With several Pages / Instagram accounts: "FB:<id>" / "IG:<id>" to post to. */
+  accounts?: string[];
   dailyMax: number;
   minGapMin: number;
   quietFrom?: number | null;
@@ -347,6 +363,7 @@ export async function saveAutopilotAction(input: {
   const data = {
     autoMode: choice.mode,
     autoTargets: targets,
+    autoAccounts: await ownAutoAccounts(ws.id, input?.accounts, targets),
     autoDailyMax: choice.dailyMax,
     autoMinGapMin: choice.minGapMin,
     autoQuietFrom: choice.quiet?.from ?? null,

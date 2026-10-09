@@ -22,7 +22,7 @@ import { renderAndStoreCard } from "@/lib/cards/server-render";
 import { db } from "@/lib/db";
 import { NEWSROOM_ORIGIN } from "@/lib/hosts";
 import { publishForWorkspace } from "@/lib/merchant/publish-core";
-import { AUTO_TARGETS, autoTargetsFor, inQuietHours, type AutoMode, type AutoTarget } from "./autopilot-settings";
+import { AUTO_TARGETS, autoAccountsFor, autoTargetsFor, inQuietHours, type AutoMode, type AutoTarget } from "./autopilot-settings";
 import { RETRY_DEADLINE_MS } from "./draft";
 import { loadActiveFocus } from "./focus";
 import { isLate, prepareQueuedVideos, prepareVideo, queueVideoIfWanted } from "./video";
@@ -252,6 +252,8 @@ interface Run {
   done: AutopilotResult;
   /** Which pages are connected; looked up once, and only when the desk posts by itself. */
   connected: { FB: boolean; IG: boolean } | null;
+  /** The Pages / Instagram accounts the desk chose (several connected); undefined = the default ones. */
+  accounts?: Partial<Record<AutoTarget, string[]>>;
 }
 
 async function note(tenantId: string, action: string, reasoning: string, metadata: Prisma.InputJsonObject = {}): Promise<void> {
@@ -321,6 +323,7 @@ async function budgetNow(run: Run): Promise<{ budget: Budget; canPostDrafted: bo
       select: {
         autoMode: true,
         autoTargets: true,
+        autoAccounts: true,
         autoDailyMax: true,
         autoMinGapMin: true,
         lastAutoAt: true,
@@ -344,6 +347,7 @@ async function budgetNow(run: Run): Promise<{ budget: Budget; canPostDrafted: bo
       run.connected = { FB: conns.META_FACEBOOK.connected, IG: conns.META_INSTAGRAM.connected };
     }
     targets = autoTargetsFor(settings.autoTargets, run.connected);
+    run.accounts = autoAccountsFor(settings.autoAccounts);
     // Nowhere to post: the story is still drafted, and waits for a person.
     if (!targets.length) mode = "DRAFT";
   }
@@ -450,7 +454,7 @@ async function postDraft(
 
     const results = await publishForWorkspace(
       { id: tenantId, kind: "NEWS", role: "OWNER" },
-      { caption: post.caption, targets: allowed, media: post.media, newsDraftId: draft.id, igDeadlineMs: post.igMs },
+      { caption: post.caption, targets: allowed, media: post.media, newsDraftId: draft.id, igDeadlineMs: post.igMs, accounts: run.accounts },
     );
     if (!Array.isArray(results)) return await failed("The post was refused.", results.error);
     const sent = results.filter((r) => r.ok);
