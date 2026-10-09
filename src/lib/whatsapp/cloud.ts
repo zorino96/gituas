@@ -7,8 +7,11 @@ import type { MetaMessage, SendResult } from "@/lib/shop/meta-client";
 
 /** The Gituas Chat app (public, like any Facebook app id). */
 export const WA_APP_ID = "1602806601306973";
-/** Facebook Login for Business configuration that runs WhatsApp Embedded Signup (public). */
-export const WA_CONFIG_ID = process.env.NEXT_PUBLIC_WA_CONFIG_ID ?? "";
+/**
+ * Facebook Login for Business configuration "WhatsApp Signup + Marketing" (public): WhatsApp
+ * Embedded Signup for the Cloud API and the Marketing Messages API, never-expiring business token.
+ */
+export const WA_CONFIG_ID = "1447396260650355";
 export const WA_GRAPH = "v25.0";
 const BASE = `https://graph.facebook.com/${WA_GRAPH}`;
 /**
