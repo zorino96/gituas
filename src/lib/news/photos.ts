@@ -18,11 +18,11 @@ export function isOwnPhoto(tenantId: string, pathname: unknown): pathname is str
 }
 
 /** The library photo for one story's card, or null for none. Never throws. */
-export async function photoForStory(tenantId: string, story: { title: string; snippet: string }): Promise<string | null> {
+export async function photoForStory(tenantId: string, story: { title: string; snippet: string }, budgetMs?: number): Promise<string | null> {
   try {
     const library = await db.newsPhoto.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" }, select: { id: true, pathname: true, label: true, general: true } });
     if (!library.length) return null;
-    const [picked] = await pickFromLibrary(story, library.filter((p) => !p.general), 1);
+    const [picked] = await pickFromLibrary(story, library.filter((p) => !p.general), 1, budgetMs);
     const chosen = library.find((p) => p.id === picked) ?? shuffled(library.filter((p) => p.general))[0];
     return chosen && isOwnPhoto(tenantId, chosen.pathname) ? chosen.pathname : null;
   } catch (e) {

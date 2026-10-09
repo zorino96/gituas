@@ -250,8 +250,17 @@ export function soraniDate(d: Date): string {
  * A failure counts a try; after VIDEO_MAX_TRIES the job FAILED (the card goes out instead).
  */
 export async function prepareVideo(jobId: string): Promise<boolean> {
-  const job = await db.newsVideo.findUnique({ where: { id: jobId } });
-  if (!job || job.status !== "QUEUED") return false;
+  const found = await db.newsVideo.findUnique({ where: { id: jobId } });
+  if (!found || found.status !== "QUEUED") return false;
+  if (found.tries >= VIDEO_MAX_TRIES) {
+    await db.newsVideo.updateMany({ where: { id: found.id, status: "QUEUED" }, data: { status: "FAILED", error: found.error ?? "too many tries" } });
+    return false;
+  }
+  // Take this try before any work: a second caller finds the count changed and stops, and a run
+  // that is cut mid-way has still used one of the tries.
+  const took = await db.newsVideo.updateMany({ where: { id: found.id, status: "QUEUED", tries: found.tries }, data: { tries: { increment: 1 } } });
+  if (took.count !== 1) return false;
+  const job = { ...found, tries: found.tries + 1 };
   try {
     const [draft, item, tenant, kit, ig] = await Promise.all([
       db.newsDraft.findUnique({ where: { id: job.draftId }, select: { headline: true, body: true } }),
@@ -306,12 +315,12 @@ export async function prepareVideo(jobId: string): Promise<boolean> {
       handle,
       segments,
     };
-    await db.newsVideo.update({ where: { id: job.id }, data: { status: "VOICED", props, error: null } });
+    await db.newsVideo.updateMany({ where: { id: job.id, status: "QUEUED" }, data: { status: "VOICED", props, error: null } });
     return true;
   } catch (e) {
     const error = (e instanceof Error ? e.message : String(e)).slice(0, 300);
-    const tries = job.tries + 1;
-    await db.newsVideo.update({ where: { id: job.id }, data: { tries, error, status: tries >= VIDEO_MAX_TRIES ? "FAILED" : "QUEUED" } });
+    const tries = job.tries;
+    await db.newsVideo.updateMany({ where: { id: job.id, status: "QUEUED" }, data: { error, status: tries >= VIDEO_MAX_TRIES ? "FAILED" : "QUEUED" } });
     console.error("[video] prepare failed:", error);
     return false;
   }

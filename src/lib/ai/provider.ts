@@ -17,6 +17,8 @@ export interface JsonCall {
   strength: Strength;
   /** DeepSeek only: false skips the reasoning pass (bulk, simple tasks like sorting headlines). */
   thinking?: boolean;
+  /** At most this long overall (ms), for side calls that must not outlive their caller. Default 50 s. */
+  budgetMs?: number;
 }
 
 export interface JsonResult {
@@ -52,7 +54,8 @@ export async function completeJson<T = unknown>(
   validate: (data: unknown) => T | null = (d) => d as T,
 ): Promise<{ data: T; model: string }> {
   const start = Date.now();
-  const remaining = () => DEADLINE_MS - (Date.now() - start);
+  const deadlineMs = Math.min(DEADLINE_MS, Math.max(0, call.budgetMs ?? DEADLINE_MS));
+  const remaining = () => deadlineMs - (Date.now() - start);
   const errors: string[] = [];
 
   // One DeepSeek attempt. A reply that parses but fails validation is a

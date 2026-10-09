@@ -58,6 +58,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
       ? "state_expired"
       : /exchange|token/i.test(msg)
         ? "token_exchange_failed"
+        : /session mismatch/i.test(msg)
+          ? "session_mismatch"
         : /mismatch/i.test(msg)
           ? "provider_mismatch"
           : "oauth_failed";

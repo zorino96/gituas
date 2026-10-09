@@ -20,7 +20,10 @@ vi.mock("@/lib/db", () => ({
     newsVideo: { findMany: vi.fn(), count: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
   },
 }));
-vi.mock("@/app/app/data", () => ({ loadConnections: vi.fn() }));
+vi.mock("@/app/app/data", () => ({
+  loadConnections: vi.fn(),
+  loadAccountLists: vi.fn(async () => ({ META_FACEBOOK: [], META_INSTAGRAM: [], TIKTOK: [], YOUTUBE: [] })),
+}));
 vi.mock("@/lib/ai/provider", () => ({ AiUnavailable: AiDown }));
 vi.mock("@/lib/billing/limits", () => {
   class LimitReached extends Error {}

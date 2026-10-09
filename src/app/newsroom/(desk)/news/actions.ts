@@ -117,13 +117,15 @@ export async function draftNewsAction(itemId: string, strength: Strength): Promi
   try {
     await assertWithin(ws.id, metric);
     const settings = await db.newsSettings.findUnique({ where: { tenantId: ws.id }, select: { voiceNote: true } });
+    // A library photo for the card is picked while the draft is written (kept only if the draft has none).
+    const photoPick = photoForStory(ws.id, item, Math.max(0, 50_000 - (Date.now() - actionStart)));
     const { draft, model } = await writeDraft(ws.id, item, strength, { startedAt: actionStart, voiceNote: settings?.voiceNote });
     // A stale card must never go out with new text.
     const data = { ...draft, model, tenantId: ws.id, cardUrl: null, cardPath: null };
     let saved = await db.newsDraft.upsert({ where: { itemId }, create: { itemId, ...data }, update: data });
     // No photo yet: the desk's library photo that fits the story, if any. A person's own photo is kept.
     if (!saved.photoPath) {
-      const photo = await photoForStory(ws.id, item);
+      const photo = await photoPick;
       if (photo) saved = await db.newsDraft.update({ where: { id: saved.id }, data: { photoPath: photo } });
     }
     // One count per action, whatever the number of attempts writeDraft needed.

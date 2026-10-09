@@ -13,7 +13,7 @@
 // - a post is only started with time enough to finish and be recorded;
 // - one failing story is logged and the next one still runs. runAutopilot never throws.
 import type { Prisma } from "@/generated/prisma/client";
-import { loadConnections } from "@/app/app/data";
+import { loadAccountLists, loadConnections } from "@/app/app/data";
 import { AiUnavailable } from "@/lib/ai/provider";
 import { assertWithin, countUsage, LimitReached, usageOf } from "@/lib/billing/limits";
 import { canAutoPublish, NEWS_LIMITS } from "@/lib/billing/plans";
@@ -52,6 +52,8 @@ const IG_PUBLISH_MS = 30_000;
 const IG_VIDEO_MS = 45_000;
 /** The card is only rendered with this much left; redrafting in publish mode stops this early too. */
 const RENDER_MIN_MS = POST_MIN_MS + 5_000;
+/** A video post still POSTING after this long was cut mid-call: set aside, never retried. */
+const POSTING_STUCK_MS = 10 * 60 * 1000;
 /**
  * A story that will also be posted needs this much: the draft, the card and the post. With
  * less, it is not started at all and waits, untouched, for the next run.
@@ -283,7 +285,8 @@ async function pickStories(tenantId: string, chosen: readonly string[], now: num
       publishedAt: { gte: new Date(now - AUTO_MAX_AGE_MS) },
       ...(focus ? { focusMatch: true } : {}),
     },
-    orderBy: { publishedAt: "asc" },
+    // Newest first: news is posted while it is news, and a backlog never pushes fresh stories out.
+    orderBy: { publishedAt: "desc" },
     take: 200,
     select: {
       id: true,
@@ -348,6 +351,14 @@ async function budgetNow(run: Run): Promise<{ budget: Budget; canPostDrafted: bo
     }
     targets = autoTargetsFor(settings.autoTargets, run.connected);
     run.accounts = autoAccountsFor(settings.autoAccounts);
+    if (!run.accounts) {
+      // Several Pages and none ticked: the first one connected, as the settings screen says.
+      const lists = await loadAccountLists(tenantId);
+      const first: Partial<Record<AutoTarget, string[]>> = {};
+      if (lists.META_FACEBOOK.length > 1) first.FB = [lists.META_FACEBOOK[0].id];
+      if (lists.META_INSTAGRAM.length > 1) first.IG = [lists.META_INSTAGRAM[0].id];
+      if (first.FB || first.IG) run.accounts = first;
+    }
     // Nowhere to post: the story is still drafted, and waits for a person.
     if (!targets.length) mode = "DRAFT";
   }
@@ -516,6 +527,8 @@ async function handleStory(run: Run, story: Story): Promise<"next" | "stop"> {
   // writeDraft stops redrafting 35 s after `startedAt`; move that moment to just before our deadline when it is nearer.
   const reserve = budget.publish > 0 ? RENDER_MIN_MS : WRITE_RESERVE_MS;
   const startedAt = Math.min(Date.now(), run.deadline - reserve - RETRY_DEADLINE_MS);
+  // The card's background photo is picked while the draft is written, inside the same time budget.
+  const photoPick = photoForStory(tenantId, story, Math.max(0, run.deadline - Date.now() - reserve));
   const written = await writeDraft(tenantId, story, "fast", { startedAt, voiceNote: plan.voiceNote });
   if (written.part !== null) {
     // Still too close to the source after every retry: nothing is stored, and the story stays NEW for a person.
@@ -532,7 +545,7 @@ async function handleStory(run: Run, story: Story): Promise<"next" | "stop"> {
     select: { id: true, headline: true, body: true },
   });
   // The card's background: the desk's library photo that fits the story, if any.
-  const photo = await photoForStory(tenantId, story);
+  const photo = await photoPick;
   if (photo) await db.newsDraft.update({ where: { id: saved.id }, data: { photoPath: photo } });
   // Counted exactly as the editor's own draft is: one per draft, whatever the attempts.
   await countUsage(tenantId, "draft");
@@ -571,6 +584,12 @@ async function advanceVideos(run: Run): Promise<void> {
     await db.newsVideo.updateMany({
       where: { tenantId, autoPost: true, status: { in: ["RENDERED", "FAILED", "QUEUED", "VOICED", "RENDERING"] }, createdAt: { lt: new Date(now - AUTO_MAX_AGE_MS) } },
       data: { status: "STALE" },
+    });
+    // A post that never finished (the run was cut mid-call) may have gone out: it is set aside for a
+    // person, never posted again, and no longer holds the desk's slot.
+    await db.newsVideo.updateMany({
+      where: { tenantId, autoPost: true, status: "POSTING", updatedAt: { lt: new Date(now - POSTING_STUCK_MS) } },
+      data: { status: "STALE", error: "posting did not finish — check the page before posting it again" },
     });
     const jobs = await db.newsVideo.findMany({
       where: { tenantId, autoPost: true, status: { in: ["RENDERED", "FAILED", "QUEUED", "VOICED", "RENDERING"] } },

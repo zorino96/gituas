@@ -266,6 +266,11 @@ export async function disconnectAccountAction(provider: (typeof DISCONNECTABLE)[
     if (provider === "YOUTUBE") await scrubYouTubeLinks();
     if (provider === "META_FACEBOOK") await db.store.updateMany({ where: { tenantId: ws.id, fbPageId: accountId }, data: { fbPageId: null } });
     if (provider === "META_INSTAGRAM") await db.store.updateMany({ where: { tenantId: ws.id, igUserId: accountId }, data: { igUserId: null, igUsername: null } });
+    if (provider === "META_FACEBOOK" || provider === "META_INSTAGRAM") {
+      const key = `${provider === "META_FACEBOOK" ? "FB" : "IG"}:${accountId}`;
+      const ns = await db.newsSettings.findUnique({ where: { tenantId: ws.id }, select: { autoAccounts: true } });
+      if (ns?.autoAccounts.includes(key)) await db.newsSettings.update({ where: { tenantId: ws.id }, data: { autoAccounts: ns.autoAccounts.filter((x) => x !== key) } });
+    }
     await audit(ws.id, "integrations.disconnected", `Disconnected ${provider} ${accountId}.`, { provider, accountId });
   }
   revalidatePath(baseFor(ws.kind), "layout");
