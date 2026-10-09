@@ -627,8 +627,8 @@ export function PublishClient({
             />
             {ytTitle === null && ytDescription === null && <small className="gm-hint">{t.publish.ytFromCaption}</small>}
           </div>
-          <div className="gm-field" role="radiogroup" aria-label={t.publish.ytPrivacy}>
-            <label>{t.publish.ytPrivacy}</label>
+          <div role="radiogroup" aria-label={t.publish.ytPrivacy}>
+            <p className="gm-sub" style={{ margin: "4px 0 0", fontWeight: 600 }}>{t.publish.ytPrivacy}</p>
             {YT_PRIVACY.map((p) => (
               <label key={p} className="gm-radio">
                 <input type="radio" name="yt-privacy" value={p} checked={ytPrivacy === p} onChange={() => setYtPrivacy(p)} />
