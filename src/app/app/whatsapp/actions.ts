@@ -60,6 +60,58 @@ async function connectedAccount(tenantId: string): Promise<{ acc: StoreAccount; 
   return acc ? { acc, storeId: store.id, wabaId: store.waBusinessId } : null;
 }
 
+/** Attach a WhatsApp number to the workspace's shop store and keep its token. The newest connection wins. */
+async function attachNumber(
+  ws: { id: string; name: string },
+  n: { phoneNumberId: string; wabaId: string; token: string; info: { display: string; name: string }; pin: string | null },
+): Promise<void> {
+  // Whoever can manage this number in Meta now owns it for automation.
+  await db.store.updateMany({
+    where: { waPhoneNumberId: n.phoneNumberId, tenantId: { not: ws.id } },
+    data: { waPhoneNumberId: null, waBusinessId: null, waDisplayPhone: null, waPinEncrypted: null },
+  });
+  const store = (await waStore(ws.id)) ?? (await db.store.create({ data: { tenantId: ws.id, name: n.info.name || ws.name }, select: { id: true } }));
+  await db.store.update({
+    where: { id: store.id },
+    data: { waPhoneNumberId: n.phoneNumberId, waBusinessId: n.wabaId, waDisplayPhone: n.info.display, waPinEncrypted: n.pin ? vaultEncrypt(n.pin) : null },
+  });
+  await db.oAuthCredential.upsert({
+    where: { tenantId_provider_providerAccountId: { tenantId: ws.id, provider: "META_WHATSAPP", providerAccountId: n.phoneNumberId } },
+    create: {
+      tenantId: ws.id,
+      provider: "META_WHATSAPP",
+      providerAccountId: n.phoneNumberId,
+      providerAccountName: n.info.name || n.info.display,
+      scopes: ["whatsapp_business_management", "whatsapp_business_messaging"],
+      tokenEncrypted: vaultEncrypt(n.token),
+    },
+    update: { providerAccountName: n.info.name || n.info.display, tokenEncrypted: vaultEncrypt(n.token), expiresAt: null },
+  });
+}
+
+/**
+ * Connect a number the business already manages in Meta, with its own access token: Meta's
+ * test number (App Review) or a number set up by hand in WhatsApp Manager. The number is
+ * already registered there, so only the webhooks are routed to us.
+ */
+export async function connectWhatsAppTokenAction(input: { phoneNumberId: string; wabaId: string; token: string }): Promise<Result> {
+  const s = await session("configure");
+  if (!s.ok) return s;
+  const { ws, t } = s;
+  const e = t.wa.errors;
+  const phoneNumberId = String(input?.phoneNumberId ?? "").trim();
+  const wabaId = String(input?.wabaId ?? "").trim();
+  const token = String(input?.token ?? "").trim();
+  if (!/^\d{5,25}$/.test(phoneNumberId) || !/^\d{5,25}$/.test(wabaId) || token.length < 20 || /\s/.test(token)) return { ok: false, error: e.manualBad };
+  const info = await phoneInfo(phoneNumberId, token);
+  if (!info) return { ok: false, error: e.manualBad };
+  if (!(await subscribeApp(wabaId, token)).ok) return { ok: false, error: e.subscribe };
+  await attachNumber(ws, { phoneNumberId, wabaId, token, info, pin: null });
+  await audit(ws.id, "app.whatsapp_connect", `Connected WhatsApp ${info.display} with an access token.`, { phoneNumberId, wabaId, manual: true });
+  revalidatePath(PATH);
+  return { ok: true };
+}
+
 /**
  * Finish Embedded Signup: trade the code for the business token, put the number
  * on the Cloud API (unless it stays on the WhatsApp Business app), route its
@@ -87,33 +139,7 @@ export async function connectWhatsAppAction(input: { code: string; wabaId: strin
   }
   if (!(await subscribeApp(input.wabaId, token)).ok) return { ok: false, error: e.subscribe };
 
-  // The newest connection wins: whoever finished Embedded Signup for this number can manage it.
-  await db.store.updateMany({
-    where: { waPhoneNumberId: input.phoneNumberId, tenantId: { not: ws.id } },
-    data: { waPhoneNumberId: null, waBusinessId: null, waDisplayPhone: null, waPinEncrypted: null },
-  });
-  const store = (await waStore(ws.id)) ?? (await db.store.create({ data: { tenantId: ws.id, name: info.name || ws.name }, select: { id: true } }));
-  await db.store.update({
-    where: { id: store.id },
-    data: {
-      waPhoneNumberId: input.phoneNumberId,
-      waBusinessId: input.wabaId,
-      waDisplayPhone: info.display,
-      waPinEncrypted: input.coexist ? null : vaultEncrypt(pin),
-    },
-  });
-  await db.oAuthCredential.upsert({
-    where: { tenantId_provider_providerAccountId: { tenantId: ws.id, provider: "META_WHATSAPP", providerAccountId: input.phoneNumberId } },
-    create: {
-      tenantId: ws.id,
-      provider: "META_WHATSAPP",
-      providerAccountId: input.phoneNumberId,
-      providerAccountName: info.name || info.display,
-      scopes: ["whatsapp_business_management", "whatsapp_business_messaging"],
-      tokenEncrypted: vaultEncrypt(token),
-    },
-    update: { providerAccountName: info.name || info.display, tokenEncrypted: vaultEncrypt(token), expiresAt: null },
-  });
+  await attachNumber(ws, { phoneNumberId: input.phoneNumberId, wabaId: input.wabaId, token, info, pin: input.coexist ? null : pin });
   await audit(ws.id, "app.whatsapp_connect", `Connected WhatsApp ${info.display}.`, { phoneNumberId: input.phoneNumberId, wabaId: input.wabaId, coexist: input.coexist });
   revalidatePath(PATH);
   return { ok: true };

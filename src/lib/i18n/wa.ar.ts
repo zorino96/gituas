@@ -20,6 +20,12 @@ export const waAr: typeof waCkb = {
   notReady: "ربط واتساب غير متاح بعد. قريبًا.",
   sdkFailed: "لم تُفتح نافذة فيسبوك. اسمح بالنوافذ المنبثقة وحاول مجددًا.",
   cancelled: "لم يكتمل الربط.",
+  manualSec: "متقدم: الربط برمز وصول (Access Token)",
+  manualHint: "لرقم مُعدّ مسبقًا في Meta (رقم الاختبار من Meta، أو WhatsApp Manager). خذ المعرّفات والرمز من لوحة Meta.",
+  manualPhoneId: "Phone number ID",
+  manualWabaId: "WhatsApp Business Account ID",
+  manualToken: "Access token",
+  manualConnect: "ربط",
 
   chatsSec: "المحادثات",
   noChats: "لا توجد رسائل واتساب بعد.",
@@ -68,5 +74,6 @@ export const waAr: typeof waCkb = {
     tooLong: (max: number) => `طويل جدًا (الحد ${max} حرفًا).`,
     badTemplateName: "يجب أن يحتوي الاسم على أحرف إنجليزية صغيرة وأرقام و _ فقط.",
     outsideWindow: "مرّ أكثر من 24 ساعة: أرسل قالبًا.",
+    manualBad: "المعرّفات أو الرمز غير صحيحة، أو لا يملك هذا الرمز صلاحية على ذلك الرقم.",
   },
 };

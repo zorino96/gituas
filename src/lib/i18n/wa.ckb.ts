@@ -19,6 +19,12 @@ export const waCkb = {
   notReady: "بەستنەوەی واتسئەپ هێشتا ئامادە نییە. بەم زووانە دەکرێتەوە.",
   sdkFailed: "پەنجەرەی فەیسبووک نەکرایەوە. ڕێگە بە popup بدە و دووبارە هەوڵ بدەرەوە.",
   cancelled: "بەستنەوەکە تەواو نەکرا.",
+  manualSec: "پێشکەوتوو: بەستنەوە بە Access Token",
+  manualHint: "بۆ ژمارەیەک کە پێشتر لە Meta دانراوە (ژمارەی تاقیکاری Meta، یان WhatsApp Manager). ناسنامەکان و تۆکنەکە لە داشبۆردی Meta وەربگرە.",
+  manualPhoneId: "Phone number ID",
+  manualWabaId: "WhatsApp Business Account ID",
+  manualToken: "Access token",
+  manualConnect: "بەستنەوە",
 
   chatsSec: "گفتوگۆکان",
   noChats: "هێشتا هیچ نامەیەکی واتسئەپ نەهاتووە.",
@@ -67,5 +73,6 @@ export const waCkb = {
     tooLong: (max: number) => `زۆر درێژە (زۆرترین ${max} پیت).`,
     badTemplateName: "ناو تەنها پیتی ئینگلیزی بچووک، ژمارە و _ دەبێت.",
     outsideWindow: "زیاتر لە ٢٤ کاتژمێرە: تێمپلەیت بنێرە.",
+    manualBad: "ناسنامەکان یان تۆکنەکە دروست نین، یان ئەم تۆکنە ڕێگەی بەم ژمارەیە نییە.",
   },
 };

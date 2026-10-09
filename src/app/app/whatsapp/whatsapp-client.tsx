@@ -8,6 +8,7 @@ import type { WaTemplate } from "@/lib/whatsapp/cloud";
 import { ago } from "../format";
 import {
   connectWhatsAppAction,
+  connectWhatsAppTokenAction,
   createWhatsAppTemplateAction,
   disconnectWhatsAppAction,
   sendWhatsAppAction,
@@ -144,6 +145,47 @@ function Connect({ sdk }: { sdk: { appId: string; configId: string; version: str
       </button>
       <Note r={note} />
     </>
+  );
+}
+
+/** Connect a number already set up in Meta (its test number, or WhatsApp Manager) with an access token. */
+function ManualConnect() {
+  const t = useT().wa;
+  const [f, setF] = useState({ phoneNumberId: "", wabaId: "", token: "" });
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pending, start] = useTransition();
+  return (
+    <details style={{ marginTop: 14 }}>
+      <summary className="gm-hint" style={{ cursor: "pointer" }}>{t.manualSec}</summary>
+      <p className="gm-hint">{t.manualHint}</p>
+      <div className="gm-field">
+        <label htmlFor="wa-pnid">{t.manualPhoneId}</label>
+        <input id="wa-pnid" className="gm-input gm-ltr" dir="ltr" inputMode="numeric" value={f.phoneNumberId} onChange={(e) => setF({ ...f, phoneNumberId: e.target.value })} />
+      </div>
+      <div className="gm-field">
+        <label htmlFor="wa-waba">{t.manualWabaId}</label>
+        <input id="wa-waba" className="gm-input gm-ltr" dir="ltr" inputMode="numeric" value={f.wabaId} onChange={(e) => setF({ ...f, wabaId: e.target.value })} />
+      </div>
+      <div className="gm-field">
+        <label htmlFor="wa-token">{t.manualToken}</label>
+        <input id="wa-token" className="gm-input gm-ltr" dir="ltr" type="password" autoComplete="off" value={f.token} onChange={(e) => setF({ ...f, token: e.target.value })} />
+      </div>
+      <button
+        type="button"
+        className="gm-btn quiet"
+        disabled={pending || !f.phoneNumberId || !f.wabaId || !f.token}
+        onClick={() =>
+          start(async () => {
+            const r = await connectWhatsAppTokenAction(f);
+            setNote(r.ok ? { ok: true, text: t.connectOk } : { ok: false, text: r.error });
+            if (r.ok) setF({ phoneNumberId: "", wabaId: "", token: "" });
+          })
+        }
+      >
+        {pending ? t.connecting : t.manualConnect}
+      </button>
+      <Note r={note} />
+    </details>
   );
 }
 
@@ -379,7 +421,10 @@ export function WhatsAppClient({
             )}
           </div>
         ) : canConfigure ? (
-          <Connect sdk={sdk} />
+          <>
+            <Connect sdk={sdk} />
+            <ManualConnect />
+          </>
         ) : (
           <p className="gm-sub">{t.errors.notConnected}</p>
         )}

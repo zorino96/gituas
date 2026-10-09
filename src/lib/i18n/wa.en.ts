@@ -20,6 +20,12 @@ export const waEn: typeof waCkb = {
   notReady: "WhatsApp connection is not open yet. Coming soon.",
   sdkFailed: "The Facebook window did not open. Allow pop-ups and try again.",
   cancelled: "The connection was not finished.",
+  manualSec: "Advanced: connect with an access token",
+  manualHint: "For a number already set up in Meta (Meta's test number, or WhatsApp Manager). Take the IDs and the token from the Meta dashboard.",
+  manualPhoneId: "Phone number ID",
+  manualWabaId: "WhatsApp Business Account ID",
+  manualToken: "Access token",
+  manualConnect: "Connect",
 
   chatsSec: "Chats",
   noChats: "No WhatsApp messages yet.",
@@ -68,5 +74,6 @@ export const waEn: typeof waCkb = {
     tooLong: (max: number) => `Too long (at most ${max} characters).`,
     badTemplateName: "The name may only use lowercase letters, digits and _.",
     outsideWindow: "More than 24 hours: send a template.",
+    manualBad: "The IDs or the token are not valid, or this token has no access to that number.",
   },
 };
