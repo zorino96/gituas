@@ -67,7 +67,7 @@ export function sendWaTemplate(phoneNumberId: string, token: string, to: string,
 
 /** Trade the Embedded Signup code for the business's token (server side; needs the app secret). */
 export async function exchangeCode(code: string): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
-  const secret = process.env.WHATSAPP_APP_SECRET;
+  const secret = process.env.WHATSAPP_APP_SECRET?.trim();
   if (!secret) return { ok: false, error: "WHATSAPP_APP_SECRET is not set" };
   try {
     const res = await fetch(`${BASE}/oauth/access_token?${new URLSearchParams({ client_id: WA_APP_ID, client_secret: secret, code })}`, { signal: AbortSignal.timeout(15_000) });

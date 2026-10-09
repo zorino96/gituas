@@ -6,8 +6,9 @@ import { after } from "next/server";
 import { db } from "@/lib/db";
 import { assertWithin, countUsage, LimitReached, limitMessage } from "@/lib/billing/limits";
 import { canAutoPublish, NEWS_LIMITS, promptFilterFor, videoQuotaFor } from "@/lib/billing/plans";
-import { put } from "@vercel/blob";
-import { cleanDailyMax, isVideoMode, ownClips, prepareVideo } from "@/lib/news/video";
+import { del, put } from "@vercel/blob";
+import { cleanDailyMax, isVideoMode, ownClips, prepareVideo, VIDEO_STYLES } from "@/lib/news/video";
+import { CLIP_LIBRARY_MAX, cleanClipLabel, type LibraryClip } from "@/lib/news/clips";
 import { cleanSpeed, isPawanVoice, speak } from "@/lib/voice/tts";
 import { AiUnavailable, type Strength } from "@/lib/ai/provider";
 import { autoTargetsFor, parseAutopilot } from "@/lib/news/autopilot-settings";
@@ -367,6 +368,7 @@ export async function setKeywordFilterAction(on: boolean): Promise<Result> {
 /** Which autopilot stories become videos, how many, and in which voice. Only plans with a video quota. */
 export async function saveVideoSettingsAction(input: {
   mode: string;
+  style?: string;
   topics: string[];
   dailyMax: number;
   voice: string;
@@ -380,7 +382,7 @@ export async function saveVideoSettingsAction(input: {
   if (videoQuotaFor(tenant?.plan) < 1) return { ok: false, error: t.settings.news.videoPlanOnly };
   const data = {
     videoMode: isVideoMode(input?.mode) ? input.mode : "OFF",
-    videoStyle: "TEMPLATE",
+    videoStyle: (VIDEO_STYLES as readonly string[]).includes(input?.style ?? "") ? input.style! : "TEMPLATE",
     videoTopics: normalizeChoice(Array.isArray(input?.topics) ? input.topics.slice(0, 60).map(String) : []),
     videoDailyMax: cleanDailyMax(input?.dailyMax),
     videoVoice: isPawanVoice(input?.voice) ? input.voice : "male",
@@ -389,6 +391,38 @@ export async function saveVideoSettingsAction(input: {
     ...(tenant?.plan === "ENTERPRISE" ? { videoPrompt: cleanFocusPrompt(input?.prompt) } : {}),
   };
   await db.newsSettings.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, keywords: [], ...data }, update: data });
+  return { ok: true };
+}
+
+/** Add one uploaded clip to the desk's footage library (automatic highlights). */
+export async function addNewsClipAction(input: { url: string; label: string; general: boolean }): Promise<Result<{ clip: LibraryClip }>> {
+  const { ws, m, t } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
+  const tenant = await db.tenant.findUnique({ where: { id: ws.id }, select: { plan: true } });
+  if (videoQuotaFor(tenant?.plan) < 1) return { ok: false, error: t.settings.news.videoPlanOnly };
+  const own = ownClips(ws.id, [input?.url]);
+  if (!own?.length) return { ok: false, error: m.notAllowed };
+  const label = cleanClipLabel(input?.label);
+  if (!label) return { ok: false, error: t.settings.news.clipBadLabel };
+  if ((await db.newsClip.count({ where: { tenantId: ws.id } })) >= CLIP_LIBRARY_MAX) return { ok: false, error: t.settings.news.clipsFull(CLIP_LIBRARY_MAX) };
+  const url = own[0];
+  const clip = await db.newsClip.create({
+    data: { tenantId: ws.id, url, pathname: new URL(url).pathname.slice(1), label, general: !!input?.general },
+    select: { id: true, url: true, label: true, general: true },
+  });
+  return { ok: true, clip };
+}
+
+/** Remove a clip from the library, and its file. Videos already made from it keep their own copy. */
+export async function deleteNewsClipAction(id: string): Promise<Result> {
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
+  const clip = await db.newsClip.findFirst({ where: { id: String(id), tenantId: ws.id }, select: { id: true, url: true } });
+  if (!clip) return { ok: true };
+  await db.newsClip.delete({ where: { id: clip.id } });
+  await del(clip.url).catch(() => {});
   return { ok: true };
 }
 

@@ -16,6 +16,7 @@ import { subcategoryLabel, TAXONOMY } from "@/lib/news/taxonomy";
 import { VOICE_NOTE_MAX } from "@/lib/news/voice";
 import { FOCUS_PROMPT_MAX, type FilterMode } from "@/lib/news/focus-shared";
 import type { PromptFilter } from "@/lib/billing/plans";
+import type { LibraryClip } from "@/lib/news/clips";
 import { PAWAN_VOICES, SPEECH_SPEED, VOICE_NAMES } from "@/lib/voice/voices";
 import { useLang } from "@/lib/i18n/client";
 import {
@@ -27,6 +28,8 @@ import {
   saveKeywordsAction,
   saveNewsFilterAction,
   saveVideoSettingsAction,
+  addNewsClipAction,
+  deleteNewsClipAction,
   previewVoiceAction,
   saveVoiceNoteAction,
   setKeywordFilterAction,
@@ -43,7 +46,7 @@ export interface NewsSettingsProps {
   /** Keywords or a prompt; `level` is what the plan includes (none on LITE and MANUAL). */
   filter: { level: PromptFilter; mode: FilterMode; focus: string; exclude: string; broad: boolean };
   /** Auto-video: `quota` 0 means the plan has none; `full` is ENTERPRISE (the prompt). */
-  video: { quota: number; used: number; full: boolean; mode: "OFF" | "AUTO"; topics: string[]; dailyMax: number; voice: string; speed: number; prompt: string };
+  video: { quota: number; used: number; full: boolean; mode: "OFF" | "AUTO"; style: "TEMPLATE" | "HIGHLIGHT"; clips: LibraryClip[]; topics: string[]; dailyMax: number; voice: string; speed: number; prompt: string };
   voiceNote: string;
   autopilot: {
     mode: AutoMode;
@@ -510,13 +513,13 @@ export function NewsSettings(p: NewsSettingsProps) {
             {video.mode === "AUTO" && (
               <>
                 <div className="gm-chips">
-                  <button type="button" className="gm-chip" aria-pressed>
-                    {tn.videoStyle.TEMPLATE}
-                  </button>
-                  <button type="button" className="gm-chip" aria-pressed={false} disabled>
-                    {tn.videoStyle.HIGHLIGHT} · {tn.videoSoon}
-                  </button>
+                  {(["TEMPLATE", "HIGHLIGHT"] as const).map((st) => (
+                    <button key={st} type="button" className="gm-chip" aria-pressed={video.style === st} onClick={() => setVideo((v) => ({ ...v, style: st }))}>
+                      {tn.videoStyle[st]}
+                    </button>
+                  ))}
                 </div>
+                {video.style === "HIGHLIGHT" && <ClipLibrary workspaceId={p.workspaceId} initial={p.video.clips} />}
                 <p className="gm-hint" style={{ margin: 0 }}>{tn.videoTopicsHint}</p>
                 <div className="gm-chips">
                   {TAXONOMY.map((c) => {
@@ -605,6 +608,7 @@ export function NewsSettings(p: NewsSettingsProps) {
                   () =>
                     saveVideoSettingsAction({
                       mode: video.mode,
+                      style: video.style,
                       topics: video.topics,
                       dailyMax: Number(video.dailyMax),
                       voice: video.voice,
@@ -666,5 +670,86 @@ export function NewsSettings(p: NewsSettingsProps) {
       </div>
       {msg && <p className={msg.ok ? "gm-ok" : "gm-err"}>{msg.text}</p>}
     </>
+  );
+}
+
+/** The desk's own footage for automatic highlights: upload, say what it shows, delete. */
+function ClipLibrary({ workspaceId, initial }: { workspaceId: string; initial: LibraryClip[] }) {
+  const t = useT();
+  const tn = t.settings.news;
+  const [clips, setClips] = useState(initial);
+  const [label, setLabel] = useState("");
+  const [general, setGeneral] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function add(file: File | undefined) {
+    if (!file) return;
+    if (file.type !== "video/mp4" && file.type !== "video/quicktime") return setNote({ ok: false, text: t.common.error });
+    if (!label.trim()) return setNote({ ok: false, text: tn.clipBadLabel });
+    setBusy(true);
+    setNote(null);
+    try {
+      const ext = file.type === "video/quicktime" ? "mov" : "mp4";
+      const blob = await upload(`merchant/${workspaceId}/footage/library-${Date.now()}.${ext}`, file, {
+        access: "public",
+        handleUploadUrl: "/api/app/upload",
+        contentType: file.type,
+        multipart: file.size > 20 * 1024 * 1024,
+      });
+      const r = await addNewsClipAction({ url: blob.url, label, general });
+      if (!r.ok) return setNote({ ok: false, text: r.error });
+      setClips((c) => [r.clip, ...c]);
+      setLabel("");
+      setGeneral(false);
+    } catch (e) {
+      setNote({ ok: false, text: e instanceof Error ? e.message : t.common.error });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(id: string) {
+    const r = await deleteNewsClipAction(id);
+    if (r.ok) setClips((c) => c.filter((x) => x.id !== id));
+    else setNote({ ok: false, text: r.error });
+  }
+
+  return (
+    <div className="gm-stack" style={{ gap: 10 }}>
+      <p className="gm-sec" style={{ margin: 0 }}>{tn.clipsSec}</p>
+      <p className="gm-hint" style={{ margin: 0 }}>{tn.clipsHint}</p>
+      <div className="gm-field">
+        <label htmlFor="clip-label">{tn.clipLabel}</label>
+        <input id="clip-label" className="gm-input" dir="auto" maxLength={120} value={label} onChange={(e) => setLabel(e.target.value)} />
+      </div>
+      <label className="gm-radio">
+        <input type="checkbox" checked={general} onChange={(e) => setGeneral(e.target.checked)} />
+        <span>{tn.clipGeneral}</span>
+      </label>
+      <label className="gm-btn quiet small" style={{ alignSelf: "flex-start", opacity: busy ? 0.6 : 1, pointerEvents: busy ? "none" : "auto" }}>
+        {busy ? tn.clipUploading : tn.clipAdd}
+        <input type="file" accept="video/mp4,video/quicktime" hidden disabled={busy} onChange={(e) => { void add(e.target.files?.[0]); e.target.value = ""; }} />
+      </label>
+      {note && <p className={note.ok ? "gm-ok" : "gm-err"} style={{ margin: 0 }}>{note.text}</p>}
+      {clips.length === 0 ? (
+        <p className="gm-sub" style={{ margin: 0 }}>{tn.clipsEmpty}</p>
+      ) : (
+        clips.map((c) => (
+          <div key={c.id} className="gm-target">
+            <div className="gm-row" style={{ gap: 10 }}>
+              <video src={c.url} preload="metadata" muted playsInline style={{ width: 54, height: 96, objectFit: "cover", borderRadius: 8, background: "#000" }} />
+              <div>
+                <p dir="auto" style={{ margin: 0 }}>{c.label}</p>
+                {c.general && <span className="gm-badge ghost">{tn.clipGeneralBadge}</span>}
+              </div>
+            </div>
+            <button type="button" className="gm-btn small quiet" onClick={() => void remove(c.id)}>
+              {tn.clipDelete}
+            </button>
+          </div>
+        ))
+      )}
+    </div>
   );
 }

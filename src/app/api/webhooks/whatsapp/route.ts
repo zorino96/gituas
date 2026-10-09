@@ -30,7 +30,7 @@ export function GET(req: Request) {
 }
 
 function signatureValid(raw: string, header: string | null): boolean {
-  const secret = process.env.WHATSAPP_APP_SECRET;
+  const secret = process.env.WHATSAPP_APP_SECRET?.trim();
   if (!secret || !header?.startsWith("sha256=")) return false;
   const got = Buffer.from(header.slice("sha256=".length), "hex");
   const expected = Buffer.from(createHmac("sha256", secret).update(raw).digest("hex"), "hex");

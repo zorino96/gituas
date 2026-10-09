@@ -20,6 +20,7 @@ import { completeJson } from "@/lib/ai/provider";
 import { countUsage, usageOf } from "@/lib/billing/limits";
 import { videoQuotaFor } from "@/lib/billing/plans";
 import { cleanSpeed, isPawanVoice, speak } from "@/lib/voice/tts";
+import { clipsForStory } from "./clips";
 import { cleanFocusPrompt } from "./focus-shared";
 import { categoryLabel, matchesChoice, normalizeChoice } from "./taxonomy";
 
@@ -68,7 +69,7 @@ export interface WantsVideoInput {
 export function wantsVideo(i: WantsVideoInput): boolean {
   const s = i.settings;
   const quota = videoQuotaFor(i.plan);
-  if (!s || quota < 1 || s.videoMode !== "AUTO" || s.videoStyle !== "TEMPLATE") return false;
+  if (!s || quota < 1 || s.videoMode !== "AUTO" || !(VIDEO_STYLES as readonly string[]).includes(s.videoStyle)) return false;
   if (i.month >= quota || i.today >= cleanDailyMax(s.videoDailyMax)) return false;
   const topics = normalizeChoice(s.videoTopics);
   // A saved choice we cannot read must not turn into "every topic".
@@ -212,11 +213,15 @@ export async function queueVideoIfWanted(
     if (!wantsVideo({ plan, settings, story, today, month })) return null;
     const prompt = plan === "ENTERPRISE" ? cleanFocusPrompt(settings!.videoPrompt) : null;
     if (prompt && !(await fitsVideoPrompt(prompt, story))) return null;
+    // HIGHLIGHT: the desk's own clips that fit this story; none fit → the brand template.
+    const clips = settings!.videoStyle === "HIGHLIGHT" ? await clipsForStory(tenantId, story) : [];
     const job = await db.newsVideo.create({
       data: {
         tenantId,
         itemId: story.id,
         draftId,
+        style: clips.length ? "HIGHLIGHT" : "TEMPLATE",
+        clips,
         voice: isPawanVoice(settings!.videoVoice) ? settings!.videoVoice : "male",
         speed: cleanSpeed(settings!.videoSpeed),
       },

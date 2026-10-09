@@ -734,6 +734,21 @@ model NewsSettings {
 
 /// One automatic news video. Script and voice are made on our server, the render runs on GitHub
 /// Actions (reel/), then the autopilot posts it; a video that does not arrive in time is replaced by the card.
+/// A desk's own footage for automatic highlight videos. The AI only uses a clip whose label fits the story.
+model NewsClip {
+  id        String   @id @default(cuid())
+  tenantId  String
+  url       String
+  pathname  String
+  /// What the footage shows, written by the desk ("Erbil citadel from above").
+  label     String
+  /// Studio, logo or other footage that fits any story; used only when no labelled clip fits.
+  general   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+}
+
 model NewsVideo {
   id        String    @id @default(cuid())
   tenantId  String

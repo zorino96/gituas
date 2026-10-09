@@ -56,6 +56,8 @@ export default async function SettingsPage({
         used: await usageOf(ws.id, "video"),
         full: tenant?.plan === "ENTERPRISE",
         mode: settings?.videoMode === "AUTO" ? "AUTO" : "OFF",
+        style: settings?.videoStyle === "HIGHLIGHT" ? "HIGHLIGHT" : "TEMPLATE",
+        clips: await db.newsClip.findMany({ where: { tenantId: ws.id }, orderBy: { createdAt: "desc" }, select: { id: true, url: true, label: true, general: true } }),
         topics: settings?.videoTopics ?? [],
         dailyMax: settings?.videoDailyMax ?? 5,
         voice: settings?.videoVoice ?? "male",

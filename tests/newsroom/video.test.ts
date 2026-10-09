@@ -4,6 +4,7 @@ vi.mock("@/lib/db", () => ({ db: {} }));
 vi.mock("@/lib/ai/provider", () => ({ completeJson: vi.fn() }));
 vi.mock("@vercel/blob", () => ({ put: vi.fn() }));
 
+import { cleanClipLabel, parsePick } from "@/lib/news/clips";
 import { cleanDailyMax, isLate, ownClips, parseReelScript, reelPrompt, soraniDate, wantsVideo, VIDEO_LATE_MS, type VideoSettings } from "@/lib/news/video";
 
 const on: VideoSettings = {
@@ -33,8 +34,24 @@ describe("wantsVideo", () => {
     expect(wantsVideo({ plan: "AUTO", settings: { ...on, videoTopics: ["politics"] }, story, today: 0, month: 0 })).toBe(true);
     expect(wantsVideo({ plan: "AUTO", settings: { ...on, videoTopics: ["nonsense"] }, story, today: 0, month: 0 })).toBe(false);
   });
-  it("never makes the highlight style yet", () => {
-    expect(wantsVideo({ plan: "AUTO", settings: { ...on, videoStyle: "HIGHLIGHT" }, story, today: 0, month: 0 })).toBe(false);
+  it("makes highlights too (the clips are picked when the job is queued), but never an unknown style", () => {
+    expect(wantsVideo({ plan: "AUTO", settings: { ...on, videoStyle: "HIGHLIGHT" }, story, today: 0, month: 0 })).toBe(true);
+    expect(wantsVideo({ plan: "AUTO", settings: { ...on, videoStyle: "SLIDESHOW" }, story, today: 0, month: 0 })).toBe(false);
+  });
+});
+
+describe("footage library", () => {
+  it("keeps only clip ids we offered, in the AI's order, at most three", () => {
+    expect(parsePick({ ids: ["b", "x", "a", "b", "c", "d"] }, ["a", "b", "c", "d"])).toEqual(["b", "a", "c"]);
+    expect(parsePick({ ids: [] }, ["a"])).toEqual([]);
+    expect(parsePick({ nope: true }, ["a"])).toBeNull();
+  });
+
+  it("needs a label of at most 120 characters", () => {
+    expect(cleanClipLabel("  قەڵای   هەولێر  ")).toBe("قەڵای هەولێر");
+    expect(cleanClipLabel("")).toBeNull();
+    expect(cleanClipLabel("x".repeat(121))).toBeNull();
+    expect(cleanClipLabel(5)).toBeNull();
   });
 });
 
