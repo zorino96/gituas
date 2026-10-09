@@ -12,6 +12,43 @@ export async function GET(req: Request) {
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  // ?test=raw: the shape of kurd.gg's reply, with and without JSON mode (no key, no request echoed).
+  if (new URL(req.url).searchParams.get("test") === "raw") {
+    const key = process.env.KURDGG_API_KEY?.trim();
+    const base = (process.env.KURDGG_BASE_URL?.trim() || "https://api.kurd.gg/v1").replace(/\/$/, "");
+    const shape = async (jsonMode: boolean) => {
+      const res = await fetch(`${base}/chat/completions`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: process.env.KURDGG_MODEL?.trim(),
+          ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
+          messages: [
+            { role: "system", content: 'Reply with JSON only: {"text": "<one sentence>"}' },
+            { role: "user", content: "بە کوردیی سۆرانی ڕستەیەکی کورت بنووسە دەربارەی هەولێر." },
+          ],
+        }),
+        signal: AbortSignal.timeout(25_000),
+      });
+      const raw = await res.text();
+      let b: Record<string, unknown> | null = null;
+      try {
+        b = JSON.parse(raw);
+      } catch {}
+      const choice = (b?.choices as Record<string, unknown>[] | undefined)?.[0];
+      const msg = choice?.message as Record<string, unknown> | undefined;
+      return {
+        status: res.status,
+        topKeys: b ? Object.keys(b) : null,
+        finish: choice?.finish_reason ?? null,
+        messageKeys: msg ? Object.keys(msg) : null,
+        contentType: Array.isArray(msg?.content) ? "array" : typeof msg?.content,
+        content: typeof msg?.content === "string" ? (msg.content as string).slice(0, 300) : JSON.stringify(msg?.content ?? null).slice(0, 300),
+        notJson: b ? null : raw.slice(0, 200),
+      };
+    };
+    return NextResponse.json({ json: await shape(true).catch((e) => String(e)), plain: await shape(false).catch((e) => String(e)) });
+  }
   // ?test=kurdgg: the same request to kurd.gg alone, with its error (status/code only) when it fails.
   if (new URL(req.url).searchParams.get("test") === "kurdgg") {
     const started = Date.now();
