@@ -33,6 +33,30 @@ export function extractJson(content: string): unknown {
   }
 }
 
+/**
+ * The text of a streamed reply. kurd.gg answers as server-sent events ("data: {chunk}" lines,
+ * then "data: [DONE]") even when no stream was asked for; the pieces are joined here.
+ */
+export function sseContent(raw: string): { content: string; model: string | null } {
+  let content = "";
+  let model: string | null = null;
+  for (const line of raw.split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t.startsWith("data:")) continue;
+    const payload = t.slice(5).trim();
+    if (!payload || payload === "[DONE]") continue;
+    try {
+      const chunk = JSON.parse(payload) as { model?: string; choices?: { delta?: { content?: unknown }; message?: { content?: unknown } }[] };
+      model = chunk.model ?? model;
+      const piece = chunk.choices?.[0]?.delta?.content ?? chunk.choices?.[0]?.message?.content;
+      if (typeof piece === "string") content += piece;
+    } catch {
+      // a keep-alive or comment line
+    }
+  }
+  return { content, model };
+}
+
 /** timeoutMs is the caller's to choose: completeJson budgets it against the overall deadline. */
 export async function kurdggJson({ system, user, strength }: JsonCall, timeoutMs: number): Promise<JsonResult> {
   const base = (process.env.KURDGG_BASE_URL?.trim() || DEFAULT_BASE).replace(/\/$/, "");
@@ -42,6 +66,7 @@ export async function kurdggJson({ system, user, strength }: JsonCall, timeoutMs
     headers: { Authorization: `Bearer ${process.env.KURDGG_API_KEY!.trim()}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model,
+      stream: false,
       temperature: 0.3,
       response_format: { type: "json_object" },
       messages: [
@@ -51,13 +76,26 @@ export async function kurdggJson({ system, user, strength }: JsonCall, timeoutMs
     }),
     signal: AbortSignal.timeout(timeoutMs),
   });
-  const body = await res.json().catch(() => null);
+  const raw = await res.text();
   if (!res.ok) {
     // Never echo the provider's free-text message: it can quote back part of the request, including the key.
-    const code = body?.error?.type ?? body?.error?.code ?? "unknown";
+    let code = "unknown";
+    try {
+      const b = JSON.parse(raw);
+      code = b?.error?.type ?? b?.error?.code ?? code;
+    } catch {}
     throw new Error(`HTTP ${res.status} ${code}`);
   }
-  const content = body?.choices?.[0]?.message?.content;
-  if (typeof content !== "string" || !content.trim()) throw new Error("empty reply");
-  return { data: extractJson(content), model: `kurdgg/${body.model ?? model}` };
+  let content: string;
+  let replyModel: string | null;
+  if (raw.trimStart().startsWith("data:")) {
+    ({ content, model: replyModel } = sseContent(raw));
+  } else {
+    const body = JSON.parse(raw) as { model?: string; choices?: { message?: { content?: unknown } }[] };
+    const c = body?.choices?.[0]?.message?.content;
+    content = typeof c === "string" ? c : "";
+    replyModel = body?.model ?? null;
+  }
+  if (!content.trim()) throw new Error("empty reply");
+  return { data: extractJson(content), model: `kurdgg/${replyModel ?? model}` };
 }
