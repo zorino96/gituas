@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
+import { auth } from "@/auth";
+import { isAppOrigin } from "@/lib/hosts";
 import { completeOAuth } from "@/lib/oauth/flow";
 import type { OAuthProvider } from "@/generated/prisma/client";
 
@@ -34,8 +36,15 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
   }
 
   const home = await errorHome();
+  // The provider calls back on the app's registered address; the person's session lives on the
+  // domain the connect started from. Send the callback there, so it is finished with that session.
+  const startOrigin = /^https?:\/\//.test(home) ? new URL(home).origin : null;
+  if (startOrigin && startOrigin !== url.origin && isAppOrigin(startOrigin)) {
+    return NextResponse.redirect(`${startOrigin}${url.pathname}${url.search}`);
+  }
   try {
-    const { redirectTo } = await completeOAuth(upper, code, state);
+    const session = await auth();
+    const { redirectTo } = await completeOAuth(upper, code, state, session?.user?.id ?? null);
     const back = new URL(redirectTo, req.url);
     back.searchParams.set("connected", upper.toLowerCase());
     return NextResponse.redirect(back);

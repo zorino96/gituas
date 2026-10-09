@@ -24,12 +24,11 @@ export const dynamic = "force-dynamic";
  * Skipped reasons are returned in the response for observability.
  */
 export async function GET(req: Request) {
+  // Refused without a configured secret too: these runs spend AI and ad budget.
   const expected = process.env.CRON_SECRET;
-  if (expected) {
-    const got = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-    if (got !== expected) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  const got = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  if (!expected || got !== expected) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   // Abandoned Facebook Page choices hold encrypted user tokens; drop the expired ones.

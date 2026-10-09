@@ -99,9 +99,12 @@ export async function consumeEmailCode(
   if (!row || row.usedAt) return { ok: false, field: "code", error: t.auth.common.newCode };
   if (row.expiresAt.getTime() < Date.now()) return { ok: false, field: "code", error: t.auth.code.expired };
   if (row.attempts >= MAX_ATTEMPTS) return { ok: false, field: "code", error: t.auth.code.tooManyWrong };
+  // Take the attempt before comparing, in one conditional write: parallel guesses cannot all
+  // read the same count and slip in under the limit.
+  const took = await db.emailCode.updateMany({ where: { id: row.id, usedAt: null, attempts: { lt: MAX_ATTEMPTS } }, data: { attempts: { increment: 1 } } });
+  if (took.count !== 1) return { ok: false, field: "code", error: t.auth.code.tooManyWrong };
 
   if (!codeMatches(email, code, row.codeHash)) {
-    await db.emailCode.update({ where: { id: row.id }, data: { attempts: { increment: 1 } } });
     const left = MAX_ATTEMPTS - row.attempts - 1;
     return { ok: false, field: "code", error: left > 0 ? t.auth.code.wrong : t.auth.code.tooManyWrong };
   }

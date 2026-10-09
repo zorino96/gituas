@@ -52,7 +52,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
   const backTo = isAppOrigin(origin) ? `${origin}${returnTo}` : returnTo;
 
   try {
-    const url = await buildAuthorizeUrl(upper, tenantId, backTo);
+    const url = await buildAuthorizeUrl(upper, tenantId, backTo, session.user.id);
     return NextResponse.redirect(url);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed";

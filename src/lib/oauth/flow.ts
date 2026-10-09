@@ -19,7 +19,7 @@ function base64url(buf: Buffer): string {
   return buf.toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
 
-export async function buildAuthorizeUrl(provider: OAuthProvider, tenantId: string, redirectTo?: string): Promise<string> {
+export async function buildAuthorizeUrl(provider: OAuthProvider, tenantId: string, redirectTo?: string, userId?: string): Promise<string> {
   const cfg = findProvider(provider);
   if (!cfg) throw new Error("Unknown provider");
   if (!cfg.authorizationUrl) throw new Error("Provider has no authorization URL");
@@ -36,6 +36,7 @@ export async function buildAuthorizeUrl(provider: OAuthProvider, tenantId: strin
       state,
       codeVerifier,
       tenantId,
+      userId: userId ?? null,
       provider,
       redirectTo,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
@@ -320,13 +321,19 @@ async function fetchProviderAccount(cfg: ProviderConfig, accessToken: string): P
   return { id: "unknown", name: cfg.label };
 }
 
-export async function completeOAuth(provider: OAuthProvider, code: string, state: string): Promise<{ redirectTo: string }> {
+export async function completeOAuth(provider: OAuthProvider, code: string, state: string, userId: string | null): Promise<{ redirectTo: string }> {
   const cfg = findProvider(provider);
   if (!cfg) throw new Error("Unknown provider");
 
   const stateRow = await db.oAuthState.findUnique({ where: { state } });
   if (!stateRow) throw new Error("Invalid state");
   if (stateRow.provider !== provider) throw new Error("Provider mismatch");
+  // Only the person who started this connect may finish it: a consent link sent to someone
+  // else must never put their account into the sender's workspace.
+  if (stateRow.userId && stateRow.userId !== userId) {
+    await db.oAuthState.delete({ where: { state } }).catch(() => undefined);
+    throw new Error("Session mismatch");
+  }
   if (stateRow.expiresAt < new Date()) {
     await db.oAuthState.delete({ where: { state } });
     throw new Error("State expired — retry the connect flow");
