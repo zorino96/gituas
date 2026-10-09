@@ -5,6 +5,7 @@
 
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { withAccounts } from "@/lib/oauth/account-scope";
 import { assertWithin, LimitReached, limitMessage, newsroomFrozenError } from "@/lib/billing/limits";
 import { ckb, type Dict } from "@/lib/i18n/ckb";
 import { captionProblems, isJpegPath, isKnownTarget, isOwnBlobUrl, youtubeOptionProblems, youtubeProblem, youtubeTitle, type Target, type YouTubeOptions } from "@/lib/merchant/caption";
@@ -19,6 +20,9 @@ import { getTikTokPostContext, publishPhotoToTikTok, publishToTikTok } from "@/l
 import { tagPublishedPost } from "@/lib/shop/state";
 
 const APP_ORIGIN = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://gituas.vercel.app";
+
+/** The connection provider behind each publish target. */
+const TARGET_PROVIDER = { FB: "META_FACEBOOK", IG: "META_INSTAGRAM", TT: "TIKTOK", YT: "YOUTUBE" } as const satisfies Record<Target, string>;
 
 export interface PublishInput {
   caption: string;
@@ -35,6 +39,11 @@ export interface PublishInput {
   igDeadlineMs?: number;
   /** The title, description and privacy the person set for YouTube. Older scheduled posts have none and use the caption. */
   youtube?: YouTubeOptions;
+  /**
+   * The accounts to publish to, per platform, when the workspace has several (account ids as stored
+   * on the connection). A platform without a list uses its default connection; TikTok takes one.
+   */
+  accounts?: Partial<Record<Target, string[]>>;
   tiktok?: {
     privacy: string | null;
     allowComment: boolean;
@@ -48,6 +57,9 @@ export interface PublishInput {
 
 export interface PublishOutcome {
   target: Target;
+  /** The account it went to, when one was chosen. */
+  accountId?: string;
+  accountName?: string;
   ok: boolean;
   url?: string;
   publishId?: string;
@@ -136,7 +148,31 @@ export async function publishForWorkspace(
   }
   if (captionProblems(caption, targets).length) return { error: t.publish.blockCaptionLong };
 
-  const run = async (target: Target): Promise<PublishOutcome> => {
+  // Which accounts each platform goes to: the chosen ones that are really this workspace's, or the default.
+  const jobs: { target: Target; accountId?: string; accountName?: string }[] = [];
+  const unknownAccount: PublishOutcome[] = [];
+  for (const target of targets) {
+    const asked = [...new Set((input.accounts?.[target] ?? []).filter((x): x is string => typeof x === "string" && !!x))];
+    if (!asked.length) {
+      jobs.push({ target });
+      continue;
+    }
+    const rows = await db.oAuthCredential.findMany({
+      where: { tenantId: ws.id, provider: TARGET_PROVIDER[target], providerAccountId: { in: asked } },
+      select: { providerAccountId: true, providerAccountName: true },
+    });
+    const known = asked.filter((id) => rows.some((r) => r.providerAccountId === id));
+    if (!known.length) {
+      unknownAccount.push({ target, ok: false, error: m.unknownTarget });
+      continue;
+    }
+    // TikTok's own rules show one creator's settings per post: one account.
+    for (const id of target === "TT" ? known.slice(0, 1) : known) {
+      jobs.push({ target, accountId: id, accountName: rows.find((r) => r.providerAccountId === id)?.providerAccountName ?? undefined });
+    }
+  }
+
+  const runOne = async (target: Target): Promise<PublishOutcome> => {
     if (target === "FB") {
       const r = await publishToFacebookPage(ws.id, {
         message: caption,
@@ -199,13 +235,23 @@ export async function publishForWorkspace(
     return { target, ok: r.ok, publishId: r.externalId, error: r.error };
   };
 
-  const settled = await Promise.allSettled(targets.map(run));
-  const results = settled.map((s, i): PublishOutcome =>
-    s.status === "fulfilled" ? s.value : { target: targets[i], ok: false, error: s.reason instanceof Error ? s.reason.message : t.common.error },
-  );
+  const run = async (job: (typeof jobs)[number]): Promise<PublishOutcome> => {
+    const outcome = job.accountId ? await withAccounts({ [TARGET_PROVIDER[job.target]]: job.accountId }, () => runOne(job.target)) : await runOne(job.target);
+    return { ...outcome, ...(job.accountId ? { accountId: job.accountId, accountName: job.accountName } : {}) };
+  };
+  const settled = await Promise.allSettled(jobs.map(run));
+  const results = [
+    ...unknownAccount,
+    ...settled.map((s, i): PublishOutcome =>
+      s.status === "fulfilled"
+        ? s.value
+        : { target: jobs[i].target, accountId: jobs[i].accountId, accountName: jobs[i].accountName, ok: false, error: s.reason instanceof Error ? s.reason.message : t.common.error },
+    ),
+  ];
   for (const r of results) {
     const meta: Prisma.InputJsonObject = {
       target: r.target,
+      ...(r.accountId ? { accountId: r.accountId } : {}),
       ...(r.url ? { url: r.url } : {}),
       ...(r.publishId ? { publishId: r.publishId } : {}),
       ...(r.error ? { error: r.error.slice(0, 500) } : {}),
@@ -223,7 +269,7 @@ export async function publishForWorkspace(
   if (input.productId) {
     for (const o of results) {
       if (o.ok && o.externalId && (o.target === "FB" || o.target === "IG")) {
-        await tagPublishedPost(ws.id, o.target === "IG" ? "META_INSTAGRAM" : "META_FACEBOOK", o.externalId, input.productId).catch(() => {});
+        await tagPublishedPost(ws.id, o.target === "IG" ? "META_INSTAGRAM" : "META_FACEBOOK", o.externalId, input.productId, o.accountId).catch(() => {});
       }
     }
   }

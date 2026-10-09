@@ -45,13 +45,15 @@ export async function loadCommentOutcomes(tenantId: string, commentIds: string[]
 }
 
 /** After publishing from the composer with a product chosen: tag the new post so its first comment already has the card. */
-export async function tagPublishedPost(tenantId: string, platform: MetaPlatform, externalPostId: string, productId: string): Promise<void> {
+export async function tagPublishedPost(tenantId: string, platform: MetaPlatform, externalPostId: string, productId: string, accountId?: string): Promise<void> {
   // The store of the account that published — a Facebook post id starts with its Page id; Instagram uses the credential the publisher picked.
   let store: { id: string; expiryDays: number } | null = null;
   const select = { id: true, expiryDays: true } as const;
   if (platform === "META_FACEBOOK") {
     const fbPageId = externalPostId.split("_")[0];
     if (fbPageId) store = await db.store.findFirst({ where: { tenantId, fbPageId }, select });
+  } else if (accountId) {
+    store = await db.store.findFirst({ where: { tenantId, igUserId: accountId }, select });
   } else {
     const cred = await db.oAuthCredential.findFirst({
       where: { tenantId, provider: "META_INSTAGRAM", ...unexpired() },

@@ -28,6 +28,7 @@ import { normalizePhone } from "@/lib/merchant/phone";
 import { publishForWorkspace, type PublishInput, type PublishOutcome } from "@/lib/merchant/publish-core";
 import type { Platform } from "@/lib/merchant/types";
 import { pauseThread } from "@/lib/shop/pause";
+import { withAccounts } from "@/lib/oauth/account-scope";
 import { scrubYouTubeLinks } from "@/lib/publishers/youtube-upkeep";
 
 export type Result = { ok: true } | { ok: false; error: string };
@@ -278,10 +279,11 @@ export interface TikTokContext {
   maxDurationSec?: number;
 }
 
-export async function tiktokContextAction(): Promise<{ ok: true; ctx: TikTokContext } | { ok: false; error: string }> {
+/** The TikTok creator's posting options; `accountId` picks which connected TikTok when there are several. */
+export async function tiktokContextAction(accountId?: string): Promise<{ ok: true; ctx: TikTokContext } | { ok: false; error: string }> {
   const { ws, t } = await session();
   if (!ws) return { ok: false, error: t.actions.common.signIn };
-  const info = await getTikTokPostContext(ws.id);
+  const info = await withAccounts({ TIKTOK: accountId }, () => getTikTokPostContext(ws.id));
   if ("error" in info) return { ok: false, error: info.error };
   return {
     ok: true,
@@ -315,10 +317,11 @@ export async function publishAction(input: PublishInput): Promise<{ ok: true; re
   return { ok: true, results: r };
 }
 
-export async function tiktokStatusAction(publishId: string): Promise<{ ok: true; status: string; failReason?: string } | { ok: false; error: string }> {
+export async function tiktokStatusAction(publishId: string, accountId?: string): Promise<{ ok: true; status: string; failReason?: string } | { ok: false; error: string }> {
   const { ws, t } = await session();
   if (!ws) return { ok: false, error: t.actions.common.signIn };
-  const s = await fetchTikTokPostStatus(ws.id, publishId);
+  // The status is asked with the token of the account that posted.
+  const s = await withAccounts({ TIKTOK: accountId }, () => fetchTikTokPostStatus(ws.id, publishId));
   if ("error" in s) return { ok: false, error: s.error };
   return { ok: true, status: s.status, failReason: s.failReason };
 }

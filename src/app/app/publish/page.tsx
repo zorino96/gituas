@@ -3,7 +3,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
-import { baseFor, currentWorkspace, loadConnections } from "../data";
+import { baseFor, currentWorkspace, loadAccountLists, loadConnections } from "../data";
 import { PublishClient } from "./publish-client";
 import { listScheduled } from "./schedule-actions";
 
@@ -23,7 +23,8 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
   const { draft: draftId, video: videoId, to } = await searchParams;
   // "?to=TT" or "?to=YT": open with only that platform on (the videos list's one-click links).
   const targets = (typeof to === "string" ? to.split(",") : []).filter((x): x is "TT" | "YT" | "FB" | "IG" => ["TT", "YT", "FB", "IG"].includes(x));
-  const [conns, draft, products, scheduled, video] = await Promise.all([
+  const [lists, conns, draft, products, scheduled, video] = await Promise.all([
+    loadAccountLists(ws.id),
     loadConnections(ws.id),
     draftId ? db.newsDraft.findFirst({ where: { id: draftId, tenantId: ws.id }, include: { item: true } }) : null,
     db.product.findMany({ where: { active: true, store: { tenantId: ws.id } }, select: { id: true, name: true }, orderBy: { updatedAt: "desc" } }),
@@ -64,6 +65,7 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
           TT: conns.TIKTOK.connected ? (conns.TIKTOK.name ?? t.platform.TT) : null,
           YT: conns.YOUTUBE.connected ? (conns.YOUTUBE.name ?? t.platform.YT) : null,
         }}
+        accountLists={{ FB: lists.META_FACEBOOK, IG: lists.META_INSTAGRAM, TT: lists.TIKTOK, YT: lists.YOUTUBE }}
       />
     </>
   );

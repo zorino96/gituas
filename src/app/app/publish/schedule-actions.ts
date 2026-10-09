@@ -86,6 +86,7 @@ export async function schedulePublishAction(
     ...(input.newsDraftId ? { newsDraftId: input.newsDraftId } : {}),
     ...(input.productId ? { productId: input.productId } : {}),
     ...(input.youtube && targets.includes("YT") ? { youtube: input.youtube } : {}),
+    ...(input.accounts ? { accounts: input.accounts } : {}),
   };
   const row = await db.scheduledPost.create({
     data: { tenantId: ws.id, createdById: userId, input: stored as unknown as Prisma.InputJsonValue, runAt },

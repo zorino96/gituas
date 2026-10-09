@@ -44,12 +44,15 @@ function readDuration(file: File): Promise<number | undefined> {
 export function PublishClient({
   workspaceId,
   accounts,
+  accountLists,
   products,
   initial,
   scheduled: initialScheduled,
 }: {
   workspaceId: string;
   accounts: Record<Target, string | null>;
+  /** Every connected account per platform; with more than one the person picks which. */
+  accountLists: Record<Target, { id: string; name: string; avatarUrl: string | null }[]>;
   products: { id: string; name: string }[];
   /** A news draft to post; `targets`, when given, are the only platforms switched on (e.g. TikTok from the videos list). */
   initial?: { newsDraftId: string; caption: string; media: Media; targets?: Target[] };
@@ -88,6 +91,26 @@ export function PublishClient({
   );
 
   // tiktok
+  // Which accounts each platform posts to, when there are several (the first, oldest, by default).
+  const [sel, setSel] = useState<Record<Target, string[]>>(() => ({
+    FB: accountLists.FB.slice(0, 1).map((a) => a.id),
+    IG: accountLists.IG.slice(0, 1).map((a) => a.id),
+    TT: accountLists.TT.slice(0, 1).map((a) => a.id),
+    YT: accountLists.YT.slice(0, 1).map((a) => a.id),
+  }));
+  const multi = (tg: Target) => accountLists[tg].length > 1;
+  const chosenAccounts = (): Partial<Record<Target, string[]>> | undefined => {
+    const out: Partial<Record<Target, string[]>> = {};
+    for (const tg of ["FB", "IG", "TT", "YT"] as Target[]) if (on[tg] && multi(tg)) out[tg] = sel[tg];
+    return Object.keys(out).length ? out : undefined;
+  };
+  const toggleAccount = (tg: Target, id: string) =>
+    setSel((s) => {
+      // TikTok posts to one account at a time (its rules show one creator's settings).
+      if (tg === "TT") return { ...s, TT: [id] };
+      const has = s[tg].includes(id);
+      return { ...s, [tg]: has ? s[tg].filter((x) => x !== id) : [...s[tg], id] };
+    });
   const [tt, setTt] = useState<TikTokContext | null>(null);
   const [ttError, setTtError] = useState<string | null>(null);
   const [privacy, setPrivacy] = useState<string | null>(null);
@@ -181,7 +204,7 @@ export function PublishClient({
     if (!on.TT || tt) return;
     let cancelled = false;
     setTtError(null);
-    tiktokContextAction().then((r) => {
+    tiktokContextAction(multi("TT") ? sel.TT[0] : undefined).then((r) => {
       if (cancelled) return;
       if (r.ok) setTt(r.ctx);
       else setTtError(friendlyError(r.error, t));
@@ -189,7 +212,8 @@ export function PublishClient({
     return () => {
       cancelled = true;
     };
-  }, [on.TT, tt, t]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [on.TT, tt, t, sel.TT[0]]);
 
   // The composer stops being "this news draft's post" the moment its media
   // changes — its card belonged to that exact image.
@@ -275,6 +299,7 @@ export function PublishClient({
   if (!caption.trim() && !media) blockers.push(t.publish.blockNeedContent);
   if (uploading) blockers.push(t.publish.blockUploading);
   if (captionIssues.length) blockers.push(t.publish.blockCaptionLong);
+  if ((["FB", "IG", "TT", "YT"] as Target[]).some((tg) => on[tg] && multi(tg) && !sel[tg].length)) blockers.push(t.publish.blockPickAccount);
   if (on.YT && !isVideo) blockers.push(t.publish.ytVideoOnly);
   if (ytIssues.includes("title") || ytIssues.includes("description")) blockers.push(t.publish.blockYtTitle);
   if (ytIssues.includes("brackets")) blockers.push(t.publish.blockYtBrackets);
@@ -297,6 +322,7 @@ export function PublishClient({
         targets,
         media: media ?? undefined,
         tiktok: on.TT ? { privacy, allowComment, allowDuet, allowStitch, commercial, yourBrand, branded } : undefined,
+        accounts: chosenAccounts(),
         youtube: on.YT ? youtube : undefined,
         newsDraftId: newsDraftId ?? undefined,
         productId: productId || undefined,
@@ -309,7 +335,7 @@ export function PublishClient({
       // Out on at least one platform: the draft is done. If everything failed it stays, to try again.
       if (r.results.some((x) => x.ok)) clearDraft(browserStore(), workspaceId);
       const ttResult = r.results.find((x) => x.target === "TT" && x.ok && x.publishId);
-      if (ttResult?.publishId) pollTikTok(ttResult.publishId);
+      if (ttResult?.publishId) pollTikTok(ttResult.publishId, ttResult.accountId);
     });
   }
 
@@ -318,7 +344,7 @@ export function PublishClient({
     setScheduledMsg(null);
     startPublish(async () => {
       const r = await schedulePublishAction(
-        { caption, targets, media: media ?? undefined, newsDraftId: newsDraftId ?? undefined, productId: productId || undefined, youtube: on.YT ? youtube : undefined },
+        { caption, targets, media: media ?? undefined, newsDraftId: newsDraftId ?? undefined, productId: productId || undefined, youtube: on.YT ? youtube : undefined, accounts: chosenAccounts() },
         runAtLocal,
       );
       if (!r.ok) {
@@ -348,13 +374,13 @@ export function PublishClient({
     setScheduledMsg(null);
   }
 
-  function pollTikTok(publishId: string, attempt = 0) {
+  function pollTikTok(publishId: string, accountId?: string, attempt = 0) {
     setTtStatus("PROCESSING");
-    tiktokStatusAction(publishId).then((s) => {
+    tiktokStatusAction(publishId, accountId).then((s) => {
       if (!s.ok) return setTtStatus(`ERROR:${s.error}`);
       if (s.status === "PUBLISH_COMPLETE") return setTtStatus("PUBLISH_COMPLETE");
       if (s.status === "FAILED") return setTtStatus(`ERROR:${s.failReason ?? "failed"}`);
-      if (attempt < 24) setTimeout(() => pollTikTok(publishId, attempt + 1), 5000);
+      if (attempt < 24) setTimeout(() => pollTikTok(publishId, accountId, attempt + 1), 5000);
       else setTtStatus("SLOW");
     });
   }
@@ -392,9 +418,12 @@ export function PublishClient({
         <h2 className="gm-title kufi">{t.publish.resultsTitle}</h2>
         <div className="gm-card" style={{ marginTop: 12 }}>
           {results.map((r) => (
-            <div key={r.target} className="gm-target">
+            <div key={`${r.target}-${r.accountId ?? ""}`} className="gm-target">
               <div>
-                <p>{t.platform[r.target]}</p>
+                <p>
+                  {t.platform[r.target]}
+                  {r.accountName && <small dir="auto"> · {r.accountName}</small>}
+                </p>
                 {r.ok ? (
                   <small>
                     {r.target === "TT"
@@ -590,6 +619,25 @@ export function PublishClient({
                 <i />
               </button>
             </div>
+            {on[tg] && multi(tg) && (
+              <div className="gm-stack" style={{ gap: 2, paddingInlineStart: 14, marginBottom: 8 }}>
+                <small className="gm-hint" style={{ margin: 0 }}>{tg === "TT" ? t.publish.pickOneAccount : t.publish.pickAccounts}</small>
+                {accountLists[tg].map((a) => (
+                  <label key={a.id} className="gm-radio" style={{ padding: "4px 0" }}>
+                    <input
+                      type={tg === "TT" ? "radio" : "checkbox"}
+                      name={`acc-${tg}`}
+                      checked={sel[tg].includes(a.id)}
+                      onChange={() => {
+                        toggleAccount(tg, a.id);
+                        if (tg === "TT") setTt(null);
+                      }}
+                    />
+                    <span dir="auto">{a.name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
             {tg === "YT" && <p className="gm-hint">{t.publish.ytPrivate}</p>}
             </Fragment>
           );
