@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { isFrameText } from "@/lib/cards/brand";
 import { db } from "@/lib/db";
 import { canAutoPublish, promptFilterFor, refreshSecFor, videoQuotaFor } from "@/lib/billing/plans";
 import { usageOf } from "@/lib/billing/limits";
@@ -91,7 +92,10 @@ export default async function SettingsPage({
         accent: kit?.accent ?? "#E0A526",
         text: kit?.text ?? "#FFFFFF",
         headingFont: kit?.headingFont === "sans" ? "sans" : "kufi",
+        framePath: kit?.framePath ?? null,
+        frameText: isFrameText(kit?.frameText) ? kit.frameText : "bottom",
       },
+      photos: await db.newsPhoto.findMany({ where: { tenantId: ws.id }, orderBy: { createdAt: "desc" }, select: { id: true, pathname: true, label: true, general: true } }),
     };
   }
 

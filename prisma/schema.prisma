@@ -734,6 +734,21 @@ model NewsSettings {
 
 /// One automatic news video. Script and voice are made on our server, the render runs on GitHub
 /// Actions (reel/), then the autopilot posts it; a video that does not arrive in time is replaced by the card.
+/// A desk's own photos for card backgrounds. The AI only uses a photo whose label fits the story.
+model NewsPhoto {
+  id        String   @id @default(cuid())
+  tenantId  String
+  url       String
+  pathname  String
+  /// What the photo shows, written by the desk ("Erbil citadel at night").
+  label     String
+  /// Fits any story (studio, city skyline); used only when no labelled photo fits.
+  general   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+}
+
 /// A desk's own footage for automatic highlight videos. The AI only uses a clip whose label fits the story.
 model NewsClip {
   id        String   @id @default(cuid())
@@ -866,6 +881,10 @@ model BrandKit {
   text        String   @default("#FFFFFF")
   /// kufi | sans — the two fonts the app ships
   headingFont String   @default("kufi")
+  /// The outlet's own 1080×1350 PNG frame. When set, cards are the story photo behind this frame.
+  framePath   String?
+  /// Where the headline goes on the frame: top | middle | bottom
+  frameText   String   @default("bottom")
   updatedAt   DateTime @updatedAt
 }
 

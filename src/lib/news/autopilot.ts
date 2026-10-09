@@ -28,6 +28,7 @@ import { loadActiveFocus } from "./focus";
 import { isLate, prepareQueuedVideos, prepareVideo, queueVideoIfWanted } from "./video";
 import { matchesChoice, normalizeChoice } from "./taxonomy";
 import { sameStoryTooClose } from "./voice";
+import { photoForStory } from "./photos";
 import { writeDraft } from "./write";
 
 /** Stories handled in one run, at most. */
@@ -526,6 +527,9 @@ async function handleStory(run: Run, story: Story): Promise<"next" | "stop"> {
     data: { itemId: story.id, tenantId, ...written.draft, model: written.model, auto: true },
     select: { id: true, headline: true, body: true },
   });
+  // The card's background: the desk's library photo that fits the story, if any.
+  const photo = await photoForStory(tenantId, story);
+  if (photo) await db.newsDraft.update({ where: { id: saved.id }, data: { photoPath: photo } });
   // Counted exactly as the editor's own draft is: one per draft, whatever the attempts.
   await countUsage(tenantId, "draft");
   await db.newsItem.updateMany({ where: { id: story.id, tenantId, status: "NEW" }, data: { status: "DRAFTED" } });

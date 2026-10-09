@@ -9,6 +9,7 @@ import { canAutoPublish, NEWS_LIMITS, promptFilterFor, videoQuotaFor } from "@/l
 import { del, put } from "@vercel/blob";
 import { cleanDailyMax, isVideoMode, ownClips, prepareVideo, VIDEO_STYLES } from "@/lib/news/video";
 import { CLIP_LIBRARY_MAX, cleanClipLabel, type LibraryClip } from "@/lib/news/clips";
+import { isOwnPhoto, PHOTO_LIBRARY_MAX, photoForStory } from "@/lib/news/photos";
 import { cleanSpeed, isPawanVoice, speak } from "@/lib/voice/tts";
 import { AiUnavailable, type Strength } from "@/lib/ai/provider";
 import { autoTargetsFor, parseAutopilot } from "@/lib/news/autopilot-settings";
@@ -23,6 +24,7 @@ import { CARD_KINDS, type CardKind } from "@/lib/news/types";
 import { cleanVoiceNote } from "@/lib/news/voice";
 import { writeDraft } from "@/lib/news/write";
 import { can } from "@/lib/newsroom/roles";
+import { isFrameText } from "@/lib/cards/brand";
 import { dict, getLang } from "@/lib/i18n";
 import { currentWorkspace, loadConnections, type Workspace } from "@/app/app/data";
 
@@ -118,7 +120,12 @@ export async function draftNewsAction(itemId: string, strength: Strength): Promi
     const { draft, model } = await writeDraft(ws.id, item, strength, { startedAt: actionStart, voiceNote: settings?.voiceNote });
     // A stale card must never go out with new text.
     const data = { ...draft, model, tenantId: ws.id, cardUrl: null, cardPath: null };
-    const saved = await db.newsDraft.upsert({ where: { itemId }, create: { itemId, ...data }, update: data });
+    let saved = await db.newsDraft.upsert({ where: { itemId }, create: { itemId, ...data }, update: data });
+    // No photo yet: the desk's library photo that fits the story, if any. A person's own photo is kept.
+    if (!saved.photoPath) {
+      const photo = await photoForStory(ws.id, item);
+      if (photo) saved = await db.newsDraft.update({ where: { id: saved.id }, data: { photoPath: photo } });
+    }
     // One count per action, whatever the number of attempts writeDraft needed.
     await countUsage(ws.id, metric);
     if (item.status === "NEW") await db.newsItem.update({ where: { id: itemId }, data: { status: "DRAFTED" } });
@@ -273,6 +280,8 @@ export async function saveBrandKitAction(kit: {
   accent: string;
   text: string;
   headingFont: "kufi" | "sans";
+  framePath?: string | null;
+  frameText?: string;
 }): Promise<Result> {
   const { ws, m } = await desk();
   if (!ws) return { ok: false, error: m.notNews };
@@ -280,7 +289,17 @@ export async function saveBrandKitAction(kit: {
   if (![kit.primary, kit.accent, kit.text].every((c) => HEX.test(c))) return { ok: false, error: m.badColors };
   if (kit.headingFont !== "kufi" && kit.headingFont !== "sans") return { ok: false, error: m.badFont };
   if (kit.logoPath && !isOwnPath(kit.logoPath, ws.id)) return { ok: false, error: m.badLogo };
-  const data = { logoPath: kit.logoPath, primary: kit.primary, accent: kit.accent, text: kit.text, headingFont: kit.headingFont };
+  const framePath = kit.framePath ?? null;
+  if (framePath && (!isOwnPath(framePath, ws.id) || !/\.png$/i.test(framePath))) return { ok: false, error: m.badLogo };
+  const data = {
+    logoPath: kit.logoPath,
+    primary: kit.primary,
+    accent: kit.accent,
+    text: kit.text,
+    headingFont: kit.headingFont,
+    framePath,
+    frameText: isFrameText(kit.frameText) ? kit.frameText : "bottom",
+  };
   await db.brandKit.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, ...data }, update: data });
   return { ok: true };
 }
@@ -424,6 +443,38 @@ export async function deleteNewsClipAction(id: string): Promise<Result> {
   await db.newsClip.delete({ where: { id: clip.id } });
   await del(clip.url).catch(() => {});
   return { ok: true };
+}
+
+/** Add one uploaded photo to the desk's photo library (card backgrounds). */
+export async function addNewsPhotoAction(input: { pathname: string; url: string; label: string; general: boolean }): Promise<Result<{ photo: LibraryPhoto }>> {
+  const { ws, m, t } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
+  if (!isOwnPhoto(ws.id, input?.pathname) || typeof input?.url !== "string" || !input.url.startsWith("https://")) return { ok: false, error: m.badPhoto };
+  const label = cleanClipLabel(input?.label);
+  if (!label) return { ok: false, error: t.settings.news.clipBadLabel };
+  if ((await db.newsPhoto.count({ where: { tenantId: ws.id } })) >= PHOTO_LIBRARY_MAX) return { ok: false, error: t.settings.news.photosFull(PHOTO_LIBRARY_MAX) };
+  const photo = await db.newsPhoto.create({
+    data: { tenantId: ws.id, url: input.url, pathname: input.pathname, label, general: !!input?.general },
+    select: { id: true, pathname: true, label: true, general: true },
+  });
+  return { ok: true, photo };
+}
+
+/** Remove a photo from the library. Cards already made keep it; its file stays for them. */
+export async function deleteNewsPhotoAction(id: string): Promise<Result> {
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
+  await db.newsPhoto.deleteMany({ where: { id: String(id), tenantId: ws.id } });
+  return { ok: true };
+}
+
+export interface LibraryPhoto {
+  id: string;
+  pathname: string;
+  label: string;
+  general: boolean;
 }
 
 export interface VideoView {

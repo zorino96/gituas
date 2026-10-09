@@ -3,7 +3,7 @@
 import { forwardRef, useLayoutEffect, useRef, type CSSProperties } from "react";
 
 import type { CardKind } from "@/lib/news/types";
-import { BODY_FONT, HEADING_FONT, type Brand } from "./brand";
+import { BODY_FONT, HEADING_FONT, type Brand, type FrameText } from "./brand";
 import { CARD_H, CARD_W } from "./size";
 
 export { CARD_H, CARD_W };
@@ -154,6 +154,62 @@ function Quote({ brand, content }: { brand: Brand; content: CardContent }) {
   );
 }
 
+/** The headline's box on an outlet frame, by where the outlet left room for it. */
+const FRAME_BOX: Record<FrameText, { top: number; height: number }> = {
+  top: { top: 170, height: 420 },
+  middle: { top: 465, height: 420 },
+  bottom: { top: 860, height: 390 },
+};
+const STAT_H = 150;
+
+/**
+ * The outlet's own frame: the story photo (or the brand gradient) fills the card, their PNG
+ * frame sits on top, and the headline goes where they left room for it.
+ */
+function Framed({ kind, brand, content }: { kind: CardKind; brand: Brand; content: CardContent }) {
+  const box = FRAME_BOX[brand.frameText];
+  const stat = kind === "STAT" && content.stat ? content.stat : null;
+  const text =
+    kind === "QUOTE" && content.quote ? `«${content.quote}»${content.speaker ? `\n— ${content.speaker}` : ""}` : content.headline;
+  const font = `700 60px/1.55 ${HEADING_FONT[brand.headingFont]}`;
+  const head = useFit(text, 60, 32, font);
+  const shadow = "0 2px 14px rgba(0,0,0,.6)";
+  return (
+    <>
+      <div style={abs({ inset: 0, background: `linear-gradient(135deg, ${brand.primary}, ${brand.accent})` })}>
+        {content.photoSrc && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={content.photoSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        )}
+      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={brand.frameSrc!} alt="" style={abs({ inset: 0, width: "100%", height: "100%", objectFit: "fill" })} />
+      {stat && (
+        <div style={abs({ top: box.top, right: 64, left: 64, height: STAT_H, color: brand.accent, font: `700 120px/1.2 ${HEADING_FONT[brand.headingFont]}`, whiteSpace: "nowrap", overflow: "hidden", textShadow: shadow })}>
+          {stat}
+        </div>
+      )}
+      <div
+        ref={head}
+        style={abs({
+          top: box.top + (stat ? STAT_H : 0),
+          right: 64,
+          left: 64,
+          height: box.height - (stat ? STAT_H : 0),
+          overflow: "hidden",
+          overflowWrap: "anywhere",
+          whiteSpace: "pre-line",
+          color: brand.text,
+          font,
+          textShadow: shadow,
+        })}
+      >
+        {text}
+      </div>
+    </>
+  );
+}
+
 /** A 1080×1350 card. Render it unscaled; scale its parent for previews. */
 export const NewsCard = forwardRef<HTMLDivElement, { kind: CardKind; brand: Brand; content: CardContent }>(function NewsCard(
   { kind, brand, content },
@@ -165,7 +221,9 @@ export const NewsCard = forwardRef<HTMLDivElement, { kind: CardKind; brand: Bran
       dir="rtl"
       style={{ position: "relative", width: CARD_W, height: CARD_H, overflow: "hidden", background: brand.primary, fontFamily: BODY_FONT }}
     >
-      {kind === "BREAKING" ? (
+      {brand.frameSrc ? (
+        <Framed kind={kind} brand={brand} content={content} />
+      ) : kind === "BREAKING" ? (
         <Breaking brand={brand} content={content} />
       ) : kind === "STAT" ? (
         <Stat brand={brand} content={content} />

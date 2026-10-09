@@ -51,7 +51,7 @@ export default async function CardRenderPage({
   const [kit, tenant] = await Promise.all([
     db.brandKit.findUnique({
       where: { tenantId: draft.tenantId },
-      select: { logoPath: true, primary: true, accent: true, text: true, headingFont: true },
+      select: { logoPath: true, primary: true, accent: true, text: true, headingFont: true, framePath: true, frameText: true },
     }),
     db.tenant.findUnique({ where: { id: draft.tenantId }, select: { name: true } }),
   ]);

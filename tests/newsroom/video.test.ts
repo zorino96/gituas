@@ -4,7 +4,9 @@ vi.mock("@/lib/db", () => ({ db: {} }));
 vi.mock("@/lib/ai/provider", () => ({ completeJson: vi.fn() }));
 vi.mock("@vercel/blob", () => ({ put: vi.fn() }));
 
+import { brandFrom } from "@/lib/cards/brand";
 import { cleanClipLabel, parsePick } from "@/lib/news/clips";
+import { isOwnPhoto } from "@/lib/news/photos";
 import { cleanDailyMax, isLate, ownClips, parseReelScript, reelPrompt, soraniDate, wantsVideo, VIDEO_LATE_MS, type VideoSettings } from "@/lib/news/video";
 
 const on: VideoSettings = {
@@ -105,5 +107,27 @@ describe("timing and labels", () => {
     expect(cleanDailyMax("999")).toBe(50);
     expect(cleanDailyMax("x")).toBe(5);
     expect(soraniDate(new Date("2026-10-07T22:30:00Z"))).toBe("٨ی تشرینی یەکەمی ٢٠٢٦");
+  });
+});
+
+describe("photo library and frames", () => {
+  it("picks at most the asked number of library items", () => {
+    expect(parsePick({ ids: ["b", "a"] }, ["a", "b"], 1)).toEqual(["b"]);
+  });
+
+  it("accepts only this desk's own image files as card photos", () => {
+    expect(isOwnPhoto("t1", "merchant/t1/photos/1.jpg")).toBe(true);
+    expect(isOwnPhoto("t1", "merchant/t1/photos/1.webp")).toBe(true);
+    expect(isOwnPhoto("t1", "merchant/t2/photos/1.jpg")).toBe(false);
+    expect(isOwnPhoto("t1", "merchant/t1/../t2/1.jpg")).toBe(false);
+    expect(isOwnPhoto("t1", "merchant/t1/photos/1.mp4")).toBe(false);
+    expect(isOwnPhoto("t1", null)).toBe(false);
+  });
+
+  it("maps the outlet frame onto the card brand", () => {
+    const kit = { logoPath: null, primary: "#000000", accent: "#111111", text: "#ffffff", headingFont: "kufi" };
+    expect(brandFrom({ ...kit, framePath: "merchant/t1/frame-1.png", frameText: "top" }, "Desk")).toMatchObject({ frameSrc: "/m/merchant/t1/frame-1.png", frameText: "top" });
+    expect(brandFrom({ ...kit, framePath: null, frameText: "sideways" }, "Desk")).toMatchObject({ frameSrc: null, frameText: "bottom" });
+    expect(brandFrom(null, "Desk")).toMatchObject({ frameSrc: null, frameText: "bottom" });
   });
 });
