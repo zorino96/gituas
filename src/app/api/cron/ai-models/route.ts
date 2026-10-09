@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { completeJson } from "@/lib/ai/provider";
+import { kurdggConfigured, kurdggJson } from "@/lib/ai/kurdgg";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,6 +11,20 @@ export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  // ?test=kurdgg: the same request to kurd.gg alone, with its error (status/code only) when it fails.
+  if (new URL(req.url).searchParams.get("test") === "kurdgg") {
+    const started = Date.now();
+    if (!kurdggConfigured()) return NextResponse.json({ ok: false, error: "KURDGG_API_KEY or KURDGG_MODEL is not set" });
+    try {
+      const r = await kurdggJson(
+        { system: 'Reply with JSON only: {"text": "<one sentence>"}', user: "بە کوردیی سۆرانی ڕستەیەکی کورت بنووسە دەربارەی کەشی هەولێر لە پاییزدا.", strength: "fast" },
+        25_000,
+      );
+      return NextResponse.json({ ok: true, model: r.model, ms: Date.now() - started, data: r.data });
+    } catch (e) {
+      return NextResponse.json({ ok: false, ms: Date.now() - started, error: e instanceof Error ? `${e.name}: ${e.message}` : "failed" });
+    }
   }
   // ?test=1: one short Sorani request through the whole chain, to see which model answers.
   if (new URL(req.url).searchParams.get("test") === "1") {
