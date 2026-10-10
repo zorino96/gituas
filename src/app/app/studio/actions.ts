@@ -11,6 +11,7 @@ import { isOwnBlobUrl, isOwnPathname } from "@/lib/merchant/caption";
 import { can } from "@/lib/newsroom/roles";
 import { cleanHeadline, HEADLINE_MAX, isStudioAspect, isStudioPreset, type StudioPreset } from "@/lib/studio/presets";
 import { renderFinal, startImage, type StartFailure } from "@/lib/studio/jobs";
+import { studioReadyFor } from "@/lib/studio/ready";
 import { currentWorkspace } from "../data";
 
 export type Result = { ok: true } | { ok: false; error: string };
@@ -122,6 +123,7 @@ export async function createStudioImageAction(input: {
   if (!s.ok) return s;
   const { ws, t } = s;
   const e = t.studio.errors;
+  if (!studioReadyFor(ws.id)) return { ok: false, error: e.notReady };
   const product = await db.product.findFirst({ where: { id: input.productId, store: { tenantId: ws.id } }, select: { id: true, photos: true } });
   if (!product) return { ok: false, error: e.badProduct };
   if (!product.photos.includes(input.photoUrl) || !isOwnBlobUrl(input.photoUrl, ws.id)) return { ok: false, error: e.badPhoto };

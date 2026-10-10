@@ -58,7 +58,7 @@ export const ASPECT_PX: Record<StudioAspect, { width: number; height: number }> 
   "9:16": { width: 1080, height: 1920 },
 };
 
-/** What we ask the model for: the closest ratio it offers (4:5 is made as 3:4 and cropped by the renderer). */
+/** What we ask the model for: the closest ratio it offers (Marketing Studio has no 4:5, so it is made as 3:4 and cropped by the renderer). */
 export const MODEL_ASPECT: Record<StudioAspect, string> = { "1:1": "1:1", "4:5": "3:4", "9:16": "9:16" };
 
 /** Rules that hold for every picture. */
@@ -75,15 +75,29 @@ export function studioPrompt(preset: StudioPreset): string {
   return `A product photo of the item in the reference image, ${SCENE[preset]}. ${RULES}`;
 }
 
-/** The Higgsfield model that makes product pictures from a reference photo. Set in the environment once chosen in the Higgsfield console. */
-export function imageModel(): string | null {
-  const app = process.env.HIGGSFIELD_IMAGE_APP?.trim();
-  return app || null;
+/**
+ * The Higgsfield model that makes product pictures: Marketing Studio Image (GPT Image 2.5 "Sunburst"),
+ * which edits from up to 16 reference photos. HIGGSFIELD_IMAGE_APP can switch it without a code change.
+ */
+export const DEFAULT_IMAGE_APP = "marketing-studio/image/sunburst";
+export function imageModel(): string {
+  return process.env.HIGGSFIELD_IMAGE_APP?.trim() || DEFAULT_IMAGE_APP;
 }
 
-/** The model's arguments: the prompt, the shop's own photo as the reference, the ratio. */
+/**
+ * The model's arguments: our own prompt as written (enhance_prompt off), the shop's photo as the
+ * reference, the ratio, and 1k resolution — the ad is 1080 px wide, and 1k keeps a picture to a few
+ * cents. HIGGSFIELD_IMAGE_RESOLUTION / HIGGSFIELD_IMAGE_QUALITY can raise them.
+ */
 export function imageArgs(prompt: string, sourceUrl: string, aspect: StudioAspect): Record<string, unknown> {
-  return { prompt, image_urls: [sourceUrl], aspect_ratio: MODEL_ASPECT[aspect] };
+  return {
+    prompt,
+    image_urls: [sourceUrl],
+    aspect_ratio: MODEL_ASPECT[aspect],
+    resolution: process.env.HIGGSFIELD_IMAGE_RESOLUTION?.trim() || "1k",
+    quality: process.env.HIGGSFIELD_IMAGE_QUALITY?.trim() || "high",
+    enhance_prompt: false,
+  };
 }
 
 export const HEADLINE_MAX = 60;

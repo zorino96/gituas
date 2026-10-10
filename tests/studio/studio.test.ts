@@ -22,6 +22,9 @@ describe("studio prompt", () => {
       prompt: "p",
       image_urls: ["https://x.public.blob.vercel-storage.com/merchant/w/a.jpg"],
       aspect_ratio: "3:4",
+      resolution: "1k",
+      quality: "high",
+      enhance_prompt: false,
     });
     expect(MODEL_ASPECT["9:16"]).toBe("9:16");
   });

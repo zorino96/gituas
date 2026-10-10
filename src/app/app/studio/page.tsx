@@ -3,7 +3,7 @@ import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
 import { mediaSrc } from "@/lib/cards/brand";
 import { creditsLeft } from "@/lib/studio/credits";
-import { studioReady } from "@/lib/studio/ready";
+import { studioReadyFor } from "@/lib/studio/ready";
 import { currentWorkspace } from "../data";
 import { StudioClient, type StudioAssetView, type StudioProduct } from "./studio-client";
 
@@ -35,7 +35,7 @@ export default async function StudioPage() {
   return (
     <StudioClient
       workspaceId={ws.id}
-      ready={studioReady()}
+      ready={studioReadyFor(ws.id)}
       canConfigure={can(ws.role, "configure")}
       credits={credits}
       products={products satisfies StudioProduct[]}
