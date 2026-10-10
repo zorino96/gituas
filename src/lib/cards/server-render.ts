@@ -11,7 +11,9 @@ import { checkDraft } from "@/lib/news/rules";
 import { signRenderToken } from "./render-token";
 import { CARD_H, CARD_W } from "./size";
 
-const VIEWPORT = { width: CARD_W, height: CARD_H, deviceScaleFactor: 1 };
+type Size = { width: number; height: number };
+const CARD_SIZE: Size = { width: CARD_W, height: CARD_H };
+const viewportOf = (size: Size) => ({ ...size, deviceScaleFactor: 1 });
 const RENDER_TIMEOUT_MS = 25_000;
 const LAUNCH_TIMEOUT_MS = 15_000;
 const STEP_TIMEOUT_MS = 15_000;
@@ -31,7 +33,7 @@ function localChrome(): string {
   return found;
 }
 
-async function launch(): Promise<Browser> {
+async function launch(size: Size): Promise<Browser> {
   if (process.env.VERCEL) {
     // Vercel has no Chrome: @sparticuz/chromium unpacks one built for serverless.
     const { default: chromium } = await import("@sparticuz/chromium");
@@ -39,11 +41,11 @@ async function launch(): Promise<Browser> {
       args: await puppeteer.defaultArgs({ args: chromium.args, headless: "shell" }),
       executablePath: await chromium.executablePath(),
       headless: "shell",
-      defaultViewport: VIEWPORT,
+      defaultViewport: viewportOf(size),
       timeout: LAUNCH_TIMEOUT_MS,
     });
   }
-  return puppeteer.launch({ executablePath: localChrome(), headless: true, defaultViewport: VIEWPORT, timeout: LAUNCH_TIMEOUT_MS });
+  return puppeteer.launch({ executablePath: localChrome(), headless: true, defaultViewport: viewportOf(size), timeout: LAUNCH_TIMEOUT_MS });
 }
 
 /**
@@ -101,7 +103,7 @@ interface Settled {
   box?: number[];
 }
 
-async function shoot(browser: Browser, url: string): Promise<Buffer> {
+async function shoot(browser: Browser, url: string, size: Size): Promise<Buffer> {
   const page = await browser.newPage();
   // What the page asked for and did not get, by path only: named in the error if the render fails.
   const failed: string[] = [];
@@ -113,16 +115,16 @@ async function shoot(browser: Browser, url: string): Promise<Buffer> {
     }
   });
   try {
-    return await shootPage(page, url);
+    return await shootPage(page, url, size);
   } catch (e) {
     const why = e instanceof Error ? e.message : String(e);
     throw new Error(failed.length ? `${why} (did not load: ${failed.slice(0, 3).join(", ")})` : why);
   }
 }
 
-async function shootPage(page: Page, url: string): Promise<Buffer> {
+async function shootPage(page: Page, url: string, size: Size): Promise<Buffer> {
   page.setDefaultTimeout(STEP_TIMEOUT_MS);
-  await page.setViewport(VIEWPORT);
+  await page.setViewport(viewportOf(size));
   const res = await page.goto(url, { waitUntil: "load", timeout: STEP_TIMEOUT_MS });
   if (!res || !res.ok()) throw new Error(`The card page answered ${res ? res.status() : "nothing"}.`);
   // The headline carries data-overflow once the card has run in the browser and fitted its text.
@@ -133,7 +135,7 @@ async function shootPage(page: Page, url: string): Promise<Buffer> {
   if (state.broken?.length) throw new Error(`A font did not load: ${state.broken[0]}.`);
   if (!state.imagesOk) throw new Error("An image on the card did not load.");
   if (state.overflow) throw new Error("The headline is too long for the card.");
-  if (state.box?.join() !== [0, 0, CARD_W, CARD_H].join()) throw new Error(`The card is not ${CARD_W}×${CARD_H} at the page's corner.`);
+  if (state.box?.join() !== [0, 0, size.width, size.height].join()) throw new Error(`The card is not ${size.width}×${size.height} at the page's corner.`);
   const card = await page.$("#card");
   if (!card) throw new Error("The card page has no card.");
   return Buffer.from(await card.screenshot({ type: "jpeg", quality: 92 }));
@@ -175,18 +177,27 @@ let queue: Promise<unknown> = Promise.resolve();
  * its own 25 seconds only start then.
  */
 export function renderCardServer(draftId: string, origin: string): Promise<Buffer> {
-  const mine = queue.then(() => renderNow(draftId, origin));
+  const url = `${origin.replace(/\/+$/, "")}/newsroom/card-render/${encodeURIComponent(draftId)}?t=${signRenderToken(draftId)}`;
+  return renderUrlServer(url, CARD_SIZE);
+}
+
+/**
+ * Any render page of ours, screenshotted the same way: its `#card` element must sit at the
+ * page's corner at exactly `size`, with its fonts and images loaded and its text fitted
+ * (`[data-overflow]`). Shares the one-browser-at-a-time queue with the news cards.
+ */
+export function renderUrlServer(url: string, size: Size): Promise<Buffer> {
+  const mine = queue.then(() => renderNow(url, size));
   queue = mine.catch(() => undefined);
   return mine;
 }
 
-async function renderNow(draftId: string, origin: string): Promise<Buffer> {
-  const url = `${origin.replace(/\/+$/, "")}/newsroom/card-render/${encodeURIComponent(draftId)}?t=${signRenderToken(draftId)}`;
-  const launching = launch();
+async function renderNow(url: string, size: Size): Promise<Buffer> {
+  const launching = launch(size);
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
-      launching.then((browser) => shoot(browser, url)),
+      launching.then((browser) => shoot(browser, url, size)),
       new Promise<never>((_, reject) => {
         timer = setTimeout(() => reject(new Error("Rendering the card took longer than 25 seconds.")), RENDER_TIMEOUT_MS);
       }),

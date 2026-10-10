@@ -3,6 +3,7 @@ import { nrNewsCkb } from "./nr/news.ckb";
 import { nrShellCkb } from "./nr/shell.ckb";
 import { nrTeamCkb } from "./nr/team.ckb";
 import { waCkb } from "./wa.ckb";
+import { studioCkb } from "./studio.ckb";
 
 /**
  * The Sorani dictionary — the source of truth for keys. `ar.ts` must have exactly the same keys
@@ -943,6 +944,7 @@ export const ckb = {
   // The newsroom's own screens, one file per area in ./nr/.
   nr: { shell: nrShellCkb, news: nrNewsCkb, team: nrTeamCkb },
   wa: waCkb,
+  studio: studioCkb,
 };
 
 export type Dict = typeof ckb;

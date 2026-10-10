@@ -391,6 +391,7 @@ model Tenant {
   id                    String            @id @default(cuid())
   name                  String
   slug                  String            @unique
+  studioAssets          StudioAsset[]
   ownerId               String
   plan                  TenantPlan        @default(MANUAL)
   onboardingDismissedAt DateTime?
@@ -908,7 +909,47 @@ model BrandKit {
   framePath   String?
   /// Where the headline goes on the frame: top | middle | bottom
   frameText   String   @default("bottom")
+  /// Shop brand (Studio): a short line under the shop name, e.g. "جلی ژنانەی ئەوروپی".
+  tagline      String?
+  /// Shop brand (Studio): the delivery promise drawn on every ad, e.g. "گەیاندن بۆ هەموو شارەکان".
+  deliveryNote String?
   updatedAt   DateTime @updatedAt
+}
+
+/// One Studio picture made with Higgsfield for a shop (src/lib/studio). The model only ever makes
+/// the picture; the Kurdish text, price, logo and delivery line are drawn on it by our own renderer.
+model StudioAsset {
+  id        String   @id @default(cuid())
+  tenantId  String
+  productId String?
+  /// IMAGE now; VIDEO in the next phase.
+  kind      String   @default("IMAGE")
+  /// The scene (src/lib/studio/presets.ts) and the size: 1:1 | 4:5 | 9:16.
+  preset    String
+  aspect    String
+  /// The shop's own product photo the picture is made from (a public Blob URL of this workspace).
+  sourceUrl String
+  /// The Higgsfield application id and the prompt it was given.
+  model     String
+  prompt    String
+  /// What our renderer draws on top: a Kurdish headline, and the price when showPrice is on.
+  headline  String   @default("")
+  showPrice Boolean  @default(true)
+  /// QUEUED (credit taken) → RUNNING (at Higgsfield) → RENDERING (ours) → DONE; FAILED or BLOCKED (moderation) refund the credit.
+  status    String   @default("QUEUED")
+  requestId String?  @unique
+  /// The picture as Higgsfield made it, and the finished ad, both copied to our Blob.
+  rawPath   String?
+  finalUrl  String?
+  finalPath String?
+  credits   Int      @default(1)
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([status, updatedAt])
 }
 
 /// Monthly counter per tenant and metric, checked against the plan's quota.

@@ -112,6 +112,14 @@ export default function TermsPage() {
         are provided by the <ExtLink href="https://www.gdeltproject.org/">GDELT Project</ExtLink>.
       </P>
 
+      <P>
+        <Strong>Studio pictures.</Strong> The Studio uses AI (Higgsfield) to place your product photo in
+        a new scene. You must only use photos of products you sell and have the right to use, and you
+        are responsible for checking that every picture shows the product truthfully before you post
+        it. Studio credits come with your plan each month, are not carried over, and are given back for
+        a picture that fails or is blocked by content moderation.
+      </P>
+
       <H2>7. Fees</H2>
       <P>
         If a paid plan applies, the fees, billing cycle, and refund terms will be presented to you

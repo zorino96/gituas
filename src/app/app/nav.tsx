@@ -2,7 +2,7 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Bot, Home, MessageCircle, MessagesSquare, Newspaper, Package, Phone, Settings, SquarePlus } from "lucide-react";
+import { BarChart3, Bot, Home, MessageCircle, MessagesSquare, Newspaper, Package, Phone, Settings, Sparkles, SquarePlus } from "lucide-react";
 
 import { useT } from "@/lib/i18n/client";
 
@@ -15,7 +15,7 @@ function baseFor(kind: Kind): "/app" | "/newsroom" {
 }
 
 /** The sections, in order, each marked active when the current path is inside it. */
-function useSections(kind: Kind) {
+function useSections(kind: Kind, studio: boolean) {
   const path = usePathname();
   const t = useT();
   const base = baseFor(kind);
@@ -27,15 +27,16 @@ function useSections(kind: Kind) {
   ];
   const tabs =
     kind === "MERCHANT"
-      ? [{ href: base, label: t.nav.today, Icon: Home }, { href: `${base}/automation`, label: t.nav.automation, Icon: Bot }, { href: `${base}/orders`, label: t.nav.orders, Icon: Package }, { href: `${base}/whatsapp`, label: t.wa.nav, Icon: Phone }, ...shared]
+      ? [{ href: base, label: t.nav.today, Icon: Home }, { href: `${base}/automation`, label: t.nav.automation, Icon: Bot }, { href: `${base}/orders`, label: t.nav.orders, Icon: Package }, ...(studio ? [{ href: `${base}/studio`, label: t.studio.nav, Icon: Sparkles }] : []), { href: `${base}/whatsapp`, label: t.wa.nav, Icon: Phone }, ...shared]
       : [{ href: `${base}/news`, label: t.nav.news, Icon: Newspaper }, ...shared];
   return tabs.map((tab) => ({ ...tab, active: tab.href === base ? path === base : path.startsWith(tab.href) }));
 }
 
 /** Phone bar along the bottom (hidden from 960px by CSS, where SideNav takes over). */
-export function Tabs({ kind }: { kind: Kind }) {
+/** `studio`: show the Studio only once it can make pictures (src/lib/studio/jobs.ts studioReady). */
+export function Tabs({ kind, studio = false }: { kind: Kind; studio?: boolean }) {
   const t = useT();
-  const sections = useSections(kind);
+  const sections = useSections(kind, studio);
 
   return (
     <div className="gm-tabs">
@@ -53,10 +54,10 @@ export function Tabs({ kind }: { kind: Kind }) {
 }
 
 /** Desktop sidebar (hidden under 960px by CSS): brand and shop name, the sections, settings at the bottom. */
-export function SideNav({ kind, workspace }: { kind: Kind; workspace: string }) {
+export function SideNav({ kind, workspace, studio = false }: { kind: Kind; workspace: string; studio?: boolean }) {
   const t = useT();
   const path = usePathname();
-  const sections = useSections(kind);
+  const sections = useSections(kind, studio);
   const settingsHref = `${baseFor(kind)}/settings`;
   const onSettings = path.startsWith(settingsHref);
 

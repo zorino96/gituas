@@ -55,7 +55,7 @@ export function PublishClient({
   accountLists: Record<Target, { id: string; name: string; avatarUrl: string | null }[]>;
   products: { id: string; name: string }[];
   /** A news draft to post; `targets`, when given, are the only platforms switched on (e.g. TikTok from the videos list). */
-  initial?: { newsDraftId: string; caption: string; media: Media; targets?: Target[] };
+  initial?: { newsDraftId?: string; productId?: string; caption: string; media: Media; targets?: Target[] };
   scheduled: ScheduledRow[];
 }) {
   const router = useRouter();
@@ -81,7 +81,7 @@ export function PublishClient({
   const [captionError, setCaptionError] = useState<string | null>(null);
 
   // shop product card — price questions on the published post get this product's card
-  const [productId, setProductId] = useState("");
+  const [productId, setProductId] = useState(initial?.productId ?? "");
 
   // targets
   const [on, setOn] = useState<Record<Target, boolean>>(

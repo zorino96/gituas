@@ -10,7 +10,7 @@ import { listScheduled } from "./schedule-actions";
 // Instagram video containers are polled for up to ~45 s before publishing.
 export const maxDuration = 60;
 
-export default async function PublishPage({ searchParams }: { searchParams: Promise<{ draft?: string; video?: string; to?: string }> }) {
+export default async function PublishPage({ searchParams }: { searchParams: Promise<{ draft?: string; video?: string; to?: string; studio?: string }> }) {
   const t = dict(await getLang());
   const ws = (await currentWorkspace())!;
   if (!can(ws.role, "publish")) {
@@ -20,10 +20,10 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
       </p>
     );
   }
-  const { draft: draftId, video: videoId, to } = await searchParams;
+  const { draft: draftId, video: videoId, to, studio: studioId } = await searchParams;
   // "?to=TT" or "?to=YT": open with only that platform on (the videos list's one-click links).
   const targets = (typeof to === "string" ? to.split(",") : []).filter((x): x is "TT" | "YT" | "FB" | "IG" => ["TT", "YT", "FB", "IG"].includes(x));
-  const [lists, conns, draft, products, scheduled, video] = await Promise.all([
+  const [lists, conns, draft, products, scheduled, video, studio] = await Promise.all([
     loadAccountLists(ws.id),
     loadConnections(ws.id),
     draftId ? db.newsDraft.findFirst({ where: { id: draftId, tenantId: ws.id }, include: { item: true } }) : null,
@@ -33,9 +33,21 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
     draftId && videoId
       ? db.newsVideo.findFirst({ where: { id: videoId, tenantId: ws.id, draftId, status: { in: ["RENDERED", "POSTING", "POSTED"] } }, select: { videoUrl: true, videoPath: true } })
       : null,
+    // A finished Studio ad (src/app/app/studio), posted with its product so replies know what it sells.
+    typeof studioId === "string" && !draftId
+      ? db.studioAsset.findFirst({ where: { id: studioId, tenantId: ws.id, status: "DONE", finalUrl: { not: null } }, select: { finalUrl: true, finalPath: true, headline: true, productId: true } })
+      : null,
   ]);
   const hasCard = !!(draft?.cardUrl && draft?.cardPath);
   const hasVideo = !!(video?.videoUrl && video.videoPath);
+  const fromStudio = studio?.finalUrl && studio.finalPath
+    ? {
+        caption: studio.headline,
+        media: { url: studio.finalUrl, pathname: studio.finalPath, type: "IMAGE" as const },
+        ...(studio.productId && products.some((x) => x.id === studio.productId) ? { productId: studio.productId } : {}),
+        ...(targets.length ? { targets } : {}),
+      }
+    : undefined;
   const initial = draft && (hasCard || hasVideo)
     ? {
         newsDraftId: draft.id,
@@ -57,7 +69,7 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
       <PublishClient
         workspaceId={ws.id}
         products={products}
-        initial={initial}
+        initial={initial ?? fromStudio}
         scheduled={scheduled}
         accounts={{
           FB: conns.META_FACEBOOK.connected ? (conns.META_FACEBOOK.name ?? t.publish.fbPage) : null,

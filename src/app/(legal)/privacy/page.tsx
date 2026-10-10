@@ -60,8 +60,9 @@ export default function PrivacyPage() {
           replies you or your automations authorize.
         </LI>
         <LI>
-          <Strong>Content you create.</Strong> Drafts, captions, images, videos, news cards, schedules
-          and the photo and video libraries you upload.
+          <Strong>Content you create.</Strong> Drafts, captions, images, videos, news cards, schedules,
+          Studio pictures and your brand kit (logo, colours, tagline), and the photo and video libraries
+          you upload.
         </LI>
         <LI>
           <Strong>Insights.</Strong> Performance figures for your own accounts and posts (such as reach,
@@ -208,6 +209,11 @@ export default function PrivacyPage() {
           names and prices, so they can tell what the buyer is asking and help word the reply; the
           content you are drafting; and, for news, the public headline and summary of a story. Sender
           phone numbers and account tokens are never sent to them; we send only what each task needs.
+        </LI>
+        <LI>
+          <Strong>Studio pictures.</Strong> Higgsfield makes the Studio&rsquo;s product pictures. It
+          receives the product photo you choose and a description of the scene; never buyer messages,
+          names or phone numbers. Your logo, text and price are added by our own servers afterwards.
         </LI>
         <LI>
           <Strong>Voice-over.</Strong> Pawan.Krd text-to-speech reads the script of a news video aloud.

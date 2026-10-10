@@ -3,6 +3,7 @@ import { nrNewsEn } from "./nr/news.en";
 import { nrShellEn } from "./nr/shell.en";
 import { nrTeamEn } from "./nr/team.en";
 import { waEn } from "./wa.en";
+import { studioEn } from "./studio.en";
 
 /** English always uses Western digits with a comma between thousands: 1500 → "1,500". */
 const num = (n: number): string => n.toLocaleString("en-US");
@@ -905,4 +906,5 @@ export const en: Dict = {
 
   nr: { shell: nrShellEn, news: nrNewsEn, team: nrTeamEn },
   wa: waEn,
+  studio: studioEn,
 };
