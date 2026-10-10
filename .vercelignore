@@ -1,0 +1,4 @@
+# Local secret files never go up with a CLI deploy (git deploys never include them anyway).
+.env
+.env.*
+!.env.example
