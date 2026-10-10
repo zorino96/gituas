@@ -35,8 +35,8 @@ export function imagePriceInputs(env: Record<string, string | undefined> = proce
   return {
     // Marketing Studio Image at 1k / high: about $0.13–0.19 a picture in Higgsfield's token pricing; $0.20 leaves room.
     costUsd: num(env.HIGGSFIELD_IMAGE_COST_USD, 0.2, 0.001, 10),
-    // Above the market rate on purpose, so a weaker dinar or the card's FX fee cannot turn a sale into a loss.
-    iqdPerUsd: num(env.STUDIO_IQD_PER_USD, 1600, 1000, 5000),
+    // The card's rate was 1,700 IQD per USD on 2026-10-10; 1,750 leaves room for a weaker dinar or the card's FX fee.
+    iqdPerUsd: num(env.STUDIO_IQD_PER_USD, 1750, 1000, 5000),
     margin: num(env.STUDIO_MARGIN, 0.3, 0, 5),
     payFee: num(env.STUDIO_PAY_FEE, 0.04, 0, 0.5),
   };

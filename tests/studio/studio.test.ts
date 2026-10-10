@@ -49,7 +49,7 @@ describe("studio prompt", () => {
 describe("studio pricing", () => {
   it("prices a picture so the owner keeps at least the margin after Wayl's fee and the Higgsfield cost", () => {
     const i = imagePriceInputs({});
-    expect(i).toEqual({ costUsd: 0.2, iqdPerUsd: 1600, margin: 0.3, payFee: 0.04 });
+    expect(i).toEqual({ costUsd: 0.2, iqdPerUsd: 1750, margin: 0.3, payFee: 0.04 });
     const { priceIqd } = imagePrice({});
     expect(priceIqd).toBe(500);
     expect(marginOf(priceIqd, i)).toBeGreaterThanOrEqual(0.3);
@@ -71,7 +71,7 @@ describe("studio pricing", () => {
 
   it("can be tuned from the environment, and ignores nonsense values", () => {
     expect(imagePrice({ HIGGSFIELD_IMAGE_COST_USD: "0.05", STUDIO_IQD_PER_USD: "1500", STUDIO_MARGIN: "0.3", STUDIO_PAY_FEE: "0.03" }).priceIqd).toBe(250);
-    expect(imagePriceInputs({ HIGGSFIELD_IMAGE_COST_USD: "-1", STUDIO_IQD_PER_USD: "abc", STUDIO_PAY_FEE: "0.9" })).toEqual({ costUsd: 0.2, iqdPerUsd: 1600, margin: 0.3, payFee: 0.04 });
+    expect(imagePriceInputs({ HIGGSFIELD_IMAGE_COST_USD: "-1", STUDIO_IQD_PER_USD: "abc", STUDIO_PAY_FEE: "0.9" })).toEqual({ costUsd: 0.2, iqdPerUsd: 1750, margin: 0.3, payFee: 0.04 });
   });
 
   it("sells Studio top-ups at fixed amounts only", () => {
