@@ -1,9 +1,9 @@
 // One Studio picture from start to finish.
 //
-//   startImage    take a credit, send the shop's photo and the scene to Higgsfield    QUEUED → RUNNING
+//   startImage    take the price from the prepaid balance, send photo + scene         QUEUED → RUNNING
 //   advanceAsset  (webhook or the minute clock) ask Higgsfield for the real state;
 //                 when done, copy the picture to our Blob and draw the ad on it      RUNNING → RENDERING → DONE
-//   failAsset     failed or blocked by moderation: the credit goes back             → FAILED | BLOCKED
+//   failAsset     failed or blocked by moderation: the price goes back              → FAILED | BLOCKED
 //
 // Every step claims its row with a conditional update, so the webhook and the clock can meet on
 // the same picture without doing the work twice.
@@ -14,7 +14,10 @@ import { signRenderToken } from "@/lib/cards/render-token";
 import { renderUrlServer } from "@/lib/cards/server-render";
 import { db } from "@/lib/db";
 import { SHOP_ORIGIN } from "@/lib/hosts";
-import { COST, refundCredits, takeCredits } from "./credits";
+import { randomUUID } from "node:crypto";
+
+import { imagePrice } from "./pricing";
+import { chargeWallet, refundWallet } from "./wallet";
 import { generationStatus, HiggsfieldError, higgsfieldConfigured, submitGeneration, webhookToken } from "./higgsfield";
 import { ASPECT_PX, imageArgs, imageModel, isStudioAspect, studioPrompt, type StudioAspect, type StudioPreset } from "./presets";
 
@@ -28,7 +31,7 @@ export function studioOrigin(): string {
   return process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") || "http://localhost:3001";
 }
 
-export type StartFailure = "not_ready" | "no_credits" | HiggsfieldError["reason"];
+export type StartFailure = "not_ready" | "no_balance" | HiggsfieldError["reason"];
 
 export async function startImage(input: {
   tenantId: string;
@@ -41,11 +44,14 @@ export async function startImage(input: {
 }): Promise<{ ok: true; id: string } | { ok: false; reason: StartFailure }> {
   const model = imageModel();
   if (!higgsfieldConfigured() || !model) return { ok: false, reason: "not_ready" };
-  if (!(await takeCredits(input.tenantId, COST.IMAGE))) return { ok: false, reason: "no_credits" };
+  // Paid first: the price comes off the shop's prepaid balance before Higgsfield is asked for anything.
+  const { priceIqd, costUsd } = imagePrice();
+  const id = randomUUID();
+  if (!(await chargeWallet(input.tenantId, priceIqd, id))) return { ok: false, reason: "no_balance" };
 
   const prompt = studioPrompt(input.preset);
   const asset = await db.studioAsset.create({
-    data: { ...input, kind: "IMAGE", model, prompt, credits: COST.IMAGE, status: "QUEUED" },
+    data: { id, ...input, kind: "IMAGE", model, prompt, priceIqd, costUsd, status: "QUEUED" },
     select: { id: true },
   });
   try {
@@ -62,15 +68,15 @@ export async function startImage(input: {
   }
 }
 
-/** Mark a picture failed (or blocked by moderation) once, and give its credit back. */
+/** Mark a picture failed (or blocked by moderation) once, and give its price back. */
 export async function failAsset(id: string, status: "FAILED" | "BLOCKED", error: string): Promise<void> {
-  const a = await db.studioAsset.findUnique({ where: { id }, select: { tenantId: true, credits: true, createdAt: true } });
+  const a = await db.studioAsset.findUnique({ where: { id }, select: { tenantId: true, priceIqd: true } });
   if (!a) return;
   const r = await db.studioAsset.updateMany({
     where: { id, status: { in: ["QUEUED", "RUNNING", "RENDERING"] } },
     data: { status, error: error.slice(0, 300) },
   });
-  if (r.count === 1) await refundCredits(a.tenantId, a.credits, a.createdAt);
+  if (r.count === 1) await refundWallet(a.tenantId, a.priceIqd, id);
 }
 
 function extOf(contentType: string | null): { ext: string; type: string } | null {

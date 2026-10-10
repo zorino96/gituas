@@ -2,10 +2,14 @@
 
 import { del } from "@vercel/blob";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 
 import type { Prisma } from "@/generated/prisma/client";
 import { completeJson } from "@/lib/ai/provider";
+import { startCheckout } from "@/lib/billing/invoices";
+import { STUDIO_PACKS } from "@/lib/billing/prices";
 import { db } from "@/lib/db";
+import { SHOP_ORIGIN } from "@/lib/hosts";
 import { dict, getLang } from "@/lib/i18n";
 import { isOwnBlobUrl, isOwnPathname } from "@/lib/merchant/caption";
 import { can } from "@/lib/newsroom/roles";
@@ -102,9 +106,9 @@ Reply with JSON only: {"headline": "..."}`,
   }
 }
 
-function failureText(reason: StartFailure, e: { notReady: string; noCredits: string; busy: string; rejected: string; unavailable: string }): string {
+function failureText(reason: StartFailure, e: { notReady: string; noBalance: string; busy: string; rejected: string; unavailable: string }): string {
   if (reason === "not_ready") return e.notReady;
-  if (reason === "no_credits") return e.noCredits;
+  if (reason === "no_balance") return e.noBalance;
   if (reason === "busy") return e.busy;
   if (reason === "rejected") return e.rejected;
   // Our own Higgsfield account (key, balance) is never the shop's problem to solve: it is logged for us.
@@ -150,7 +154,24 @@ export async function createStudioImageAction(input: {
   return { ok: true, id: r.id };
 }
 
-/** Change the text on a finished picture: drawn again, no new generation and no credit. */
+/**
+ * Add to the prepaid Studio balance through Wayl. Returns the payment page to open; the balance
+ * grows when Wayl confirms the payment (webhook, or the return to /app/studio?invoice=…).
+ */
+export async function startStudioTopUpAction(pack: string): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const s = await session("publish");
+  if (!s.ok) return s;
+  const { ws, t } = s;
+  if (!Object.hasOwn(STUDIO_PACKS, pack)) return { ok: false, error: t.studio.errors.badPack };
+  if (!studioReadyFor(ws.id)) return { ok: false, error: t.studio.errors.notReady };
+  const host = (await headers()).get("host") ?? "";
+  const origin = /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host) ? `http://${host}` : SHOP_ORIGIN;
+  const r = await startCheckout({ tenantId: ws.id, product: "STUDIO", plan: pack, storeId: null, origin, returnPath: "/app/studio" });
+  if (r.ok) await audit(ws.id, "studio.topup_started", `Started a Studio top-up of ${STUDIO_PACKS[pack]} IQD.`, { pack });
+  return r;
+}
+
+/** Change the text on a finished picture: drawn again, no new generation and nothing charged. */
 export async function updateStudioTextAction(id: string, headlineRaw: string, showPrice: boolean): Promise<Result> {
   const s = await session("publish");
   if (!s.ok) return s;

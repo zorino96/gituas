@@ -116,8 +116,11 @@ export default function TermsPage() {
         <Strong>Studio pictures.</Strong> The Studio uses AI (Higgsfield) to place your product photo in
         a new scene. You must only use photos of products you sell and have the right to use, and you
         are responsible for checking that every picture shows the product truthfully before you post
-        it. Studio credits come with your plan each month, are not carried over, and are given back for
-        a picture that fails or is blocked by content moderation.
+        it. Studio pictures are paid in advance from a Studio balance you top up through Wayl; the price
+        is shown before each picture, a picture that fails or is blocked by content moderation is
+        refunded to the balance, the balance does not expire, and it can only be used for Studio
+        pictures (it is not paid back in cash). Prices may change; a new price applies only to pictures
+        made after the change.
       </P>
 
       <H2>7. Fees</H2>

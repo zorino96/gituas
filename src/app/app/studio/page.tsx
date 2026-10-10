@@ -2,20 +2,25 @@ import { db } from "@/lib/db";
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
 import { mediaSrc } from "@/lib/cards/brand";
-import { creditsLeft } from "@/lib/studio/credits";
+import { STUDIO_PACKS } from "@/lib/billing/prices";
+import { imagePrice } from "@/lib/studio/pricing";
+import { walletBalance } from "@/lib/studio/wallet";
+import { settleReturn } from "../billing/load";
 import { studioReadyFor } from "@/lib/studio/ready";
 import { currentWorkspace } from "../data";
 import { StudioClient, type StudioAssetView, type StudioProduct } from "./studio-client";
 
 export const dynamic = "force-dynamic";
 
-export default async function StudioPage() {
+export default async function StudioPage({ searchParams }: { searchParams: Promise<{ invoice?: string }> }) {
   const ws = (await currentWorkspace())!;
   const t = dict(await getLang());
   if (ws.kind !== "MERCHANT") return <p className="gm-note warn">{t.studio.shopOnly}</p>;
   if (!can(ws.role, "publish")) return <p className="gm-note warn">{t.nr.team.roles.notAllowed}</p>;
 
-  const [products, kit, assets, credits] = await Promise.all([
+  // Back from Wayl: settle the top-up first, so the balance below already includes it.
+  const paid = await settleReturn(ws.id, (await searchParams).invoice);
+  const [products, kit, assets, balance] = await Promise.all([
     db.product.findMany({
       where: { active: true, store: { tenantId: ws.id }, NOT: { photos: { isEmpty: true } } },
       orderBy: { updatedAt: "desc" },
@@ -29,7 +34,7 @@ export default async function StudioPage() {
       take: 40,
       select: { id: true, status: true, aspect: true, sourceUrl: true, rawPath: true, finalUrl: true, headline: true, showPrice: true, error: true, createdAt: true },
     }),
-    creditsLeft(ws.id),
+    walletBalance(ws.id),
   ]);
 
   return (
@@ -37,7 +42,10 @@ export default async function StudioPage() {
       workspaceId={ws.id}
       ready={studioReadyFor(ws.id)}
       canConfigure={can(ws.role, "configure")}
-      credits={credits}
+      balance={balance}
+      price={imagePrice().priceIqd}
+      packs={Object.entries(STUDIO_PACKS).map(([id, amount]) => ({ id, amount }))}
+      paid={paid}
       products={products satisfies StudioProduct[]}
       brand={{
         logoPath: kit?.logoPath ?? null,
@@ -48,7 +56,7 @@ export default async function StudioPage() {
         deliveryNote: kit?.deliveryNote ?? "",
       }}
       assets={assets.map(
-        (a): StudioAssetView => ({
+        (a: (typeof assets)[number]): StudioAssetView => ({
           id: a.id,
           status: a.status as StudioAssetView["status"],
           aspect: a.aspect,

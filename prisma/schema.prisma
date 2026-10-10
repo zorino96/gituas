@@ -392,6 +392,7 @@ model Tenant {
   name                  String
   slug                  String            @unique
   studioAssets          StudioAsset[]
+  studioWallet          StudioWallet?
   ownerId               String
   plan                  TenantPlan        @default(MANUAL)
   onboardingDismissedAt DateTime?
@@ -942,7 +943,9 @@ model StudioAsset {
   rawPath   String?
   finalUrl  String?
   finalPath String?
-  credits   Int      @default(1)
+  /// What the shop paid for it, in IQD (column kept from the first version), and the Higgsfield cost it was priced from.
+  priceIqd  Int      @default(0) @map("credits")
+  costUsd   Float?
   error     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -950,6 +953,28 @@ model StudioAsset {
 
   @@index([tenantId, createdAt])
   @@index([status, updatedAt])
+}
+
+/// A shop's prepaid Studio balance in IQD (src/lib/studio/wallet.ts). Grows only with a paid Wayl
+/// top-up or an owner adjustment; a picture only starts when the balance covers its price.
+model StudioWallet {
+  tenantId   String   @id
+  balanceIqd Int      @default(0)
+  updatedAt  DateTime @updatedAt
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+/// Every change to a Studio balance: TOPUP (invoice), IMAGE (a picture started), REFUND (it failed), ADJUST (owner).
+model StudioLedger {
+  id        String   @id @default(cuid())
+  tenantId  String
+  deltaIqd  Int
+  reason    String
+  invoiceId String?
+  assetId   String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
 }
 
 /// Monthly counter per tenant and metric, checked against the plan's quota.

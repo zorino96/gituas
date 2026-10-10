@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { monthlyCredits, STUDIO_CREDITS } from "@/lib/studio/credits";
+import { priceFor, STUDIO_PACKS } from "@/lib/billing/prices";
+import { imagePrice, imagePriceInputs, marginOf, priceFromCost } from "@/lib/studio/pricing";
 import { isWebhookToken, parseStatus, webhookToken } from "@/lib/studio/higgsfield";
 import { cleanHeadline, imageArgs, isStudioAspect, isStudioPreset, MODEL_ASPECT, PRESET_ASPECT, STUDIO_PRESETS, studioPrompt } from "@/lib/studio/presets";
 import { priceLine } from "@/lib/studio/price";
@@ -45,13 +46,38 @@ describe("studio prompt", () => {
   });
 });
 
-describe("studio credits", () => {
-  it("gives each paid store its plan's credits, and free stores one free allowance between them", () => {
-    expect(monthlyCredits([])).toBe(0);
-    expect(monthlyCredits(["FREE"])).toBe(STUDIO_CREDITS.FREE);
-    expect(monthlyCredits(["FREE", "FREE", "FREE"])).toBe(STUDIO_CREDITS.FREE);
-    expect(monthlyCredits(["MERCHANT", "FREE"])).toBe(STUDIO_CREDITS.MERCHANT);
-    expect(monthlyCredits(["MERCHANT", "PRO"])).toBe(STUDIO_CREDITS.MERCHANT + STUDIO_CREDITS.PRO);
+describe("studio pricing", () => {
+  it("prices a picture so the owner keeps at least the margin after Wayl's fee and the Higgsfield cost", () => {
+    const i = imagePriceInputs({});
+    expect(i).toEqual({ costUsd: 0.2, iqdPerUsd: 1600, margin: 0.3, payFee: 0.04 });
+    const { priceIqd } = imagePrice({});
+    expect(priceIqd).toBe(500);
+    expect(marginOf(priceIqd, i)).toBeGreaterThanOrEqual(0.3);
+  });
+
+  it("never loses the margin to rounding, whatever the inputs", () => {
+    for (const costUsd of [0.011, 0.05, 0.13, 0.2, 0.61, 1.7]) {
+      for (const iqdPerUsd of [1300, 1500, 1600, 2000]) {
+        for (const margin of [0.1, 0.3, 0.5]) {
+          for (const payFee of [0, 0.025, 0.04, 0.1]) {
+            const p = priceFromCost({ costUsd, iqdPerUsd, margin, payFee });
+            expect(p % 250).toBe(0);
+            expect(marginOf(p, { costUsd, iqdPerUsd, margin, payFee })).toBeGreaterThanOrEqual(margin - 1e-9);
+          }
+        }
+      }
+    }
+  });
+
+  it("can be tuned from the environment, and ignores nonsense values", () => {
+    expect(imagePrice({ HIGGSFIELD_IMAGE_COST_USD: "0.05", STUDIO_IQD_PER_USD: "1500", STUDIO_MARGIN: "0.3", STUDIO_PAY_FEE: "0.03" }).priceIqd).toBe(250);
+    expect(imagePriceInputs({ HIGGSFIELD_IMAGE_COST_USD: "-1", STUDIO_IQD_PER_USD: "abc", STUDIO_PAY_FEE: "0.9" })).toEqual({ costUsd: 0.2, iqdPerUsd: 1600, margin: 0.3, payFee: 0.04 });
+  });
+
+  it("sells Studio top-ups at fixed amounts only", () => {
+    expect(priceFor("STUDIO", "STUDIO_10K")).toBe(10000);
+    expect(priceFor("STUDIO", "STUDIO_1")).toBeNull();
+    expect(Object.values(STUDIO_PACKS).every((n) => Number.isInteger(n) && n >= 5000)).toBe(true);
   });
 });
 

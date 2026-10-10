@@ -16,6 +16,8 @@ import { startNewsCheckoutAction, startShopCheckoutAction } from "./actions";
 const PLANS: Record<BillingProduct, readonly string[]> = {
   SHOP: ["MERCHANT", "PRO"],
   NEWS: ["LITE", "MANUAL", "AUTO", "ENTERPRISE"],
+  // Studio top-ups are bought on the Studio page.
+  STUDIO: [],
 };
 
 /** One thing a plan is bought for: a store for the shop, the workspace for the newsroom. */

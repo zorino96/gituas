@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 
-import { useT } from "@/lib/i18n/client";
+import { useLang, useT } from "@/lib/i18n/client";
+import { formatMoney } from "@/lib/shop/money";
 import { HEADLINE_MAX, PRESET_ASPECT, STUDIO_ASPECTS, STUDIO_PRESETS, type StudioAspect, type StudioPreset } from "@/lib/studio/presets";
 import { useBase } from "../use-base";
 import {
   createStudioImageAction,
   deleteStudioAssetAction,
+  startStudioTopUpAction,
   saveStudioBrandAction,
   suggestStudioHeadlineAction,
   updateStudioTextAction,
@@ -50,7 +52,10 @@ export function StudioClient(p: {
   workspaceId: string;
   ready: boolean;
   canConfigure: boolean;
-  credits: { left: number; total: number };
+  balance: number;
+  price: number;
+  packs: { id: string; amount: number }[];
+  paid: "paid" | "paid_test" | "pending" | null;
   products: StudioProduct[];
   brand: BrandView;
   assets: StudioAssetView[];
@@ -70,9 +75,49 @@ export function StudioClient(p: {
     <div className="gm-stack">
       <p className="gm-sub" style={{ marginTop: 0 }}>{t.intro}</p>
       {!p.ready && <p className="gm-note warn">{t.notReady}</p>}
+      <WalletPanel ready={p.ready} balance={p.balance} price={p.price} packs={p.packs} paid={p.paid} />
       {p.canConfigure && <BrandPanel workspaceId={p.workspaceId} brand={p.brand} />}
-      <MakePanel ready={p.ready} credits={p.credits} products={p.products} />
+      <MakePanel ready={p.ready} balance={p.balance} price={p.price} products={p.products} />
       <Gallery assets={p.assets} />
+    </div>
+  );
+}
+
+/** The prepaid balance: pictures are paid from it, and it is topped up through Wayl. */
+function WalletPanel({ ready, balance, price, packs, paid }: { ready: boolean; balance: number; price: number; packs: { id: string; amount: number }[]; paid: "paid" | "paid_test" | "pending" | null }) {
+  const s = useT().studio;
+  const lang = useLang();
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const iqd = (n: number) => formatMoney(n, "IQD", lang);
+
+  function topUp(pack: string) {
+    setError(null);
+    start(async () => {
+      const r = await startStudioTopUpAction(pack);
+      if (r.ok) window.location.assign(r.url);
+      else setError(r.error);
+    });
+  }
+
+  return (
+    <div className="gm-card">
+      <p className="gm-sec" style={{ marginTop: 0 }}>{s.walletSec}</p>
+      {paid === "paid" && <p className="gm-ok" role="status">{s.topUpDone}</p>}
+      {paid === "paid_test" && <p className="gm-note">{s.topUpTest}</p>}
+      {paid === "pending" && <p className="gm-note">{s.topUpPending}</p>}
+      <p style={{ margin: "4px 0", fontSize: 22, fontWeight: 700 }}>{iqd(balance)}</p>
+      <p className="gm-hint" style={{ marginTop: 0 }}>{s.pricePer(iqd(price), Math.floor(balance / Math.max(1, price)))}</p>
+      <p className="gm-sub" style={{ margin: "10px 0 6px", fontWeight: 600 }}>{s.topUp}</p>
+      <div className="gm-chips" role="group" aria-label={s.topUp}>
+        {packs.map((p) => (
+          <button key={p.id} type="button" className="gm-chip" disabled={!ready || pending} onClick={() => topUp(p.id)}>
+            {iqd(p.amount)}
+          </button>
+        ))}
+      </div>
+      <p className="gm-hint">{s.topUpHint}</p>
+      {error && <p className="gm-err" role="alert">{error}</p>}
     </div>
   );
 }
@@ -163,8 +208,9 @@ function BrandPanel({ workspaceId, brand }: { workspaceId: string; brand: BrandV
   );
 }
 
-function MakePanel({ ready, credits, products }: { ready: boolean; credits: { left: number; total: number }; products: StudioProduct[] }) {
+function MakePanel({ ready, balance, price, products }: { ready: boolean; balance: number; price: number; products: StudioProduct[] }) {
   const s = useT().studio;
+  const lang = useLang();
   const uid = useId();
   const router = useRouter();
   const base = useBase();
@@ -285,10 +331,10 @@ function MakePanel({ ready, credits, products }: { ready: boolean; credits: { le
       <p className="gm-hint">{s.aiNote}</p>
       {error && <p className="gm-err" role="alert">{error}</p>}
       <div className="gm-row" style={{ gap: 12, alignItems: "center" }}>
-        <button type="button" className="gm-btn" disabled={!ready || pending || !photo || credits.left < 1} onClick={generate}>
-          {pending ? s.generating : s.generate(1)}
+        <button type="button" className="gm-btn" disabled={!ready || pending || !photo || balance < price} onClick={generate}>
+          {pending ? s.generating : s.generate(formatMoney(price, "IQD", lang))}
         </button>
-        <span className="gm-time">{s.creditsLeft(credits.left, credits.total)}</span>
+        {balance < price && <span className="gm-time">{s.topUpFirst}</span>}
       </div>
     </div>
   );

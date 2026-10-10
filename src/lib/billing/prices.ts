@@ -1,4 +1,4 @@
-export type BillingProduct = "SHOP" | "NEWS";
+export type BillingProduct = "SHOP" | "NEWS" | "STUDIO";
 
 export const PERIOD_DAYS = 30;
 const DAY = 86_400_000;
@@ -6,6 +6,8 @@ const DAY = 86_400_000;
 /** IQD per month. Shop plans are per store, and one store covers the whole business (Facebook, Instagram, TikTok, YouTube); newsroom plans per workspace. */
 export const SHOP_PRICES: Record<string, number> = { MERCHANT: 8000, PRO: 12000 };
 export const NEWS_PRICES: Record<string, number> = { LITE: 25000, MANUAL: 155000, AUTO: 390000, ENTERPRISE: 940000 };
+/** Studio top-ups: the IQD a shop adds to its prepaid Studio balance (one payment, no period). */
+export const STUDIO_PACKS: Record<string, number> = { STUDIO_5K: 5000, STUDIO_10K: 10000, STUDIO_25K: 25000, STUDIO_50K: 50000 };
 
 export const PLAN_LABEL: Record<string, string> = {
   FREE: "بەخۆڕایی",
@@ -15,6 +17,10 @@ export const PLAN_LABEL: Record<string, string> = {
   MANUAL: "بنەڕەت",
   AUTO: "پرۆ",
   ENTERPRISE: "دامەزراوە",
+  STUDIO_5K: "باڵانسی ستۆدیۆ ٥٬٠٠٠",
+  STUDIO_10K: "باڵانسی ستۆدیۆ ١٠٬٠٠٠",
+  STUDIO_25K: "باڵانسی ستۆدیۆ ٢٥٬٠٠٠",
+  STUDIO_50K: "باڵانسی ستۆدیۆ ٥٠٬٠٠٠",
 };
 
 /** The same names in Arabic, for the Arabic UI (they read after "باقة": "شراء باقة تاجر"). */
@@ -26,6 +32,10 @@ export const PLAN_LABEL_AR: Record<string, string> = {
   MANUAL: "أساسية",
   AUTO: "احترافية",
   ENTERPRISE: "مؤسسات",
+  STUDIO_5K: "رصيد الاستوديو 5,000",
+  STUDIO_10K: "رصيد الاستوديو 10,000",
+  STUDIO_25K: "رصيد الاستوديو 25,000",
+  STUDIO_50K: "رصيد الاستوديو 50,000",
 };
 
 /** A plan's display name in `lang`; an unknown plan code is shown as it is. */
@@ -38,6 +48,10 @@ export const PLAN_LABEL_EN: Record<string, string> = {
   MANUAL: "Basic",
   AUTO: "Pro",
   ENTERPRISE: "Enterprise",
+  STUDIO_5K: "Studio balance 5,000",
+  STUDIO_10K: "Studio balance 10,000",
+  STUDIO_25K: "Studio balance 25,000",
+  STUDIO_50K: "Studio balance 50,000",
 };
 
 export function planLabel(plan: string, lang: "ckb" | "ar" | "en" = "ckb"): string {
@@ -46,7 +60,7 @@ export function planLabel(plan: string, lang: "ckb" | "ar" | "en" = "ckb"): stri
 
 /** The price of a plan that is for sale, or null. */
 export function priceFor(product: BillingProduct, plan: string): number | null {
-  const table = product === "SHOP" ? SHOP_PRICES : NEWS_PRICES;
+  const table = product === "SHOP" ? SHOP_PRICES : product === "STUDIO" ? STUDIO_PACKS : NEWS_PRICES;
   return Object.hasOwn(table, plan) ? table[plan] : null;
 }
 

@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 import { SHOP_ORIGIN } from "@/lib/hosts";
 import { nextPaidUntil, PLAN_LABEL, priceFor, type BillingProduct } from "./prices";
+import { topUpWallet } from "@/lib/studio/wallet";
 import { createLink, getLink, invalidateIfPending, PAID_STATUS, waylConfigured, waylEnv } from "./wayl";
 
 const DAY = 86_400_000;
@@ -94,6 +95,10 @@ export async function confirmInvoice(invoiceId: string): Promise<"paid" | "paid_
           });
           applied = true;
         }
+      } else if (inv.product === "STUDIO") {
+        // A prepaid Studio top-up: the paid dinars go onto the shop's balance, once (the claim above).
+        await topUpWallet(tx, inv.tenantId, inv.amountIqd, inv.id);
+        applied = true;
       } else if (inv.product === "NEWS") {
         await tx.$queryRaw`SELECT 1 FROM "Tenant" WHERE "id" = ${inv.tenantId} FOR UPDATE`;
         const t = await tx.tenant.findUnique({ where: { id: inv.tenantId }, select: { plan: true, planPaidUntil: true } });
