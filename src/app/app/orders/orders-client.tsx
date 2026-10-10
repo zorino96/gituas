@@ -26,6 +26,7 @@ export interface OrderView {
   status: string;
   source: string;
   note: string | null;
+  collect: string | null;
 }
 
 export interface OrderProduct {
@@ -276,7 +277,8 @@ export function OrdersClient({ orders, cityCards, products }: { orders: OrderVie
                   <div key={o.id} className="gm-target">
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p>
-                        {o.customerName || "—"} {sourceLabel[o.source] && <span className="gm-badge ghost">{sourceLabel[o.source]}</span>}
+                        {o.customerName || "—"} {sourceLabel[o.source] && <span className="gm-badge ghost">{sourceLabel[o.source]}</span>}{" "}
+                        {o.collect && <span className={`gm-badge${o.collect === "done" ? "" : " warn"}`}>{od.collect[o.collect as "ask" | "confirm" | "done"]}</span>}
                       </p>
                       <small>{[cityLabel(o.city, lang), [o.productName, o.variantLabel].filter(Boolean).join(" — ")].filter(Boolean).join(" · ") || "—"}</small>
                       <small>

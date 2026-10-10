@@ -4,6 +4,8 @@ import { SHOP_ORIGIN } from "@/lib/hosts";
 import { openOrder } from "@/lib/orders/auto";
 import { classifyText } from "./classify";
 import { cityIn } from "@/lib/orders/cities";
+import { extractDetails, hasDetails, isYes, nextStep, type CollectOrder, type Details } from "@/lib/orders/collect";
+import { normalizePhone } from "@/lib/merchant/phone";
 import { answerText, COPY, DEFAULT_SAMPLES, dmText, fbCardElements, feeFor, waText, type CardProduct } from "./compose";
 import { gate, gateDm } from "./gate";
 import { buildCommentJobs, buildDmJobs, type JobSpec } from "./jobs";
@@ -275,17 +277,50 @@ async function planDm(msg: Msg): Promise<string[]> {
 
   const whatsapp = platform === "WHATSAPP";
   const text = (whatsapp ? typedText(msg.content ?? "") : (msg.content ?? "")).trim();
+
+  // A buyer in the middle of giving their order details: this message is the next answer.
+  const collecting = text ? await collectingOrder(store.id, senderId, now) : null;
+  if (collecting) {
+    const cp = await loadProduct(collecting.productId);
+    const inStock = inStockOf(cp);
+    const d = await extractDetails(text, inStock);
+    if (hasDetails(d) || isYes(text)) {
+      const lang = await buyerLang(store.id, senderId);
+      const reply = await collectStep(store, collecting, d, text, lang, msg.authorHandle, inStock);
+      const ids = await createJobs(store.id, msg.id, [{ kind: "DM_ANSWER", payload: { recipientId: senderId, message: { text: reply } }, recipientId: senderId }]);
+      await finish(msg.id, "AUTO_REPLIED", null, { commentType: "ORDER", language: lang, boundProductId: cp?.id ?? null });
+      return ids;
+    }
+  }
+
   const product = whatsapp ? await whatsappProduct(store.id, senderId, text, now) : await boundProduct(store.id, senderId, now);
   const photosSent = product ? await db.outboxJob.count({ where: { id: `dmphotos_${store.id}_${senderId}_${product.id}` } }) : 0;
   const c = text ? await classifyText(text, { channel: "dm", productName: product?.name }) : null;
   const decision = decideDm(c, { boundProduct: !!product, firstReply: photosSent === 0, hasPhotos: (product?.photos.length ?? 0) > 0 });
+  const ordering = c?.type === "ORDER" && c.confidence >= MIN_CONFIDENCE;
+  const city = cityIn(text);
+  const orderId = ordering ? await openOrder(msg, product, { city, deliveryFeeMinor: feeFor(store, city) }) : null;
 
   let answer: string | null = null;
   const ans = decision.actions.find((a) => a.kind === "DM_ANSWER");
-  if (ans?.kind === "DM_ANSWER" && product && c) {
+  if (ans?.kind === "DM_ANSWER" && product && c && ordering && orderId) {
+    // An order: ask for the details the order still lacks, in this same chat.
+    const order = await db.order.findUnique({ where: { id: orderId }, select: COLLECT_SELECT });
+    if (order && order.collect !== "done") {
+      const inStock = inStockOf(product);
+      const d = await extractDetails(text, inStock);
+      // On WhatsApp the sender id is the buyer's own number.
+      if (whatsapp && !d.phone) {
+        const p = normalizePhone(`+${senderId}`);
+        if (p.ok) d.phone = p.digits;
+      }
+      answer = await collectStep(store, order, d, text, c.language, msg.authorHandle, inStock);
+    }
+  }
+  if (!answer && ans?.kind === "DM_ANSWER" && product && c) {
     // Inside WhatsApp a "message us on WhatsApp" link points back at the same chat.
     const wa = ans.whatsapp && !whatsapp ? waUrl(store.tenant, waText(product, c.language)) : null;
-    answer = answerText(ans.intent, product, store, c.language, wa, cityIn(text));
+    answer = answerText(ans.intent, product, store, c.language, wa, city);
   }
   const specs = buildDmJobs({ actions: decision.actions, recipientId: senderId, photos: product?.photos ?? [], answerText: answer });
   const flag = decision.flag ?? (ans && !answer ? "needs_you" : null);
@@ -293,9 +328,42 @@ async function planDm(msg: Msg): Promise<string[]> {
   await finish(msg.id, specs.length ? "AUTO_REPLIED" : "FLAGGED", flag, {
     commentType: c?.type ?? null, intent: c?.intent ?? null, language: c?.language ?? null, confidence: c?.confidence ?? null, boundProductId: product?.id ?? null,
   });
-  if (c?.type === "ORDER" && c.confidence >= MIN_CONFIDENCE) {
-    const city = cityIn(text);
-    await openOrder(msg, product, { city, deliveryFeeMinor: feeFor(store, city) });
-  }
   return ids;
+}
+
+const COLLECT_SELECT = {
+  id: true, productId: true, customerName: true, phone: true, city: true, address: true, productName: true,
+  variantLabel: true, amountMinor: true, currency: true, collect: true,
+} as const;
+type CollectRow = CollectOrder & { id: string; productId: string | null };
+
+const inStockOf = (p: CardProduct | null) => (p?.variants ?? []).filter((v) => v.inStock);
+
+/** This buyer's order whose details the bot is still collecting, from the last day. */
+function collectingOrder(storeId: string, buyerKey: string, now: Date): Promise<CollectRow | null> {
+  return db.order.findFirst({
+    where: { storeId, buyerKey, status: "NEW", collect: { in: ["ask", "confirm"] }, updatedAt: { gt: new Date(now.getTime() - DAY) } },
+    orderBy: { updatedAt: "desc" },
+    select: COLLECT_SELECT,
+  });
+}
+
+/** The language this buyer last wrote in. */
+async function buyerLang(storeId: string, authorId: string): Promise<Lang> {
+  const m = await db.conversationMessage.findFirst({ where: { storeId, authorId, language: { not: null } }, orderBy: { createdAt: "desc" }, select: { language: true } });
+  return (m?.language as Lang | null) ?? "ckb";
+}
+
+/** Saves what the buyer gave and returns the next message: a question, the summary, or the thank-you. */
+async function collectStep(store: Store, order: CollectRow, d: Details, text: string, lang: Lang, handle: string | null, inStock: ReturnType<typeof inStockOf>): Promise<string> {
+  const { order: next, reply } = nextStep(order, d, text, { handle, inStock, store, lang });
+  await db.order.update({
+    where: { id: order.id },
+    data: {
+      customerName: next.customerName, phone: next.phone, city: next.city, address: next.address,
+      variantLabel: next.variantLabel, amountMinor: next.amountMinor, currency: next.currency,
+      deliveryFeeMinor: feeFor(store, next.city), collect: next.collect,
+    },
+  });
+  return reply;
 }

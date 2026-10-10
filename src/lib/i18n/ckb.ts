@@ -713,6 +713,7 @@ export const ckb = {
     filterAll: "هەموو",
     status: { NEW: "نوێ", CONFIRMED: "پشتڕاستکراوە", SENT: "نێردراوە", DELIVERED: "گەیەندراوە", RETURNED: "گەڕاوەتەوە", CANCELLED: "هەڵوەشاوە" },
     source: { COMMENT: "لە کۆمێنت", DM: "لە نامە" },
+    collect: { ask: "AI زانیاری وەردەگرێت", confirm: "چاوەڕێی پشتڕاستکردنەوەی کڕیار", done: "کڕیار پشتڕاستی کردەوە" },
     newOrder: "داواکاری نوێ",
     byCity: "بە پێی شار",
     iqd: "دینار",

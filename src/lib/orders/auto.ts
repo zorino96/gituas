@@ -78,9 +78,10 @@ export function autoOrderData(msg: AutoOrderMessage, product: AutoOrderProduct |
  * already have edited) is left exactly as it is. A buyer who already has an open
  * order for the same product from the last day gets no second one: their
  * follow-up messages are the same order. Never throws: replying to the buyer
- * matters more than the bookkeeping.
+ * matters more than the bookkeeping. Returns the order's id (the existing one
+ * for a duplicate), or null when none could be opened.
  */
-export async function openOrder(msg: AutoOrderMessage, product: AutoOrderProduct | null, delivery: AutoOrderDelivery = {}): Promise<void> {
+export async function openOrder(msg: AutoOrderMessage, product: AutoOrderProduct | null, delivery: AutoOrderDelivery = {}): Promise<string | null> {
   try {
     const data = autoOrderData(msg, product, delivery);
     if (data.buyerKey) {
@@ -88,10 +89,12 @@ export async function openOrder(msg: AutoOrderMessage, product: AutoOrderProduct
         where: duplicateOrderWhere({ tenantId: data.tenantId, buyerKey: data.buyerKey, productId: data.productId }, new Date()),
         select: { id: true },
       });
-      if (dup) return;
+      if (dup) return dup.id;
     }
-    await db.order.upsert({ where: { sourceMessageId: msg.id }, create: data, update: {} });
+    const o = await db.order.upsert({ where: { sourceMessageId: msg.id }, create: data, update: {}, select: { id: true } });
+    return o?.id ?? null;
   } catch (e) {
     console.error("[shop] open order failed:", e instanceof Error ? e.message : "unknown error");
+    return null;
   }
 }

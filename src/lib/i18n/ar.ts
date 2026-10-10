@@ -685,6 +685,7 @@ export const ar: Dict = {
     filterAll: "الكل",
     status: { NEW: "جديد", CONFIRMED: "مؤكد", SENT: "تم الإرسال", DELIVERED: "تم التسليم", RETURNED: "مرتجع", CANCELLED: "ملغي" },
     source: { COMMENT: "من تعليق", DM: "من رسالة" },
+    collect: { ask: "الذكاء الاصطناعي يجمع البيانات", confirm: "بانتظار تأكيد المشتري", done: "أكّد المشتري" },
     newOrder: "طلب جديد",
     byCity: "حسب المدينة",
     iqd: "دينار",

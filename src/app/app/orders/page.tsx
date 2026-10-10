@@ -41,6 +41,7 @@ export default async function OrdersPage() {
     status: o.status,
     source: o.source,
     note: o.note,
+    collect: o.collect,
   }));
 
   return (

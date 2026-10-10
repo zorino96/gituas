@@ -693,6 +693,7 @@ export const en: Dict = {
     filterAll: "All",
     status: { NEW: "New", CONFIRMED: "Confirmed", SENT: "Sent", DELIVERED: "Delivered", RETURNED: "Returned", CANCELLED: "Canceled" },
     source: { COMMENT: "From a comment", DM: "From a message" },
+    collect: { ask: "AI collecting details", confirm: "Waiting for the buyer to confirm", done: "Buyer confirmed" },
     newOrder: "New order",
     byCity: "By city",
     iqd: "IQD",

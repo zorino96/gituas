@@ -117,6 +117,13 @@ describe("openOrder", () => {
     expect(db.order.upsert).not.toHaveBeenCalled();
   });
 
+  it("returns the order's id, the existing one for a duplicate", async () => {
+    db.order.upsert.mockResolvedValue({ id: "o9" });
+    expect(await openOrder(msg, product)).toBe("o9");
+    db.order.findFirst.mockResolvedValue({ id: "o1" });
+    expect(await openOrder({ ...msg, id: "m2" }, product)).toBe("o1");
+  });
+
   it("does not look for a duplicate when the buyer is unknown", async () => {
     await openOrder({ ...msg, authorId: null }, product);
     expect(db.order.findFirst).not.toHaveBeenCalled();
@@ -126,7 +133,7 @@ describe("openOrder", () => {
   it("swallows a database failure", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     db.order.upsert.mockRejectedValue(new Error("db down"));
-    await expect(openOrder(msg, product)).resolves.toBeUndefined();
+    await expect(openOrder(msg, product)).resolves.toBeNull();
     expect(log).toHaveBeenCalled();
     log.mockRestore();
   });

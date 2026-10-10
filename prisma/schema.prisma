@@ -1271,6 +1271,8 @@ model Order {
   sourceMessageId  String?     @unique
   /// Who asked, from the message's author id (a DM's sender id): lets one buyer's repeat messages share one order.
   buyerKey         String?
+  /// The bot collecting the buyer's details in DMs: "ask" (fields missing), "confirm" (summary sent), "done"; null = not started.
+  collect          String?
   note             String?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
