@@ -586,6 +586,8 @@ export const en: Dict = {
     defaultDm: "Private message for a post with no product card",
     deliveryFee: "Delivery fee (IQD, 0 = free)",
     deliveryTime: "Delivery time (for example: 1-2 days)",
+    cityFees: "Delivery fee by city",
+    cityFeesHint: "An empty city pays the fee above. 0 = free. The AI answers with the buyer's city.",
     commentsSec: "Comments",
     likeComments: "Like comments",
     likeHint: "Facebook only",

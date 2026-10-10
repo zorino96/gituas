@@ -18,6 +18,12 @@ interface AutoOrderProduct {
   variants: { label: string; amountMinor: number; currency: string; inStock: boolean }[];
 }
 
+/** The buyer's city when the message names one, and what delivery there costs. */
+interface AutoOrderDelivery {
+  city?: string | null;
+  deliveryFeeMinor?: number | null;
+}
+
 /** A buyer who orders the same product again within this long is asking about the same order. */
 export const DUPLICATE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -46,11 +52,13 @@ export function duplicateOrderWhere(
  * with that variant's label and currency so the amount means something. With
  * no bound product, or none in stock, the amount stays 0 for the merchant to fill.
  */
-export function autoOrderData(msg: AutoOrderMessage, product: AutoOrderProduct | null): Prisma.OrderUncheckedCreateInput {
+export function autoOrderData(msg: AutoOrderMessage, product: AutoOrderProduct | null, delivery: AutoOrderDelivery = {}): Prisma.OrderUncheckedCreateInput {
   const variant = product?.variants.find((v) => v.inStock);
   return {
     tenantId: msg.store.tenantId,
     storeId: msg.store.id,
+    city: delivery.city ?? null,
+    deliveryFeeMinor: delivery.deliveryFeeMinor ?? null,
     customerName: msg.authorHandle ?? "",
     productId: product?.id ?? null,
     productName: product?.name ?? "",
@@ -72,9 +80,9 @@ export function autoOrderData(msg: AutoOrderMessage, product: AutoOrderProduct |
  * follow-up messages are the same order. Never throws: replying to the buyer
  * matters more than the bookkeeping.
  */
-export async function openOrder(msg: AutoOrderMessage, product: AutoOrderProduct | null): Promise<void> {
+export async function openOrder(msg: AutoOrderMessage, product: AutoOrderProduct | null, delivery: AutoOrderDelivery = {}): Promise<void> {
   try {
-    const data = autoOrderData(msg, product);
+    const data = autoOrderData(msg, product, delivery);
     if (data.buyerKey) {
       const dup = await db.order.findFirst({
         where: duplicateOrderWhere({ tenantId: data.tenantId, buyerKey: data.buyerKey, productId: data.productId }, new Date()),

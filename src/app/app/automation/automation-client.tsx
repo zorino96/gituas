@@ -53,6 +53,7 @@ export function AutomationClient({ store, stores, templates, products, postAutom
     deliveryFee: store.deliveryFee,
     deliveryTime: store.deliveryTime,
     defaultDm: store.defaultDm,
+    cityFees: store.cityFees,
   }));
 
   async function save(patch: Partial<StoreSettings>) {

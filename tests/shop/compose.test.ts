@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { answerText, COPY, DEFAULT_SAMPLES, dmText, fbCardElements, truncate, waText, type CardProduct, type CardStore } from "@/lib/shop/compose";
+import { answerText, cityFees, COPY, DEFAULT_SAMPLES, dmText, fbCardElements, feeFor, truncate, waText, type CardProduct, type CardStore } from "@/lib/shop/compose";
+import { cityIn } from "@/lib/orders/cities";
 import { LANGS } from "@/lib/shop/money";
 import { hasDigit } from "@/lib/shop/digits";
 
@@ -40,6 +41,26 @@ describe("answerText", () => {
   it("adds the order link, and returns null when there is nothing to say", () => {
     expect(answerText("none", hoodie, store, "en", WA)).toBe("To order: https://gituas.com/w/s?t=x");
     expect(answerText("delivery", hoodie, { deliveryFeeMinor: null, deliveryCurrency: "IQD", deliveryTime: null }, "en", null)).toBeNull();
+  });
+});
+
+describe("delivery by city", () => {
+  const byCity: CardStore = { ...store, deliveryTime: null, deliveryCityFees: { erbil: 3000, duhok: 0, nowhere: 1, baghdad: -5 } };
+  it("prices a named city, falls back to the one fee, and drops bad entries", () => {
+    expect(feeFor(byCity, "erbil")).toBe(3000);
+    expect(feeFor(byCity, "basra")).toBe(5000);
+    expect(cityFees(byCity)).toEqual({ erbil: 3000, duhok: 0 });
+    expect(answerText("delivery", hoodie, byCity, "en", null, "erbil")).toBe("Delivery (Erbil): 3,000 IQD");
+    expect(answerText("delivery", hoodie, byCity, "en", null, "duhok")).toBe("Free delivery (Duhok)");
+  });
+  it("lists every city when the buyer names none", () => {
+    expect(answerText("delivery", hoodie, byCity, "en", null)).toBe("Delivery\n• Erbil: 3,000 IQD\n• Duhok: Free delivery\n• Other cities: 5,000 IQD");
+  });
+  it("finds the city a buyer writes", () => {
+    expect(cityIn("گەیاندنتان هەیە بۆ دهۆک؟")).toBe("duhok");
+    expect(cityIn("بۆ هەولێر چەندە")).toBe("erbil");
+    expect(cityIn("توصيل للموصل؟")).toBe("nineveh");
+    expect(cityIn("price?")).toBeNull();
   });
 });
 

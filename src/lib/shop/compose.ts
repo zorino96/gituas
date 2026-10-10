@@ -1,3 +1,4 @@
+import { cityLabel, isCityCode } from "@/lib/orders/cities";
 import { formatMoney, type Lang } from "./money";
 import type { Intent } from "./policy";
 
@@ -16,6 +17,8 @@ export interface CardStore {
   deliveryFeeMinor: number | null;
   deliveryCurrency: string;
   deliveryTime: string | null;
+  /** { "<city code>": minor units }, as stored (JSON, so checked before use). */
+  deliveryCityFees?: unknown;
 }
 export interface FbElement {
   title: string;
@@ -31,6 +34,7 @@ interface Copy {
   soldOut: string;
   delivery: string;
   freeDelivery: string;
+  otherCities: string;
   order: string;
   orderButton: string;
   comma: string;
@@ -38,11 +42,11 @@ interface Copy {
 
 /** Fixed copy per language. Numbers never come from here — only from the product and store rows. */
 export const COPY: Record<Lang, Copy> = {
-  ckb: { hello: "سڵاو! ئەمە زانیارییەکانە:", price: "نرخ", available: "بەردەستە", soldOut: "نەماوە", delivery: "گەیاندن", freeDelivery: "گەیاندن بەخۆڕایی", order: "بۆ داواکردن:", orderButton: "داواکردن", comma: "، " },
-  kmr: { hello: "سلاڤ! ئەڤە پێزانینن:", price: "بها", available: "هەیە", soldOut: "نەمایە", delivery: "گەهاندن", freeDelivery: "گەهاندن بێ بەرامبەر", order: "بۆ داخوازکرنێ:", orderButton: "داخوازکرن", comma: "، " },
-  ar: { hello: "أهلاً! هذه التفاصيل:", price: "السعر", available: "متوفر", soldOut: "نفد", delivery: "التوصيل", freeDelivery: "توصيل مجاني", order: "للطلب:", orderButton: "اطلب الآن", comma: "، " },
-  ku_latn: { hello: "Silaw! Eme zanyariyekane:", price: "Nirx", available: "Berdeste", soldOut: "Nemawe", delivery: "Geyandin", freeDelivery: "Geyandin bexorayî", order: "Bo daway kirdin:", orderButton: "Daway bike", comma: ", " },
-  en: { hello: "Hi! Here are the details:", price: "Price", available: "Available", soldOut: "Sold out", delivery: "Delivery", freeDelivery: "Free delivery", order: "To order:", orderButton: "Order now", comma: ", " },
+  ckb: { hello: "سڵاو! ئەمە زانیارییەکانە:", price: "نرخ", available: "بەردەستە", soldOut: "نەماوە", delivery: "گەیاندن", freeDelivery: "گەیاندن بەخۆڕایی", otherCities: "شارەکانی تر", order: "بۆ داواکردن:", orderButton: "داواکردن", comma: "، " },
+  kmr: { hello: "سلاڤ! ئەڤە پێزانینن:", price: "بها", available: "هەیە", soldOut: "نەمایە", delivery: "گەهاندن", freeDelivery: "گەهاندن بێ بەرامبەر", otherCities: "باژێرێن دی", order: "بۆ داخوازکرنێ:", orderButton: "داخوازکرن", comma: "، " },
+  ar: { hello: "أهلاً! هذه التفاصيل:", price: "السعر", available: "متوفر", soldOut: "نفد", delivery: "التوصيل", freeDelivery: "توصيل مجاني", otherCities: "باقي المحافظات", order: "للطلب:", orderButton: "اطلب الآن", comma: "، " },
+  ku_latn: { hello: "Silaw! Eme zanyariyekane:", price: "Nirx", available: "Berdeste", soldOut: "Nemawe", delivery: "Geyandin", freeDelivery: "Geyandin bexorayî", otherCities: "Sharekanî tir", order: "Bo daway kirdin:", orderButton: "Daway bike", comma: ", " },
+  en: { hello: "Hi! Here are the details:", price: "Price", available: "Available", soldOut: "Sold out", delivery: "Delivery", freeDelivery: "Free delivery", otherCities: "Other cities", order: "To order:", orderButton: "Order now", comma: ", " },
 };
 
 /** Used when the store has not written its own samples yet. */
@@ -78,11 +82,37 @@ function priceLines(p: CardProduct, lang: Lang): string[] {
   return p.variants.map((v) => `• ${v.label}: ${priced(v, lang)}`);
 }
 
-export function deliveryLine(s: CardStore, lang: Lang): string | null {
+/** The store's per-city fees, keeping only known cities with whole, non-negative amounts. */
+export function cityFees(s: CardStore): Record<string, number> {
+  const f = s.deliveryCityFees;
+  if (!f || typeof f !== "object" || Array.isArray(f)) return {};
+  return Object.fromEntries(Object.entries(f).filter(([k, v]) => isCityCode(k) && Number.isInteger(v) && (v as number) >= 0)) as Record<string, number>;
+}
+
+/** What delivery to `city` costs: its own fee, else the store's one fee; null when the store set neither. */
+export function feeFor(s: CardStore, city: string | null | undefined): number | null {
+  const fees = cityFees(s);
+  return city && city in fees ? fees[city] : s.deliveryFeeMinor;
+}
+
+const cityLang = (lang: Lang) => (lang === "ar" ? "ar" : lang === "en" || lang === "ku_latn" ? "en" : "ckb");
+
+export function deliveryLine(s: CardStore, lang: Lang, city?: string | null): string | null {
   const c = COPY[lang];
-  if (s.deliveryFeeMinor == null) return s.deliveryTime ? `${c.delivery}: ${s.deliveryTime}` : null;
-  const fee = s.deliveryFeeMinor === 0 ? c.freeDelivery : `${c.delivery}: ${formatMoney(s.deliveryFeeMinor, s.deliveryCurrency, lang)}`;
+  const minor = feeFor(s, city);
+  const where = city && city in cityFees(s) ? ` (${cityLabel(city, cityLang(lang))})` : "";
+  if (minor == null) return s.deliveryTime ? `${c.delivery}: ${s.deliveryTime}` : null;
+  const fee = minor === 0 ? `${c.freeDelivery}${where}` : `${c.delivery}${where}: ${formatMoney(minor, s.deliveryCurrency, lang)}`;
   return s.deliveryTime ? `${fee} — ${s.deliveryTime}` : fee;
+}
+
+/** Every city's fee, for a buyer who asks about delivery without naming a city. */
+function cityFeeLines(s: CardStore, lang: Lang): string[] {
+  const c = COPY[lang];
+  const money = (m: number) => (m === 0 ? c.freeDelivery : formatMoney(m, s.deliveryCurrency, lang));
+  const lines = Object.entries(cityFees(s)).map(([city, m]) => `• ${cityLabel(city, cityLang(lang))}: ${money(m)}`);
+  if (s.deliveryFeeMinor != null) lines.push(`• ${c.otherCities}: ${money(s.deliveryFeeMinor)}`);
+  return [c.delivery, ...lines, ...(s.deliveryTime ? [s.deliveryTime] : [])];
 }
 
 const lines = (xs: (string | null)[]) => xs.filter((l): l is string => !!l).join("\n");
@@ -93,11 +123,13 @@ export function dmText(i: { greeting: string; product: CardProduct; store: CardS
 }
 
 /** A follow-up DM answer from the card, or null when the card cannot answer it. */
-export function answerText(intent: Intent, p: CardProduct, s: CardStore, lang: Lang, waUrl: string | null): string | null {
+export function answerText(intent: Intent, p: CardProduct, s: CardStore, lang: Lang, waUrl: string | null, city: string | null = null): string | null {
   const c = COPY[lang];
   let body: string[] = [];
   if (intent === "price") body = [p.name, ...priceLines(p, lang)];
-  else if (intent === "delivery") body = [deliveryLine(s, lang)].filter((l): l is string => !!l);
+  else if (intent === "delivery") {
+    body = !city && Object.keys(cityFees(s)).length ? cityFeeLines(s, lang) : [deliveryLine(s, lang, city)].filter((l): l is string => !!l);
+  }
   else if (intent === "size_colour" || intent === "availability") {
     const labels = p.variants.filter((v) => v.inStock && v.label.trim()).map((v) => v.label);
     body = [labels.length ? `${c.available}: ${labels.join(c.comma)}` : p.variants.some((v) => v.inStock) ? c.available : c.soldOut];

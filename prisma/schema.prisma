@@ -1048,6 +1048,8 @@ model Store {
   deliveryFeeMinor  Int?
   deliveryCurrency  String               @default("IQD")
   deliveryTime      String?
+  /// Delivery fee per city, { "<city code>": minor units }; a city not listed pays deliveryFeeMinor.
+  deliveryCityFees  Json?
   defaultDm         String?
   defaultTemplateId String?
   /// Posts created before this date are never automated ("stop old posts").

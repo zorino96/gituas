@@ -3,7 +3,8 @@ import type { Prisma } from "@/generated/prisma/client";
 import { SHOP_ORIGIN } from "@/lib/hosts";
 import { openOrder } from "@/lib/orders/auto";
 import { classifyText } from "./classify";
-import { answerText, COPY, DEFAULT_SAMPLES, dmText, fbCardElements, waText, type CardProduct } from "./compose";
+import { cityIn } from "@/lib/orders/cities";
+import { answerText, COPY, DEFAULT_SAMPLES, dmText, fbCardElements, feeFor, waText, type CardProduct } from "./compose";
 import { gate, gateDm } from "./gate";
 import { buildCommentJobs, buildDmJobs, type JobSpec } from "./jobs";
 import { productNamedIn, typedText } from "@/lib/whatsapp/webhook";
@@ -284,7 +285,7 @@ async function planDm(msg: Msg): Promise<string[]> {
   if (ans?.kind === "DM_ANSWER" && product && c) {
     // Inside WhatsApp a "message us on WhatsApp" link points back at the same chat.
     const wa = ans.whatsapp && !whatsapp ? waUrl(store.tenant, waText(product, c.language)) : null;
-    answer = answerText(ans.intent, product, store, c.language, wa);
+    answer = answerText(ans.intent, product, store, c.language, wa, cityIn(text));
   }
   const specs = buildDmJobs({ actions: decision.actions, recipientId: senderId, photos: product?.photos ?? [], answerText: answer });
   const flag = decision.flag ?? (ans && !answer ? "needs_you" : null);
@@ -292,6 +293,9 @@ async function planDm(msg: Msg): Promise<string[]> {
   await finish(msg.id, specs.length ? "AUTO_REPLIED" : "FLAGGED", flag, {
     commentType: c?.type ?? null, intent: c?.intent ?? null, language: c?.language ?? null, confidence: c?.confidence ?? null, boundProductId: product?.id ?? null,
   });
-  if (c?.type === "ORDER" && c.confidence >= MIN_CONFIDENCE) await openOrder(msg, product);
+  if (c?.type === "ORDER" && c.confidence >= MIN_CONFIDENCE) {
+    const city = cityIn(text);
+    await openOrder(msg, product, { city, deliveryFeeMinor: feeFor(store, city) });
+  }
   return ids;
 }

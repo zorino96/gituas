@@ -17,6 +17,8 @@ export interface StoreSettings {
   deliveryFee: string;
   deliveryTime: string;
   defaultDm: string;
+  /** City code → fee as typed; a city left empty pays deliveryFee. */
+  cityFees: Record<string, string>;
 }
 
 export interface StoreView extends StoreSettings {

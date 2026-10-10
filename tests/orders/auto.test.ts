@@ -27,6 +27,8 @@ describe("autoOrderData", () => {
     expect(autoOrderData(msg, product)).toEqual({
       tenantId: "t1",
       storeId: "s1",
+      city: null,
+      deliveryFeeMinor: null,
       customerName: "ari.shop",
       productId: "p1",
       productName: "عەبا",
@@ -38,6 +40,10 @@ describe("autoOrderData", () => {
       buyerKey: "u1",
       status: "NEW",
     });
+  });
+
+  it("keeps the buyer's city and its delivery fee", () => {
+    expect(autoOrderData(msg, product, { city: "erbil", deliveryFeeMinor: 3000 })).toMatchObject({ city: "erbil", deliveryFeeMinor: 3000 });
   });
 
   it("marks a DM as coming from a DM and keeps the variant's own currency", () => {

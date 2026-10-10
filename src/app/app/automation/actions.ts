@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
+import { isCityCode } from "@/lib/orders/cities";
 import { isOwnBlobUrl } from "@/lib/merchant/caption";
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
@@ -35,7 +36,7 @@ const done = (id?: string): ActionResult => {
 /** Saves only the settings that are present: each screen section sends its own fields, so two quick saves cannot undo each other. */
 export async function saveStoreSettingsAction(
   storeId: string,
-  input: Partial<{ automationEnabled: boolean; expiryDays: number; stopBefore: string; likeComments: boolean; autoHideSpam: boolean; deliveryFee: string; deliveryTime: string; defaultDm: string }>,
+  input: Partial<{ automationEnabled: boolean; expiryDays: number; stopBefore: string; likeComments: boolean; autoHideSpam: boolean; deliveryFee: string; deliveryTime: string; defaultDm: string; cityFees: Record<string, string> }>,
 ): Promise<ActionResult> {
   const r = await ownedStore(storeId);
   if (r.error !== undefined) return { ok: false, error: r.error };
@@ -69,6 +70,18 @@ export async function saveStoreSettingsAction(
       data.deliveryFeeMinor = minor;
     }
     data.deliveryCurrency = "IQD";
+  }
+  if (input.cityFees !== undefined) {
+    const fees: Record<string, number> = {};
+    for (const [city, raw] of Object.entries(input.cityFees ?? {})) {
+      const fee = toWesternDigits(String(raw)).trim();
+      if (!fee) continue;
+      if (!isCityCode(city)) return { ok: false, error: r.m.badDeliveryFee };
+      const minor = /^0+$/.test(fee) ? 0 : parsePrice(fee, "IQD");
+      if (minor == null) return { ok: false, error: r.m.badDeliveryFee };
+      fees[city] = minor;
+    }
+    data.deliveryCityFees = Object.keys(fees).length ? fees : Prisma.DbNull;
   }
   if (input.deliveryTime !== undefined) data.deliveryTime = Array.from(input.deliveryTime.trim()).slice(0, 60).join("") || null;
   if (input.defaultDm !== undefined) data.defaultDm = Array.from(input.defaultDm.trim()).slice(0, 1000).join("") || null;

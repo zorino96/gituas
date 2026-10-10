@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
+import { cityFees } from "@/lib/shop/compose";
 import { loadShopState } from "@/lib/shop/state";
 import { currentWorkspace, loadConnections, loadPosts } from "../data";
 import { AutomationClient } from "./automation-client";
@@ -67,6 +68,7 @@ export default async function AutomationPage({ searchParams }: { searchParams: P
         autoHideSpam: store.autoHideSpam,
         deliveryFee: store.deliveryFeeMinor == null ? "" : String(store.deliveryFeeMinor),
         deliveryTime: store.deliveryTime ?? "",
+        cityFees: Object.fromEntries(Object.entries(cityFees(store)).map(([k, v]) => [k, String(v)])),
         defaultDm: store.defaultDm ?? "",
         defaultTemplateId: store.defaultTemplateId,
         pausedReason: store.pausedReason,
