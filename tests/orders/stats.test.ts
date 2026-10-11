@@ -1,5 +1,23 @@
 import { describe, it, expect } from "vitest";
-import { ordersByCity } from "@/lib/orders/stats";
+import { buyerProfile, ordersByCity } from "@/lib/orders/stats";
+
+it("buyerProfile: busiest cities, Baghdad hours, languages and products; cancelled orders don't count", () => {
+  const at = (iso: string, language: string | null = "ckb") => ({ createdAt: new Date(iso), language });
+  const p = buyerProfile(
+    [at("2026-10-01T17:10:00Z"), at("2026-10-02T17:40:00Z"), at("2026-10-02T09:00:00Z", "ar"), at("2026-10-03T17:05:00Z", null)],
+    [
+      { city: "erbil", productName: "عەبا", status: "NEW" },
+      { city: "erbil", productName: "عەبا", status: "DELIVERED" },
+      { city: "duhok", productName: "جانتا", status: "NEW" },
+      { city: "basra", productName: "جانتا", status: "CANCELLED" },
+    ],
+  );
+  expect(p.cities).toEqual(["erbil", "duhok"]);
+  expect(p.products).toEqual(["عەبا", "جانتا"]);
+  expect(p.hours).toEqual([12, 20]);
+  expect(p.languages).toEqual(["ckb", "ar"]);
+  expect([p.orders, p.messages]).toEqual([3, 4]);
+});
 
 const o = (city: string | null, amountMinor: number, status = "NEW") => ({ city, amountMinor, status });
 

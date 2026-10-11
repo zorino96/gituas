@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 
 import { useLang, useT } from "@/lib/i18n/client";
 import { CITIES, cityLabel } from "@/lib/orders/cities";
-import type { CityRow } from "@/lib/orders/stats";
+import type { BuyerProfile, CityRow } from "@/lib/orders/stats";
 import { formatMoney } from "@/lib/shop/money";
 import { SaveMessage, useSaver } from "../automation/shared";
 import { priceText } from "../products/products-client";
@@ -188,7 +188,45 @@ function OrderEditor({ order, products, onDone }: { order: OrderView | null; pro
   );
 }
 
-export function OrdersClient({ orders, cityCards, products }: { orders: OrderView[]; cityCards: CityCard[]; products: OrderProduct[] }) {
+/** Below this many orders the profile is too thin to trust for targeting. */
+const MIN_AUDIENCE_ORDERS = 5;
+
+function AudienceCard({ a }: { a: BuyerProfile }) {
+  const lang = useLang();
+  const au = useT().orders.audience;
+  const [copied, setCopied] = useState(false);
+  if (a.orders === 0 && a.messages === 0) return null;
+  const cities = a.cities.map((c) => cityLabel(c, lang)).join("، ");
+  const hours = a.hours.map((h) => `${String(h).padStart(2, "0")}:00`).join("، ");
+  const langs = a.languages.map((l) => au.lang[l as keyof typeof au.lang] ?? l).join("، ");
+  const rows: [string, string][] = [
+    [au.cities, cities],
+    [au.hours, hours],
+    [au.language, langs],
+    [au.products, a.products.join("، ")],
+  ].filter((r): r is [string, string] => !!r[1]);
+  const text = rows.map(([k, v]) => `${k}: ${v}`).join("\n");
+  return (
+    <div className="gm-card" style={{ marginBottom: 12 }}>
+      <p className="gm-sec" style={{ margin: 0 }}>{au.title}</p>
+      <p className="gm-hint">{au.sub(a.orders, a.messages)}</p>
+      {rows.map(([k, v]) => (
+        <div key={k} className="gm-target">
+          <div><small>{k}</small><p>{v}</p></div>
+        </div>
+      ))}
+      {a.orders < MIN_AUDIENCE_ORDERS && <p className="gm-note">{au.thin}</p>}
+      <ul className="gm-hint" style={{ paddingInlineStart: 18 }}>
+        {au.tips.map((t) => <li key={t}>{t}</li>)}
+      </ul>
+      <button type="button" className="gm-btn quiet small" onClick={() => navigator.clipboard.writeText(text).then(() => setCopied(true))}>
+        {copied ? au.copied : au.copy}
+      </button>
+    </div>
+  );
+}
+
+export function OrdersClient({ orders, cityCards, products, audience }: { orders: OrderView[]; cityCards: CityCard[]; products: OrderProduct[]; audience: BuyerProfile }) {
   const lang = useLang();
   const od = useT().orders;
   const statusLabel: Record<string, string> = od.status;
@@ -230,6 +268,8 @@ export function OrdersClient({ orders, cityCards, products }: { orders: OrderVie
       )}
 
       <SaveMessage message={message} />
+
+      <AudienceCard a={audience} />
 
       <div className={cityCards.length > 0 ? "gm-split" : undefined}>
         {cityCards.length > 0 && (

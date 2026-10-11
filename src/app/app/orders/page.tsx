@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
-import { ordersByCity } from "@/lib/orders/stats";
+import { buyerProfile, ordersByCity } from "@/lib/orders/stats";
 import { currentWorkspace } from "../data";
 import { OrdersClient, type CityCard, type OrderView } from "./orders-client";
 
@@ -15,11 +15,19 @@ export default async function OrdersPage() {
   const lang = await getLang();
   if (!can(ws.role, "engage")) return <p className="gm-note warn">{dict(lang).nr.team.roles.notAllowed}</p>;
 
-  const [orders, forStats, products] = await Promise.all([
+  const since = new Date(Date.now() - 60 * 86_400_000);
+  const [orders, forStats, products, buyerMsgs] = await Promise.all([
     db.order.findMany({ where: { tenantId: ws.id }, orderBy: { createdAt: "desc" }, take: LIST_LIMIT }),
-    db.order.findMany({ where: { tenantId: ws.id }, select: { city: true, amountMinor: true, status: true, currency: true } }),
+    db.order.findMany({ where: { tenantId: ws.id }, select: { city: true, amountMinor: true, status: true, currency: true, productName: true, createdAt: true } }),
     db.product.findMany({ where: { active: true, store: { tenantId: ws.id } }, include: { variants: { orderBy: { position: "asc" } } }, orderBy: { name: "asc" } }),
+    // Buyers asking about price or ordering in the last 60 days: when and in what language they write.
+    db.conversationMessage.findMany({
+      where: { store: { tenantId: ws.id }, direction: "INBOUND", commentType: { in: ["ORDER", "QUESTION"] }, createdAt: { gt: since } },
+      select: { createdAt: true, language: true },
+      take: 5000,
+    }),
   ]);
+  const audience = buyerProfile(buyerMsgs, forStats.filter((o) => o.createdAt > since));
 
   // Dinars and dollars are never added together: one card section per currency.
   const currencies = [...new Set(forStats.map((o) => o.currency))].sort();
@@ -48,6 +56,7 @@ export default async function OrdersPage() {
     <OrdersClient
       orders={views}
       cityCards={cityCards}
+      audience={audience}
       products={products.map((p) => ({
         id: p.id,
         name: p.name,
