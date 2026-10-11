@@ -18,7 +18,8 @@ export default async function OrdersPage() {
 
   const [orders, forStats, products, audience] = await Promise.all([
     db.order.findMany({ where: { tenantId: ws.id }, orderBy: { createdAt: "desc" }, take: LIST_LIMIT }),
-    db.order.findMany({ where: { tenantId: ws.id }, select: { city: true, amountMinor: true, status: true, currency: true, createdAt: true, productName: true } }),
+    // The last year is enough for the cards; it keeps the page light as orders pile up.
+    db.order.findMany({ where: { tenantId: ws.id, createdAt: { gt: new Date(Date.now() - 365 * 86_400_000) } }, select: { city: true, amountMinor: true, status: true, currency: true, createdAt: true, productName: true } }),
     db.product.findMany({ where: { active: true, store: { tenantId: ws.id } }, include: { variants: { orderBy: { position: "asc" } } }, orderBy: { name: "asc" } }),
     loadBuyerProfile(ws.id),
   ]);

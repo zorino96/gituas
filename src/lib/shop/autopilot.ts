@@ -8,8 +8,8 @@ import { completeJson } from "@/lib/ai/provider";
 import { db } from "@/lib/db";
 import { isJpegPath, isOwnBlobUrl } from "@/lib/merchant/caption";
 import { publishForWorkspace, type PublishInput } from "@/lib/merchant/publish-core";
-import { loadBuyerProfile } from "@/lib/orders/audience";
-import { effectiveMode, isDue, pickProduct, slotHours } from "./autopilot-plan";
+import { loadAutopilotSignals } from "@/lib/orders/audience";
+import { effectiveMode, isDue, pickProduct, SLOT_GUARD_MS, slotHours } from "./autopilot-plan";
 import { formatMoney } from "./money";
 
 /**
@@ -71,7 +71,9 @@ async function runStore(store: {
 }, now: number): Promise<"skipped" | "drafted" | "published" | "failed"> {
   const mode = effectiveMode(store.autoMode, store.plan);
   if (mode === "OFF") return "skipped";
-  const profile = await loadBuyerProfile(store.tenantId);
+  // Posted within the last slot: nothing to read yet. (This runs every minute for every store.)
+  if (store.autoLastAt && now - store.autoLastAt.getTime() < SLOT_GUARD_MS) return "skipped";
+  const profile = await loadAutopilotSignals(store.tenantId);
   if (!isDue(store.autoLastAt, slotHours(profile.hours, store.autoPerDay), now)) return "skipped";
 
   // Claim the slot first, so an overlapping tick never posts the same slot twice.

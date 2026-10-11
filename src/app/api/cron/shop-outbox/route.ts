@@ -37,10 +37,15 @@ export async function GET(req: Request) {
   });
   for (const m of stuck) await processMessage(m.id).catch((e) => console.error("[shop-outbox] message failed:", e instanceof Error ? e.message : "unknown error"));
 
-  const autopilot = await runShopAutopilot(now).catch((e) => {
-    console.error("[shop-outbox] autopilot failed:", e instanceof Error ? e.message : "unknown error");
-    return { failed: 1 };
-  });
+  // A post can take ~40 s and the route has 60: after a busy start it waits for the next minute
+  // (still inside the slot hour) instead of being cut off half-way through posting.
+  const autopilot =
+    Date.now() - now < 15_000
+      ? await runShopAutopilot(now).catch((e) => {
+          console.error("[shop-outbox] autopilot failed:", e instanceof Error ? e.message : "unknown error");
+          return { failed: 1 };
+        })
+      : { deferred: 1 };
 
   return NextResponse.json({ jobs: due.length, messages: stuck.length, autopilot });
 }

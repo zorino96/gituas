@@ -13,7 +13,7 @@ export const REPOST_AFTER_MS = 7 * 86_400_000;
 /** Evening, then midday and night: when Kurdish shoppers scroll, until the shop has its own numbers. */
 const DEFAULT_HOURS = [20, 13, 22];
 /** One post per slot: a tick inside the same slot hour never posts twice. */
-const SLOT_GUARD_MS = 90 * 60_000;
+export const SLOT_GUARD_MS = 90 * 60_000;
 
 export function isShopAutoMode(v: unknown): v is ShopAutoMode {
   return typeof v === "string" && (SHOP_AUTO_MODES as readonly string[]).includes(v);
