@@ -1013,6 +1013,8 @@ enum OutboxKind {
   HIDE
   DM_ANSWER
   DM_PHOTOS
+  /// One polite nudge 20 h after a question that did not become an order (inside Meta's 24 h window).
+  DM_FOLLOWUP
 }
 
 enum OutboxStatus {

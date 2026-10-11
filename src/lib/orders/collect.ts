@@ -202,6 +202,19 @@ export function summaryText(o: CollectOrder, store: CardStore, lang: Lang): stri
     .join("\n");
 }
 
+const FOLLOWUP: Record<Lang, (product: string) => string> = {
+  ckb: (p) => `سڵاو 🌷 هێشتا حەزت لە ${p} هەیە؟ ئەگەر بتەوێت داوای بکەیت، تەنها بنووسە «دەمەوێت».`,
+  kmr: (p) => `سلاڤ 🌷 هێشتا تە ${p} دڤێت؟ ئەگەر تە بڤێت داخواز بکەی، تنێ بنڤیسە «دڤێت».`,
+  ar: (p) => `مرحباً 🌷 هل ما زلت مهتماً بـ ${p}؟ إذا أردت الطلب اكتب فقط «أريد».`,
+  ku_latn: (p) => `Silaw 🌷 Hêshta hezit le ${p} heye? Eger bitewêt dawa bikeyt, tenha binûse "demewêt".`,
+  en: (p) => `Hi 🌷 Still interested in ${p}? If you'd like to order, just reply "I want it".`,
+};
+
+/** The one nudge to a buyer who asked about a product and went quiet. */
+export function followupText(product: string, lang: Lang): string {
+  return FOLLOWUP[lang](product);
+}
+
 export function doneText(lang: Lang): string {
   return COPY[lang].done;
 }

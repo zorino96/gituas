@@ -24,6 +24,7 @@ async function send(acc: StoreAccount, kind: OutboxKind, p: JobPayload, onPhotoS
       return r;
     }
     case "DM_ANSWER":
+    case "DM_FOLLOWUP":
       return sendDm(acc, p.recipientId!, p.message!);
     case "DM_PHOTOS": {
       let last: SendResult = { ok: true, id: null, recipientId: p.recipientId ?? null };
@@ -67,6 +68,15 @@ export async function runJob(jobId: string, opts: { immediate?: boolean } = {}):
   const keys = [payload.commentId, payload.recipientId].filter((k): k is string => !!k);
   if (keys.length && (await db.threadPause.count({ where: { tenantId: job.store.tenantId, platform, threadKey: { in: keys } } }))) {
     return void (await skip("thread_paused"));
+  }
+  // The nudge is only for a buyer who went quiet: any later message of theirs, or an order, cancels it.
+  if (job.kind === "DM_FOLLOWUP" && payload.recipientId) {
+    const since = { gt: job.createdAt };
+    const [wrote, ordered] = await Promise.all([
+      db.conversationMessage.count({ where: { storeId: job.storeId, authorId: payload.recipientId, direction: "INBOUND", createdAt: since } }),
+      db.order.count({ where: { storeId: job.storeId, buyerKey: payload.recipientId, createdAt: since } }),
+    ]);
+    if (wrote || ordered) return void (await skip(wrote ? "buyer_wrote" : "ordered"));
   }
   if (payload.requiresPrivate) {
     const priv = await db.outboxJob.findUnique({ where: { messageId_kind: { messageId: job.messageId, kind: "PRIVATE_REPLY" } }, select: { status: true } });

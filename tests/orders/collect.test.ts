@@ -2,7 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/ai/provider", () => ({ completeJson: vi.fn() }));
 
-const { isYes, missingFields, nextStep, parseDetails } = await import("@/lib/orders/collect");
+const { followupText, isYes, missingFields, nextStep, parseDetails } = await import("@/lib/orders/collect");
+
+it("the nudge names the product and carries no number", () => {
+  for (const l of ["ckb", "kmr", "ar", "ku_latn", "en"] as const) {
+    const t = followupText("عەبا", l);
+    expect(t).toContain("عەبا");
+    expect(t).not.toMatch(/\d/);
+  }
+});
 
 const inStock = [
   { label: "M", amountMinor: 25_000, currency: "IQD" },

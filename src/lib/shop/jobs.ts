@@ -2,7 +2,7 @@ import type { FbElement } from "./compose";
 import type { MetaMessage, MetaPlatform } from "./meta-client";
 import type { CommentDecision, DmAction } from "./policy";
 
-export type OutboxKind = "PUBLIC_REPLY" | "PRIVATE_REPLY" | "LIKE" | "HIDE" | "DM_ANSWER" | "DM_PHOTOS";
+export type OutboxKind = "PUBLIC_REPLY" | "PRIVATE_REPLY" | "LIKE" | "HIDE" | "DM_ANSWER" | "DM_PHOTOS" | "DM_FOLLOWUP";
 
 export interface JobPayload {
   commentId?: string;

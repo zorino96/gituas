@@ -19,8 +19,11 @@ export function MessagesClient({
   whatsappPath,
   connected,
   accounts,
+  orderBuyers,
 }: {
   initial: MConversation[];
+  /** Shop only: participant ids with an open order, shown under the Orders tab. */
+  orderBuyers?: string[];
   unreadable: number;
   errors: { platform: Platform; message: string }[];
   whatsappPath: string | null;
@@ -42,7 +45,11 @@ export function MessagesClient({
   useEffect(() => setWaUrl(whatsappPath ? `${window.location.origin}${whatsappPath}` : null), [whatsappPath]);
 
   const open = convs.find((c) => c.id === openId) ?? null;
-  const waiting = convs.filter((c) => c.withinWindow && c.messages.length > 0 && !c.messages[c.messages.length - 1].fromUs).length;
+  const [tab, setTab] = useState<"all" | "orders" | "needs">("all");
+  const isOrder = (c: MConversation) => !!c.participantId && !!orderBuyers?.includes(c.participantId);
+  const isWaiting = (c: MConversation) => c.withinWindow && c.messages.length > 0 && !c.messages[c.messages.length - 1].fromUs;
+  const waiting = convs.filter(isWaiting).length;
+  const shown = tab === "orders" ? convs.filter(isOrder) : tab === "needs" ? convs.filter(isWaiting) : convs;
 
   if (open) {
     const last = [...open.messages].reverse().find((m) => !m.fromUs);
@@ -128,6 +135,15 @@ export function MessagesClient({
           {t.messages.unreadable(unreadable)}
         </p>
       )}
+      {orderBuyers && convs.length > 0 && (
+        <div className="gm-chips" role="group" aria-label={t.messages.title} style={{ marginBottom: 14 }}>
+          {(["all", "orders", "needs"] as const).map((k) => (
+            <button key={k} type="button" className="gm-chip" aria-pressed={tab === k} onClick={() => setTab(k)}>
+              {t.messages.tabs[k]} ({num(k === "orders" ? convs.filter(isOrder).length : k === "needs" ? waiting : convs.length)})
+            </button>
+          ))}
+        </div>
+      )}
       {convs.length === 0 ? (
         <div className="gm-empty">
           <b className="kufi">{t.messages.emptyTitle}</b>
@@ -135,7 +151,7 @@ export function MessagesClient({
         </div>
       ) : (
         <div className="gm-stack">
-          {convs.map((c) => {
+          {shown.map((c) => {
             const last = c.messages[c.messages.length - 1];
             const needsYou = c.withinWindow && !!last && !last.fromUs;
             return (
@@ -149,6 +165,7 @@ export function MessagesClient({
                 </p>
                 <div className="gm-row" style={{ gap: 6 }}>
                   <span className={`gm-plat ${c.platform}`}>{t.platform[c.platform]}</span>
+                  {isOrder(c) && <span className="gm-badge">{t.messages.orderBadge}</span>}
                   {needsYou && <span className="gm-badge warn">{t.messages.needsYou}</span>}
                   {!c.withinWindow && <span className="gm-badge ghost">{t.messages.outsideWindow}</span>}
                 </div>

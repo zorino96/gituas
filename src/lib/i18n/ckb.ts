@@ -199,6 +199,8 @@ export const ckb = {
     youPrefix: "تۆ: ",
     needsYou: "چاوەڕێی تۆیە",
     outsideWindow: "دەرەوەی ٢٤ کاتژمێر",
+    tabs: { all: "هەموو", orders: "داواکارییەکان", needs: "چاوەڕێی تۆن" },
+    orderBadge: "داواکاری",
   },
 
   publish: {

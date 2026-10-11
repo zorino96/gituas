@@ -4,7 +4,7 @@ import { SHOP_ORIGIN } from "@/lib/hosts";
 import { openOrder } from "@/lib/orders/auto";
 import { classifyText } from "./classify";
 import { cityIn } from "@/lib/orders/cities";
-import { extractDetails, hasDetails, isYes, nextStep, type CollectOrder, type Details } from "@/lib/orders/collect";
+import { extractDetails, followupText, hasDetails, isYes, nextStep, type CollectOrder, type Details } from "@/lib/orders/collect";
 import { normalizePhone } from "@/lib/merchant/phone";
 import { answerText, COPY, DEFAULT_SAMPLES, dmText, fbCardElements, feeFor, waText, type CardProduct } from "./compose";
 import { gate, gateDm } from "./gate";
@@ -19,6 +19,8 @@ import { aiVaryUsed, countAiVary } from "./quota";
 import { varySample } from "./vary";
 
 const DAY = 86_400_000;
+/** Before Meta's 24 h messaging window closes. */
+const FOLLOWUP_MS = 20 * 3_600_000;
 /** Meta allows a private reply only within 7 days of the comment. */
 const PRIVATE_REPLY_WINDOW = 7 * DAY;
 
@@ -278,8 +280,8 @@ async function planDm(msg: Msg): Promise<string[]> {
   const whatsapp = platform === "WHATSAPP";
   const text = (whatsapp ? typedText(msg.content ?? "") : (msg.content ?? "")).trim();
 
-  // A buyer in the middle of giving their order details: this message is the next answer.
-  const collecting = text ? await collectingOrder(store.id, senderId, now) : null;
+  // A buyer in the middle of giving their order details (or whose order comment we answered privately): this message is the next answer.
+  const collecting = text ? ((await collectingOrder(store.id, senderId, now)) ?? (whatsapp ? null : await commentOrder(store.id, senderId, now))) : null;
   if (collecting) {
     const cp = await loadProduct(collecting.productId);
     const inStock = inStockOf(cp);
@@ -325,6 +327,12 @@ async function planDm(msg: Msg): Promise<string[]> {
   const specs = buildDmJobs({ actions: decision.actions, recipientId: senderId, photos: product?.photos ?? [], answerText: answer });
   const flag = decision.flag ?? (ans && !answer ? "needs_you" : null);
   const ids = await createJobs(store.id, msg.id, specs, product?.id ?? null);
+  // Answered a question but no order yet: one nudge in 20 h, cancelled if the buyer writes or orders first.
+  if (answer && product && c?.type === "QUESTION" && !(await db.order.count({ where: { storeId: store.id, buyerKey: senderId, status: { in: ["NEW", "CONFIRMED"] } } }))) {
+    await db.outboxJob.create({
+      data: { storeId: store.id, messageId: msg.id, kind: "DM_FOLLOWUP", payload: { recipientId: senderId, message: { text: followupText(product.name, c.language) } }, recipientId: senderId, nextAttemptAt: new Date(now.getTime() + FOLLOWUP_MS) },
+    }).catch((e: { code?: string }) => { if (e.code !== "P2002") throw e; });
+  }
   await finish(msg.id, specs.length ? "AUTO_REPLIED" : "FLAGGED", flag, {
     commentType: c?.type ?? null, intent: c?.intent ?? null, language: c?.language ?? null, confidence: c?.confidence ?? null, boundProductId: product?.id ?? null,
   });
@@ -346,6 +354,24 @@ function collectingOrder(storeId: string, buyerKey: string, now: Date): Promise<
     orderBy: { updatedAt: "desc" },
     select: COLLECT_SELECT,
   });
+}
+
+/**
+ * An order opened from this buyer's comment that we answered with a private reply in the last
+ * day: its details are collected in the chat. The comment author id differs from the chat id,
+ * so the order moves to the chat's buyer key.
+ */
+async function commentOrder(storeId: string, senderId: string, now: Date): Promise<CollectRow | null> {
+  const priv = await db.outboxJob.findFirst({
+    where: { storeId, kind: "PRIVATE_REPLY", status: "SENT", recipientId: senderId, updatedAt: { gt: new Date(now.getTime() - DAY) } },
+    orderBy: { updatedAt: "desc" },
+    select: { messageId: true },
+  });
+  if (!priv) return null;
+  const o = await db.order.findFirst({ where: { storeId, sourceMessageId: priv.messageId, status: "NEW", collect: null }, select: COLLECT_SELECT });
+  if (!o) return null;
+  await db.order.update({ where: { id: o.id }, data: { buyerKey: senderId } });
+  return o;
 }
 
 /** The language this buyer last wrote in. */

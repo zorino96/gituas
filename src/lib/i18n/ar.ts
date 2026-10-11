@@ -195,6 +195,8 @@ export const ar: Dict = {
     youPrefix: "أنت: ",
     needsYou: "بانتظارك",
     outsideWindow: "خارج مهلة ٢٤ ساعة",
+    tabs: { all: "الكل", orders: "الطلبات", needs: "بانتظارك" },
+    orderBadge: "طلب",
   },
 
   publish: {

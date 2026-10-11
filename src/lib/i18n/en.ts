@@ -192,6 +192,8 @@ export const en: Dict = {
     youPrefix: "You: ",
     needsYou: "Waiting for you",
     outsideWindow: "Outside the 24-hour window",
+    tabs: { all: "All", orders: "Orders", needs: "Waiting for you" },
+    orderBadge: "Order",
   },
 
   publish: {
