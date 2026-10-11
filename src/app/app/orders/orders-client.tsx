@@ -191,11 +191,10 @@ function OrderEditor({ order, products, onDone }: { order: OrderView | null; pro
 /** Below this many orders the profile is too thin to trust for targeting. */
 const MIN_AUDIENCE_ORDERS = 5;
 
-function AudienceCard({ a }: { a: BuyerProfile }) {
+/** The audience as labelled rows and as the text copied for Ads Manager. */
+export function useAudienceText(a: BuyerProfile): { rows: [string, string][]; text: string } {
   const lang = useLang();
   const au = useT().orders.audience;
-  const [copied, setCopied] = useState(false);
-  if (a.orders === 0 && a.messages === 0) return null;
   const cities = a.cities.map((c) => cityLabel(c, lang)).join("، ");
   const hours = a.hours.map((h) => `${String(h).padStart(2, "0")}:00`).join("، ");
   const langs = a.languages.map((l) => au.lang[l as keyof typeof au.lang] ?? l).join("، ");
@@ -205,7 +204,14 @@ function AudienceCard({ a }: { a: BuyerProfile }) {
     [au.language, langs],
     [au.products, a.products.join("، ")],
   ].filter((r): r is [string, string] => !!r[1]);
-  const text = rows.map(([k, v]) => `${k}: ${v}`).join("\n");
+  return { rows, text: rows.map(([k, v]) => `${k}: ${v}`).join("\n") };
+}
+
+function AudienceCard({ a }: { a: BuyerProfile }) {
+  const au = useT().orders.audience;
+  const [copied, setCopied] = useState(false);
+  const { rows, text } = useAudienceText(a);
+  if (a.orders === 0 && a.messages === 0) return null;
   return (
     <div className="gm-card" style={{ marginBottom: 12 }}>
       <p className="gm-sec" style={{ margin: 0 }}>{au.title}</p>

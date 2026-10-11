@@ -606,6 +606,17 @@ export const en: Dict = {
     noCard: "No product card",
     templateAria: "Template",
     defaultTemplate: "Default",
+
+    // shop autopilot
+    autoSec: "Post autopilot",
+    autoModes: { OFF: "Off", DRAFT: "Prepare only", PUBLISH: "Post automatically (FB + IG)" },
+    autoHint: "Each day it picks a product with a photo and stock (best sellers first, each product at most once in 7 days), writes a caption and adds the price from the product card. It posts at the hours your buyers message most.",
+    autoPaidOnly: "Posting automatically is on the Merchant and Pro plans; on the free plan the post is only prepared.",
+    autoPerDay: "Posts per day",
+    autoLast: "Last prepared post",
+    autoOpen: "Open in Publish (TikTok / YouTube in one tap)",
+    boost: "Boost",
+    boostHint: "The targeting (cities, hours, language) is copied and the post opens; press Boost there and paste.",
   },
 
   products: {
@@ -797,6 +808,7 @@ export const en: Dict = {
       needPrice: "At least one price is required.",
       badRowPrice: (row: number) => `The price in row ${num(row)} isn't valid.`,
       rowLabel: (row: number) => `Enter the variant name for row ${num(row)} (size or color).`,
+      badAutoMode: "The autopilot setting isn't valid.",
     },
     orders: {
       customerName: "Enter the customer's name.",

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
 import { runJob } from "@/lib/shop/outbox";
+import { runShopAutopilot } from "@/lib/shop/autopilot";
 import { processMessage } from "@/lib/shop/pipeline";
 
 export const runtime = "nodejs";
@@ -36,5 +37,10 @@ export async function GET(req: Request) {
   });
   for (const m of stuck) await processMessage(m.id).catch((e) => console.error("[shop-outbox] message failed:", e instanceof Error ? e.message : "unknown error"));
 
-  return NextResponse.json({ jobs: due.length, messages: stuck.length });
+  const autopilot = await runShopAutopilot(now).catch((e) => {
+    console.error("[shop-outbox] autopilot failed:", e instanceof Error ? e.message : "unknown error");
+    return { failed: 1 };
+  });
+
+  return NextResponse.json({ jobs: due.length, messages: stuck.length, autopilot });
 }

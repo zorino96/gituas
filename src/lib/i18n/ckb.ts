@@ -627,6 +627,17 @@ export const ckb = {
     noCard: "بێ کارتی بەرهەم",
     templateAria: "تێمپلەیت",
     defaultTemplate: "بنەڕەت",
+
+    // shop autopilot
+    autoSec: "Autopilot ـی پۆست",
+    autoModes: { OFF: "کوژاوە", DRAFT: "تەنها ئامادەکردن", PUBLISH: "بڵاوکردنەوەی خۆکار (FB + IG)" },
+    autoHint: "ڕۆژانە بەرهەمێک هەڵدەبژێرێت کە وێنە و کۆگای هەیە (زۆرترین داواکراو پێشتر، هەر بەرهەمێک جارێک لە ٧ ڕۆژدا)، کەپشن دەنووسێت و نرخ لە کارتی بەرهەمەکەوە دادەنێت. لە کاتی زۆرترین نامەی کڕیارانت بڵاو دەکاتەوە.",
+    autoPaidOnly: "بڵاوکردنەوەی خۆکار بۆ پلانی Merchant و Pro ـە؛ لە پلانی بەخۆڕایی تەنها ئامادە دەکرێت.",
+    autoPerDay: "پۆست لە ڕۆژێکدا",
+    autoLast: "دوایین پۆستی ئامادەکراو",
+    autoOpen: "کردنەوە لە بڵاوکردنەوە (TikTok / YouTube بە یەک کلیک)",
+    boost: "بۆست",
+    boostHint: "ئامانجەکان (شار، کات، زمان) کۆپی دەبن و پۆستەکە دەکرێتەوە؛ لەوێ Boost لێ بدە و Paste بکە.",
   },
 
   products: {
@@ -821,6 +832,7 @@ export const ckb = {
       needPrice: "لانیکەم یەک نرخ پێویستە.",
       badRowPrice: (row: number) => `نرخی ڕیزی ${row} دروست نییە.`,
       rowLabel: (row: number) => `ناوی جۆری ڕیزی ${row} بنووسە (قیاس یان ڕەنگ).`,
+      badAutoMode: "ڕێکخستنی Autopilot دروست نییە.",
     },
     orders: {
       customerName: "ناوی کڕیار بنووسە.",

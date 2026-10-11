@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
+import { loadBuyerProfile } from "@/lib/orders/audience";
+import type { AutoDraft } from "@/lib/shop/autopilot";
 import { cityFees } from "@/lib/shop/compose";
 import { loadShopState } from "@/lib/shop/state";
 import { currentWorkspace, loadConnections, loadPosts } from "../data";
@@ -54,7 +56,9 @@ export default async function AutomationPage({ searchParams }: { searchParams: P
       activeUntil: a.activeUntil.toISOString(),
     };
   }
-  const recent: PostView[] = posts.map((p) => ({ platform: p.platform, id: p.id, caption: p.caption, thumbUrl: p.thumbUrl ?? null, createdAt: iso(p.createdAt) }));
+  const recent: PostView[] = posts.map((p) => ({ platform: p.platform, id: p.id, caption: p.caption, thumbUrl: p.thumbUrl ?? null, permalink: p.permalink ?? null, createdAt: iso(p.createdAt) }));
+  const audience = await loadBuyerProfile(ws.id);
+  const draft = store.autoDraft as AutoDraft | null;
 
   return (
     <AutomationClient
@@ -69,6 +73,8 @@ export default async function AutomationPage({ searchParams }: { searchParams: P
         deliveryFee: store.deliveryFeeMinor == null ? "" : String(store.deliveryFeeMinor),
         deliveryTime: store.deliveryTime ?? "",
         cityFees: Object.fromEntries(Object.entries(cityFees(store)).map(([k, v]) => [k, String(v)])),
+        autoMode: store.autoMode,
+        autoPerDay: store.autoPerDay,
         defaultDm: store.defaultDm ?? "",
         defaultTemplateId: store.defaultTemplateId,
         pausedReason: store.pausedReason,
@@ -88,6 +94,8 @@ export default async function AutomationPage({ searchParams }: { searchParams: P
       posts={recent}
       postErrors={errors}
       usage={state.usage}
+      audience={audience}
+      lastDraft={draft?.media?.url ? { caption: draft.caption, thumb: draft.media.url, at: draft.at } : null}
     />
   );
 }

@@ -19,6 +19,8 @@ export interface StoreSettings {
   defaultDm: string;
   /** City code → fee as typed; a city left empty pays deliveryFee. */
   cityFees: Record<string, string>;
+  autoMode: string;
+  autoPerDay: number;
 }
 
 export interface StoreView extends StoreSettings {
@@ -49,6 +51,7 @@ export interface PostView {
   id: string;
   caption: string;
   thumbUrl: string | null;
+  permalink: string | null;
   createdAt: string | null;
 }
 

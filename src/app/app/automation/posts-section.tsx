@@ -3,7 +3,9 @@
 import { useState } from "react";
 
 import { useT } from "@/lib/i18n/client";
+import type { BuyerProfile } from "@/lib/orders/stats";
 import { friendlyError } from "../format";
+import { useAudienceText } from "../orders/orders-client";
 import { setPostAutomationAction } from "./actions";
 import { Knob, SaveMessage, useSaver, type PostAutoView, type PostView, type TemplateView } from "./shared";
 
@@ -18,6 +20,7 @@ function PostRow({
   expiryDays,
   products,
   templates,
+  boostText,
 }: {
   storeId: string;
   post: PostView;
@@ -25,6 +28,7 @@ function PostRow({
   expiryDays: number;
   products: { id: string; name: string }[];
   templates: TemplateView[];
+  boostText: string;
 }) {
   const t = useT();
   const a = t.automation;
@@ -89,6 +93,23 @@ function PostRow({
           ))}
         </select>
       </div>
+      {post.permalink && (
+        <div className="gm-row" style={{ gap: 8, marginTop: 8, alignItems: "center" }}>
+          <button
+            type="button"
+            className="gm-btn small"
+            title={a.boostHint}
+            // Meta has no public link straight to a post's boost dialog; the post itself carries the Boost button.
+            onClick={() => {
+              void navigator.clipboard.writeText(boostText).catch(() => undefined);
+              window.open(post.permalink!, "_blank", "noopener");
+            }}
+          >
+            {a.boost}
+          </button>
+          <small className="gm-hint">{a.boostHint}</small>
+        </div>
+      )}
       <SaveMessage message={message} />
     </section>
   );
@@ -103,6 +124,7 @@ export function PostsSection({
   expiryDays,
   products,
   templates,
+  audience,
 }: {
   storeId: string;
   posts: PostView[];
@@ -111,8 +133,10 @@ export function PostsSection({
   expiryDays: number;
   products: { id: string; name: string }[];
   templates: TemplateView[];
+  audience: BuyerProfile;
 }) {
   const t = useT();
+  const { text: boostText } = useAudienceText(audience);
   return (
     <>
       <p className="gm-sec">{t.automation.postsSec}</p>
@@ -136,6 +160,7 @@ export function PostsSection({
               expiryDays={expiryDays}
               products={products}
               templates={templates}
+              boostText={boostText}
             />
           ))}
         </div>

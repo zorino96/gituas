@@ -8,7 +8,8 @@ import { useT } from "@/lib/i18n/client";
 
 import { saveStoreSettingsAction } from "./actions";
 import { PostsSection } from "./posts-section";
-import { CommentsSection, DeliverySection } from "./settings-sections";
+import type { BuyerProfile } from "@/lib/orders/stats";
+import { AutopilotSection, CommentsSection, DeliverySection } from "./settings-sections";
 import { SaveMessage, SwitchRow, useSaver, type PostAutoView, type PostView, type StoreSettings, type StoreView, type TemplateView, type Usage } from "./shared";
 import { TemplatesSection } from "./templates-section";
 
@@ -22,6 +23,8 @@ export interface AutomationProps {
   posts: PostView[];
   postErrors: { platform: "FB" | "IG"; message: string }[];
   usage: Usage;
+  audience: BuyerProfile;
+  lastDraft: { caption: string; thumb: string; at: string } | null;
 }
 
 function Check({ done, label, hint, action }: { done: boolean; label: string; hint?: string; action?: React.ReactNode }) {
@@ -38,7 +41,7 @@ function Check({ done, label, hint, action }: { done: boolean; label: string; hi
   );
 }
 
-export function AutomationClient({ store, stores, templates, products, postAutomations, posts, postErrors, usage }: AutomationProps) {
+export function AutomationClient({ store, stores, templates, products, postAutomations, posts, postErrors, usage, audience, lastDraft }: AutomationProps) {
   const router = useRouter();
   const t = useT();
   const a = t.automation;
@@ -54,6 +57,8 @@ export function AutomationClient({ store, stores, templates, products, postAutom
     deliveryTime: store.deliveryTime,
     defaultDm: store.defaultDm,
     cityFees: store.cityFees,
+    autoMode: store.autoMode,
+    autoPerDay: store.autoPerDay,
   }));
 
   async function save(patch: Partial<StoreSettings>) {
@@ -142,6 +147,9 @@ export function AutomationClient({ store, stores, templates, products, postAutom
         </div>
       </div>
 
+      <div className="gm-section">
+        <AutopilotSection settings={settings} save={save} paid={usage.plan === "MERCHANT" || usage.plan === "PRO"} lastDraft={lastDraft} />
+      </div>
       <TemplatesSection storeId={store.id} templates={templates} defaultTemplateId={store.defaultTemplateId} />
       <div className="gm-cols-2">
         <div className="gm-section">
@@ -159,6 +167,7 @@ export function AutomationClient({ store, stores, templates, products, postAutom
         expiryDays={settings.expiryDays}
         products={products}
         templates={templates}
+        audience={audience}
       />
     </div>
   );

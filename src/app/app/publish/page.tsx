@@ -1,6 +1,9 @@
 import Link from "next/link";
 
+import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { isOwnPathname } from "@/lib/merchant/caption";
+import type { AutoDraft } from "@/lib/shop/autopilot";
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
 import { baseFor, currentWorkspace, loadAccountLists, loadConnections } from "../data";
@@ -10,7 +13,7 @@ import { listScheduled } from "./schedule-actions";
 // Instagram video containers are polled for up to ~45 s before publishing.
 export const maxDuration = 60;
 
-export default async function PublishPage({ searchParams }: { searchParams: Promise<{ draft?: string; video?: string; to?: string; studio?: string }> }) {
+export default async function PublishPage({ searchParams }: { searchParams: Promise<{ draft?: string; video?: string; to?: string; studio?: string; auto?: string }> }) {
   const t = dict(await getLang());
   const ws = (await currentWorkspace())!;
   if (!can(ws.role, "publish")) {
@@ -20,7 +23,7 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
       </p>
     );
   }
-  const { draft: draftId, video: videoId, to, studio: studioId } = await searchParams;
+  const { draft: draftId, video: videoId, to, studio: studioId, auto } = await searchParams;
   // "?to=TT" or "?to=YT": open with only that platform on (the videos list's one-click links).
   const targets = (typeof to === "string" ? to.split(",") : []).filter((x): x is "TT" | "YT" | "FB" | "IG" => ["TT", "YT", "FB", "IG"].includes(x));
   const [lists, conns, draft, products, scheduled, video, studio] = await Promise.all([
@@ -38,6 +41,18 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
       ? db.studioAsset.findFirst({ where: { id: studioId, tenantId: ws.id, status: "DONE", finalUrl: { not: null } }, select: { finalUrl: true, finalPath: true, headline: true, productId: true } })
       : null,
   ]);
+  // The shop autopilot's last prepared post (src/lib/shop/autopilot.ts), for the one tap to TikTok / YouTube.
+  const autoDraft = auto && !draftId && !studio
+    ? ((await db.store.findFirst({ where: { tenantId: ws.id, autoDraft: { not: Prisma.DbNull } }, orderBy: { autoLastAt: "desc" }, select: { autoDraft: true } }))?.autoDraft as AutoDraft | undefined)
+    : undefined;
+  const fromAuto = autoDraft?.media && isOwnPathname(autoDraft.media.pathname, ws.id)
+    ? {
+        caption: autoDraft.caption,
+        media: autoDraft.media,
+        ...(products.some((x) => x.id === autoDraft.productId) ? { productId: autoDraft.productId } : {}),
+        ...(targets.length ? { targets } : {}),
+      }
+    : undefined;
   const hasCard = !!(draft?.cardUrl && draft?.cardPath);
   const hasVideo = !!(video?.videoUrl && video.videoPath);
   const fromStudio = studio?.finalUrl && studio.finalPath
@@ -69,7 +84,7 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
       <PublishClient
         workspaceId={ws.id}
         products={products}
-        initial={initial ?? fromStudio}
+        initial={initial ?? fromStudio ?? fromAuto}
         scheduled={scheduled}
         accounts={{
           FB: conns.META_FACEBOOK.connected ? (conns.META_FACEBOOK.name ?? t.publish.fbPage) : null,

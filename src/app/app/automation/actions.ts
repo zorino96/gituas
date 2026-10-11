@@ -10,6 +10,7 @@ import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
 import { cleanSamples, parsePrice, toWesternDigits } from "@/lib/shop/forms";
 import { accountFor, fetchPostCreatedAt } from "@/lib/shop/meta-client";
+import { AUTO_PER_DAY, isShopAutoMode } from "@/lib/shop/autopilot-plan";
 import { currentWorkspace } from "@/app/app/data";
 
 export type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
@@ -36,11 +37,20 @@ const done = (id?: string): ActionResult => {
 /** Saves only the settings that are present: each screen section sends its own fields, so two quick saves cannot undo each other. */
 export async function saveStoreSettingsAction(
   storeId: string,
-  input: Partial<{ automationEnabled: boolean; expiryDays: number; stopBefore: string; likeComments: boolean; autoHideSpam: boolean; deliveryFee: string; deliveryTime: string; defaultDm: string; cityFees: Record<string, string> }>,
+  input: Partial<{ automationEnabled: boolean; expiryDays: number; stopBefore: string; likeComments: boolean; autoHideSpam: boolean; deliveryFee: string; deliveryTime: string; defaultDm: string; cityFees: Record<string, string>; autoMode: string; autoPerDay: number }>,
 ): Promise<ActionResult> {
   const r = await ownedStore(storeId);
   if (r.error !== undefined) return { ok: false, error: r.error };
   const data: Prisma.StoreUpdateInput = {};
+  if (input.autoMode !== undefined) {
+    if (!isShopAutoMode(input.autoMode)) return { ok: false, error: r.m.badAutoMode };
+    data.autoMode = input.autoMode;
+  }
+  if (input.autoPerDay !== undefined) {
+    const n = Number(input.autoPerDay);
+    if (!Number.isInteger(n) || n < AUTO_PER_DAY.min || n > AUTO_PER_DAY.max) return { ok: false, error: r.m.badAutoMode };
+    data.autoPerDay = n;
+  }
   if (input.automationEnabled !== undefined) data.automationEnabled = !!input.automationEnabled;
   if (input.likeComments !== undefined) data.likeComments = !!input.likeComments;
   if (input.autoHideSpam !== undefined) data.autoHideSpam = !!input.autoHideSpam;

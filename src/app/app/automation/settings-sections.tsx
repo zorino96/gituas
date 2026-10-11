@@ -66,6 +66,52 @@ export function DeliverySection({ settings, save }: { settings: StoreSettings; s
   );
 }
 
+/** Section "Autopilot": off / prepare only / post to FB+IG, posts per day, and the last prepared post. */
+export function AutopilotSection({ settings, save, paid, lastDraft }: { settings: StoreSettings; save: Save; paid: boolean; lastDraft: { caption: string; thumb: string; at: string } | null }) {
+  const uid = useId();
+  const a = useT().automation;
+  const { pending, message, run } = useSaver();
+  const [mode, setMode] = useState(settings.autoMode);
+  const [perDay, setPerDay] = useState(settings.autoPerDay);
+  return (
+    <>
+      <p className="gm-sec">{a.autoSec}</p>
+      <div className="gm-card">
+        <p className="gm-hint">{a.autoHint}</p>
+        <div className="gm-chips" role="radiogroup" aria-label={a.autoSec}>
+          {(["OFF", "DRAFT", "PUBLISH"] as const).map((m) => (
+            <button key={m} type="button" role="radio" className="gm-chip" aria-checked={mode === m} aria-pressed={mode === m} disabled={pending} onClick={() => setMode(m)}>
+              {a.autoModes[m]}
+            </button>
+          ))}
+        </div>
+        {mode === "PUBLISH" && !paid && <p className="gm-note warn">{a.autoPaidOnly}</p>}
+        <div className="gm-field" style={{ marginTop: 10 }}>
+          <label htmlFor={`${uid}-n`}>{a.autoPerDay}</label>
+          <select id={`${uid}-n`} className="gm-input" value={perDay} disabled={pending} onChange={(e) => setPerDay(Number(e.target.value))}>
+            {[1, 2, 3].map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+        <button type="button" className="gm-btn" style={{ marginTop: 10 }} disabled={pending} onClick={() => run(() => save({ autoMode: mode, autoPerDay: perDay }))}>
+          {a.save}
+        </button>
+        <SaveMessage message={message} />
+        {lastDraft && (
+          <div className="gm-post" style={{ marginTop: 12 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={lastDraft.thumb} alt="" className="gm-thumb" loading="lazy" />
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <small className="gm-time">{a.autoLast} · <span className="gm-ltr">{lastDraft.at.slice(0, 10)}</span></small>
+              <p style={{ whiteSpace: "pre-line" }}>{Array.from(lastDraft.caption).slice(0, 140).join("")}</p>
+              <a href="/app/publish?auto=1" className="gm-link">{a.autoOpen}</a>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 /** Section "کۆمێنت". */
 export function CommentsSection({ settings, save }: { settings: StoreSettings; save: Save }) {
   const uid = useId();

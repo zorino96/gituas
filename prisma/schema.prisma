@@ -1067,6 +1067,12 @@ model Store {
   waDisplayPhone    String?
   /// The number's two-step PIN set at registration, vault-encrypted.
   waPinEncrypted    String?
+  /// Shop autopilot: "OFF" | "DRAFT" (prepare a post daily) | "PUBLISH" (post it to FB+IG; MERCHANT and PRO only).
+  autoMode          String               @default("OFF")
+  autoPerDay        Int                  @default(1)
+  autoLastAt        DateTime?
+  /// The last post the autopilot prepared ({ productId, caption, media, at }); opened in Publish for one-tap TikTok/YouTube.
+  autoDraft         Json?
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
   tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -1088,6 +1094,8 @@ model Product {
   description String?
   photos      String[]
   active      Boolean          @default(true)
+  /// When the shop autopilot last posted it; it waits 7 days before posting it again.
+  autoPostedAt DateTime?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   store       Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)

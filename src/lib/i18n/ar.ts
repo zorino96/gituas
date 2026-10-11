@@ -599,6 +599,17 @@ export const ar: Dict = {
     noCard: "بدون بطاقة منتج",
     templateAria: "القالب",
     defaultTemplate: "الأساسي",
+
+    // shop autopilot
+    autoSec: "النشر التلقائي",
+    autoModes: { OFF: "متوقف", DRAFT: "التحضير فقط", PUBLISH: "نشر تلقائي (FB + IG)" },
+    autoHint: "يختار يومياً منتجاً له صورة ومتوفر (الأكثر طلباً أولاً، وكل منتج مرة واحدة كل ٧ أيام)، ويكتب الوصف ويضيف السعر من بطاقة المنتج. ينشر في الأوقات التي يراسلك فيها الزبائن أكثر.",
+    autoPaidOnly: "النشر التلقائي متاح في باقتي Merchant وPro؛ في الباقة المجانية يُحضَّر المنشور فقط.",
+    autoPerDay: "منشورات يومياً",
+    autoLast: "آخر منشور محضَّر",
+    autoOpen: "افتحه في النشر (TikTok / YouTube بنقرة واحدة)",
+    boost: "تمويل",
+    boostHint: "يُنسخ الاستهداف (المحافظات، الأوقات، اللغة) ويُفتح المنشور؛ اضغط Boost هناك والصق.",
   },
 
   products: {
@@ -788,6 +799,7 @@ export const ar: Dict = {
       needPrice: "يلزم سعر واحد على الأقل.",
       badRowPrice: (row: number) => `سعر السطر ${num(row)} غير صالح.`,
       rowLabel: (row: number) => `اكتب اسم النوع في السطر ${num(row)} (المقاس أو اللون).`,
+      badAutoMode: "إعداد النشر التلقائي غير صالح.",
     },
     orders: {
       customerName: "اكتب اسم الزبون.",
