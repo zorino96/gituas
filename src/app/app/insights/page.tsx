@@ -1,6 +1,8 @@
 import Link from "next/link";
 
+import { db } from "@/lib/db";
 import { withAccounts } from "@/lib/oauth/account-scope";
+import { adLibraryUrl, marketSignals } from "@/lib/orders/market";
 import { AccountSwitcher } from "../account-switcher";
 import { accountChoiceFrom, baseFor, currentWorkspace, loadConnections, loadInsights, loadPosts, loadYouTube } from "../data";
 import { rankPosts } from "@/lib/merchant/state";
@@ -8,6 +10,24 @@ import { dict, getLang } from "@/lib/i18n";
 import { ago } from "../format";
 
 export const maxDuration = 60;
+
+/** The shop's own buyer signals for the market card, and its product names for the Ad Library links. */
+async function loadMarket(tenantId: string) {
+  const since = new Date(Date.now() - 60 * 86_400_000);
+  const [products, messages, orders] = await Promise.all([
+    db.product.findMany({ where: { active: true, store: { tenantId } }, select: { id: true, name: true }, orderBy: { updatedAt: "desc" }, take: 200 }),
+    db.conversationMessage.findMany({
+      where: { store: { tenantId }, direction: "INBOUND", createdAt: { gt: since }, commentType: { in: ["QUESTION", "ORDER", "NEGOTIATION"] } },
+      select: { boundProductId: true, commentType: true, intent: true },
+      take: 10000,
+    }),
+    db.order.findMany({ where: { tenantId, createdAt: { gt: since } }, select: { productId: true, status: true } }),
+  ]);
+  const names = Object.fromEntries(products.map((p) => [p.id, p.name]));
+  const signals = marketSignals(messages, orders, names);
+  // ponytail: Ad Library links use product names; a "category keywords" field would be sharper, add when merchants ask.
+  return { ...signals, names: products.slice(0, 6).map((p) => p.name) };
+}
 
 // The metric names the engage clients return, in the order the tiles appear in.
 // What a merchant calls them comes from the dictionary (t.insights.ig / t.insights.fb).
@@ -24,6 +44,8 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
     return { conns, insights, posts, youtube };
   });
   const top = rankPosts(posts, 5).filter((p) => p.commentCount > 0);
+  const market = ws.kind === "MERCHANT" ? await loadMarket(ws.id) : null;
+  const mk = t.insights.market;
   const pick = (list: { name: string; value: number }[], keys: string[], labels: Record<string, string>) =>
     keys.flatMap((k) => {
       const m = list.find((x) => x.name === k);
@@ -134,6 +156,60 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
           ))
         )}
       </div>
+
+      {market && (
+        <>
+          <p className="gm-sec">{mk.sec}</p>
+          <div className="gm-card">
+            {market.products.length === 0 ? (
+              <p className="gm-sub" style={{ margin: 0 }}>{mk.empty}</p>
+            ) : (
+              market.products.map((p) => (
+                <div key={p.productId} className="gm-target">
+                  <div>
+                    <p dir="auto">{p.name}</p>
+                    <small>
+                      {mk.asks} {t.fmt.num(p.asks)} · {mk.orders} {t.fmt.num(p.orders)} · {mk.haggles} {t.fmt.num(p.haggles)}
+                    </small>
+                  </div>
+                </div>
+              ))
+            )}
+            {market.advice.length > 0 && (
+              <>
+                <p className="gm-sec" style={{ marginTop: 12 }}>{mk.advice}</p>
+                <ul className="gm-hint" style={{ paddingInlineStart: 18 }}>
+                  {market.advice.map((a, i) => (
+                    <li key={i}>
+                      {a.kind === "lowConversion"
+                        ? mk.lowConversion(a.name, a.asks, a.orders)
+                        : a.kind === "priceHigh"
+                          ? mk.priceHigh(a.name, a.pct)
+                          : mk.topIntent(mk.intents[a.intent as keyof typeof mk.intents] ?? a.intent, a.pct)}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+
+          {market.names.length > 0 && (
+            <>
+              <p className="gm-sec">{mk.rivalsSec}</p>
+              <div className="gm-card">
+                <p className="gm-hint" style={{ marginTop: 0 }}>{mk.rivalsHint}</p>
+                <div className="gm-chips">
+                  {market.names.map((n) => (
+                    <a key={n} href={adLibraryUrl(n)} target="_blank" rel="noreferrer" className="gm-chip" dir="auto">
+                      {mk.rivalsOpen}: {n}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </>
+      )}
 
       {insights.notes.length > 0 && (
         <p className="gm-note" style={{ marginTop: 14 }}>
