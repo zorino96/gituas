@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
 import { loadBuyerProfile } from "@/lib/orders/audience";
-import { ordersByCity } from "@/lib/orders/stats";
+import { ordersByCity, weekReport } from "@/lib/orders/stats";
 import { currentWorkspace } from "../data";
 import { OrdersClient, type CityCard, type OrderView } from "./orders-client";
 
@@ -18,7 +18,7 @@ export default async function OrdersPage() {
 
   const [orders, forStats, products, audience] = await Promise.all([
     db.order.findMany({ where: { tenantId: ws.id }, orderBy: { createdAt: "desc" }, take: LIST_LIMIT }),
-    db.order.findMany({ where: { tenantId: ws.id }, select: { city: true, amountMinor: true, status: true, currency: true } }),
+    db.order.findMany({ where: { tenantId: ws.id }, select: { city: true, amountMinor: true, status: true, currency: true, createdAt: true, productName: true } }),
     db.product.findMany({ where: { active: true, store: { tenantId: ws.id } }, include: { variants: { orderBy: { position: "asc" } } }, orderBy: { name: "asc" } }),
     loadBuyerProfile(ws.id),
   ]);
@@ -51,6 +51,7 @@ export default async function OrdersPage() {
       orders={views}
       cityCards={cityCards}
       audience={audience}
+      week={weekReport(forStats, Date.now())}
       products={products.map((p) => ({
         id: p.id,
         name: p.name,

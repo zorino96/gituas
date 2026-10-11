@@ -52,6 +52,80 @@ export function buyerProfile(
   return { cities: top(cities, 5), hours: top(hours, 4).sort((a, b) => a - b), languages: top(langs, 2), products: top(products, 3), messages: messages.length, orders: real.length };
 }
 
+export interface WeekStats {
+  orders: number;
+  prevOrders: number;
+  /** Currency → minor units, this week. */
+  totals: Record<string, number>;
+  topProduct: string | null;
+  cancelled: number;
+}
+
+/** The last 7 days against the 7 before: the weekly sales report. */
+export function weekReport(orders: { createdAt: Date; amountMinor: number; currency: string; status: string; productName: string }[], now: number): WeekStats {
+  const WEEK = 7 * 86_400_000;
+  const r: WeekStats = { orders: 0, prevOrders: 0, totals: {}, topProduct: null, cancelled: 0 };
+  const products = new Map<string, number>();
+  for (const o of orders) {
+    const age = now - o.createdAt.getTime();
+    if (age < 0 || age >= 2 * WEEK) continue;
+    const lost = o.status === "CANCELLED" || o.status === "RETURNED";
+    if (age >= WEEK) {
+      if (!lost) r.prevOrders++;
+      continue;
+    }
+    if (lost) {
+      r.cancelled++;
+      continue;
+    }
+    r.orders++;
+    r.totals[o.currency] = (r.totals[o.currency] ?? 0) + o.amountMinor;
+    if (o.productName) bump(products, o.productName);
+  }
+  r.topProduct = top(products, 1)[0] ?? null;
+  return r;
+}
+
+export interface CourierOrder {
+  customerName: string;
+  phone: string | null;
+  city: string | null;
+  address: string | null;
+  productName: string;
+  variantLabel: string;
+  amountMinor: number;
+  deliveryFeeMinor: number | null;
+  currency: string;
+  cod: boolean;
+}
+
+/** Confirmed orders as one plain-text list per city, to paste to that city's courier. */
+export function courierSheets(orders: CourierOrder[], money: (minor: number, currency: string) => string, labels: { collect: string; paid: string }, lang: CityLang = "ckb"): { city: string; count: number; text: string }[] {
+  const by = new Map<string, CourierOrder[]>();
+  for (const o of orders) {
+    const k = cityLabel(o.city, lang) || (lang === "ar" ? UNKNOWN_CITY_AR : lang === "en" ? UNKNOWN_CITY_EN : UNKNOWN_CITY);
+    by.set(k, [...(by.get(k) ?? []), o]);
+  }
+  return [...by.entries()]
+    .sort((a, b) => b[1].length - a[1].length)
+    .map(([city, list]) => ({
+      city,
+      count: list.length,
+      text: [
+        city,
+        ...list.map((o, i) => {
+          const due = o.amountMinor + (o.deliveryFeeMinor ?? 0);
+          return [
+            `${i + 1}. ${o.customerName || "—"}${o.phone ? ` +${o.phone}` : ""}`,
+            o.address,
+            [o.productName, o.variantLabel].filter(Boolean).join(" — "),
+            o.cod ? `${labels.collect}: ${money(due, o.currency)}` : labels.paid,
+          ].filter(Boolean).join("\n");
+        }),
+      ].join("\n\n"),
+    }));
+}
+
 /**
  * Orders grouped by governorate for the "by city" card. Cancelled and returned
  * orders never happened as far as sales go, so they are left out. A missing or

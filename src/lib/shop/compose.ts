@@ -152,6 +152,13 @@ export function fbCardElements(p: CardProduct, s: CardStore, lang: Lang, waUrl: 
   return photos.map((url) => ({ title: truncate(p.name, 80), subtitle: sub, image_url: url, buttons }));
 }
 
+const ALSO_HAVE: Record<Lang, string> = { ckb: "ئەمەشمان هەیە", kmr: "ئەڤەژی مە هەیە", ar: "متوفر لدينا أيضاً", ku_latn: "Emeşman heye", en: "We also have" };
+
+/** When the asked product is sold out: one in-stock product from the same shop, priced from its card. */
+export function alternativeLine(p: CardProduct, lang: Lang): string {
+  return `${ALSO_HAVE[lang]}: ${waText(p, lang)}`;
+}
+
 /** Pre-filled WhatsApp text: the product and the price the buyer was quoted. */
 export function waText(p: CardProduct, lang: Lang): string {
   const v = p.variants.find((x) => x.inStock);

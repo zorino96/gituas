@@ -6,7 +6,7 @@ import { classifyText } from "./classify";
 import { cityIn } from "@/lib/orders/cities";
 import { extractDetails, followupText, hasDetails, isYes, nextStep, type CollectOrder, type Details } from "@/lib/orders/collect";
 import { normalizePhone } from "@/lib/merchant/phone";
-import { answerText, COPY, DEFAULT_SAMPLES, dmText, fbCardElements, feeFor, waText, type CardProduct } from "./compose";
+import { alternativeLine, answerText, COPY, DEFAULT_SAMPLES, dmText, fbCardElements, feeFor, waText, type CardProduct } from "./compose";
 import { gate, gateDm } from "./gate";
 import { buildCommentJobs, buildDmJobs, type JobSpec } from "./jobs";
 import { productNamedIn, typedText } from "@/lib/whatsapp/webhook";
@@ -78,6 +78,16 @@ async function loadProduct(id: string | null): Promise<(CardProduct & { id: stri
   const p = await db.product.findUnique({ where: { id }, include: { variants: { orderBy: { position: "asc" } } } });
   if (!p?.active) return null;
   return { id: p.id, name: p.name, photos: p.photos, variants: p.variants.map((v) => ({ label: v.label, amountMinor: v.amountMinor, currency: v.currency, inStock: v.inStock })) };
+}
+
+/** Another product of the store that is in stock, newest first: offered when the asked one is sold out. */
+async function alternativeProduct(storeId: string, notId: string): Promise<CardProduct | null> {
+  const p = await db.product.findFirst({
+    where: { storeId, active: true, id: { not: notId }, variants: { some: { inStock: true, amountMinor: { gt: 0 } } } },
+    orderBy: { updatedAt: "desc" },
+    include: { variants: { where: { inStock: true }, orderBy: { position: "asc" } } },
+  });
+  return p ? { name: p.name, photos: p.photos, variants: p.variants.map((v) => ({ label: v.label, amountMinor: v.amountMinor, currency: v.currency, inStock: v.inStock })) } : null;
 }
 
 function waUrl(tenant: Store["tenant"], text: string): string | null {
@@ -323,6 +333,10 @@ async function planDm(msg: Msg): Promise<string[]> {
     // Inside WhatsApp a "message us on WhatsApp" link points back at the same chat.
     const wa = ans.whatsapp && !whatsapp ? waUrl(store.tenant, waText(product, c.language)) : null;
     answer = answerText(ans.intent, product, store, c.language, wa, city);
+  }
+  if (answer && product && c && product.variants.length && !inStockOf(product).length) {
+    const alt = await alternativeProduct(store.id, product.id);
+    if (alt) answer = `${answer}\n\n${alternativeLine(alt, c.language)}`;
   }
   const specs = buildDmJobs({ actions: decision.actions, recipientId: senderId, photos: product?.photos ?? [], answerText: answer });
   const flag = decision.flag ?? (ans && !answer ? "needs_you" : null);

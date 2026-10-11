@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 
 import { useLang, useT } from "@/lib/i18n/client";
 import { CITIES, cityLabel } from "@/lib/orders/cities";
-import type { BuyerProfile, CityRow } from "@/lib/orders/stats";
+import { courierSheets, type BuyerProfile, type CityRow, type WeekStats } from "@/lib/orders/stats";
 import { formatMoney } from "@/lib/shop/money";
 import { SaveMessage, useSaver } from "../automation/shared";
 import { priceText } from "../products/products-client";
@@ -232,7 +232,59 @@ function AudienceCard({ a }: { a: BuyerProfile }) {
   );
 }
 
-export function OrdersClient({ orders, cityCards, products, audience }: { orders: OrderView[]; cityCards: CityCard[]; products: OrderProduct[]; audience: BuyerProfile }) {
+function WeekCard({ w }: { w: WeekStats }) {
+  const lang = useLang();
+  const wk = useT().orders.week;
+  const [copied, setCopied] = useState(false);
+  if (w.orders === 0 && w.prevOrders === 0 && w.cancelled === 0) return null;
+  const totals = Object.entries(w.totals).map(([c, m]) => formatMoney(m, c, lang)).join(" + ");
+  const rows: [string, string][] = [
+    [wk.orders, wk.vs(w.orders, w.prevOrders)],
+    ...(totals ? [[wk.total, totals] as [string, string]] : []),
+    ...(w.topProduct ? [[wk.top, w.topProduct] as [string, string]] : []),
+    ...(w.cancelled ? [[wk.cancelled, String(w.cancelled)] as [string, string]] : []),
+  ];
+  const text = [wk.title, ...rows.map(([k, v]) => `${k}: ${v}`)].join("\n");
+  return (
+    <div className="gm-card" style={{ marginBottom: 12 }}>
+      <p className="gm-sec" style={{ margin: 0 }}>{wk.title}</p>
+      {rows.map(([k, v]) => (
+        <div key={k} className="gm-target">
+          <div><small>{k}</small><p>{v}</p></div>
+        </div>
+      ))}
+      <button type="button" className="gm-btn quiet small" onClick={() => navigator.clipboard.writeText(text).then(() => setCopied(true))}>
+        {copied ? wk.copied : wk.copy}
+      </button>
+    </div>
+  );
+}
+
+/** Confirmed orders grouped per city: one copyable list per courier. */
+function CourierCard({ orders }: { orders: OrderView[] }) {
+  const lang = useLang();
+  const cr = useT().orders.courier;
+  const [copied, setCopied] = useState<string | null>(null);
+  const ready = orders.filter((o) => o.status === "CONFIRMED");
+  if (!ready.length) return null;
+  const sheets = courierSheets(ready, (m, c) => formatMoney(m, c, lang), { collect: cr.collect, paid: cr.paid }, lang);
+  return (
+    <div className="gm-card" style={{ marginBottom: 12 }}>
+      <p className="gm-sec" style={{ margin: 0 }}>{cr.title}</p>
+      <p className="gm-hint">{cr.hint}</p>
+      {sheets.map((s) => (
+        <div key={s.city} className="gm-target">
+          <div><p>{s.city}</p><small>{cr.count(s.count)}</small></div>
+          <button type="button" className="gm-btn quiet small" onClick={() => navigator.clipboard.writeText(s.text).then(() => setCopied(s.city))}>
+            {copied === s.city ? cr.copied : cr.copy}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function OrdersClient({ orders, cityCards, products, audience, week }: { orders: OrderView[]; cityCards: CityCard[]; products: OrderProduct[]; audience: BuyerProfile; week: WeekStats }) {
   const lang = useLang();
   const od = useT().orders;
   const statusLabel: Record<string, string> = od.status;
@@ -275,6 +327,8 @@ export function OrdersClient({ orders, cityCards, products, audience }: { orders
 
       <SaveMessage message={message} />
 
+      <WeekCard w={week} />
+      <CourierCard orders={orders} />
       <AudienceCard a={audience} />
 
       <div className={cityCards.length > 0 ? "gm-split" : undefined}>
