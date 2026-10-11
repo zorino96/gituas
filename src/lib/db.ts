@@ -36,7 +36,9 @@ function makeClient() {
   const adapter = new PrismaPg(
     ssl && connectionString ? { connectionString: withoutSslMode(connectionString), ssl } : { connectionString },
   );
-  return new PrismaClient({ adapter });
+  // Prisma's defaults (2 s to get a connection, 5 s per transaction) are too short for a cold
+  // function reaching the Supabase pooler: a new account's first claim failed and showed "not ready".
+  return new PrismaClient({ adapter, transactionOptions: { maxWait: 10_000, timeout: 20_000 } });
 }
 
 export const db = globalThis.__prisma ?? makeClient();

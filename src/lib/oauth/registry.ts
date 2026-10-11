@@ -117,7 +117,8 @@ export const PROVIDERS: ProviderConfig[] = [
       "pages_manage_engagement",
       "pages_manage_metadata",
       "pages_messaging",
-      "read_insights",
+      // read_insights is left out: it never passed App Review, and requesting it shows every
+      // non-admin "Feature unavailable". Page metrics are decoration; followers come from the Page node.
     ],
     authorizationUrl: "https://www.facebook.com/v25.0/dialog/oauth",
     tokenUrl: "https://graph.facebook.com/v25.0/oauth/access_token",
