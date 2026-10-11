@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { expireOverdue } from "@/lib/billing/invoices";
+import { pruneNewsItems } from "@/lib/news/cleanup";
 import { youtubeUpkeep } from "@/lib/publishers/youtube-upkeep";
 
 export const runtime = "nodejs";
@@ -15,5 +16,6 @@ export async function GET(req: Request) {
   }
   const billing = await expireOverdue();
   const youtube = await youtubeUpkeep().catch((e) => ({ error: e instanceof Error ? e.message : "failed" }));
-  return NextResponse.json({ billing, youtube });
+  const newsItemsPruned = await pruneNewsItems().catch(() => -1);
+  return NextResponse.json({ billing, youtube, newsItemsPruned });
 }
