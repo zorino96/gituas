@@ -15,6 +15,7 @@ import { publishAction, suggestCaptionAction, tiktokContextAction, tiktokStatusA
 import { friendlyError, kuDateTime } from "../format";
 import { browserStore, clearDraft, readDraft, writeDraft } from "./draft";
 import { cancelScheduledAction, listScheduled, schedulePublishAction, type ScheduledRow } from "./schedule-actions";
+import { suggestHashtagsAction } from "./hashtags-action";
 import { imageToJpeg } from "./to-jpeg";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,video/mp4,video/quicktime";
@@ -82,6 +83,8 @@ export function PublishClient({
 
   // shop product card — price questions on the published post get this product's card
   const [productId, setProductId] = useState(initial?.productId ?? "");
+  const [findingTags, startTags] = useTransition();
+  const [tagsError, setTagsError] = useState<string | null>(null);
 
   // targets
   const [on, setOn] = useState<Record<Target, boolean>>(
@@ -552,6 +555,24 @@ export function PublishClient({
               {t.publish.cityTags}
             </button>
           )}
+          {!isNewsroom && (
+            <button
+              type="button"
+              className="gm-btn quiet small"
+              disabled={findingTags}
+              onClick={() =>
+                startTags(async () => {
+                  setTagsError(null);
+                  const r = await suggestHashtagsAction(productId || null);
+                  if (r.ok) setCaption((c) => mergeHashtags(c, r.tags));
+                  else setTagsError(r.error);
+                })
+              }
+            >
+              {findingTags ? t.publish.suggestingTags : t.publish.suggestTags}
+            </button>
+          )}
+          {tagsError && <span className="gm-err" role="alert">{tagsError}</span>}
         </div>
         <span className={`gm-time ${captionIssues.length ? "gm-err" : ""}`} style={{ margin: 0 }}>
           {t.fmt.num([...caption].length)} / {t.fmt.num(limit)}

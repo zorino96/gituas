@@ -10,6 +10,7 @@ import { isJpegPath, isOwnBlobUrl } from "@/lib/merchant/caption";
 import { publishForWorkspace, type PublishInput } from "@/lib/merchant/publish-core";
 import { loadAutopilotSignals } from "@/lib/orders/audience";
 import { effectiveMode, isDue, pickProduct, SLOT_GUARD_MS, slotHours } from "./autopilot-plan";
+import { cityHashtags } from "@/lib/orders/hashtags";
 import { formatMoney } from "./money";
 
 /**
@@ -97,7 +98,9 @@ async function runStore(store: {
   const full = usable.find((p) => p.id === product.id)!;
 
   const url = full.photos[0];
-  const caption = [await writeCaption(full.name, full.description), priceLine(full.variants)].filter(Boolean).join("\n\n");
+  // Hashtags of the cities its buyers come from, in both scripts: how Kurdish shoppers find sellers.
+  const tags = cityHashtags(profile.cities).join(" ");
+  const caption = [await writeCaption(full.name, full.description), priceLine(full.variants), tags].filter(Boolean).join("\n\n");
   const draft: AutoDraft = { productId: full.id, caption, media: { url, pathname: new URL(url).pathname.slice(1), type: "IMAGE" }, at: new Date(now).toISOString() };
   await db.product.update({ where: { id: full.id }, data: { autoPostedAt: new Date(now) } });
   await db.store.update({ where: { id: store.id }, data: { autoDraft: draft as unknown as Prisma.InputJsonValue } });

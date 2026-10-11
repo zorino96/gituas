@@ -22,9 +22,9 @@ export async function loadBuyerProfile(tenantId: string): Promise<BuyerProfile> 
  * (it runs every minute, and the free database allows ~5 GB of transfer a month): the Baghdad
  * hours buyers write most, and the products ordered most — the same rules as buyerProfile.
  */
-export async function loadAutopilotSignals(tenantId: string): Promise<{ hours: number[]; products: string[] }> {
+export async function loadAutopilotSignals(tenantId: string): Promise<{ hours: number[]; products: string[]; cities: string[] }> {
   const since = new Date(Date.now() - WINDOW_MS);
-  const [hourRows, productRows] = await Promise.all([
+  const [hourRows, productRows, cityRows] = await Promise.all([
     db.$queryRaw<{ h: number; n: bigint }[]>`
       SELECT ((EXTRACT(HOUR FROM m."createdAt")::int + 3) % 24) AS h, COUNT(*) AS n
       FROM "ConversationMessage" m JOIN "Store" s ON s."id" = m."storeId"
@@ -37,6 +37,33 @@ export async function loadAutopilotSignals(tenantId: string): Promise<{ hours: n
       orderBy: { _count: { productName: "desc" } },
       take: 3,
     }),
+    db.order.groupBy({
+      by: ["city"],
+      where: { tenantId, createdAt: { gt: since }, status: { notIn: ["CANCELLED", "RETURNED"] }, city: { not: null } },
+      _count: { city: true },
+      orderBy: { _count: { city: "desc" } },
+      take: 3,
+    }),
   ]);
-  return { hours: hourRows.map((r) => Number(r.h)).sort((a, b) => a - b), products: productRows.map((r) => r.productName) };
+  return {
+    hours: hourRows.map((r) => Number(r.h)).sort((a, b) => a - b),
+    products: productRows.map((r) => r.productName),
+    cities: cityRows.map((r) => r.city).filter((c): c is string => !!c),
+  };
+}
+
+/** How many orders came from comments on each of these posts in the last 90 days. */
+export async function ordersByPost(tenantId: string, postIds: string[]): Promise<Record<string, number>> {
+  if (!postIds.length) return {};
+  const orders = await db.order.findMany({
+    where: { tenantId, sourceMessageId: { not: null }, createdAt: { gt: new Date(Date.now() - 90 * 86_400_000) } },
+    select: { sourceMessageId: true },
+    take: 2000,
+  });
+  const ids = orders.map((o) => o.sourceMessageId!).filter(Boolean);
+  if (!ids.length) return {};
+  const msgs = await db.conversationMessage.findMany({ where: { id: { in: ids }, externalThreadId: { in: postIds } }, select: { externalThreadId: true } });
+  const out: Record<string, number> = {};
+  for (const m of msgs) if (m.externalThreadId) out[m.externalThreadId] = (out[m.externalThreadId] ?? 0) + 1;
+  return out;
 }

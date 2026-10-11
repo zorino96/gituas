@@ -1,7 +1,11 @@
 import { db } from "@/lib/db";
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
-import { loadBuyerProfile } from "@/lib/orders/audience";
+import { loadBuyerProfile, ordersByPost } from "@/lib/orders/audience";
+import { cityHashtags, workedHashtags } from "@/lib/orders/hashtags";
+import { targetingFor } from "@/lib/orders/targeting";
+import { cityFees } from "@/lib/shop/compose";
+import { fetchIgAudience, fetchIgPosts } from "@/lib/publishers/instagram-audience";
 import { ordersByCity, weekReport } from "@/lib/orders/stats";
 import { currentWorkspace } from "../data";
 import { OrdersClient, type CityCard, type OrderView } from "./orders-client";
@@ -16,13 +20,25 @@ export default async function OrdersPage() {
   const lang = await getLang();
   if (!can(ws.role, "engage")) return <p className="gm-note warn">{dict(lang).nr.team.roles.notAllowed}</p>;
 
-  const [orders, forStats, products, audience] = await Promise.all([
+  const [orders, forStats, products, audience, ig, igPosts, stores] = await Promise.all([
     db.order.findMany({ where: { tenantId: ws.id }, orderBy: { createdAt: "desc" }, take: LIST_LIMIT }),
     // The last year is enough for the cards; it keeps the page light as orders pile up.
     db.order.findMany({ where: { tenantId: ws.id, createdAt: { gt: new Date(Date.now() - 365 * 86_400_000) } }, select: { city: true, amountMinor: true, status: true, currency: true, createdAt: true, productName: true } }),
     db.product.findMany({ where: { active: true, store: { tenantId: ws.id } }, include: { variants: { orderBy: { position: "asc" } } }, orderBy: { name: "asc" } }),
     loadBuyerProfile(ws.id),
+    // Instagram followers and recent posts: best-effort, for the boost settings and proven hashtags.
+    fetchIgAudience(ws.id),
+    fetchIgPosts(ws.id),
+    db.store.findMany({ where: { tenantId: ws.id }, select: { deliveryCityFees: true, deliveryFeeMinor: true, deliveryCurrency: true } }),
   ]);
+  const deliverCities = [...new Set(stores.flatMap((s) => Object.keys(cityFees({ ...s, deliveryTime: null }))))];
+  const perPost = await ordersByPost(ws.id, igPosts.map((p) => p.id));
+  const boost = {
+    targeting: targetingFor(audience, ig, deliverCities),
+    ig,
+    worked: workedHashtags(igPosts, perPost),
+    cityTags: cityHashtags(audience.cities),
+  };
 
   // Dinars and dollars are never added together: one card section per currency.
   const currencies = [...new Set(forStats.map((o) => o.currency))].sort();
@@ -52,6 +68,7 @@ export default async function OrdersPage() {
       orders={views}
       cityCards={cityCards}
       audience={audience}
+      boost={boost}
       week={weekReport(forStats, Date.now())}
       products={products.map((p) => ({
         id: p.id,
