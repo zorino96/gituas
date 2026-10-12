@@ -48,7 +48,7 @@ export default function TermsPage() {
       <P>
         <strong>Accounts you connect.</strong> You may connect only accounts you own, or accounts
         whose owner has authorized you to manage them (for example a client&rsquo;s Page, with the
-        client&rsquo;s permission). You confirm this each time you connect an account. If you manage
+        client&rsquo;s permission). You confirm this when you connect an account (a confirmation box sits next to every Connect button). If you manage
         accounts for clients, you are responsible for having their permission and for keeping each
         client&rsquo;s accounts and data separate. You may connect several accounts of one platform
         up to the limit of your plan; do not use several accounts to post the same content in order
