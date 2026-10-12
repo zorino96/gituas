@@ -368,14 +368,19 @@ export async function fetchMediaInsights(
 }
 
 /** One of the account's own media items (the Boost section), with its like and comment counts. */
-export async function fetchMediaItem(tenantId: string, mediaId: string): Promise<IgResult<IgMedia & { igUserId: string }>> {
+export async function fetchMediaItem(tenantId: string, mediaId: string): Promise<IgResult<IgMedia & { igUserId: string; username?: string }>> {
   return withCred(tenantId, async (cred) => {
-    const fields = "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,comments_count,like_count,owner";
+    // Only the connected account's own media: an id from the browser is never trusted on its own. The
+    // media's "owner" id is in another id space than the stored account id (Instagram Login), so the
+    // check is that the id is in the account's own recent media.
+    const list = await fetch(`${V}/${cred.igUserId}/media?fields=id&limit=100&access_token=${encodeURIComponent(cred.token)}`);
+    const mine = (await list.json()) as { data?: { id: string }[] };
+    if (!list.ok) return fail("IG media list", list.status, mine);
+    if (!(mine.data ?? []).some((m) => m.id === mediaId)) return { ok: false, error: "not this account's media" };
+    const fields = "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,comments_count,like_count,username";
     const r = await fetch(`${V}/${encodeURIComponent(mediaId)}?fields=${fields}&access_token=${encodeURIComponent(cred.token)}`);
-    const j = (await r.json()) as IgMedia & { owner?: { id?: string } };
+    const j = (await r.json()) as IgMedia & { username?: string };
     if (!r.ok) return fail("IG media", r.status, j);
-    // Only the connected account's own media: an id from the browser is never trusted on its own.
-    if (j.owner?.id && j.owner.id !== cred.igUserId) return { ok: false, error: "not this account's media" };
     return { ok: true, data: { ...j, igUserId: cred.igUserId } };
   });
 }

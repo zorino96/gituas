@@ -61,9 +61,13 @@ export async function analyzePost(tenantId: string, platform: BoostPlatform, pos
     likes = m.data.like_count ?? null;
     commentCount = m.data.comments_count ?? 0;
     createdAt = m.data.timestamp ?? null;
+    // The shop's own replies are not buyer reaction: matched by id or, across id spaces, by username.
     const own = m.data.igUserId;
+    const ownName = m.data.username?.toLowerCase();
     const c = commentCount ? await fetchComments(tenantId, postId) : null;
-    comments = sampleLines((c?.data ?? []).filter((x) => x.from?.id !== own).map((x) => x.text));
+    comments = sampleLines(
+      (c?.data ?? []).filter((x) => x.from?.id !== own && (!ownName || (x.username ?? x.from?.username)?.toLowerCase() !== ownName)).map((x) => x.text),
+    );
   } else {
     const p = await fetchPagePost(tenantId, postId);
     if (!p.ok || !p.data) {
