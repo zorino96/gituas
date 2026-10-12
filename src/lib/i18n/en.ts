@@ -87,6 +87,10 @@ export const en: Dict = {
     insights: "Insights",
     boost: "Boost",
     news: "News",
+    more: "More",
+    close: "Close",
+    video: "AI video",
+    groups: { inbox: "Inbox", create: "Create", automate: "Automate", grow: "Grow" },
   },
 
   layout: {

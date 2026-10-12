@@ -7,6 +7,7 @@ import "./app.css";
 import { claimKind, currentWorkspace, listWorkspaces } from "./data";
 import { gmFontVars } from "./fonts";
 import { SideNav, Tabs } from "./nav";
+import { adVideoEnabled } from "@/lib/advideo/enabled";
 import { studioReadyFor } from "@/lib/studio/ready";
 import { switchWorkspaceAction } from "@/app/newsroom/desk-actions";
 import { NEWSROOM_ORIGIN } from "@/lib/hosts";
@@ -84,7 +85,7 @@ async function Shell({ lang, children }: { lang: Lang; children: React.ReactNode
 
   return (
     <div className={`gm ${gmFontVars}`} dir={dirOf(lang)} lang={lang}>
-      <SideNav kind={ws.kind} workspace={ws.name} studio={studioReadyFor(ws.id)} />
+      <SideNav kind={ws.kind} workspace={ws.name} studio={studioReadyFor(ws.id)} video={adVideoEnabled()} />
       <div className="gm-shell">
         <header className="gm-head">
           <div>
@@ -98,7 +99,7 @@ async function Shell({ lang, children }: { lang: Lang; children: React.ReactNode
         </header>
         <main className="gm-main">{children}</main>
       </div>
-      <Tabs kind={ws.kind} studio={studioReadyFor(ws.id)} />
+      <Tabs kind={ws.kind} studio={studioReadyFor(ws.id)} video={adVideoEnabled()} />
     </div>
   );
 }

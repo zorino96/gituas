@@ -93,6 +93,10 @@ export const ckb = {
     insights: "ئامار",
     boost: "بووست",
     news: "هەواڵ",
+    more: "زیاتر",
+    close: "داخستن",
+    video: "ڤیدیۆی AI",
+    groups: { inbox: "نامەکان", create: "دروستکردن", automate: "خۆکار", grow: "گەشەکردن" },
   },
 
   layout: {

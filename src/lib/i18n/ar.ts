@@ -91,6 +91,10 @@ export const ar: Dict = {
     insights: "الإحصائيات",
     boost: "الترويج",
     news: "الأخبار",
+    more: "المزيد",
+    close: "إغلاق",
+    video: "فيديو AI",
+    groups: { inbox: "الوارد", create: "إنشاء", automate: "الأتمتة", grow: "النمو" },
   },
 
   layout: {
