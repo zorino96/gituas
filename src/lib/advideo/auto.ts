@@ -12,6 +12,8 @@ import { publishAdVideo } from "./publish";
 const HOUR = 3_600_000;
 /** A post that has sat in POSTING this long was cut off: it is not retried by itself, in case it already went out. */
 const POSTING_STUCK_MS = 20 * 60 * 1000;
+/** A QUEUED video whose attempts ran out without an answer (the function was killed) is failed after this. */
+const QUEUED_STUCK_MS = 5 * 60 * 1000;
 
 /** Hour of the day in Baghdad (UTC+3, no daylight saving). */
 export function baghdadHour(now: number): number {
@@ -37,7 +39,7 @@ export async function runVideoAutomation(now = Date.now()): Promise<Record<strin
     where: { videoAutoMode: { in: ["DRAFT", "PUBLISH"] }, pausedReason: null },
     orderBy: { videoAutoLastAt: { sort: "asc", nulls: "first" } },
     select: { id: true, tenantId: true, plan: true, videoAutoMode: true, videoAutoTier: true, videoAutoHour: true, videoAutoLastAt: true, fbPageId: true, igUserId: true, tenant: { select: { ownerId: true } } },
-    take: 30,
+    take: 50,
   });
   const counts: Record<string, number> = {};
   const bump = (k: string) => (counts[k] = (counts[k] ?? 0) + 1);
@@ -51,7 +53,8 @@ export async function runVideoAutomation(now = Date.now()): Promise<Record<strin
         continue;
       }
       // Claim the day first, so two overlapping ticks never make two videos.
-      const claim = await db.store.updateMany({ where: { id: s.id, videoAutoLastAt: s.videoAutoLastAt }, data: { videoAutoLastAt: new Date(now) } });
+      const claimedAt = new Date(now);
+      const claim = await db.store.updateMany({ where: { id: s.id, videoAutoLastAt: s.videoAutoLastAt }, data: { videoAutoLastAt: claimedAt } });
       if (claim.count !== 1) continue;
 
       const targets = [s.fbPageId ? "FB" : null, s.igUserId ? "IG" : null].filter((t): t is Target => !!t);
@@ -75,7 +78,13 @@ export async function runVideoAutomation(now = Date.now()): Promise<Record<strin
         source: "AUTO",
         createdById: s.tenant.ownerId ?? null,
       });
-      bump(made.ok ? "queued" : `refused_${made.error}`);
+      if (!made.ok) {
+        // Nothing was made: the day is not spent (busy and limit refusals try again at the next tick).
+        await db.store.updateMany({ where: { id: s.id, videoAutoLastAt: claimedAt }, data: { videoAutoLastAt: s.videoAutoLastAt } });
+        bump(`refused_${made.error}`);
+      } else {
+        bump("queued");
+      }
     } catch (e) {
       console.error("[advideo] automation failed for a store:", e instanceof Error ? e.message : "unknown error");
       bump("failed");
@@ -85,8 +94,9 @@ export async function runVideoAutomation(now = Date.now()): Promise<Record<strin
 }
 
 /**
- * One tick: the day's videos are queued, one waiting video gets its script and voice, rendered
- * videos that should be posted are posted, and abandoned jobs are cleaned up.
+ * One tick: the day's videos are queued, then ONE heavy thing is done (a rendered video is posted, or
+ * one waiting video gets its script and voice: both can take most of the minute), and abandoned jobs
+ * are cleaned up.
  */
 export async function tickAdVideos(opts: { deadline: number }): Promise<Record<string, number>> {
   const out: Record<string, number> = {};
@@ -96,18 +106,19 @@ export async function tickAdVideos(opts: { deadline: number }): Promise<Record<s
     const automation = await runVideoAutomation();
     for (const [k, v] of Object.entries(automation)) out[`auto_${k}`] = v;
 
-    out.prepared = await prepareQueued(opts.deadline, 1);
-
-    // Rendered videos that were asked to post themselves.
-    const toPost = await db.adVideo.findMany({ where: { status: "RENDERED", autoPost: true }, orderBy: { updatedAt: "asc" }, take: 2, select: { id: true } });
+    // Rendered videos that were asked to post themselves go first; a prepare would only wait behind them.
+    const toPost = await db.adVideo.findFirst({ where: { status: "RENDERED", autoPost: true }, orderBy: { updatedAt: "asc" }, select: { id: true } });
     out.posted = 0;
-    for (const j of toPost) {
-      const r = await publishAdVideo(j.id);
+    out.prepared = 0;
+    if (toPost) {
+      const r = await publishAdVideo(toPost.id);
       if (r.ok) out.posted++;
       else if (r.error === "targets" || r.error === "media") {
         // Nothing to post to (a Page was disconnected): stop trying; the owner sees it in the list.
-        await db.adVideo.updateMany({ where: { id: j.id, status: "RENDERED" }, data: { autoPost: false, error: r.error === "targets" ? "no connected page" : "video file missing" } });
+        await db.adVideo.updateMany({ where: { id: toPost.id, status: "RENDERED" }, data: { autoPost: false, error: r.error === "targets" ? "no connected page" : "video file missing" } });
       }
+    } else {
+      out.prepared = await prepareQueued(opts.deadline, 1);
     }
 
     // A post cut off mid-way may already be out: never retried by itself.
@@ -115,14 +126,20 @@ export async function tickAdVideos(opts: { deadline: number }): Promise<Record<s
       where: { status: "POSTING", updatedAt: { lt: new Date(Date.now() - POSTING_STUCK_MS) } },
       data: { status: "RENDERED", autoPost: false, error: "Posting did not finish: check the page before posting again." },
     });
-    // A render that was handed out, never reported and has no tries left: failed, and the allowance goes back.
-    const dead = await db.adVideo.findMany({
-      where: { status: "RENDERING", tries: { gte: AD_MAX_TRIES }, claimedAt: { lt: new Date(Date.now() - AD_CLAIM_MS) } },
-      select: { id: true, storeId: true, tier: true },
+    // Jobs that ran out of tries without ever answering (a function killed on its last attempt, or a render that was
+    // handed out and never reported): failed, and the allowance goes back.
+    const stuck = await db.adVideo.findMany({
+      where: {
+        OR: [
+          { status: "RENDERING", tries: { gte: AD_MAX_TRIES }, claimedAt: { lt: new Date(Date.now() - AD_CLAIM_MS) } },
+          { status: { in: ["QUEUED", "READY"] }, tries: { gte: AD_MAX_TRIES }, updatedAt: { lt: new Date(Date.now() - QUEUED_STUCK_MS) } },
+        ],
+      },
+      select: { id: true, storeId: true, tier: true, status: true },
       take: 10,
     });
-    for (const d of dead) {
-      const c = await db.adVideo.updateMany({ where: { id: d.id, status: "RENDERING" }, data: { status: "FAILED", error: "the render did not finish" } });
+    for (const d of stuck) {
+      const c = await db.adVideo.updateMany({ where: { id: d.id, status: d.status, tries: { gte: AD_MAX_TRIES } }, data: { status: "FAILED", error: "the video could not be made", claimedAt: null } });
       if (c.count === 1 && d.storeId && isVideoTier(d.tier)) await countVideo(d.storeId, d.tier, -1);
     }
   } catch (e) {

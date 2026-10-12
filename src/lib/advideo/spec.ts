@@ -13,7 +13,7 @@ export const AD_STYLES: readonly AdStyle[] = ["elegant", "bold", "clean"];
 /** Lucide icon names the renderer ships (adfilm/assets/icons), kept to ones that read well for a shop. */
 export const AD_ICONS = [
   "gem", "shield-check", "heart-handshake", "sparkles", "truck", "badge-check", "star", "clock", "leaf",
-  "gift", "thumbs-up", "crown", "zap", "smile", "package", "map-pin", "phone-call", "heart", "award", "flame",
+  "gift", "thumbs-up", "crown", "zap", "package", "map-pin", "phone-call", "heart", "award", "flame",
 ] as const;
 export type AdIcon = (typeof AD_ICONS)[number];
 

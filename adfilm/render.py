@@ -111,33 +111,42 @@ _NUM = re.compile(r'([0-9\u0660-\u0669\u06F0-\u06F9][0-9\u0660-\u0669\u06F0-\u06
 _WEST = {**{0x0660 + i: ord('0') + i for i in range(10)}, **{0x06F0 + i: ord('0') + i for i in range(10)}, 0x066C: ord(','), 0x066B: ord('.')}
 
 
+_LAT = re.compile(r"([A-Za-z][A-Za-z0-9'&.\- ]*[A-Za-z0-9]|[A-Za-z])")
+
+
 def runs(text):
-    """Text and number runs in reading order: a number inside Kurdish text is drawn left to right, as digits."""
+    """Runs in reading order: numbers and Latin words inside Kurdish text are drawn left to right, on their own."""
     out = []
     for part in _NUM.split(text):
         if part == '':
             continue
-        out.append(('num', part.translate(_WEST)) if _NUM.fullmatch(part) else ('txt', part))
+        if _NUM.fullmatch(part):
+            out.append(('num', part.translate(_WEST)))
+            continue
+        for sub in _LAT.split(part):
+            if sub == '':
+                continue
+            out.append(('lat', sub) if _LAT.fullmatch(sub) else ('txt', sub))
     return out
 
 
 def has_number(text):
-    return bool(_NUM.search(text))
+    return any(k != 'txt' for k, _ in runs(text))
 
 
 def draw_line(c, s, cx, base, family, size, col, a=1.0):
-    """One centred line of Kurdish/Arabic text, numbers inside it kept in their own order."""
+    """One centred line of Kurdish/Arabic text; numbers and Latin words inside it keep their own order."""
     if not has_number(s):
         return mv.text_shaped(c, s, cx, base, family, size, col, a, align='center')
-    nf = mv.font('Inter', size * 0.94, wght=700)
+    lf = mv.font('Inter', size * 0.94, wght=700)
     parts = runs(s)
-    widths = [mv.shaped(p, family, size)[1] if k == 'txt' else mv.width(p, nf) for k, p in parts]
+    widths = [mv.shaped(p, family, size)[1] if k == 'txt' else mv.width(p, lf) for k, p in parts]
     x = cx + sum(widths) / 2
     for (k, p), w in zip(parts, widths):
         if k == 'txt':
             mv.text_shaped(c, p, x, base, family, size, col, a, align='right')
         else:
-            mv.text(c, p, x - w, base, nf, col, a, align='left', anchor='baseline')
+            mv.text(c, p, x - w, base, lf, col, a, align='left', anchor='baseline')
         x -= w
     return sum(widths)
 
@@ -145,11 +154,11 @@ def draw_line(c, s, cx, base, family, size, col, a=1.0):
 def headline(c, text, cy, max_w, max_size, col, a=1.0, max_lines=2):
     """Centred text of one or two lines at the largest size that fits; Kurdish/Arabic shaped, Latin plain."""
     if not text:
-        return 0
+        return 0, 1
     if not is_arabic(text):
         f = mv.fit('Inter', text, max_w, max_size, wght=800)
         mv.text(c, text, W / 2, cy, f, col, a, align='center')
-        return max_size
+        return f.getSize(), 1
     size = max_size
     lines = wrap_rtl(text, AR_B, size, max_w)
     # One line is better than two when it only costs a little size.
@@ -167,7 +176,12 @@ def headline(c, text, cy, max_w, max_size, col, a=1.0, max_lines=2):
     top = cy - lh * (len(lines) - 1) / 2
     for i, s in enumerate(lines):
         draw_line(c, s, W / 2, top + lh * i, AR_B, size, col, a)
-    return size
+    return size, len(lines)
+
+
+def push_down(size, lines):
+    """How far what sits under a headline moves when it took more than one line."""
+    return max(0, lines - 1) * size * 0.65
 
 
 def small(c, text, cy, max_w, size, col, a=1.0, family=None):
@@ -178,7 +192,7 @@ def small(c, text, cy, max_w, size, col, a=1.0, family=None):
         for i, s in enumerate(lines[:2]):
             draw_line(c, s, W / 2, cy + size * 1.4 * i, family or AR_M, size, col, a)
     else:
-        mv.text(c, text, W / 2, cy, mv.font('Inter', size, wght=500), col, a, align='center')
+        mv.text(c, text, W / 2, cy, mv.fit('Inter', text, max_w, size, wght=500), col, a, align='center')
 
 
 # ---- shared drawing ---------------------------------------------------------------------------------
@@ -301,12 +315,13 @@ class Hook(Scene):
         y = H * 0.555
         q = out_cubic(seg(u, 0.55, 1.2))
         with Layer(c, clamp(q * 1.5), dy=(1 - q) * L.u(44)):
-            headline(c, sc.get('text') or BR.get('name', ''), y, W * 0.8, L.u(190), T['ink'])
+            hs, hn = headline(c, sc.get('text') or BR.get('name', ''), y, W * 0.8, L.u(190), T['ink'])
+        push = push_down(hs, hn)
         sub = sc.get('sub') or BR.get('tagline')
         q2 = out_cubic(seg(u, 0.95, 1.5))
         with Layer(c, clamp(q2 * 1.5), dy=(1 - q2) * L.u(22)):
-            small(c, sub, y + L.u(120), W * 0.78, L.u(46), T['soft'])
-        underline(c, u, y + L.u(205), L.u(300), t0=1.2)
+            small(c, sub, y + push + L.u(120), W * 0.78, L.u(46), T['soft'])
+        underline(c, u, y + push + L.u(205), L.u(300), t0=1.2)
         caption(c, u, self.i, SAFE[3] - L.u(30))
 
 
@@ -325,14 +340,17 @@ class Value(Scene):
             c.drawCircle(cx, cy, R * 1.28, radial(cx, cy, R * 1.28, [T['accent'], T['bg']], alphas=[0.3, 0.0]))
             c.drawCircle(cx, cy, R, paint(T['accent'], 0.95, stroke=L.u(4)))
             c.drawCircle(cx, cy, R * 0.86, paint(T['ink'], 0.05))
-            icons.draw(c, sc.get('icon') or 'sparkles', cx, cy, R * 0.95, T['accent'], stroke=2.2)
+            name = sc.get('icon') or 'sparkles'
+            # A name the icon set does not have draws nothing: use the plain star instead.
+            icons.draw(c, name if icons.exists(name) else 'sparkles', cx, cy, R * 0.95, T['accent'], stroke=2.2)
         q = out_cubic(seg(u, 0.35, 1.0))
         with Layer(c, clamp(q * 1.5), dy=(1 - q) * L.u(40)):
-            headline(c, sc.get('text', ''), H * 0.52, W * 0.8, L.u(170), T['ink'])
-        underline(c, u, H * 0.52 + L.u(64), L.u(220), t0=0.8)
+            hs, hn = headline(c, sc.get('text', ''), H * 0.52, W * 0.8, L.u(170), T['ink'])
+        push = push_down(hs, hn)
+        underline(c, u, H * 0.52 + push + L.u(64), L.u(220), t0=0.8)
         q2 = out_cubic(seg(u, 0.7, 1.3))
         with Layer(c, clamp(q2 * 1.5)):
-            small(c, sc.get('sub'), H * 0.52 + L.u(140), W * 0.78, L.u(42), T['soft'])
+            small(c, sc.get('sub'), H * 0.52 + push + L.u(140), W * 0.78, L.u(42), T['soft'])
         dots(c, self.k, self.n, H * 0.69)
         caption(c, u, self.i, SAFE[3] - L.u(30))
 
@@ -367,14 +385,15 @@ class Product(Scene):
         q = out_cubic(seg(u, 0.5, 1.1))
         name = (JOB.get('product') or {}).get('name') or sc.get('text', '')
         with Layer(c, clamp(q * 1.5), dy=(1 - q) * L.u(30)):
-            headline(c, name, card[3] + L.u(130), W * 0.82, L.u(96), T['ink'])
+            hs, hn = headline(c, name, card[3] + L.u(130), W * 0.82, L.u(96), T['ink'])
+        push = push_down(hs, hn)
         price = (JOB.get('product') or {}).get('priceLine')
         if price:
             q3 = out_back(seg(u, 0.9, 1.4), 1.6)
             with Layer(c, clamp(q3 * 2), scale=0.8 + 0.2 * q3, pivot=(W / 2, card[3] + L.u(250))):
-                headline(c, price, card[3] + L.u(250), W * 0.7, L.u(70), T['accent'])
+                headline(c, price, card[3] + push + L.u(250), W * 0.7, L.u(70), T['accent'], max_lines=1)
         elif sc.get('sub'):
-            small(c, sc['sub'], card[3] + L.u(250), W * 0.78, L.u(44), T['soft'])
+            small(c, sc['sub'], card[3] + push + L.u(250), W * 0.78, L.u(44), T['soft'])
         caption(c, u, self.i, SAFE[3] - L.u(30))
 
 
@@ -391,9 +410,10 @@ class Offer(Scene):
             icons.draw(c, 'gift', W / 2, H * 0.3, L.u(220), T['accent'], stroke=2.0)
         q = out_cubic(seg(u, 0.35, 1.0))
         with Layer(c, clamp(q * 1.5), dy=(1 - q) * L.u(40)):
-            headline(c, sc.get('text', ''), H * 0.5, W * 0.84, L.u(160), T['ink'], max_lines=3)
-        underline(c, u, H * 0.5 + L.u(150), L.u(260), t0=0.9)
-        small(c, sc.get('sub'), H * 0.5 + L.u(230), W * 0.78, L.u(44), T['soft'])
+            hs, hn = headline(c, sc.get('text', ''), H * 0.5, W * 0.84, L.u(160), T['ink'], max_lines=3)
+        push = push_down(hs, hn)
+        underline(c, u, H * 0.5 + push + L.u(150), L.u(260), t0=0.9)
+        small(c, sc.get('sub'), H * 0.5 + push + L.u(230), W * 0.78, L.u(44), T['soft'])
         caption(c, u, self.i, SAFE[3] - L.u(30))
 
 
@@ -410,7 +430,7 @@ class CTA(Scene):
             mark(c, W / 2, H * 0.135, L.u(190), t=u, t0=0.0)
         q = out_cubic(seg(u, 0.3, 0.95))
         with Layer(c, clamp(q * 1.5), dy=(1 - q) * L.u(36)):
-            headline(c, sc.get('text', ''), H * 0.275, W * 0.86, L.u(130), T['ink'])
+            headline(c, sc.get('text', ''), H * 0.29, W * 0.86, L.u(130), T['ink'])
         rows = []
         if BR.get('phone'):
             rows.append(('phone-call', BR['phone']))
@@ -428,7 +448,8 @@ class CTA(Scene):
                     ry = card[1] + L.u(95) + k * L.u(130)
                     with Layer(c, clamp(rq * 1.6), dx=(1 - rq) * L.u(60)):
                         icons.draw(c, ic, card[0] + L.u(105), ry, L.u(66), T['accent'], stroke=2.2)
-                        mv.text(c, text, card[0] + L.u(180), ry, mv.font('Inter', L.u(66), wght=700), T['ink'], align='left')
+                        row_w = (card[2] - L.u(40)) - (card[0] + L.u(180))
+                        mv.text(c, text, card[0] + L.u(180), ry, mv.fit('Inter', text, row_w, L.u(66), wght=700), T['ink'], align='left')
         name_y = (top + card_h + L.u(60) + L.u(110)) if rows else H * 0.42
         q2 = out_cubic(seg(u, 1.9, 2.5))
         with Layer(c, clamp(q2 * 1.6), dy=(1 - q2) * L.u(24)):

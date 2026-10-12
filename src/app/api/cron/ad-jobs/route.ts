@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
 
 import { db } from "@/lib/db";
+import { adVideoEnabled } from "@/lib/advideo/enabled";
 import { AD_MAX_TRIES, prepareQueued, waitingFilter } from "@/lib/advideo/prepare";
 
 export const runtime = "nodejs";
@@ -25,6 +26,8 @@ function authorized(req: Request): boolean {
  */
 export async function GET(req: Request) {
   if (!authorized(req)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  // Closed (AD_VIDEO_ENABLED unset): nothing waits, nothing is handed out, no voice credits are spent.
+  if (!adVideoEnabled()) return NextResponse.json(new URL(req.url).searchParams.get("peek") ? { waiting: 0 } : { jobs: [] });
   if (new URL(req.url).searchParams.get("peek")) {
     const [queued, ready] = await Promise.all([
       db.adVideo.count({ where: { status: "QUEUED", tries: { lt: AD_MAX_TRIES } } }),

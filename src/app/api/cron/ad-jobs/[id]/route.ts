@@ -3,6 +3,7 @@ import { after, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { countVideo, isVideoTier } from "@/lib/advideo/limits";
 import { AD_MAX_TRIES } from "@/lib/advideo/prepare";
+import { adVideoEnabled } from "@/lib/advideo/enabled";
 import { publishAdVideo } from "@/lib/advideo/publish";
 
 export const runtime = "nodejs";
@@ -41,6 +42,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ ok: false });
   }
   await db.adVideo.update({ where: { id }, data: { status: "RENDERED", videoUrl: url, videoPath: pathname, error: null } });
-  if (job.autoPost) after(() => publishAdVideo(id).then(() => undefined));
+  // The switch is checked again inside publishAdVideo: closed, the video waits as RENDERED.
+  if (job.autoPost && adVideoEnabled()) after(() => publishAdVideo(id).then(() => undefined));
   return NextResponse.json({ ok: true });
 }

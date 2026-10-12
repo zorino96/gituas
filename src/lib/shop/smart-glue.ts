@@ -40,6 +40,7 @@ export interface SmartStore extends CardStore {
   plan: string;
   aiReplies: boolean;
   aiBrief: string | null;
+  defaultDm?: string | null;
 }
 
 export interface SmartContext {
@@ -116,6 +117,7 @@ export async function smartTry(ctx: SmartContext): Promise<SmartOutput | null> {
       asked: ctx.product ? productFacts(ctx.product, ctx.lang) : null,
       catalog: await catalog(store.id, ctx.product?.id ?? null, ctx.lang),
       orderLink: ctx.waLink,
+      ownerDm: store.defaultDm?.trim() || null,
     };
     const turns = ctx.kind === "dm_followup" && ctx.senderId ? await history(store.id, ctx.senderId, ctx.messageId) : [];
     const out = await smartReply({ kind: ctx.kind, lang: ctx.lang, brief: store.aiBrief ?? "", facts, message: ctx.message, history: turns, viaVoice: ctx.viaVoice });

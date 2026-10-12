@@ -128,6 +128,7 @@ export const ar: Dict = {
       notAllowed: "غير مسموح.",
       tier: "هذا النوع غير متوفر في خطتك.",
       limit: "انتهى هذا النوع من الفيديوهات هذا الشهر.",
+      busy: "هناك عدة فيديوهات قيد الإنشاء الآن؛ انتظر قليلاً.",
       store: "المتجر غير موجود.",
       product: "المنتج غير موجود.",
       targets: "اختر صفحة أو حساب إنستغرام واحداً على الأقل.",
@@ -258,7 +259,8 @@ export const ar: Dict = {
     youPrefix: "أنت: ",
     needsYou: "بانتظارك",
     outsideWindow: "خارج مهلة ٢٤ ساعة",
-    tabs: { all: "الكل", orders: "الطلبات", needs: "بانتظارك" },
+    tabs: { all: "الكل", orders: "الطلبات", needs: "بانتظارك", unclear: "غير واضحة" },
+    unclearBadge: "غير واضحة: استمع إليها",
     orderBadge: "طلب",
   },
 

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { publishForWorkspace, type PublishInput } from "@/lib/merchant/publish-core";
 import { isOwnBlobUrl, isOwnPathname } from "@/lib/merchant/caption";
+import { adVideoEnabled } from "./enabled";
 import type { Target } from "./prepare";
 
 /** The Instagram part of a Reel may take this long inside a background tick before the finisher takes over. */
@@ -17,6 +18,7 @@ export type Published = { ok: true; results: unknown } | { ok: false; error: "st
  * processing it); otherwise it stays RENDERED with the reasons, so the owner can try again.
  */
 export async function publishAdVideo(jobId: string, requested?: Target[]): Promise<Published> {
+  if (!adVideoEnabled()) return { ok: false, error: "state" };
   const job = await db.adVideo.findUnique({ where: { id: jobId } });
   if (!job || job.status !== "RENDERED") return { ok: false, error: "state" };
   if (!job.videoUrl || !job.videoPath || !isOwnBlobUrl(job.videoUrl, job.tenantId) || !isOwnPathname(job.videoPath, job.tenantId)) return { ok: false, error: "media" };
@@ -52,7 +54,9 @@ export async function publishAdVideo(jobId: string, requested?: Target[]): Promi
       status: ok ? "POSTED" : "RENDERED",
       postedAt: ok ? new Date() : null,
       results: results as Prisma.InputJsonValue,
-      error: ok ? (reasons || null) : reasons || "could not post",
+      // One automatic attempt: a post that failed (or timed out, so may be out) is left to the owner's button.
+      ...(ok ? {} : { autoPost: false }),
+      error: ok ? (reasons || null) : reasons || (typeof (results as { error?: unknown })?.error === "string" ? String((results as { error: string }).error) : "could not post"),
     },
   });
   await db.auditLog.create({

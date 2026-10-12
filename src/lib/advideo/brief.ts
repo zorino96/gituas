@@ -86,9 +86,8 @@ export async function loadAdBrief(storeId: string, productId: string | null): Pr
   });
   const product = chosen ? asProduct(chosen) : null;
   const others = products.filter((p) => p.id !== chosen?.id);
-  const photos = product?.photos.length
-    ? product.photos.slice(0, MAX_PHOTOS)
-    : others.flatMap((p) => usablePhotos(p.photos, tenantId).slice(0, 1)).slice(0, MAX_PHOTOS);
+  // A chosen product shows only its own photos (none: the ad has no product scene); a shop-wide ad uses the newest products' photos.
+  const photos = product ? product.photos.slice(0, MAX_PHOTOS) : others.flatMap((p) => usablePhotos(p.photos, tenantId).slice(0, 1)).slice(0, MAX_PHOTOS);
   return {
     name: store.name.trim() || store.tenant.name || (store.igUsername ? `@${store.igUsername}` : "Shop"),
     tagline: kit?.tagline?.trim() || null,

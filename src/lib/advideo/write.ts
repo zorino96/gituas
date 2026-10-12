@@ -107,7 +107,7 @@ export async function writeAdSpec(input: { tier: VideoTier; brief: AdBrief; topi
   const { tier, brief, topic } = input;
   const call = input.call ?? defaultDirector(tier);
   const opts = { photos: brief.photos.length, hasTopic: !!topic?.trim(), maxScenes: MAX_SCENES[tier] };
-  const timeout = tier === "PRO" ? 40_000 : 25_000;
+  const timeout = tier === "PRO" ? 32_000 : 20_000;
   let problems: string[] | undefined;
   let model = "none";
   for (let attempt = 0; attempt < 2; attempt++) {

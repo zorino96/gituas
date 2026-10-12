@@ -9,6 +9,8 @@ on:
 concurrency:
   group: reel
   cancel-in-progress: false
+permissions:
+  contents: read
 jobs:
   render:
     runs-on: ubuntu-latest
@@ -32,6 +34,8 @@ jobs:
           echo "ads=${ads:-0}" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         if: steps.peek.outputs.n != '0'
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         if: steps.peek.outputs.n != '0'
         with:

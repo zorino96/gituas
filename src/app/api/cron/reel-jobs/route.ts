@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
 
 import { db } from "@/lib/db";
+import { adVideoEnabled } from "@/lib/advideo/enabled";
 import { AD_MAX_TRIES, waitingFilter } from "@/lib/advideo/prepare";
 import { prepareVideo, VIDEO_CLAIM_MS, VIDEO_MAX_TRIES } from "@/lib/news/video";
 
@@ -36,8 +37,9 @@ export async function GET(req: Request) {
     const reels = queued + (await db.newsVideo.count({ where: waiting }));
     // The AI video ads (src/app/api/cron/ad-jobs) are rendered by the same workflow run, so they count here too:
     // the clock starts the workflow when either kind is waiting. Before their table exists the count is 0.
-    const ads =
-      (await db.adVideo.count({ where: { status: "QUEUED", tries: { lt: AD_MAX_TRIES } } }).catch(() => 0)) +
+    const ads = !adVideoEnabled()
+      ? 0
+      : (await db.adVideo.count({ where: { status: "QUEUED", tries: { lt: AD_MAX_TRIES } } }).catch(() => 0)) +
       (await db.adVideo.count({ where: waitingFilter() }).catch(() => 0));
     return NextResponse.json({ waiting: reels + ads, reels, ads });
   }

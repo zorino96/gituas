@@ -229,10 +229,13 @@ async function planComment(msg: Msg): Promise<string[]> {
   // Smart replies: the assistant writes the first message (and the public line) in the owner's words. The fixed
   // card above is what goes out when they are off, over the month's allowance, or the writing fails the guard.
   let defaultDm = store.defaultDm;
+  // The assistant said the team has to confirm something: the comment goes to the owner's "needs you" pile.
+  let smartNeedsOwner = false;
   if (store.aiReplies && priv?.kind === "PRIVATE_REPLY") {
     const link = product && priv.whatsapp ? waUrl(store.tenant, waText(product, c.language)) : null;
     const s = await smartTry({ store, kind: "dm_first", lang: c.language, message: msg.content ?? "", product, waLink: link });
     if (s) {
+      smartNeedsOwner = s.needsOwner;
       if (priv.content === "card" && card) card = { text: s.text, elements: [] };
       else if (priv.content === "default_dm") defaultDm = s.text;
       if (pub?.kind === "PUBLIC_REPLY") {
@@ -251,7 +254,7 @@ async function planComment(msg: Msg): Promise<string[]> {
     return [];
   }
   const replied = specs.some((s) => s.kind === "PUBLIC_REPLY" || s.kind === "PRIVATE_REPLY");
-  await finish(msg.id, replied ? "AUTO_REPLIED" : "FLAGGED", decision.flag ?? (replied ? null : "no_action"), {
+  await finish(msg.id, replied ? "AUTO_REPLIED" : "FLAGGED", decision.flag ?? (replied ? (smartNeedsOwner ? "needs_you" : null) : "no_action"), {
     commentType: c.type, intent: c.intent, language: c.language, confidence: c.confidence, boundProductId: product?.id ?? null,
   });
   // A buyer asking to order is an order whatever the shop answered, even when it only flagged the comment for the merchant.
@@ -363,11 +366,17 @@ async function planDm(msg: Msg): Promise<string[]> {
   // its own step-by-step answers.
   let actions = decision.actions;
   let smartFlag: string | null | undefined;
-  if (store.aiReplies && text && c && c.confidence >= MIN_CONFIDENCE && SMART_TYPES.includes(c.type) && !(ordering && orderId && answer)) {
+  // A sender who already got many answers this hour (a bot on the other side, a flood) is left to the fixed rules.
+  const recentAnswers = store.aiReplies && text
+    ? await db.outboxJob.count({ where: { storeId: store.id, recipientId: senderId, kind: { in: ["DM_ANSWER", "PRIVATE_REPLY"] }, createdAt: { gt: new Date(now.getTime() - 3_600_000) } } })
+    : 0;
+  if (store.aiReplies && recentAnswers < 8 && text && c && c.confidence >= MIN_CONFIDENCE && SMART_TYPES.includes(c.type) && !(ordering && orderId && answer)) {
     const link = !whatsapp && product ? waUrl(store.tenant, waText(product, c.language)) : null;
     // A voice note reaches here as its transcript ("[audio] <words>" is what is stored): speech recognition can mishear.
     const viaVoice = (msg.content ?? "").trimStart().startsWith("[audio]");
-    const s = await smartTry({ store, kind: "dm_followup", lang: c.language, message: text, product, waLink: link, senderId, messageId: msg.id, viaVoice });
+    // A one-word message is no guide to the language: the buyer's earlier messages are.
+    const smartLang = text.length < 12 ? await buyerLang(store.id, senderId) : c.language;
+    const s = await smartTry({ store, kind: "dm_followup", lang: smartLang, message: text, product, waLink: link, senderId, messageId: msg.id, viaVoice });
     if (s) {
       answer = s.text;
       // "unclear" is the dashboard's pile for messages the assistant could not make sense of: the buyer got a

@@ -104,7 +104,7 @@ for (const job of jobs) {
     fs.writeFileSync(path.join(dir, "job.json"), JSON.stringify(props));
 
     const outFile = path.join(dir, "ad.mp4");
-    const r = spawnSync(PYTHON, ["render.py", "render", outFile], {
+    const r = spawnSync(PYTHON, ["render.py", "render", outFile, "--crf", "23"], {
       cwd: HERE,
       stdio: "inherit",
       timeout: 18 * 60 * 1000,

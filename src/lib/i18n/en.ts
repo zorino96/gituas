@@ -124,6 +124,7 @@ export const en: Dict = {
       notAllowed: "You are not allowed to do that.",
       tier: "This type of video is not in your plan.",
       limit: "This month's videos of this type are used up.",
+      busy: "Several videos are being made right now; wait a little.",
       store: "The shop was not found.",
       product: "The product was not found.",
       targets: "Pick at least one Page or Instagram account.",
@@ -255,7 +256,8 @@ export const en: Dict = {
     youPrefix: "You: ",
     needsYou: "Waiting for you",
     outsideWindow: "Outside the 24-hour window",
-    tabs: { all: "All", orders: "Orders", needs: "Waiting for you" },
+    tabs: { all: "All", orders: "Orders", needs: "Waiting for you", unclear: "Unclear" },
+    unclearBadge: "Unclear: have a listen",
     orderBadge: "Order",
   },
 
