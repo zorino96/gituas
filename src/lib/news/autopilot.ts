@@ -25,6 +25,8 @@ import { publishForWorkspace } from "@/lib/merchant/publish-core";
 import { splitForStagger, type StaggerLater } from "./stagger";
 import { AUTO_TARGETS, autoAccountsFor, autoTargetsFor, inQuietHours, type AutoMode, type AutoTarget } from "./autopilot-settings";
 import { RETRY_DEADLINE_MS } from "./draft";
+import { takeDaily } from "@/lib/ai/slots";
+import { draftTriesPerDay } from "./ai-budget";
 import { loadActiveFocus } from "./focus";
 import { isLate, prepareQueuedVideos, prepareVideo, queueVideoIfWanted } from "./video";
 import { matchesChoice, normalizeChoice } from "./taxonomy";
@@ -546,6 +548,10 @@ async function handleStory(run: Run, story: Story): Promise<"next" | "stop"> {
   // The same gates the editor's own actions pass, which also stop a newsroom that froze meanwhile.
   await assertWithin(tenantId, "draft");
   if (budget.publish > 0) await assertWithin(tenantId, "publish");
+
+  // Drafting costs a few model calls even when the draft is thrown away, and only a kept draft is counted
+  // against the month: attempts have their own daily bound, taken before the story is claimed.
+  if ((await takeDaily(tenantId, "news_draft_try_day", 1, draftTriesPerDay(run.plan))) < 1) return "stop";
 
   // Claim the story before anything is written. Only one run can win this, so a story is never
   // handled twice, and a story that fails below is not picked up again.

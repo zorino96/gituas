@@ -22,7 +22,7 @@ export function isShopAutoMode(v: unknown): v is ShopAutoMode {
 /** Posting without a person is a paid feature; a free shop only gets the post prepared. */
 export function effectiveMode(mode: string, plan: StorePlan | string): ShopAutoMode {
   if (!isShopAutoMode(mode)) return "OFF";
-  return mode === "PUBLISH" && plan !== "MERCHANT" && plan !== "PRO" ? "DRAFT" : mode;
+  return mode === "PUBLISH" && plan === "FREE" ? "DRAFT" : mode;
 }
 
 /** The Baghdad hours to post at: the hours buyers write most, else the default evening slots. */

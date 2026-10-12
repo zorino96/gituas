@@ -1,4 +1,6 @@
+import type { AiOptions } from "@/lib/ai/for-store";
 import { completeJson } from "@/lib/ai/provider";
+import { classifyByRules } from "./classify-rules";
 import { LANGS, type Lang } from "./money";
 import { COMMENT_TYPES, INTENTS, type Classification, type CommentType, type Intent } from "./policy";
 
@@ -34,13 +36,17 @@ export function parseClassification(d: unknown): Classification | null {
 }
 
 /** Labels only — the model never writes text for the buyer here. Null on empty input or any failure. */
-export async function classifyText(text: string, ctx: { channel: "comment" | "dm"; productName?: string }): Promise<Classification | null> {
+export async function classifyText(text: string, ctx: { channel: "comment" | "dm"; productName?: string; ai?: AiOptions }): Promise<Classification | null> {
   const t = text.trim().slice(0, 600);
   if (!t) return null;
+  // An emoji-only reaction and a plain price question need no model; the same rules answer when the AI is away.
+  const quick = classifyByRules(t);
+  if (quick) return quick;
   const about = ctx.productName ? ` on a post about: ${ctx.productName.slice(0, 80)}` : "";
   const user = `${ctx.channel === "dm" ? "Direct message" : "Comment"}${about}\n"""${t}"""`;
   try {
-    return (await completeJson({ system: CLASSIFY_SYSTEM, user, strength: "fast", thinking: false }, parseClassification)).data;
+    // A label is always Haiku, on every plan: it is a short, high-volume job and Opus adds nothing to it.
+    return (await completeJson({ system: CLASSIFY_SYSTEM, user, strength: "fast", tier: "haiku", meter: ctx.ai?.meter, essential: true, maxTokens: 160 }, parseClassification)).data;
   } catch {
     return null;
   }

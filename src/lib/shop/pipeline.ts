@@ -2,6 +2,8 @@ import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { SHOP_ORIGIN } from "@/lib/hosts";
 import { openOrder } from "@/lib/orders/auto";
+import { aiFor } from "@/lib/ai/for-store";
+import { allowanceOf } from "@/lib/ai/meter";
 import { classifyText } from "./classify";
 import { cityIn } from "@/lib/orders/cities";
 import { extractDetails, followupText, hasDetails, isYes, nextStep, type CollectOrder, type Details } from "@/lib/orders/collect";
@@ -65,6 +67,15 @@ export async function processMessage(messageId: string, opts: { delay?: boolean 
   for (const id of jobIds) await runJob(id, { immediate: true });
 }
 
+/** A message the AI could not label: said plainly when it is the month's allowance that ran out, so the owner knows why it waits. */
+async function unlabelledReason(store: { tenantId: string }): Promise<"ai_limit" | "unclear"> {
+  try {
+    return (await allowanceOf({ scope: store.tenantId })).percent >= 100 ? "ai_limit" : "unclear";
+  } catch {
+    return "unclear";
+  }
+}
+
 async function finish(id: string, outcome: "AUTO_REPLIED" | "FLAGGED" | "SKIPPED", reason: string | null, extra: Prisma.ConversationMessageUpdateInput = {}): Promise<void> {
   await db.conversationMessage.update({ where: { id }, data: { outcome, outcomeReason: reason, ...extra } });
 }
@@ -99,7 +110,7 @@ function waUrl(tenant: Store["tenant"], text: string): string | null {
 
 async function vary(store: Store, sample: string, lang: Lang): Promise<string> {
   if ((await aiVaryUsed(store.id)) >= SHOP_LIMITS[store.plan as StorePlan].aiVaryPerMonth) return sample;
-  const r = await varySample(sample, lang);
+  const r = await varySample(sample, lang, undefined, aiFor(store));
   if (r.ai) await countAiVary(store.id);
   return r.text;
 }
@@ -192,9 +203,9 @@ async function planComment(msg: Msg): Promise<string[]> {
   const limited = !g.ok;
 
   const product = await loadProduct(post.productId);
-  const c = await classifyText(msg.content ?? "", { channel: "comment", productName: product?.name });
+  const c = await classifyText(msg.content ?? "", { channel: "comment", productName: product?.name, ai: aiFor(store) });
   if (!c) {
-    await finish(msg.id, "FLAGGED", "unclear");
+    await finish(msg.id, "FLAGGED", await unlabelledReason(store));
     return [];
   }
   const templateId = post.templateId ?? store.defaultTemplateId;
@@ -210,39 +221,51 @@ async function planComment(msg: Msg): Promise<string[]> {
   });
   const decision = limited ? limitDecision(full) : full;
 
-  let publicText: string | null = null;
   const pub = decision.actions.find((a) => a.kind === "PUBLIC_REPLY");
-  if (pub?.kind === "PUBLIC_REPLY") {
-    const own = pub.style === "answer" ? template?.publicSamples : template?.thanksSamples;
-    const samples = own?.length ? own : DEFAULT_SAMPLES[pub.style][c.language];
-    publicText = await vary(store, pickOne(samples), c.language);
-  }
-
-  let card: { text: string; elements: ReturnType<typeof fbCardElements> } | null = null;
   const priv = decision.actions.find((a) => a.kind === "PRIVATE_REPLY");
-  if (priv?.kind === "PRIVATE_REPLY" && priv.content === "card" && product) {
-    const wa = priv.whatsapp ? waUrl(store.tenant, waText(product, c.language)) : null;
-    const greeting = template?.dmGreeting === false ? COPY[c.language].hello : await vary(store, COPY[c.language].hello, c.language);
-    card = { text: dmText({ greeting, product, store, lang: c.language, waUrl: wa }), elements: fbCardElements(product, store, c.language, wa) };
-  }
 
   // Smart replies: the assistant writes the first message (and the public line) in the owner's words. The fixed
-  // card above is what goes out when they are off, over the month's allowance, or the writing fails the guard.
+  // texts below are what goes out when they are off, over the month's allowance, or the writing fails the guard.
+  // They are asked for first, so the wording variation (one more AI call) is not paid for a line that is replaced.
   let defaultDm = store.defaultDm;
   // The assistant said the team has to confirm something: the comment goes to the owner's "needs you" pile.
   let smartNeedsOwner = false;
+  let smartDm: string | null = null;
+  let smartPublic: string | null = null;
   if (store.aiReplies && priv?.kind === "PRIVATE_REPLY") {
     const link = product && priv.whatsapp ? waUrl(store.tenant, waText(product, c.language)) : null;
     const s = await smartTry({ store, kind: "dm_first", lang: c.language, message: msg.content ?? "", product, waLink: link });
     if (s) {
       smartNeedsOwner = s.needsOwner;
-      if (priv.content === "card" && card) card = { text: s.text, elements: [] };
-      else if (priv.content === "default_dm") defaultDm = s.text;
+      smartDm = s.text;
       if (pub?.kind === "PUBLIC_REPLY") {
         const sp = await smartTry({ store, kind: "public", lang: c.language, message: msg.content ?? "", product, waLink: null });
-        if (sp) publicText = sp.text;
+        if (sp) smartPublic = sp.text;
       }
     }
+  }
+
+  let publicText: string | null = null;
+  if (pub?.kind === "PUBLIC_REPLY") {
+    if (smartPublic !== null) publicText = smartPublic;
+    else {
+      const own = pub.style === "answer" ? template?.publicSamples : template?.thanksSamples;
+      const samples = own?.length ? own : DEFAULT_SAMPLES[pub.style][c.language];
+      publicText = await vary(store, pickOne(samples), c.language);
+    }
+  }
+
+  let card: { text: string; elements: ReturnType<typeof fbCardElements> } | null = null;
+  if (priv?.kind === "PRIVATE_REPLY" && priv.content === "card" && product) {
+    if (smartDm !== null) {
+      card = { text: smartDm, elements: [] };
+    } else {
+      const wa = priv.whatsapp ? waUrl(store.tenant, waText(product, c.language)) : null;
+      const greeting = template?.dmGreeting === false ? COPY[c.language].hello : await vary(store, COPY[c.language].hello, c.language);
+      card = { text: dmText({ greeting, product, store, lang: c.language, waUrl: wa }), elements: fbCardElements(product, store, c.language, wa) };
+    }
+  } else if (priv?.kind === "PRIVATE_REPLY" && priv.content === "default_dm" && smartDm !== null) {
+    defaultDm = smartDm;
   }
 
   const specs = buildCommentJobs({ decision, platform, commentId, authorName: msg.authorHandle, publicText, card, defaultDm });
@@ -318,7 +341,7 @@ async function planDm(msg: Msg): Promise<string[]> {
   if (collecting) {
     const cp = await loadProduct(collecting.productId);
     const inStock = inStockOf(cp);
-    const d = await extractDetails(text, inStock);
+    const d = await extractDetails(text, inStock, aiFor(store));
     if (hasDetails(d) || isYes(text)) {
       const lang = await buyerLang(store.id, senderId);
       const reply = await collectStep(store, collecting, d, text, lang, msg.authorHandle, inStock);
@@ -330,7 +353,7 @@ async function planDm(msg: Msg): Promise<string[]> {
 
   const product = whatsapp ? await whatsappProduct(store.id, senderId, text, now) : await boundProduct(store.id, senderId, now);
   const photosSent = product ? await db.outboxJob.count({ where: { id: `dmphotos_${store.id}_${senderId}_${product.id}` } }) : 0;
-  const c = text ? await classifyText(text, { channel: "dm", productName: product?.name }) : null;
+  const c = text ? await classifyText(text, { channel: "dm", productName: product?.name, ai: aiFor(store) }) : null;
   const decision = decideDm(c, { boundProduct: !!product, firstReply: photosSent === 0, hasPhotos: (product?.photos.length ?? 0) > 0 });
   const ordering = c?.type === "ORDER" && c.confidence >= MIN_CONFIDENCE;
   const city = cityIn(text);
@@ -343,7 +366,7 @@ async function planDm(msg: Msg): Promise<string[]> {
     const order = await db.order.findUnique({ where: { id: orderId }, select: COLLECT_SELECT });
     if (order && order.collect !== "done") {
       const inStock = inStockOf(product);
-      const d = await extractDetails(text, inStock);
+      const d = await extractDetails(text, inStock, aiFor(store));
       // On WhatsApp the sender id is the buyer's own number.
       if (whatsapp && !d.phone) {
         const p = normalizePhone(`+${senderId}`);
@@ -386,7 +409,8 @@ async function planDm(msg: Msg): Promise<string[]> {
     }
   }
   const specs = buildDmJobs({ actions, recipientId: senderId, photos: product?.photos ?? [], answerText: answer });
-  const flag = smartFlag !== undefined ? smartFlag : decision.flag ?? (ans && !answer ? "needs_you" : null);
+  let flag = smartFlag !== undefined ? smartFlag : decision.flag ?? (ans && !answer ? "needs_you" : null);
+  if (!c && text && flag === "unclear") flag = await unlabelledReason(store);
   const ids = await createJobs(store.id, msg.id, specs, product?.id ?? null);
   // Answered a question but no order yet: one nudge in 20 h, cancelled if the buyer writes or orders first.
   if (answer && product && c?.type === "QUESTION" && !(await db.order.count({ where: { storeId: store.id, buyerKey: senderId, status: { in: ["NEW", "CONFIRMED"] } } }))) {

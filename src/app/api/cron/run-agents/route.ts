@@ -1,70 +1,18 @@
 import { NextResponse } from "next/server";
 
-import { db } from "@/lib/db";
-import { runContentAgent } from "@/lib/agents/content-agent";
-import { runPlanRefresher } from "@/lib/agents/plan-refresher";
-import { runReplyAgent } from "@/lib/agents/reply-agent";
-import { runAdCampaignAgent } from "@/lib/agents/ad-campaign-agent";
-import { runPersonalityRefresher } from "@/lib/agents/personality-refresher";
-import { runHibernationAgent } from "@/lib/agents/hibernation-agent";
-import { runMarketIntelligence } from "@/lib/agents/market-intelligence";
-import { runRedditInboxAgent } from "@/lib/agents/reddit-inbox-agent";
-import { runSeoAgent } from "@/lib/agents/seo-agent";
-
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Cron endpoint — schedule this every hour (Vercel cron, GitHub Actions, etc.):
- *
- *   GET /api/cron/run-agents
- *   Authorization: Bearer ${CRON_SECRET}
- *
- * It iterates every AUTO project for the tenant and runs the 9 agents.
- * Skipped reasons are returned in the response for observability.
+ * Retired. This route ran the nine agents of the first product (the old /dashboard, now redirected to
+ * /app) with Gemini, outside every plan's AI allowance. Nothing schedules it any more, and it answers
+ * "gone" so nothing can start those agents by mistake. Gituas writes with Claude Haiku and Opus only.
  */
 export async function GET(req: Request) {
-  // Refused without a configured secret too: these runs spend AI and ad budget.
   const expected = process.env.CRON_SECRET;
   const got = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!expected || got !== expected) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  // Abandoned Facebook Page choices hold encrypted user tokens; drop the expired ones.
-  await db.oAuthPageChoice.deleteMany({ where: { expiresAt: { lt: new Date() } } }).catch(() => undefined);
-
-  const projects = await db.project.findMany({
-    where: { mode: { masterMode: "AUTO" }, status: "ACTIVE" },
-    select: { id: true, name: true },
-  });
-
-  type AgentResult = { agent: string } & Record<string, unknown>;
-  const results: Array<{ project: { id: string; name: string }; runs: AgentResult[] }> = [];
-
-  for (const project of projects) {
-    const runs: AgentResult[] = [];
-    const safe = async (name: string, fn: () => Promise<unknown>) => {
-      try {
-        const r = await fn();
-        runs.push({ agent: name, ok: true, ...(r as object) });
-      } catch (err) {
-        runs.push({ agent: name, ok: false, error: err instanceof Error ? err.message : String(err) });
-      }
-    };
-
-    await safe("personality-refresher", () => runPersonalityRefresher(project.id));
-    await safe("plan-refresher", () => runPlanRefresher(project.id));
-    await safe("market-intelligence", () => runMarketIntelligence(project.id));
-    await safe("content-agent", () => runContentAgent(project.id));
-    await safe("seo-agent", () => runSeoAgent(project.id));
-    await safe("ad-campaign-agent", () => runAdCampaignAgent(project.id));
-    await safe("reddit-inbox-agent", () => runRedditInboxAgent(project.id));
-    await safe("reply-agent", () => runReplyAgent(project.id));
-    await safe("hibernation-agent", () => runHibernationAgent(project.id));
-
-    results.push({ project, runs });
-  }
-
-  return NextResponse.json({ tickedAt: new Date().toISOString(), projects: results });
+  return NextResponse.json({ error: "retired" }, { status: 410 });
 }

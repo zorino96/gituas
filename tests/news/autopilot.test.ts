@@ -33,8 +33,10 @@ vi.mock("@/lib/billing/limits", () => {
 vi.mock("@/lib/cards/server-render", () => ({ renderAndStoreCard: vi.fn() }));
 vi.mock("@/lib/merchant/publish-core", () => ({ publishForWorkspace: vi.fn() }));
 vi.mock("@/lib/news/write", () => ({ writeDraft: vi.fn() }));
+vi.mock("@/lib/ai/slots", () => ({ takeDaily: vi.fn(async (_scope: string, _metric: string, wanted: number) => wanted) }));
 
 import { loadConnections } from "@/app/app/data";
+import { takeDaily } from "@/lib/ai/slots";
 import { assertWithin, countUsage, LimitReached, usageOf } from "@/lib/billing/limits";
 import { renderAndStoreCard } from "@/lib/cards/server-render";
 import { db } from "@/lib/db";
@@ -483,6 +485,15 @@ describe("runAutopilot", () => {
     expect(countUsage).toHaveBeenCalledWith("t1", "draft");
     expect(renderAndStoreCard).not.toHaveBeenCalled();
     expect(publishForWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("stops before it claims or writes anything once the day's drafting attempts are used up", async () => {
+    desk({ mode: "DRAFT" });
+    vi.mocked(takeDaily).mockResolvedValueOnce(0);
+    expect(await runAutopilot("t1")).toEqual({ drafted: 0, published: 0 });
+    expect(takeDaily).toHaveBeenCalledWith("t1", "news_draft_try_day", 1, expect.any(Number));
+    expect(claims()).toHaveLength(0);
+    expect(writeDraft).not.toHaveBeenCalled();
   });
 
   it("leaves a story another run already claimed", async () => {

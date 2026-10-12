@@ -21,7 +21,7 @@ export interface BoostCache {
 }
 
 /** Analyses a shop may run per day, by its best store plan. */
-export const DAILY_ANALYSES: Record<string, number> = { FREE: 5, MERCHANT: 30, PRO: 100 };
+export const DAILY_ANALYSES: Record<string, number> = { FREE: 1, MERCHANT: 4, PRO: 8, MAX: 20 };
 /** A post analysed less than this long ago is shown from the cache; the button asks again only after it. */
 export const REANALYSE_MS = 6 * 60 * 60 * 1000;
 const KEEP = 120;

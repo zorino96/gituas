@@ -9,6 +9,7 @@
 //  it stays visible, so news is never lost silently. The autopilot only takes
 //  stories the prompt kept.
 
+import { newsItemsAllowed } from "./ai-budget";
 import { db } from "@/lib/db";
 import { completeJson } from "@/lib/ai/provider";
 import { promptFilterFor, type PromptFilter } from "@/lib/billing/plans";
@@ -106,7 +107,7 @@ export async function judgeFocus(tenantId: string): Promise<number> {
   try {
     const f = await loadActiveFocus(tenantId);
     if (!f) return 0;
-    const items = await db.newsItem.findMany({
+    const found = await db.newsItem.findMany({
       where: {
         tenantId,
         focusMatch: null,
@@ -118,6 +119,8 @@ export async function judgeFocus(tenantId: string): Promise<number> {
       take: PER_RUN,
       select: { id: true, title: true, snippet: true },
     });
+    // The plan's daily number of stories the AI reads: the rest stay unjudged (and shown) until tomorrow.
+    const items = found.slice(0, await newsItemsAllowed(tenantId, "news_focus_day", found.length));
     const batches: (typeof items)[] = [];
     for (let i = 0; i < items.length; i += BATCH) batches.push(items.slice(i, i + BATCH));
     const counts = await Promise.all(

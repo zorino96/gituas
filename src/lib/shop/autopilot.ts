@@ -3,6 +3,7 @@
 // (PUBLISH, paid plans). TikTok and YouTube are never posted here: the prepared post opens
 // in Publish for the merchant's one tap. Prices come from the product, never from the AI.
 
+import { aiFor, type AiOptions } from "@/lib/ai/for-store";
 import type { Prisma } from "@/generated/prisma/client";
 import { completeJson } from "@/lib/ai/provider";
 import { db } from "@/lib/db";
@@ -27,7 +28,7 @@ export interface AutoDraft {
   at: string;
 }
 
-async function writeCaption(name: string, description: string | null): Promise<string> {
+async function writeCaption(name: string, description: string | null, ai?: AiOptions): Promise<string> {
   try {
     const { data } = await completeJson<{ text: string }>(
       {
@@ -40,7 +41,9 @@ Rules:
 - No price, size, quantity or delivery fee: the price is added separately.
 - End with a call to message the page. No hashtags. At most two emoji.`,
         strength: "fast",
-        thinking: false,
+        tier: "haiku",
+        meter: ai?.meter,
+        maxTokens: 400,
         budgetMs: 15_000,
       },
       (d) => (typeof (d as { text?: unknown })?.text === "string" ? (d as { text: string }) : null),
@@ -100,7 +103,7 @@ async function runStore(store: {
   const url = full.photos[0];
   // Hashtags of the cities its buyers come from, in both scripts: how Kurdish shoppers find sellers.
   const tags = cityHashtags(profile.cities).join(" ");
-  const caption = [await writeCaption(full.name, full.description), priceLine(full.variants), tags].filter(Boolean).join("\n\n");
+  const caption = [await writeCaption(full.name, full.description, aiFor(store)), priceLine(full.variants), tags].filter(Boolean).join("\n\n");
   const draft: AutoDraft = { productId: full.id, caption, media: { url, pathname: new URL(url).pathname.slice(1), type: "IMAGE" }, at: new Date(now).toISOString() };
   await db.product.update({ where: { id: full.id }, data: { autoPostedAt: new Date(now) } });
   await db.store.update({ where: { id: store.id }, data: { autoDraft: draft as unknown as Prisma.InputJsonValue } });

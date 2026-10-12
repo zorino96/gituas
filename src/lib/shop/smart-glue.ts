@@ -1,6 +1,7 @@
 // The database side of smart replies: what the assistant is told about the shop, the plan's monthly
 // allowance, and the chat so far. The writing and the checking are in ./smart.ts.
 
+import { aiFor } from "@/lib/ai/for-store";
 import { db } from "@/lib/db";
 import { cityLabel } from "@/lib/orders/cities";
 import { cityFees, COPY, deliveryLine, type CardProduct, type CardStore } from "./compose";
@@ -120,7 +121,8 @@ export async function smartTry(ctx: SmartContext): Promise<SmartOutput | null> {
       ownerDm: store.defaultDm?.trim() || null,
     };
     const turns = ctx.kind === "dm_followup" && ctx.senderId ? await history(store.id, ctx.senderId, ctx.messageId) : [];
-    const out = await smartReply({ kind: ctx.kind, lang: ctx.lang, brief: store.aiBrief ?? "", facts, message: ctx.message, history: turns, viaVoice: ctx.viaVoice });
+    // Opus when the store's plan includes it: the reply is what the buyer reads.
+    const out = await smartReply({ kind: ctx.kind, lang: ctx.lang, brief: store.aiBrief ?? "", facts, message: ctx.message, history: turns, viaVoice: ctx.viaVoice, ai: aiFor(store, { opus: true }) });
     if (out) await countSmart(store.id);
     return out;
   } catch {

@@ -7,11 +7,14 @@
 
 import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
-import type { StorePlan } from "@/lib/shop/plans";
 import { loadAdBrief, type AdBrief } from "./brief";
 import { adVideoEnabled } from "./enabled";
-import { allowance, countVideo, isVideoTier, videosUsed, type VideoTier } from "./limits";
+import { aiFor } from "@/lib/ai/for-store";
+import { chooseTier } from "@/lib/ai/meter";
+import { limitsOf } from "@/lib/shop/tenant-plans";
+import { claimVideoSlot, isVideoTier, refundVideo, workspaceVideos, type Allowance, type VideoTier } from "./limits";
 import { refImagesForModel, listRefs } from "./refs";
+import { PLAIN_VIDEO_NOTE } from "./job-error";
 import type { AdLook, AdPlan, AdScene, AdSpec } from "./spec";
 import { baghdadDate, getDailyBrief } from "./strategy";
 import { voiceScenes, type VoicedScene } from "./voice";
@@ -48,40 +51,51 @@ export interface CreateInput {
   createdById: string | null;
 }
 
-export type Created = { ok: true; id: string } | { ok: false; error: "tier" | "limit" | "store" | "product" | "busy" };
+export type Created = { ok: true; id: string } | { ok: false; error: "tier" | "limit" | "daily" | "ai" | "store" | "product" | "busy" };
 
-/** Queues one video, if the store's plan allows another one of this tier this month. */
+/**
+ * Queues one video, if the workspace's plans allow another one of this tier this month and today, and
+ * the AI allowance has room for the script. The place in the day and the month is taken before the
+ * row is made, in one step each (claimVideoSlot), so parallel requests cannot all pass.
+ */
 export async function createAdVideo(input: CreateInput): Promise<Created> {
   if (!isVideoTier(input.tier)) return { ok: false, error: "tier" };
-  const store = await db.store.findFirst({ where: { id: input.storeId, tenantId: input.tenantId }, select: { id: true, plan: true } });
+  const store = await db.store.findFirst({ where: { id: input.storeId, tenantId: input.tenantId }, select: { id: true } });
   if (!store) return { ok: false, error: "store" };
   if (input.productId) {
     const p = await db.product.findFirst({ where: { id: input.productId, storeId: store.id, active: true }, select: { id: true } });
     if (!p) return { ok: false, error: "product" };
   }
-  const plan = store.plan as StorePlan;
-  const a = allowance(plan, input.tier, await videosUsed(store.id, input.tier));
-  if (a.left < 1) return { ok: false, error: a.limit === 0 ? "tier" : "limit" };
-  // Not a pile of videos at once: parallel clicks can neither flood the render queue nor race the allowance.
+  const limits = await limitsOf(input.tenantId);
+  if (limits.videos[input.tier] === 0) return { ok: false, error: "tier" };
+  // Without room in the AI allowance there is no script: the video would be a fixed template, with the voice still paid for.
+  if (!(await chooseTier({ scope: input.tenantId }, "haiku").catch(() => "haiku" as const))) return { ok: false, error: "ai" };
+  // Not a pile of videos at once on one store.
   const inFlight = await db.adVideo.count({ where: { storeId: store.id, status: { in: ["QUEUED", "READY", "RENDERING"] } } });
   if (inFlight >= AD_IN_FLIGHT_MAX) return { ok: false, error: "busy" };
-  const row = await db.adVideo.create({
-    data: {
-      tenantId: input.tenantId,
-      storeId: store.id,
-      tier: input.tier,
-      source: input.source,
-      topic: input.topic?.trim() ? Array.from(input.topic.trim()).slice(0, 300).join("") : null,
-      productId: input.productId,
-      voice: input.voice,
-      targets: input.targets,
-      autoPost: input.autoPost,
-      createdById: input.createdById,
-    },
-    select: { id: true },
-  });
-  await countVideo(store.id, input.tier, 1);
-  return { ok: true, id: row.id };
+  const slot = await claimVideoSlot(input.tenantId, input.tier, { month: limits.videos[input.tier], day: limits.videosPerDay });
+  if (!slot.ok) return { ok: false, error: slot.error };
+  try {
+    const row = await db.adVideo.create({
+      data: {
+        tenantId: input.tenantId,
+        storeId: store.id,
+        tier: input.tier,
+        source: input.source,
+        topic: input.topic?.trim() ? Array.from(input.topic.trim()).slice(0, 300).join("") : null,
+        productId: input.productId,
+        voice: input.voice,
+        targets: input.targets,
+        autoPost: input.autoPost,
+        createdById: input.createdById,
+      },
+      select: { id: true },
+    });
+    return { ok: true, id: row.id };
+  } catch (e) {
+    await refundVideo(input.tenantId, input.tier).catch(() => undefined);
+    throw e;
+  }
 }
 
 export interface RenderScene extends AdScene {
@@ -164,10 +178,12 @@ export async function prepareAdVideo(jobId: string): Promise<boolean> {
   try {
     if (!found.storeId) throw new Error("no store");
     const tier: VideoTier = found.tier === "PRO" ? "PRO" : "LITE";
+    // Every model call of this video is counted against the store's monthly AI allowance.
+    const ai = aiFor({ tenantId: found.tenantId }, { opus: tier === "PRO" });
     // The owner's reference pictures and clips, and today's plan (made once a day, the strategist always on the quick model).
     const [refs, planned] = await Promise.all([
       listRefs(found.tenantId, found.storeId),
-      getDailyBrief({ tenantId: found.tenantId, storeId: found.storeId, tier: "LITE", timeoutMs: PLAN_TIMEOUT_MS }).catch(() => null),
+      getDailyBrief({ tenantId: found.tenantId, storeId: found.storeId, tier: "LITE", timeoutMs: PLAN_TIMEOUT_MS, meter: ai?.meter }).catch(() => null),
     ]);
     const day = planned?.brief ?? null;
     // What the owner asked for wins over the day's plan: their own words, or a product other than the plan's.
@@ -195,10 +211,10 @@ export async function prepareAdVideo(jobId: string): Promise<boolean> {
     const recentHooks = recentSpecs.map((r) => r?.scenes?.find((x) => x.type === "hook")?.text).filter((t): t is string => !!t);
     const images = await refImagesForModel(refs);
     const written = await writeAdSpec({
-      tier, brief, topic: found.topic, plan, avoidLooks, recentHooks, images,
+      tier, brief, topic: found.topic, plan, avoidLooks, recentHooks, images, meter: ai?.meter,
       seed: `${found.storeId}:${baghdadDate(now)}:${found.id}`,
     });
-    const voiced = await voiceScenes({ tenantId: found.tenantId, jobId: found.id, voice: found.voice, scenes: written.spec.scenes });
+    const voiced = await voiceScenes({ tenantId: found.tenantId, jobId: found.id, voice: found.voice, scenes: written.spec.scenes, meter: ai?.meter });
     const props = buildRenderProps(brief, written.spec, voiced);
     const spec: AdSpec = { ...written.spec, scenes: voiced.map((v) => v.scene) };
     await db.adVideo.updateMany({
@@ -212,8 +228,10 @@ export async function prepareAdVideo(jobId: string): Promise<boolean> {
         props: props as unknown as Prisma.InputJsonValue,
         caption: written.spec.caption,
         productId,
+        // A plain storyboard (the AI could not write this one) is never posted by itself: the owner looks at it first.
+        ...(written.fallback ? { autoPost: false } : {}),
         model: `${written.model}${written.fallback ? " (plain storyboard)" : ""}`.slice(0, 120),
-        error: null,
+        error: written.fallback ? PLAIN_VIDEO_NOTE : null,
       },
     });
     return true;
@@ -221,7 +239,7 @@ export async function prepareAdVideo(jobId: string): Promise<boolean> {
     const error = (e instanceof Error ? e.message : String(e)).slice(0, 300);
     const last = tries >= AD_MAX_TRIES;
     const res = await db.adVideo.updateMany({ where: { id: found.id, status: "QUEUED" }, data: { error, claimedAt: null, status: last ? "FAILED" : "QUEUED" } });
-    if (last && res.count === 1 && found.storeId && isVideoTier(found.tier)) await countVideo(found.storeId, found.tier, -1);
+    if (last && res.count === 1 && isVideoTier(found.tier)) await refundVideo(found.tenantId, found.tier, found.createdAt, { keepDay: true });
     console.error("[advideo] prepare failed:", error);
     return false;
   }
@@ -247,7 +265,6 @@ export async function prepareQueued(deadline: number, take = 3): Promise<number>
 }
 
 /** What a store's plan allows, for the page. */
-export async function allowances(storeId: string, plan: StorePlan): Promise<Record<VideoTier, { limit: number; used: number; left: number }>> {
-  const [lite, pro] = await Promise.all([videosUsed(storeId, "LITE"), videosUsed(storeId, "PRO")]);
-  return { LITE: allowance(plan, "LITE", lite), PRO: allowance(plan, "PRO", pro) };
+export async function allowances(tenantId: string): Promise<Record<VideoTier, Allowance> & { today: { used: number; max: number } }> {
+  return workspaceVideos(tenantId);
 }

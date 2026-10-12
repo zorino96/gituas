@@ -3,14 +3,38 @@ import { gunzipSync } from "node:zlib";
 import fs from "node:fs";
 import path from "node:path";
 
+// The Usage table, in memory: the real day and month counters run against it.
+const usage = vi.hoisted(() => new Map<string, number>());
+const plans = vi.hoisted(() => ({ current: ["MERCHANT"] as string[] }));
+const k = (w: { tenantId: string; month: string; metric: string }) => `${w.tenantId}|${w.month}|${w.metric}`;
+
 vi.mock("@/lib/db", () => ({
   db: {
-    store: { findFirst: vi.fn() },
+    store: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(async () => plans.current.map((plan) => ({ plan }))) },
     product: { findFirst: vi.fn() },
     adVideo: { create: vi.fn(), count: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn(), findMany: vi.fn() },
+    usage: {
+      findUnique: vi.fn(async ({ where }: { where: { tenantId_month_metric: { tenantId: string; month: string; metric: string } } }) => {
+        const key = k(where.tenantId_month_metric);
+        return usage.has(key) ? { count: usage.get(key)! } : null;
+      }),
+      upsert: vi.fn(async ({ where, create, update }: { where: { tenantId_month_metric: { tenantId: string; month: string; metric: string } }; create: { count: number }; update: { count: { increment: number } } }) => {
+        const key = k(where.tenantId_month_metric);
+        usage.set(key, usage.has(key) ? usage.get(key)! + update.count.increment : create.count);
+        return { count: usage.get(key)! };
+      }),
+      updateMany: vi.fn(async ({ where }: { where: { tenantId: string; month: string; metric: string } }) => {
+        const key = k(where);
+        if ((usage.get(key) ?? 0) > 0) {
+          usage.set(key, usage.get(key)! - 1);
+          return { count: 1 };
+        }
+        return { count: 0 };
+      }),
+    },
   },
 }));
-vi.mock("@/lib/advideo/limits", async (orig) => ({ ...(await orig<typeof import("@/lib/advideo/limits")>()), videosUsed: vi.fn(), countVideo: vi.fn() }));
+vi.mock("@/lib/ai/meter", () => ({ chooseTier: vi.fn(async () => "haiku"), recordSpend: vi.fn() }));
 vi.mock("@/lib/advideo/brief", async (orig) => ({ ...(await orig<typeof import("@/lib/advideo/brief")>()), loadAdBrief: vi.fn() }));
 vi.mock("@/lib/advideo/write", () => ({ writeAdSpec: vi.fn() }));
 vi.mock("@/lib/advideo/voice", () => ({ voiceScenes: vi.fn() }));
@@ -19,7 +43,10 @@ vi.mock("@/lib/advideo/strategy", () => ({ getDailyBrief: vi.fn(), baghdadDate: 
 
 import { db } from "@/lib/db";
 import { loadAdBrief } from "@/lib/advideo/brief";
-import { countVideo, videosUsed } from "@/lib/advideo/limits";
+import { chooseTier } from "@/lib/ai/meter";
+import { dayKey, videosToday, videosUsed } from "@/lib/advideo/limits";
+import { monthKey } from "@/lib/billing/limits";
+import { SHOP_LIMITS } from "@/lib/shop/plans";
 import { AD_MAX_TRIES, AD_PREPARE_LEASE_MS, createAdVideo, prepareAdVideo } from "@/lib/advideo/prepare";
 import { listRefs, refImagesForModel } from "@/lib/advideo/refs";
 import { AD_ICONS, lookFromSeed, type AdLook } from "@/lib/advideo/spec";
@@ -39,33 +66,96 @@ describe("the renderer's icon names", () => {
 });
 
 describe("createAdVideo", () => {
+  const as = (...p: string[]) => {
+    plans.current = p;
+  };
   beforeEach(() => {
     vi.clearAllMocks();
-    for (const t of Object.values(m)) for (const f of Object.values(t)) f.mockReset();
-    m.store.findFirst.mockResolvedValue({ id: "s1", plan: "MERCHANT" });
-    vi.mocked(videosUsed).mockResolvedValue(0);
+    usage.clear();
+    as("MERCHANT");
+    for (const [name, t] of Object.entries(m)) if (name !== "usage" && name !== "store") for (const f of Object.values(t)) f.mockReset();
+    m.store.findFirst.mockReset().mockResolvedValue({ id: "s1" });
+    vi.mocked(chooseTier).mockResolvedValue("haiku");
     m.adVideo.count.mockResolvedValue(0);
     m.adVideo.create.mockResolvedValue({ id: "v1" });
   });
   const input = { tenantId: "t1", storeId: "s1", tier: "LITE" as const, topic: null, productId: null, voice: "shilan", targets: [], autoPost: false, source: "MANUAL" as const, createdById: null };
 
-  it("queues a video and counts it against the month", async () => {
+  it("queues a video and takes its place in the day and in the month", async () => {
     expect(await createAdVideo(input)).toEqual({ ok: true, id: "v1" });
-    expect(countVideo).toHaveBeenCalledWith("s1", "LITE", 1);
+    expect(await videosUsed("t1", "LITE")).toBe(1);
+    expect(await videosToday("t1")).toBe(1);
   });
 
-  it("refuses a tier the plan does not have and a month that is used up", async () => {
-    expect(await createAdVideo({ ...input, tier: "PRO", ...{} })).toEqual({ ok: true, id: "v1" });
-    m.store.findFirst.mockResolvedValue({ id: "s1", plan: "FREE" });
+  it("makes at most one video a day, whatever the month allows, and gives the place back when it refuses", async () => {
+    expect(await createAdVideo(input)).toEqual({ ok: true, id: "v1" });
+    expect(await createAdVideo(input)).toEqual({ ok: false, error: "daily" });
+    expect(m.adVideo.create).toHaveBeenCalledTimes(1);
+    expect(await videosToday("t1")).toBe(1);
+    expect(await videosUsed("t1", "LITE")).toBe(1);
+  });
+
+  it("refuses a tier the plans do not have: Opus videos belong to the Opus plan alone, which has no Haiku videos", async () => {
     expect(await createAdVideo({ ...input, tier: "PRO" })).toEqual({ ok: false, error: "tier" });
-    vi.mocked(videosUsed).mockResolvedValue(2);
+    as("MAX");
+    expect(await createAdVideo({ ...input, tier: "LITE" })).toEqual({ ok: false, error: "tier" });
+    expect(await createAdVideo({ ...input, tier: "PRO" })).toEqual({ ok: true, id: "v1" });
+  });
+
+  it("refuses a month that is used up, and gives the day's place back", async () => {
+    usage.set(`t1|${monthKey()}|advideo_lite`, SHOP_LIMITS.MERCHANT.videosPerMonth);
     expect(await createAdVideo(input)).toEqual({ ok: false, error: "limit" });
+    expect(await videosToday("t1")).toBe(0);
+  });
+
+  it("makes no videos on the free plan", async () => {
+    as("FREE", "FREE");
+    expect(await createAdVideo(input)).toEqual({ ok: false, error: "tier" });
+    expect(await createAdVideo({ ...input, tier: "PRO" })).toEqual({ ok: false, error: "tier" });
+    expect(m.adVideo.create).not.toHaveBeenCalled();
+  });
+
+  it("adds the plans of the workspace's paid stores, and counts free stores once", async () => {
+    as("MERCHANT", "FREE", "FREE", "FREE"); // the Merchant plan's month, one a day
+    usage.set(`t1|${monthKey()}|advideo_lite`, SHOP_LIMITS.MERCHANT.videosPerMonth - 1);
+    expect(await createAdVideo(input)).toEqual({ ok: true, id: "v1" });
+    usage.set(`t1|${dayKey()}|advideo_day`, 0);
+    expect(await createAdVideo(input)).toEqual({ ok: false, error: "limit" });
+  });
+
+  it("lets two paid stores make two videos a day", async () => {
+    as("MERCHANT", "MERCHANT");
+    expect(await createAdVideo(input)).toEqual({ ok: true, id: "v1" });
+    expect(await createAdVideo(input)).toEqual({ ok: true, id: "v1" });
+    expect(await createAdVideo(input)).toEqual({ ok: false, error: "daily" });
+  });
+
+  it("parallel requests cannot all pass the limit", async () => {
+    const results = await Promise.all(Array.from({ length: 8 }, () => createAdVideo(input)));
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    expect(m.adVideo.create).toHaveBeenCalledTimes(1);
+    expect(await videosToday("t1")).toBe(1);
   });
 
   it("does not take a fourth video while three are in the making", async () => {
     m.adVideo.count.mockResolvedValue(3);
     expect(await createAdVideo(input)).toEqual({ ok: false, error: "busy" });
     expect(m.adVideo.create).not.toHaveBeenCalled();
+    expect(await videosToday("t1")).toBe(0);
+  });
+
+  it("writes no video when the AI allowance is used up", async () => {
+    vi.mocked(chooseTier).mockResolvedValue(null);
+    expect(await createAdVideo(input)).toEqual({ ok: false, error: "ai" });
+    expect(m.adVideo.create).not.toHaveBeenCalled();
+    expect(await videosToday("t1")).toBe(0);
+  });
+
+  it("gives the place back when the row cannot be written", async () => {
+    m.adVideo.create.mockRejectedValue(new Error("db down"));
+    await expect(createAdVideo(input)).rejects.toThrow("db down");
+    expect(await videosToday("t1")).toBe(0);
+    expect(await videosUsed("t1", "LITE")).toBe(0);
   });
 });
 
@@ -192,7 +282,9 @@ describe("prepareAdVideo", () => {
     expect(await prepareAdVideo("v1")).toBe(false);
     const last = m.adVideo.updateMany.mock.calls.at(-1)![0] as { data: Record<string, unknown> };
     expect(last.data).toMatchObject({ status: "FAILED", claimedAt: null });
-    expect(countVideo).toHaveBeenCalledWith("s1", "LITE", -1);
+    // The voice was paid for: the month's place goes back, the day's place stays spent.
+    expect(m.usage.updateMany).toHaveBeenCalledTimes(1);
+    expect(m.usage.updateMany.mock.calls[0][0]).toMatchObject({ where: { month: expect.stringMatching(/^\d{4}-\d{2}$/) } });
   });
 
   it("keeps the job QUEUED for another go when tries are left", async () => {
@@ -201,6 +293,6 @@ describe("prepareAdVideo", () => {
     expect(await prepareAdVideo("v1")).toBe(false);
     const last = m.adVideo.updateMany.mock.calls.at(-1)![0] as { data: Record<string, unknown> };
     expect(last.data).toMatchObject({ status: "QUEUED", claimedAt: null });
-    expect(countVideo).not.toHaveBeenCalled();
+    expect(m.usage.updateMany).not.toHaveBeenCalled();
   });
 });

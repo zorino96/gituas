@@ -16,7 +16,8 @@ import { displayPhone, priceLineOf, usablePhotos, type AdBrief } from "@/lib/adv
 import { buildRenderProps } from "@/lib/advideo/prepare";
 import { lookFromSeed, normalizeSpec } from "@/lib/advideo/spec";
 import { voiceScenes } from "@/lib/advideo/voice";
-import { directorUser, fallbackSpec, modelFor, writeAdSpec, type DirectorCall } from "@/lib/advideo/write";
+import { completeJson } from "@/lib/ai/provider";
+import { defaultDirector, directorUser, fallbackSpec, writeAdSpec, type DirectorCall } from "@/lib/advideo/write";
 
 const scene = (type: string, over: Record<string, unknown> = {}) => ({ type, text: "کوالێتی", voice: "کوالێتی لە هەموو هەنگاوێکدا", ...over });
 const good = {
@@ -73,16 +74,18 @@ describe("normalizeSpec", () => {
 });
 
 describe("limits", () => {
-  it("has more videos and the PRO tier on higher plans", () => {
-    expect(VIDEO_LIMITS.FREE.PRO).toBe(0);
+  it("has more videos on higher plans, and Opus videos only on the plan that includes Opus", () => {
     expect(VIDEO_LIMITS.MERCHANT.LITE).toBeGreaterThan(VIDEO_LIMITS.FREE.LITE);
-    expect(VIDEO_LIMITS.PRO.PRO).toBeGreaterThan(VIDEO_LIMITS.MERCHANT.PRO);
+    expect(VIDEO_LIMITS.PRO.LITE).toBeGreaterThan(VIDEO_LIMITS.MERCHANT.LITE);
+    for (const plan of ["FREE", "MERCHANT", "PRO"] as const) expect(VIDEO_LIMITS[plan].PRO).toBe(0);
+    expect(VIDEO_LIMITS.MAX.LITE).toBe(0);
+    expect(VIDEO_LIMITS.MAX.PRO).toBe(30);
   });
 
   it("works out what is left", () => {
-    expect(allowance("MERCHANT", "LITE", 12)).toEqual({ limit: VIDEO_LIMITS.MERCHANT.LITE, used: 12, left: VIDEO_LIMITS.MERCHANT.LITE - 12 });
-    expect(allowance("FREE", "PRO", 0).left).toBe(0);
-    expect(allowance("FREE", "LITE", 99).left).toBe(0);
+    expect(allowance(8, 4)).toEqual({ limit: 8, used: 4, left: 4 });
+    expect(allowance(0, 0).left).toBe(0);
+    expect(allowance(1, 99).left).toBe(0);
   });
 });
 
@@ -126,11 +129,13 @@ const brief: AdBrief = {
 };
 
 describe("the director", () => {
-  it("uses Claude Opus 5.5 for PRO and the video model for LITE", () => {
-    expect(modelFor("PRO")).toBe("cc/claude-opus-5-5");
-    vi.stubEnv("KURDGG_MODEL_VIDEO_LITE", "cc/claude-haiku-5-5");
-    expect(modelFor("LITE")).toBe("cc/claude-haiku-5-5");
-    vi.unstubAllEnvs();
+  it("asks for Claude Opus on a PRO video and for Haiku on a LITE one, and passes the store's allowance on", async () => {
+    vi.mocked(completeJson).mockResolvedValue({ data: {}, model: "m" });
+    const meter = { scope: "t1" };
+    await defaultDirector("PRO", meter)({ system: "s", user: "u", strength: "strong" }, 20_000);
+    expect(vi.mocked(completeJson).mock.calls[0][0]).toMatchObject({ tier: "opus", meter, budgetMs: 20_000 });
+    await defaultDirector("LITE", meter)({ system: "s", user: "u", strength: "strong" }, 20_000);
+    expect(vi.mocked(completeJson).mock.calls[1][0]).toMatchObject({ tier: "haiku", meter });
   });
 
   it("tells the model the facts and what the owner asked for", () => {

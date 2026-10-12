@@ -22,6 +22,7 @@ import { cityLabel } from "@/lib/orders/cities";
 import { MAX_ACCOUNTS_PER_POST } from "@/lib/merchant/accounts-policy";
 import { formatMoney } from "@/lib/shop/money";
 import { imageToJpeg } from "./to-jpeg";
+import { AiMediaPanel, type AiMediaConfig } from "./ai-media-panel";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,video/mp4,video/quicktime";
 const MAX_BYTES = 250 * 1024 * 1024;
@@ -54,6 +55,7 @@ export function PublishClient({
   products,
   initial,
   scheduled: initialScheduled,
+  ai,
 }: {
   workspaceId: string;
   accounts: Record<Target, string | null>;
@@ -63,6 +65,8 @@ export function PublishClient({
   /** A news draft to post; `targets`, when given, are the only platforms switched on (e.g. TikTok from the videos list). */
   initial?: { newsDraftId?: string; productId?: string; caption: string; media: Media; targets?: Target[] };
   scheduled: ScheduledRow[];
+  /** AI pictures and videos in the composer (a shop only; absent in a newsroom). */
+  ai?: AiMediaConfig | null;
 }) {
   const router = useRouter();
   const base = useBase();
@@ -71,6 +75,8 @@ export function PublishClient({
 
   // media
   const fileInput = useRef<HTMLInputElement>(null);
+  // Counts every change of the attached media: a slower upload or AI answer from before it cannot overwrite a newer pick.
+  const mediaSeq = useRef(0);
   const [preview, setPreview] = useState<{ src: string; type: "IMAGE" | "VIDEO" } | null>(
     initial ? { src: initial.media.url, type: initial.media.type } : null,
   );
@@ -249,6 +255,7 @@ export function PublishClient({
       return;
     }
     dropNewsDraft();
+    const seq = ++mediaSeq.current;
     const type = file.type.startsWith("video/") ? "VIDEO" : "IMAGE";
     if (preview) URL.revokeObjectURL(preview.src);
     setPreview({ src: URL.createObjectURL(file), type });
@@ -265,17 +272,34 @@ export function PublishClient({
         contentType: upFile.type,
         onUploadProgress: ({ percentage }) => setProgress(Math.round(percentage)),
       });
+      if (seq !== mediaSeq.current) return;
       setMedia({ url: blob.url, pathname: blob.pathname, type, durationSec });
       setProgress(100);
       setOn((o) => ({ ...o, IG: !!accounts.IG, TT: !!accounts.TT }));
     } catch (e) {
+      if (seq !== mediaSeq.current) return;
       setProgress(null);
       setPreview(null);
       setMediaError(t.publish.uploadFailed(e instanceof Error ? e.message : t.common.error));
     }
   }
 
+  /** A picture or video the AI made becomes the post's media, as if it had been picked and uploaded. */
+  function attachAi(m: Media, aiCaption?: string | null) {
+    mediaSeq.current++;
+    setMediaError(null);
+    setResults(null);
+    dropNewsDraft();
+    if (preview) URL.revokeObjectURL(preview.src);
+    setPreview({ src: m.url, type: m.type });
+    setMedia(m);
+    setProgress(100);
+    setOn((o) => ({ ...o, IG: !!accounts.IG, TT: !!accounts.TT }));
+    if (aiCaption && !caption.trim()) setCaption(aiCaption);
+  }
+
   function clearMedia() {
+    mediaSeq.current++;
     if (preview) URL.revokeObjectURL(preview.src);
     setPreview(null);
     setMedia(null);
@@ -536,6 +560,14 @@ export function PublishClient({
         }}
       />
       {mediaError && <p className="gm-err">{mediaError}</p>}
+
+      {/* or make it with the AI: a picture, or a video like the ones of the video section */}
+      {!isNewsroom && ai && (
+        // Kept mounted while a picture is attached (only hidden): the idea and the references are still there if the owner removes it and tries again.
+        <div hidden={!!preview}>
+          <AiMediaPanel workspaceId={workspaceId} config={ai} productId={productId} disabled={uploading} hasMedia={!!preview} onMedia={attachAi} />
+        </div>
+      )}
 
       {/* caption */}
       <p className="gm-sec">{t.publish.captionSec}</p>

@@ -21,8 +21,11 @@ export interface Transcript {
   ms: number;
 }
 
-/** WhatsApp/Instagram voice notes are short; anything bigger is not read (cost and time). */
-export const STT_MAX_BYTES = 8 * 1024 * 1024;
+/**
+ * WhatsApp/Instagram voice notes are short (a minute of speech is about 100 KB); anything bigger is not read.
+ * The price of reading one is assumed per note, so the size is what keeps a long recording from costing more.
+ */
+export const STT_MAX_BYTES = 1024 * 1024;
 /**
  * A voice note is answered after it is read, and the webhook run is limited to 60 s: a slow engine
  * must not hold the buyer's reply. Each engine gets what its normal answer takes (the 2026-10-12
@@ -50,10 +53,10 @@ const PROMPT =
  * The default order, from the 2026-10-12 comparison (10 WhatsApp-quality Sorani voice notes, read by a
  * Pawan voice and a Gemini voice, live keys): Pawan pkrd/asr-ku-large 98 % of characters right in
  * ~2.7 s; Gemini 3.8 Flash (kurd.gg) also 98 % but ~6 s with a timeout; Gemini 2.5 Flash 83 % in
- * ~1.6 s. Pawan first, Gemini 3.8 when Pawan fails (no credits, outage), Gemini 2.5 last.
- * STT_ORDER overrides.
+ * ~1.6 s. Pawan only by default: the text models are Claude Haiku and Opus alone, so a voice note is
+ * never sent to Google unless STT_ORDER names a Gemini engine on purpose (the privacy page says Pawan).
  */
-export const DEFAULT_ORDER: SttEngine[] = ["pawan-asr", "gemini3", "gemini", "whisper"];
+export const DEFAULT_ORDER: SttEngine[] = ["pawan-asr"];
 
 export function sttOrder(env: Record<string, string | undefined> = process.env): SttEngine[] {
   const all: SttEngine[] = ["pawan-asr", "whisper", "gemini", "gemini3"];

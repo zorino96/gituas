@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { useT } from "@/lib/i18n/client";
+import { planLabel } from "@/lib/billing/prices";
+import { useLang, useT } from "@/lib/i18n/client";
 
 import { saveStoreSettingsAction } from "./actions";
 import { PostsSection } from "./posts-section";
@@ -43,6 +44,7 @@ function Check({ done, label, hint, action }: { done: boolean; label: string; hi
 export function AutomationClient({ store, stores, templates, products, postAutomations, posts, postErrors, usage, audience }: AutomationProps) {
   const router = useRouter();
   const t = useT();
+  const lang = useLang();
   const a = t.automation;
   const status = useSaver();
   // The last saved settings, for display. A save sends only the fields its own control or section owns.
@@ -123,7 +125,7 @@ export function AutomationClient({ store, stores, templates, products, postAutom
             </div>
             <small className="gm-hint" style={{ display: "block" }}>
               <Link href="/app/billing" className="gm-link">
-                {a.plan(usage.plan)}
+                {a.plan(planLabel(usage.plan, lang))}
               </Link>
             </small>
           </div>

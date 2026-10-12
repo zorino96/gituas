@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 
 import { currentWorkspace } from "@/app/app/data";
+import { takeDaily } from "@/lib/ai/slots";
+import { limitsOf } from "@/lib/shop/tenant-plans";
+import { SHOP_LIMITS } from "@/lib/shop/plans";
 import { db } from "@/lib/db";
 import { REF_LIMITS, refKind, refStoreOf } from "@/lib/advideo/ref-paths";
 import { can } from "@/lib/newsroom/roles";
@@ -10,6 +13,15 @@ export const runtime = "nodejs";
 
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "video/mp4", "video/quicktime"];
 const MAX_BYTES = 250 * 1024 * 1024;
+/** What a workspace that pays nothing may put on our storage: fewer, smaller files (it only needs them for its own posts). */
+const FREE_MAX_BYTES = 40 * 1024 * 1024;
+const FILES_PER_DAY = { free: 20, paid: 100 };
+
+/** A newsroom desk with a plan that is running (not a trial, not frozen). */
+async function newsDeskPays(tenantId: string): Promise<boolean> {
+  const t = await db.tenant.findUnique({ where: { id: tenantId }, select: { planPaidUntil: true } });
+  return !!t?.planPaidUntil && t.planPaidUntil.getTime() > Date.now();
+}
 
 /**
  * Issues short-lived tokens so the browser can upload straight to Vercel Blob.
@@ -32,6 +44,10 @@ export async function POST(req: Request): Promise<NextResponse> {
         const ws = await currentWorkspace();
         if (!ws) throw new Error("Not signed in");
         if (!pathname.startsWith(`merchant/${ws.id}/`) || pathname.includes("..")) throw new Error("Invalid path");
+        // Storage is not free and nothing deletes a file: a count a day and a size by plan, for every kind of upload.
+        const paid = ws.kind === "MERCHANT" ? (await limitsOf(ws.id)).aiUsd > SHOP_LIMITS.FREE.aiUsd : await newsDeskPays(ws.id);
+        const today = await takeDaily(ws.id, "upload_day", 1, paid ? FILES_PER_DAY.paid : FILES_PER_DAY.free);
+        if (today < 1) throw new Error("Too many uploads today");
         // Reference pictures and clips for AI video ads end up inside ads that may be posted by themselves: only people who
         // can publish may add them, only to a store of this workspace, and each kind has its own types and size.
         if (pathname.startsWith(`merchant/${ws.id}/advideo-ref/`)) {
@@ -50,7 +66,7 @@ export async function POST(req: Request): Promise<NextResponse> {
         }
         return {
           allowedContentTypes: ALLOWED,
-          maximumSizeInBytes: MAX_BYTES,
+          maximumSizeInBytes: paid ? MAX_BYTES : FREE_MAX_BYTES,
           addRandomSuffix: true,
           tokenPayload: JSON.stringify({ tenantId: ws.id }),
         };

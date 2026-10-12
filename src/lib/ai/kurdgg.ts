@@ -1,19 +1,15 @@
-// kurd.gg (Pawan.Krd): an OpenAI-compatible chat API, used first for its Sorani.
+// kurd.gg (Pawan.Krd): an OpenAI-compatible chat API, and the only AI text provider Gituas uses.
 //   KURDGG_API_KEY        required (set in Vercel)
 //   KURDGG_BASE_URL       default https://api.kurd.gg/v1
-//   KURDGG_MODEL          the model for every call (see GET /v1/models)
-//   KURDGG_MODEL_STRONG   the editor's "improve"; defaults to KURDGG_MODEL
+//   KURDGG_MODEL          the Haiku model id (default cc/claude-haiku-5-5)
+//   KURDGG_MODEL_OPUS     the Opus model id (default cc/claude-opus-5-5), used only by plans that include it
+import { estimateTokens, modelFor, type AiTier } from "./models";
 import type { JsonCall, JsonResult } from "./provider";
 
 const DEFAULT_BASE = "https://api.kurd.gg/v1";
 
 export function kurdggConfigured(): boolean {
-  return !!process.env.KURDGG_API_KEY?.trim() && !!process.env.KURDGG_MODEL?.trim();
-}
-
-function modelFor(strength: JsonCall["strength"]): string {
-  const fast = process.env.KURDGG_MODEL!.trim();
-  return strength === "strong" ? process.env.KURDGG_MODEL_STRONG?.trim() || fast : fast;
+  return !!process.env.KURDGG_API_KEY?.trim();
 }
 
 /**
@@ -33,6 +29,12 @@ export function extractJson(content: string): unknown {
   }
 }
 
+interface Chunk {
+  model?: string;
+  usage?: { prompt_tokens?: unknown; completion_tokens?: unknown };
+  choices?: { delta?: { content?: unknown }; message?: { content?: unknown } }[];
+}
+
 /**
  * The text of a streamed reply. kurd.gg answers as server-sent events ("data: {chunk}" lines,
  * then "data: [DONE]") even when no stream was asked for; the pieces are joined here.
@@ -46,7 +48,7 @@ export function sseContent(raw: string): { content: string; model: string | null
     const payload = t.slice(5).trim();
     if (!payload || payload === "[DONE]") continue;
     try {
-      const chunk = JSON.parse(payload) as { model?: string; choices?: { delta?: { content?: unknown }; message?: { content?: unknown } }[] };
+      const chunk = JSON.parse(payload) as Chunk;
       model = chunk.model ?? model;
       const piece = chunk.choices?.[0]?.delta?.content ?? chunk.choices?.[0]?.message?.content;
       if (typeof piece === "string") content += piece;
@@ -57,10 +59,82 @@ export function sseContent(raw: string): { content: string; model: string | null
   return { content, model };
 }
 
+/** The token counts a reply states (in a plain body or in the last chunk of a stream), or null. */
+export function replyUsage(raw: string): { in: number; out: number } | null {
+  const read = (u: Chunk["usage"]) => {
+    const a = Number(u?.prompt_tokens);
+    const b = Number(u?.completion_tokens);
+    return Number.isFinite(a) && Number.isFinite(b) && a + b > 0 ? { in: a, out: b } : null;
+  };
+  if (!raw.trimStart().startsWith("data:")) {
+    try {
+      return read((JSON.parse(raw) as Chunk).usage);
+    } catch {
+      return null;
+    }
+  }
+  let found: { in: number; out: number } | null = null;
+  for (const line of raw.split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t.startsWith("data:")) continue;
+    const payload = t.slice(5).trim();
+    if (!payload || payload === "[DONE]") continue;
+    try {
+      found = read((JSON.parse(payload) as Chunk).usage) ?? found;
+    } catch {
+      // not a chunk
+    }
+  }
+  return found;
+}
+
+/** A reply that arrived (and was paid for) but could not be used; says what it cost and whether it was cut short. */
+export class KurdggReplyError extends Error {
+  constructor(
+    message: string,
+    readonly usage: { in: number; out: number },
+    /** The answer ran into the length cap: asking again with the same cap cuts it again. */
+    readonly truncated: boolean,
+  ) {
+    super(message);
+    this.name = "KurdggReplyError";
+  }
+}
+
+/** Why the model stopped ("stop", "length", ...), from a plain body or the last chunk of a stream. */
+export function finishReason(raw: string): string | null {
+  const read = (c: { choices?: { finish_reason?: unknown }[] }) => (typeof c.choices?.[0]?.finish_reason === "string" ? (c.choices[0].finish_reason as string) : null);
+  if (!raw.trimStart().startsWith("data:")) {
+    try {
+      return read(JSON.parse(raw));
+    } catch {
+      return null;
+    }
+  }
+  let found: string | null = null;
+  for (const line of raw.split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t.startsWith("data:")) continue;
+    const payload = t.slice(5).trim();
+    if (!payload || payload === "[DONE]") continue;
+    try {
+      found = read(JSON.parse(payload)) ?? found;
+    } catch {
+      // not a chunk
+    }
+  }
+  return found;
+}
+
+/** A model's answer is never longer than this many tokens unless the caller asks for more: a runaway reply costs money. */
+const DEFAULT_MAX_TOKENS = 2000;
+
 /** timeoutMs is the caller's to choose: completeJson budgets it against the overall deadline. */
-export async function kurdggJson({ system, user, strength, model: override, images }: JsonCall, timeoutMs: number): Promise<JsonResult> {
+export async function kurdggJson(call: JsonCall, timeoutMs: number, tier: AiTier = "haiku"): Promise<JsonResult> {
+  const { system, user, model: override, images, maxTokens } = call;
   const base = (process.env.KURDGG_BASE_URL?.trim() || DEFAULT_BASE).replace(/\/$/, "");
-  const model = override?.trim() || modelFor(strength);
+  const model = override?.trim() || modelFor(tier);
+  const systemText = `${system}\n\nReply with one JSON object only.`;
   const res = await fetch(`${base}/chat/completions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.KURDGG_API_KEY!.trim()}`, "Content-Type": "application/json" },
@@ -68,9 +142,10 @@ export async function kurdggJson({ system, user, strength, model: override, imag
       model,
       stream: false,
       temperature: 0.3,
+      max_tokens: maxTokens ?? DEFAULT_MAX_TOKENS,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: `${system}\n\nReply with one JSON object only.` },
+        { role: "system", content: systemText },
         {
           role: "user",
           content: images?.length
@@ -102,5 +177,19 @@ export async function kurdggJson({ system, user, strength, model: override, imag
     replyModel = body?.model ?? null;
   }
   if (!content.trim()) throw new Error("empty reply");
-  return { data: extractJson(content), model: `kurdgg/${replyModel ?? model}` };
+  // The provider's own count when it gives one; else an estimate that leans high (a picture is about 800 tokens).
+  const stated = replyUsage(raw);
+  // Which figures the month's count rests on: stated by the provider, or estimated here (numbers only in the log).
+  if (!stated) console.info("[kurdgg] usage not stated, estimated:", model);
+  const usage = stated ?? {
+    in: estimateTokens(systemText + user) + (images?.length ?? 0) * 800,
+    out: estimateTokens(content),
+  };
+  let data: unknown;
+  try {
+    data = extractJson(content);
+  } catch (e) {
+    throw new KurdggReplyError(e instanceof Error ? e.message : "the reply was not JSON", usage, finishReason(raw) === "length");
+  }
+  return { data, model: `kurdgg/${replyModel ?? model}`, usage };
 }

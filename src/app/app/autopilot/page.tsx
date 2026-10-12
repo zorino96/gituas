@@ -39,7 +39,7 @@ export default async function AutopilotPage({ searchParams }: { searchParams: Pr
       key={store.id}
       store={storeView(store)}
       stores={state.stores.map((s) => ({ id: s.id, name: s.name || (s.igUsername ? `@${s.igUsername}` : "—") }))}
-      paid={state.usage.plan === "MERCHANT" || state.usage.plan === "PRO"}
+      paid={state.usage.plan !== "FREE"}
       lastDraft={draft?.media?.url ? { caption: draft.caption, thumb: draft.media.url, at: draft.at } : null}
       studio={studioReadyFor(ws.id)}
     />

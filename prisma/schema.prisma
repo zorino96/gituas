@@ -1014,6 +1014,8 @@ enum StorePlan {
   FREE
   MERCHANT
   PRO
+  /// The Max plan: Claude Opus for replies, analysis and videos. Added with gituas-private/apply-max-plan.cjs.
+  MAX
 }
 
 enum OutboxKind {

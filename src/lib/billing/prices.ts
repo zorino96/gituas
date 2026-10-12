@@ -4,7 +4,7 @@ export const PERIOD_DAYS = 30;
 const DAY = 86_400_000;
 
 /** IQD per month. Shop plans are per store, and one store covers the whole business (Facebook, Instagram, TikTok, YouTube); newsroom plans per workspace. */
-export const SHOP_PRICES: Record<string, number> = { MERCHANT: 8000, PRO: 12000 };
+export const SHOP_PRICES: Record<string, number> = { MERCHANT: 15000, PRO: 25000, MAX: 59000 };
 export const NEWS_PRICES: Record<string, number> = { LITE: 25000, MANUAL: 155000, AUTO: 390000, ENTERPRISE: 940000 };
 /** Studio top-ups: the IQD a shop adds to its prepaid Studio balance (one payment, no period). */
 export const STUDIO_PACKS: Record<string, number> = { STUDIO_5K: 5000, STUDIO_10K: 10000, STUDIO_25K: 25000, STUDIO_50K: 50000 };
@@ -13,6 +13,7 @@ export const PLAN_LABEL: Record<string, string> = {
   FREE: "بەخۆڕایی",
   MERCHANT: "بازرگان",
   PRO: "پرۆ",
+  MAX: "ماکس",
   LITE: "پەیجی بچووک",
   MANUAL: "بنەڕەت",
   AUTO: "پرۆ",
@@ -28,6 +29,7 @@ export const PLAN_LABEL_AR: Record<string, string> = {
   FREE: "مجانية",
   MERCHANT: "تاجر",
   PRO: "احترافية",
+  MAX: "ماكس",
   LITE: "صفحة صغيرة",
   MANUAL: "أساسية",
   AUTO: "احترافية",
@@ -44,6 +46,7 @@ export const PLAN_LABEL_EN: Record<string, string> = {
   FREE: "Free",
   MERCHANT: "Merchant",
   PRO: "Pro",
+  MAX: "Max",
   LITE: "Small page",
   MANUAL: "Basic",
   AUTO: "Pro",
@@ -56,6 +59,21 @@ export const PLAN_LABEL_EN: Record<string, string> = {
 
 export function planLabel(plan: string, lang: "ckb" | "ar" | "en" = "ckb"): string {
   return (lang === "ar" ? PLAN_LABEL_AR : lang === "en" ? PLAN_LABEL_EN : PLAN_LABEL)[plan] ?? plan;
+}
+
+/**
+ * The Max plan is sold only once the database knows the plan (the schema script was run) and the
+ * owner has switched it on: a payment that could not be applied would take money for nothing.
+ */
+export function maxPlanOpen(): boolean {
+  return process.env.MAX_PLAN_ENABLED?.trim() === "1";
+}
+
+/** What a checkout may charge: the price of a plan that is for sale right now, or null. */
+export function checkoutPrice(product: BillingProduct, plan: string, currentPlan?: string): number | null {
+  // A store already on the Max plan may renew it whatever the switch says; nobody new may buy it before the switch (the database must know the plan first).
+  if (product === "SHOP" && plan === "MAX" && !maxPlanOpen() && currentPlan !== "MAX") return null;
+  return priceFor(product, plan);
 }
 
 /** The price of a plan that is for sale, or null. */

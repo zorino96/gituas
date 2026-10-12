@@ -1,7 +1,7 @@
 import { after, NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
-import { countVideo, isVideoTier } from "@/lib/advideo/limits";
+import { isVideoTier, refundVideo } from "@/lib/advideo/limits";
 import { AD_MAX_TRIES } from "@/lib/advideo/prepare";
 import { adVideoEnabled } from "@/lib/advideo/enabled";
 import { publishAdVideo } from "@/lib/advideo/publish";
@@ -37,11 +37,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (!ok) {
     const error = (typeof body?.error === "string" ? body.error : "bad upload").slice(0, 300);
     const last = job.tries >= AD_MAX_TRIES;
-    await db.adVideo.update({ where: { id }, data: { error, status: last ? "FAILED" : "READY", claimedAt: null } });
-    if (last && job.storeId && isVideoTier(job.tier)) await countVideo(job.storeId, job.tier, -1);
+    // Only while the job is still being rendered: the sweeper may have returned or failed it (and given the
+    // video back) already, and a second report must not move it again or refund it twice.
+    const moved = await db.adVideo.updateMany({ where: { id, status: "RENDERING" }, data: { error, status: last ? "FAILED" : "READY", claimedAt: null } });
+    if (moved.count === 1 && last && isVideoTier(job.tier)) await refundVideo(job.tenantId, job.tier, job.createdAt, { keepDay: true });
     return NextResponse.json({ ok: false });
   }
-  await db.adVideo.update({ where: { id }, data: { status: "RENDERED", videoUrl: url, videoPath: pathname, error: null } });
+  const done = await db.adVideo.updateMany({ where: { id, status: "RENDERING" }, data: { status: "RENDERED", videoUrl: url, videoPath: pathname, error: null } });
+  if (done.count !== 1) return NextResponse.json({ error: "not rendering" }, { status: 409 });
   // The switch is checked again inside publishAdVideo: closed, the video waits as RENDERED.
   if (job.autoPost && adVideoEnabled()) after(() => publishAdVideo(id).then(() => undefined));
   return NextResponse.json({ ok: true });

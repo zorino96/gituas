@@ -1,11 +1,13 @@
-// Boost advice for ONE post: the AI looks at the picture or video itself (Gemini sees both), knows
-// the product, the brand and who already buys from the shop, and says whether this post is worth
-// money, where it would do best, who to show it to, and what to fix in the creative first.
+// Boost advice for ONE post: the AI looks at the picture itself (a video is judged from its caption
+// and the reaction to it), knows the product, the brand and who already buys from the shop, and says
+// whether this post is worth money, where it would do best, who to show it to, and what to fix in the
+// creative first. Claude Opus on the plan that includes it, Haiku on the others.
 // Every value it returns is checked against the same lists the per-shop settings use.
 
+import { aiForTenant } from "@/lib/ai/for-store";
 import { completeJson } from "@/lib/ai/provider";
+import { imageDataUrl } from "@/lib/ai/vision";
 import { db } from "@/lib/db";
-import { getGemini, isGeminiConfigured } from "@/lib/gemini";
 import { isOwnBlobUrl } from "@/lib/merchant/caption";
 import { loadAutopilotSignals } from "./audience";
 import { parseAiAudience } from "./ai-audience";
@@ -14,7 +16,6 @@ import { AD_PLATFORMS, type AdPlatform, type Objective } from "./targeting";
 import { priceLine } from "@/lib/studio/price";
 import { metaMediaUrl } from "@/lib/meta-cdn";
 
-const MAX_MEDIA_BYTES = 18 * 1024 * 1024;
 const OBJECTIVES: Objective[] = ["messages", "whatsapp_traffic", "video_views"];
 
 export interface PostAdvice {
@@ -88,20 +89,6 @@ Never describe or target religion, ethnicity, health, politics or sexuality. The
 Reply with JSON only:
 {"worthBoosting": true|false, "reason": "...", "bestPlatform": "FB|IG|TT|YT", "platformWhy": "...", "objective": "...", "ageMin": n, "ageMax": n, "gender": "all|women|men", "interests": [...], "locations": [city codes], "dailyIqd": [low, high], "creativeScore": n, "creativeNotes": [...], "observations": [...]}`;
 
-async function mediaPart(url: string, type: "IMAGE" | "VIDEO"): Promise<{ inlineData: { mimeType: string; data: string } } | null> {
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
-    if (!res.ok) return null;
-    const mime = (res.headers.get("content-type") ?? "").split(";")[0].trim() || (type === "VIDEO" ? "video/mp4" : "image/jpeg");
-    if (!/^(image\/(jpeg|png|webp)|video\/(mp4|quicktime))$/.test(mime)) return null;
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length > MAX_MEDIA_BYTES) return null;
-    return { inlineData: { mimeType: mime, data: buf.toString("base64") } };
-  } catch {
-    return null;
-  }
-}
-
 export async function adviseForPost(i: {
   tenantId: string;
   caption: string;
@@ -134,33 +121,28 @@ export async function adviseForPost(i: {
     ...(i.evidence ?? []),
   ].filter(Boolean).join("\n");
 
-  // With the media: Gemini sees the picture or the whole video.
+  // With the picture: the model sees it. A video is judged from its caption and the reaction to it (the
+  // model takes pictures only), so its creative score is left out.
+  const modelAi = await aiForTenant(i.tenantId, { opus: true });
   const own = i.mediaUrl && i.mediaType && (isOwnBlobUrl(i.mediaUrl, i.tenantId) || (i.remoteMedia && metaMediaUrl(i.mediaUrl))) ? i.mediaUrl : null;
-  if (own && i.mediaType && isGeminiConfigured()) {
-    const part = await mediaPart(own, i.mediaType);
-    if (part) {
-      try {
-        const res = await getGemini().models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: [{ role: "user", parts: [part, { text: context }] }],
-          config: { systemInstruction: SYSTEM, responseMimeType: "application/json", maxOutputTokens: 4096, httpOptions: { timeout: 45_000 } },
-        });
-        const advice = parseAdvice(JSON.parse(res.text?.trim() || "{}"), signals.cities, true);
-        if (advice) return advice;
-      } catch (e) {
-        console.error("[post-advice] media advice failed:", e instanceof Error ? e.message.slice(0, 160) : "unknown error");
-      }
-    }
-  }
-
-  // Without it (no media, too large, or the call failed): the same advice from the text alone.
+  const picture = own && i.mediaType === "IMAGE" ? await imageDataUrl(own) : null;
   try {
     const { data } = await completeJson<PostAdvice>(
-      { system: SYSTEM, user: `${context}\n(The media could not be seen: leave creativeScore out.)`, strength: "fast", thinking: false, budgetMs: 30_000 },
-      (d) => parseAdvice(d, signals.cities, false),
+      {
+        system: SYSTEM,
+        user: picture ? context : `${context}\n(The media could not be seen: leave creativeScore out.)`,
+        ...(picture ? { images: [picture] } : {}),
+        strength: "strong",
+        tier: modelAi?.tier,
+        meter: modelAi?.meter,
+        maxTokens: 1400,
+        budgetMs: 40_000,
+      },
+      (d) => parseAdvice(d, signals.cities, !!picture),
     );
     return data;
-  } catch {
+  } catch (e) {
+    console.error("[post-advice] failed:", e instanceof Error ? e.message.slice(0, 160) : "unknown error");
     return null;
   }
 }

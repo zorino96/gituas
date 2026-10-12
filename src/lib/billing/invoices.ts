@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import { db } from "@/lib/db";
 import { SHOP_ORIGIN } from "@/lib/hosts";
-import { nextPaidUntil, PLAN_LABEL, priceFor, type BillingProduct } from "./prices";
+import { checkoutPrice, nextPaidUntil, PLAN_LABEL, type BillingProduct } from "./prices";
 import { topUpWallet } from "@/lib/studio/wallet";
 import { createLink, getLink, invalidateIfPending, PAID_STATUS, waylConfigured, waylEnv } from "./wayl";
 
@@ -25,13 +25,14 @@ export async function startCheckout(i: {
   returnPath: string;
 }): Promise<CheckoutResult> {
   if (!waylConfigured()) return { ok: false, error: "پارەدان هێشتا ئامادە نییە." };
-  const amount = priceFor(i.product, i.plan);
-  if (!amount) return { ok: false, error: "پلانەکە دروست نییە." };
+  let currentPlan: string | undefined;
   if (i.product === "SHOP") {
-    if (!i.storeId || !(await db.store.findFirst({ where: { id: i.storeId, tenantId: i.tenantId }, select: { id: true } }))) {
-      return { ok: false, error: "دووکانەکە نەدۆزرایەوە." };
-    }
+    const store = i.storeId ? await db.store.findFirst({ where: { id: i.storeId, tenantId: i.tenantId }, select: { id: true, plan: true } }) : null;
+    if (!store) return { ok: false, error: "دووکانەکە نەدۆزرایەوە." };
+    currentPlan = store.plan;
   }
+  const amount = checkoutPrice(i.product, i.plan, currentPlan);
+  if (!amount) return { ok: false, error: "پلانەکە دروست نییە." };
   const secret = randomBytes(24).toString("hex");
   const inv = await db.invoice.create({
     data: { tenantId: i.tenantId, storeId: i.product === "SHOP" ? i.storeId : null, product: i.product, plan: i.plan, amountIqd: amount, env: waylEnv(), webhookSecret: secret },
@@ -91,7 +92,7 @@ export async function confirmInvoice(invoiceId: string): Promise<"paid" | "paid_
         if (s) {
           await tx.store.update({
             where: { id: inv.storeId },
-            data: { plan: inv.plan as "MERCHANT" | "PRO", planPaidUntil: nextPaidUntil(inv.product as BillingProduct, { plan: s.plan, paidUntil: s.planPaidUntil }, inv.plan, now) },
+            data: { plan: inv.plan as "MERCHANT" | "PRO" | "MAX", planPaidUntil: nextPaidUntil(inv.product as BillingProduct, { plan: s.plan, paidUntil: s.planPaidUntil }, inv.plan, now) },
           });
           applied = true;
         }
@@ -140,7 +141,11 @@ export async function expireOverdue(now = new Date()): Promise<{ stores: number;
   });
   let invoices = 0;
   for (const { id } of stale) {
-    const r = await confirmInvoice(id);
+    // One invoice that cannot be settled (a plan the database does not know yet) must not stop the day's other work.
+    const r = await confirmInvoice(id).catch((e: unknown) => {
+      console.error("[billing] invoice check failed:", e instanceof Error ? e.message.slice(0, 160) : "unknown error");
+      return "error" as const;
+    });
     if (r !== "pending") continue; // paid (settled), or Wayl unreachable (retry tomorrow)
     await invalidateIfPending(id);
     const expired = await db.invoice.updateMany({ where: { id, status: "PENDING" }, data: { status: "EXPIRED" } });

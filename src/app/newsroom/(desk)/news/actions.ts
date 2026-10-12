@@ -5,9 +5,11 @@ import { after } from "next/server";
 
 import { isOwnPathname } from "@/lib/merchant/caption";
 import { db } from "@/lib/db";
-import { assertWithin, countUsage, LimitReached, limitMessage } from "@/lib/billing/limits";
+import { assertWithin, countUsage, LimitReached, limitMessage, newsroomFrozenError } from "@/lib/billing/limits";
+import { claimSlot } from "@/lib/ai/slots";
+import { FOCUS_RESET_CAPS, FOCUS_RESET_SLOTS, VOICE_PREVIEW_CAPS, VOICE_PREVIEW_SLOTS } from "@/lib/news/ai-budget";
 import { canAutoPublish, NEWS_LIMITS, promptFilterFor, videoQuotaFor } from "@/lib/billing/plans";
-import { del, put } from "@vercel/blob";
+import { del, head, put } from "@vercel/blob";
 import { cleanDailyMax, isVideoMode, ownClips, prepareVideo, VIDEO_STYLES } from "@/lib/news/video";
 import { CLIP_LIBRARY_MAX, cleanClipLabel, type LibraryClip } from "@/lib/news/clips";
 import { isOwnPhoto, PHOTO_LIBRARY_MAX, photoForStory } from "@/lib/news/photos";
@@ -571,6 +573,17 @@ export async function previewVoiceAction(voice: string, speed: number): Promise<
   if (videoQuotaFor(tenant?.plan) < 1) return { ok: false, error: t.settings.news.videoPlanOnly };
   if (!isPawanVoice(voice) && voice !== CUSTOM_VOICE) return { ok: false, error: t.common.error };
   const s = cleanSpeed(speed);
+  // A desk whose trial ended or whose plan ran out is frozen: no paid voice work either.
+  const frozen = await newsroomFrozenError(ws.id);
+  if (frozen) return { ok: false, error: frozen };
+  const previewPath = `merchant/${ws.id}/voice-preview/${voice}-${s}.mp3`;
+  // A stock voice at one speed sounds the same every time: the sample made before is played again, at no cost.
+  if (voice !== CUSTOM_VOICE) {
+    const made = await head(previewPath).catch(() => null);
+    if (made) return { ok: true, url: made.url };
+  }
+  const slot = await claimSlot(ws.id, VOICE_PREVIEW_SLOTS, VOICE_PREVIEW_CAPS);
+  if (!slot.ok) return { ok: false, error: t.settings.news.videoVoiceFailed };
   try {
     let audio;
     if (voice === CUSTOM_VOICE) {
@@ -581,7 +594,7 @@ export async function previewVoiceAction(voice: string, speed: number): Promise<
     } else {
       audio = await speak({ text: VOICE_SAMPLE, lang: "ckb", voice, speed: s });
     }
-    const blob = await put(`merchant/${ws.id}/voice-preview/${voice}-${s}.mp3`, audio.audio, {
+    const blob = await put(previewPath, audio.audio, {
       access: "public",
       contentType: audio.mime,
       addRandomSuffix: false,
@@ -612,11 +625,19 @@ export async function saveNewsFilterAction(input: { mode: string; focus: string;
     return { ok: false, error: t.settings.news.filterEmpty };
   }
   const before = await db.newsSettings.findUnique({ where: { tenantId: ws.id } });
-  await db.newsSettings.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, keywords: [], ...data }, update: data });
   const changed =
     before?.filterMode !== data.filterMode ||
     before?.focusPrompt !== data.focusPrompt ||
     (level === "full" && (before?.excludePrompt !== data.excludePrompt || before?.focusBroad !== data.focusBroad));
+  // Changing the prompt has the recent stories judged again by the AI: a few changes a day are plenty, and a
+  // desk that is frozen gets none.
+  if (changed && mode === "PROMPT") {
+    const frozen = await newsroomFrozenError(ws.id);
+    if (frozen) return { ok: false, error: frozen };
+    const slot = await claimSlot(ws.id, FOCUS_RESET_SLOTS, FOCUS_RESET_CAPS);
+    if (!slot.ok) return { ok: false, error: t.settings.news.filterTooOften };
+  }
+  await db.newsSettings.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, keywords: [], ...data }, update: data });
   if (changed) {
     // New prompts: the recent stories are judged again, right after this response.
     await resetFocus(ws.id);

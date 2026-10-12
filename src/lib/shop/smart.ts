@@ -4,6 +4,7 @@
 // it can be sent: no number that is not in the facts or the owner's instructions, no link but the
 // order link. A reply that fails the check is thrown away and the fixed templates answer instead.
 
+import type { Meter } from "@/lib/ai/meter";
 import { completeJson, type JsonCall } from "@/lib/ai/provider";
 import type { Lang } from "./money";
 
@@ -45,6 +46,8 @@ export interface SmartInput {
   history?: { from: "buyer" | "shop"; text: string }[];
   /** The message is a voice note read by speech recognition, so it may contain mistakes. */
   viaVoice?: boolean;
+  /** Which model, and whose monthly allowance the call is counted against. */
+  ai?: { tier: "haiku" | "opus"; meter: Meter };
 }
 
 export interface SmartOutput {
@@ -212,7 +215,7 @@ export async function smartReply(i: SmartInput, complete: Completer = defaultCom
     if (attempt === 1 && Date.now() - started > 12_000) return null;
     let out: { data: unknown; model: string };
     try {
-      out = await complete({ system: buildSystem(i), user: buildUser(i, problem), strength: "fast", thinking: false, budgetMs });
+      out = await complete({ system: buildSystem(i), user: buildUser(i, problem), strength: "fast", budgetMs, tier: i.ai?.tier, meter: i.ai?.meter, maxTokens: 450 });
     } catch {
       return null;
     }

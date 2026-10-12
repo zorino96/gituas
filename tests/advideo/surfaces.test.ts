@@ -2,7 +2,8 @@
 // the upload route's policy, and the signals the plan is made from.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const ws = vi.hoisted(() => ({ current: { id: "t1", role: "OWNER" } as { id: string; role: string } | null }));
+const ws = vi.hoisted(() => ({ current: { id: "t1", role: "OWNER", kind: "MERCHANT" } as { id: string; role: string; kind: string } | null }));
+const paid = vi.hoisted(() => ({ aiUsd: 2 }));
 
 vi.mock("@/lib/db", () => ({
   db: {
@@ -15,6 +16,8 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 vi.mock("@/app/app/data", () => ({ currentWorkspace: vi.fn(async () => ws.current) }));
+vi.mock("@/lib/shop/tenant-plans", () => ({ limitsOf: vi.fn(async () => ({ aiUsd: paid.aiUsd })) }));
+vi.mock("@/lib/ai/slots", () => ({ takeDaily: vi.fn(async () => 1) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/server", () => ({ after: vi.fn(), NextResponse: { json: (body: unknown, init?: { status?: number }) => ({ body, status: init?.status ?? 200 }) } }));
 vi.mock("@/lib/i18n", async () => {
@@ -37,6 +40,7 @@ vi.mock("@vercel/blob/client", () => ({
 }));
 
 import { db } from "@/lib/db";
+import { takeDaily } from "@/lib/ai/slots";
 import { removeRef } from "@/lib/advideo/refs";
 import { getDailyBrief, loadMarketNotes, readTodaysBrief, saveMarketNotes } from "@/lib/advideo/strategy";
 import { loadBuyerProfile, ordersByPost } from "@/lib/orders/audience";
@@ -50,7 +54,7 @@ const plan = (over: Record<string, unknown> = {}) => ({ brief: { date: "d", obje
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv("AD_VIDEO_ENABLED", "1");
-  ws.current = { id: "t1", role: "OWNER" };
+  ws.current = { id: "t1", role: "OWNER", kind: "MERCHANT" };
   m.store.findFirst.mockResolvedValue({ id: "s1", fbPageId: null, igUserId: null });
 });
 
@@ -93,9 +97,9 @@ describe("the plan actions", () => {
   });
 
   it("is for people who may publish, and only for stores of the workspace", async () => {
-    ws.current = { id: "t1", role: "MEMBER" };
+    ws.current = { id: "t1", role: "MEMBER", kind: "MERCHANT" };
     expect(await refreshPlanAction("s1")).toMatchObject({ ok: false });
-    ws.current = { id: "t1", role: "OWNER" };
+    ws.current = { id: "t1", role: "OWNER", kind: "MERCHANT" };
     m.store.findFirst.mockResolvedValue(null);
     expect(await saveMarketNotesAction("s9", "x")).toMatchObject({ ok: false });
     expect(saveMarketNotes).not.toHaveBeenCalled();
@@ -124,9 +128,9 @@ describe("the upload route's policy for reference files", () => {
   });
 
   it("refuses a member, a store of another workspace and a path that is not a reference file", async () => {
-    ws.current = { id: "t1", role: "MEMBER" };
+    ws.current = { id: "t1", role: "MEMBER", kind: "MERCHANT" };
     expect((await upload("merchant/t1/advideo-ref/s1/1.jpg")).status).toBe(400);
-    ws.current = { id: "t1", role: "OWNER" };
+    ws.current = { id: "t1", role: "OWNER", kind: "MERCHANT" };
     m.store.findFirst.mockResolvedValue(null);
     expect((await upload("merchant/t1/advideo-ref/s7/1.jpg")).status).toBe(400);
     m.store.findFirst.mockResolvedValue({ id: "s1" });
@@ -134,10 +138,21 @@ describe("the upload route's policy for reference files", () => {
     expect((await upload("merchant/t2/advideo-ref/s1/1.jpg")).status).toBe(400);
   });
 
-  it("leaves the other uploads as they were", async () => {
+  it("leaves the other uploads as they were for a paying workspace", async () => {
     const r = await upload("merchant/t1/photo-1.png");
     expect(r.status).toBe(200);
     expect(r.body).toMatchObject({ maximumSizeInBytes: 250 * 1024 * 1024 });
+  });
+
+  it("gives a workspace that pays nothing smaller files, and everyone a number of files a day", async () => {
+    paid.aiUsd = 0.08;
+    expect((await upload("merchant/t1/photo-1.png")).body).toMatchObject({ maximumSizeInBytes: 40 * 1024 * 1024 });
+    expect(vi.mocked(takeDaily).mock.calls.at(-1)).toEqual(["t1", "upload_day", 1, 20]);
+    paid.aiUsd = 2;
+    await upload("merchant/t1/photo-1.png");
+    expect(vi.mocked(takeDaily).mock.calls.at(-1)).toEqual(["t1", "upload_day", 1, 100]);
+    vi.mocked(takeDaily).mockResolvedValueOnce(0);
+    expect((await upload("merchant/t1/photo-2.png")).status).toBe(400);
   });
 });
 

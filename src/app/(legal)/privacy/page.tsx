@@ -204,17 +204,24 @@ export default function PrivacyPage() {
       <P>We share data only with the service providers that run Gituas and Hawalnoos for us:</P>
       <UL>
         <LI>
-          <Strong>AI processing.</Strong> kurd.gg (Pawan.Krd), an AI gateway that passes requests to
-          model providers such as Anthropic, with DeepSeek and Google (Gemini) as fallbacks. We send
-          them: the text of buyer comments, direct messages and WhatsApp messages, with your product
-          names and prices, so they can tell what the buyer is asking and help word the reply; the
-          content you are drafting; and, for news, the public headline and summary of a story. Sender
-          phone numbers and account tokens are never sent to them; we send only what each task needs.
+          <Strong>AI text processing.</Strong> kurd.gg (Pawan.Krd), an AI gateway that passes requests
+          to Anthropic&rsquo;s Claude models (Haiku and Opus). We send them: the text of buyer
+          comments, direct messages and WhatsApp messages, with your product names and prices, so
+          they can tell what the buyer is asking and help word the reply; the content you are
+          drafting; the pictures of your own products when an ad or a post is being planned; and,
+          for news, the public headline and summary of a story. Sender phone numbers and account
+          tokens are never sent to them; we send only what each task needs.
         </LI>
         <LI>
           <Strong>Voice messages.</Strong> When a buyer sends a voice message, its audio is sent to
-          Pawan.Krd (Kurdish speech recognition) or, as a fallback, Google (Gemini) to turn it into
-          text, so the shop and its assistant can read it. Gituas keeps only that text, not the audio.
+          Pawan.Krd (Kurdish speech recognition) to turn it into text, so the shop and its assistant
+          can read it. Gituas keeps only that text, not the audio.
+        </LI>
+        <LI>
+          <Strong>AI pictures.</Strong> When you ask the post composer to make a picture, OpenAI&rsquo;s
+          image service receives the idea you wrote, and the product photo and reference pictures
+          you choose; never buyer messages, names or phone numbers. The picture it returns is kept
+          in your workspace&rsquo;s own storage.
         </LI>
         {studioEnabled() && (
           <LI>
@@ -224,7 +231,8 @@ export default function PrivacyPage() {
           </LI>
         )}
         <LI>
-          <Strong>Voice-over.</Strong> Pawan.Krd text-to-speech reads the script of a news video aloud.
+          <Strong>Voice-over.</Strong> Pawan.Krd text-to-speech reads the script of a news video, or of
+          a shop&rsquo;s AI ad video, aloud.
           An Enterprise desk may upload a short recording of a voice, with the words spoken in it and
           the speaker&rsquo;s consent; that recording is kept in our storage (Vercel Blob) at a private
           address and is sent to Pawan.Krd with each script so the video is read in that voice. The
@@ -259,8 +267,8 @@ export default function PrivacyPage() {
       <H2>6. Where data is stored, and security</H2>
       <P>
         Our database and files are stored on managed infrastructure in the United States and the
-        European Union. AI providers may process the text we send them in other countries, including
-        China (DeepSeek). All third-party access tokens are encrypted at rest using AES-256-GCM before
+        European Union. AI providers may process the text and pictures we send them in other
+        countries, including the United States. All third-party access tokens are encrypted at rest using AES-256-GCM before
         being written to the database, and are decrypted only in memory at the moment an action you
         authorized is performed. Access to production systems is restricted and logged.
       </P>

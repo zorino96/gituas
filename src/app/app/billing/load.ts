@@ -12,7 +12,8 @@ export async function settleReturn(tenantId: string, invoiceId: unknown): Promis
   if (typeof invoiceId !== "string" || !invoiceId) return null;
   const own = await db.invoice.findFirst({ where: { id: invoiceId, tenantId }, select: { id: true } });
   if (!own) return null;
-  const r = await confirmInvoice(own.id);
+  // Wayl or the database failing must not take the whole billing page down with it.
+  const r = await confirmInvoice(own.id).catch(() => "error" as const);
   if (r === "missing") return null;
   return r === "error" ? "pending" : r; // Wayl unreachable reads like pending: the buyer refreshes.
 }

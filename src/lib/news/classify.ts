@@ -1,3 +1,4 @@
+import { newsItemsAllowed } from "./ai-budget";
 import { db } from "@/lib/db";
 import { completeJson } from "@/lib/ai/provider";
 import { judgeFocus } from "./focus";
@@ -52,12 +53,14 @@ const RECENT_MS = 3 * 24 * 60 * 60 * 1000;
  */
 export async function classifyPending(tenantId: string): Promise<number> {
   try {
-    const items = await db.newsItem.findMany({
+    const found = await db.newsItem.findMany({
       where: { tenantId, category: null, classifyTries: { lt: MAX_TRIES }, publishedAt: { gte: new Date(Date.now() - RECENT_MS) } },
       orderBy: { publishedAt: "desc" },
       take: PER_RUN,
       select: { id: true, title: true, snippet: true },
     });
+    // The plan's daily number of stories the AI reads: the rest stay unlabelled (and shown) until tomorrow.
+    const items = found.slice(0, await newsItemsAllowed(tenantId, "news_label_day", found.length));
     const batches: (typeof items)[] = [];
     for (let i = 0; i < items.length; i += BATCH) batches.push(items.slice(i, i + BATCH));
     const counts = await Promise.all(

@@ -1,3 +1,4 @@
+import { maxPlanOpen } from "@/lib/billing/prices";
 import { waylConfigured, waylEnv } from "@/lib/billing/wayl";
 import { db } from "@/lib/db";
 import { dict, getLang } from "@/lib/i18n";
@@ -36,6 +37,8 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
         chips: storeChips(s, accounts),
       }))}
       invoices={invoices}
+      // A store already on Max keeps the card, so it can renew while sales of Max are closed.
+      hiddenPlans={maxPlanOpen() || stores.some((s) => s.plan === "MAX") ? [] : ["MAX"]}
     />
   );
 }

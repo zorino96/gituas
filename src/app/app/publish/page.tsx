@@ -2,11 +2,18 @@ import Link from "next/link";
 
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { adVideoEnabled } from "@/lib/advideo/enabled";
+import { workspaceVideos } from "@/lib/advideo/limits";
+import { listRefs } from "@/lib/advideo/refs";
+import { imageEnabled } from "@/lib/ai/image";
+import { imagesLeft } from "@/lib/ai/image-left";
+import { limitsOf } from "@/lib/shop/tenant-plans";
 import { isOwnPathname } from "@/lib/merchant/caption";
 import type { AutoDraft } from "@/lib/shop/autopilot";
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
 import { baseFor, currentWorkspace, loadAccountLists, loadConnections, requireWorkspace } from "../data";
+import type { AiMediaConfig } from "./ai-media-panel";
 import { PublishClient } from "./publish-client";
 import { listScheduled } from "./schedule-actions";
 
@@ -30,7 +37,7 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
     loadAccountLists(ws.id),
     loadConnections(ws.id),
     draftId ? db.newsDraft.findFirst({ where: { id: draftId, tenantId: ws.id }, include: { item: true } }) : null,
-    db.product.findMany({ where: { active: true, store: { tenantId: ws.id } }, select: { id: true, name: true }, orderBy: { updatedAt: "desc" } }),
+    db.product.findMany({ where: { active: true, store: { tenantId: ws.id } }, select: { id: true, name: true, storeId: true }, orderBy: { updatedAt: "desc" } }),
     listScheduled(),
     // The draft's own rendered video (src/lib/news/video.ts), posted instead of its card.
     draftId && videoId
@@ -73,6 +80,33 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
         ...(targets.length ? { targets } : {}),
       }
     : undefined;
+  // "Create it with AI": a picture or a video, for a shop. Offered by what the plans give.
+  let ai: AiMediaConfig | null = null;
+  if (ws.kind === "MERCHANT") {
+    const store = await db.store.findFirst({ where: { tenantId: ws.id }, orderBy: { createdAt: "asc" }, select: { id: true } });
+    if (store) {
+      const [lim, imgLeft, vids] = await Promise.all([limitsOf(ws.id), imagesLeft(ws.id), workspaceVideos(ws.id)]);
+      const tier = lim.videos.PRO > 0 ? ("PRO" as const) : ("LITE" as const);
+      const refs = adVideoEnabled() ? await listRefs(ws.id, store.id) : [];
+      ai = {
+        storeId: store.id,
+        productStores: Object.fromEntries(products.map((p) => [p.id, p.storeId])),
+        paid: lim.images > 0 || lim.videos.LITE + lim.videos.PRO > 0,
+        image: lim.images > 0 ? { on: imageEnabled(), configured: imageEnabled(), month: imgLeft.month, day: imgLeft.day } : null,
+        video:
+          adVideoEnabled() && lim.videos.LITE + lim.videos.PRO > 0
+            ? {
+                on: true,
+                tier,
+                month: vids[tier].left,
+                day: Math.min(vids[tier].left, Math.max(0, vids.today.max - vids.today.used)),
+                refImages: refs.filter((r) => r.kind === "image").length,
+                refVideos: refs.filter((r) => r.kind === "video").length,
+              }
+            : null,
+      };
+    }
+  }
   return (
     <>
       {draft && !hasCard && !hasVideo && (
@@ -83,8 +117,9 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
       )}
       <PublishClient
         workspaceId={ws.id}
-        products={products}
+        products={products.map((p) => ({ id: p.id, name: p.name }))}
         initial={initial ?? fromStudio ?? fromAuto}
+        ai={ai}
         scheduled={scheduled}
         accounts={{
           FB: conns.META_FACEBOOK.connected ? (conns.META_FACEBOOK.name ?? t.publish.fbPage) : null,

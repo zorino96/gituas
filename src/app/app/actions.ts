@@ -1,5 +1,8 @@
 "use server";
 
+import { claimSlot } from "@/lib/ai/slots";
+import { NEWS_ASSIST_CAPS, NEWS_ASSIST_SLOTS } from "@/lib/news/ai-budget";
+import { aiForTenant, type AiOptions } from "@/lib/ai/for-store";
 import { revalidatePath } from "next/cache";
 
 import { auth, MAX_FAILURES, WINDOW_MS } from "@/auth";
@@ -108,14 +111,16 @@ export async function sendMessageAction(platform: Platform, recipientId: string,
 
 // ---------- AI -------------------------------------------------------------
 
-/** Short Kurdish/Arabic text through the shared AI chain (kurd.gg, then DeepSeek, then Gemini). */
-async function aiText(prompt: string): Promise<string> {
+/** Short Kurdish/Arabic text from the AI (kurd.gg: Haiku, or Opus on a plan that includes it). */
+async function aiText(prompt: string, ai?: AiOptions | null): Promise<string> {
   const { data } = await completeJson<{ text: string }>(
     {
       system: 'You write short social media texts for pages in Iraqi Kurdistan. Follow the rules in the request exactly. Reply with JSON only: {"text": "<the text>"}',
       user: prompt,
       strength: "fast",
-      thinking: false,
+      tier: ai?.tier,
+      meter: ai?.meter,
+      maxTokens: 500,
     },
     (d) => (typeof (d as { text?: unknown })?.text === "string" ? (d as { text: string }) : null),
   );
@@ -133,6 +138,9 @@ export async function draftReplyAction(
   if (ws.kind === "NEWS") {
     const frozen = await newsroomFrozenError(ws.id, t.nr.news.actions);
     if (frozen) return { ok: false, error: frozen };
+    // A newsroom desk is not on the shop's meter: its helper calls have their own daily and monthly numbers.
+    const slot = await claimSlot(ws.id, NEWS_ASSIST_SLOTS, NEWS_ASSIST_CAPS);
+    if (!slot.ok) return { ok: false, error: t.actions.common.aiDown };
   }
   const where = kind === "dm" ? "private message" : "public comment";
   // A newsroom answers readers, not customers: no sales talk, no new facts, no sides.
@@ -157,8 +165,10 @@ Rules:
 - Output only the reply text.
 
 Customer: """${incoming.slice(0, 1000)}"""`;
+  // A shop's reply draft is a reply: Opus on the plan that includes it.
+  const ai = ws.kind === "MERCHANT" ? await aiForTenant(ws.id, { opus: true }) : null;
   try {
-    const reply = await aiText(prompt);
+    const reply = await aiText(prompt, ai);
     if (!reply) return { ok: false, error: t.actions.inbox.aiNoReply };
     return { ok: true, reply };
   } catch (e) {
@@ -176,7 +186,10 @@ export async function suggestCaptionAction(
   if (ws.kind === "NEWS") {
     const frozen = await newsroomFrozenError(ws.id, t.nr.news.actions);
     if (frozen) return { ok: false, error: frozen };
+    const slot = await claimSlot(ws.id, NEWS_ASSIST_SLOTS, NEWS_ASSIST_CAPS);
+    if (!slot.ok) return { ok: false, error: t.actions.common.aiDown };
   }
+  const ai = ws.kind === "MERCHANT" ? await aiForTenant(ws.id) : null;
   try {
     const caption = await aiText(
       `Write a social media caption in Sorani Kurdish (Arabic script) for a small shop in Iraqi Kurdistan.
@@ -187,6 +200,7 @@ Rules:
 - End with a call to message the shop.
 - No hashtags (they are added separately). At most two emoji.
 - Output only the caption.`,
+      ai,
     );
     if (!caption) return { ok: false, error: t.actions.publish.aiNoCaption };
     return { ok: true, caption };

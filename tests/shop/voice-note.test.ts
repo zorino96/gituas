@@ -1,3 +1,4 @@
+import { SHOP_LIMITS } from "@/lib/shop/plans";
 import { describe, expect, it } from "vitest";
 
 import { parseEntry } from "@/lib/shop/webhook-parse";
@@ -44,9 +45,9 @@ describe("voice notes", () => {
   });
 
   it("engines are tried only when their key is set, Pawan first", () => {
-    expect(sttOrder({ PAWAN_API_KEY: "p", GOOGLE_AI_API_KEY: "g" })).toEqual(["pawan-asr", "gemini", "whisper"]);
-    expect(sttOrder({ PAWAN_API_KEY: "p", GOOGLE_AI_API_KEY: "g", KURDGG_API_KEY: "k" })).toEqual(["pawan-asr", "gemini3", "gemini", "whisper"]);
-    expect(sttOrder({ GOOGLE_AI_API_KEY: "g" })).toEqual(["gemini"]);
+    // Voice is Pawan's alone: no other company's model hears a buyer's message unless STT_ORDER says so.
+    expect(sttOrder({ PAWAN_API_KEY: "p", GOOGLE_AI_API_KEY: "g", KURDGG_API_KEY: "k" })).toEqual(["pawan-asr"]);
+    expect(sttOrder({ GOOGLE_AI_API_KEY: "g" })).toEqual([]);
     expect(sttOrder({ STT_ORDER: "gemini,pawan-asr", PAWAN_API_KEY: "p", GOOGLE_AI_API_KEY: "g" })).toEqual(["gemini", "pawan-asr"]);
     expect(sttOrder({})).toEqual([]);
   });
@@ -57,16 +58,19 @@ describe("voice notes", () => {
   });
 
   it("a voice note is read only while automation is on, and up to the plan's daily number", () => {
-    const base = { automationEnabled: true, pausedReason: null, plan: "FREE", todayCount: 1 };
+    const base = { automationEnabled: true, pausedReason: null, plan: "MERCHANT", todayCount: 1 };
+    const L = SHOP_LIMITS;
     expect(voiceNoteAllowed(base)).toBe(true);
     expect(voiceNoteAllowed({ ...base, automationEnabled: false })).toBe(false);
     expect(voiceNoteAllowed({ ...base, pausedReason: "token_expired" })).toBe(false);
-    expect(voiceNoteAllowed({ ...base, todayCount: 10 })).toBe(true);
-    expect(voiceNoteAllowed({ ...base, todayCount: 11 })).toBe(false);
-    expect(voiceNoteAllowed({ ...base, plan: "MERCHANT", todayCount: 100 })).toBe(true);
-    expect(voiceNoteAllowed({ ...base, plan: "MERCHANT", todayCount: 101 })).toBe(false);
-    expect(voiceNoteAllowed({ ...base, plan: "PRO", todayCount: 400 })).toBe(true);
-    expect(voiceNoteAllowed({ ...base, plan: "SOMETHING_NEW", todayCount: 11 })).toBe(false);
+    expect(voiceNoteAllowed({ ...base, todayCount: L.MERCHANT.voiceNotesPerDay })).toBe(true);
+    expect(voiceNoteAllowed({ ...base, todayCount: L.MERCHANT.voiceNotesPerDay + 1 })).toBe(false);
+    expect(voiceNoteAllowed({ ...base, plan: "FREE", todayCount: 1 })).toBe(false);
+    expect(voiceNoteAllowed({ ...base, plan: "PRO", todayCount: L.PRO.voiceNotesPerDay })).toBe(true);
+    expect(voiceNoteAllowed({ ...base, plan: "PRO", todayCount: L.PRO.voiceNotesPerDay + 1 })).toBe(false);
+    expect(voiceNoteAllowed({ ...base, plan: "MAX", todayCount: L.MAX.voiceNotesPerDay })).toBe(true);
+    expect(voiceNoteAllowed({ ...base, plan: "MAX", todayCount: L.MAX.voiceNotesPerDay + 1 })).toBe(false);
+    expect(voiceNoteAllowed({ ...base, plan: "SOMETHING_NEW", todayCount: 1 })).toBe(false);
   });
 
   it("engines share one time budget, so a hanging provider cannot hold the reply", () => {

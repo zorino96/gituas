@@ -3,8 +3,9 @@ import { extendPaidUntil, nextPaidUntil, PLAN_LABEL, PLAN_LABEL_AR, planLabel, p
 
 describe("priceFor", () => {
   it("prices shop and newsroom plans in IQD", () => {
-    expect(priceFor("SHOP", "MERCHANT")).toBe(8000);
-    expect(priceFor("SHOP", "PRO")).toBe(12000);
+    expect(priceFor("SHOP", "MERCHANT")).toBe(15000);
+    expect(priceFor("SHOP", "PRO")).toBe(25000);
+    expect(priceFor("SHOP", "MAX")).toBe(59000);
     expect(priceFor("NEWS", "LITE")).toBe(25000);
     expect(priceFor("NEWS", "MANUAL")).toBe(155000);
     expect(priceFor("NEWS", "AUTO")).toBe(390000);

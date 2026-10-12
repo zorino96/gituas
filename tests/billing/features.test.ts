@@ -51,10 +51,15 @@ describe("planFeatures NEWS", () => {
 });
 
 describe("planFeatures SHOP", () => {
-  it("lists posts, replies per day and AI rewrites", () => {
+  it("lists posts, replies per day, AI rewrites, smart replies and videos", () => {
     const m = planFeatures("SHOP", "MERCHANT");
-    expect(m.map((x) => x.key)).toEqual(["shopPosts", "shopReplies", "shopAi"]);
-    expect(m.map((x) => x.value)).toEqual([25, SHOP_LIMITS.MERCHANT.repliesPerDay, SHOP_LIMITS.MERCHANT.aiVaryPerMonth]);
+    expect(m.map((x) => x.key)).toEqual(["shopPosts", "shopReplies", "shopAi", "shopSmart", "shopVideos"]);
+    expect(m.map((x) => x.value)).toEqual([25, SHOP_LIMITS.MERCHANT.repliesPerDay, SHOP_LIMITS.MERCHANT.aiVaryPerMonth, SHOP_LIMITS.MERCHANT.smartPerMonth, SHOP_LIMITS.MERCHANT.videosPerMonth]);
+  });
+  it("lists Claude Opus only on the plan that includes it", () => {
+    const has = (p: string) => planFeatures("SHOP", p).some((x) => x.key === "shopOpus");
+    expect(has("MAX")).toBe(true);
+    for (const p of ["FREE", "MERCHANT", "PRO"]) expect(has(p)).toBe(false);
   });
   it("says all posts when the plan has no post cap", () => {
     const p = planFeatures("SHOP", "PRO");

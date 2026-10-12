@@ -33,6 +33,7 @@ export const REASON_LABEL: Record<string, string> = {
   no_product: "کارتی بەرهەم نییە",
   private_window: "درەنگە بۆ نامەی تایبەت",
   unclear: "ڕوون نییە",
+  ai_limit: "بەشی AIی ئەم مانگە تەواو بووە",
   needs_you: "پێویستی بە تۆیە",
   no_action: "پێویستی بە تۆیە",
 };

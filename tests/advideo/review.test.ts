@@ -192,3 +192,24 @@ describe("getDailyBrief, the day's cache and the model going away", () => {
     expect(head).not.toHaveBeenCalled();
   });
 });
+
+describe("a time limit on the spoken words", () => {
+  const line = Array.from({ length: 16 }, (_, i) => `وشەی${String.fromCharCode(0x0627 + i)}`).join(" ");
+  const base = { photos: 0, hasTopic: false, maxScenes: 8, seed: "s", allowed: "" };
+
+  it("drops middle scenes until the voice is about thirty-five seconds", () => {
+    const scenes = [sc("hook", { voice: line }), ...Array.from({ length: 6 }, () => sc("value", { voice: line, icon: "gem" })), sc("cta", { voice: line })];
+    const n = normalizeSpec({ scenes, caption: "سڵاو" }, base);
+    expect(n.ok).toBe(true);
+    if (!n.ok) return;
+    const words = n.spec.scenes.reduce((t, s) => t + s.voice.split(/\s+/).length, 0);
+    expect(words).toBeLessThanOrEqual(80);
+    expect(n.spec.scenes[0].type).toBe("hook");
+    expect(n.spec.scenes.at(-1)?.type).toBe("cta");
+  });
+
+  it("keeps a short ad whole", () => {
+    const n = normalizeSpec({ scenes: [sc("hook"), sc("value", { icon: "gem" }), sc("cta")], caption: "سڵاو" }, base);
+    expect(n.ok && n.spec.scenes.length).toBe(3);
+  });
+});

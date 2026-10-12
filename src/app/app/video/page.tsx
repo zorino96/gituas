@@ -3,6 +3,9 @@ import { redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
 import { adVideoEnabled } from "@/lib/advideo/enabled";
+import { aiFor } from "@/lib/ai/for-store";
+import { allowanceOf } from "@/lib/ai/meter";
+import { VIDEOS_PER_DAY, videosToday } from "@/lib/advideo/limits";
 import { allowances } from "@/lib/advideo/prepare";
 import { listRefs, REF_LIMITS } from "@/lib/advideo/refs";
 import { postIdsOf } from "@/lib/advideo/signals";
@@ -14,6 +17,7 @@ import { can } from "@/lib/newsroom/roles";
 import type { StorePlan } from "@/lib/shop/plans";
 import { loadShopState } from "@/lib/shop/state";
 import { loadConnections, requireWorkspace } from "../data";
+import { ownerJobError } from "@/lib/advideo/job-error";
 import { VideoClient, type VideoJobView } from "./video-client";
 
 export const dynamic = "force-dynamic";
@@ -42,12 +46,13 @@ export default async function VideoPage({ searchParams }: { searchParams: Promis
     );
   }
   const { store } = state;
-  const [jobs, allow, refs, plan, notes] = await Promise.all([
+  const [jobs, allow, refs, plan, notes, aiState] = await Promise.all([
     db.adVideo.findMany({ where: { tenantId: ws.id, storeId: store.id }, orderBy: { createdAt: "desc" }, take: 30 }),
-    allowances(store.id, store.plan as StorePlan),
+    allowances(ws.id),
     listRefs(ws.id, store.id),
     readTodaysBrief(ws.id, store.id),
     loadMarketNotes(ws.id, store.id),
+    allowanceOf(aiFor({ tenantId: ws.id }).meter),
   ]);
   const productName = new Map(state.products.map((p) => [p.id, p.name]));
 
@@ -82,7 +87,7 @@ export default async function VideoPage({ searchParams }: { searchParams: Promis
     productName: j.productId ? productName.get(j.productId) ?? null : null,
     caption: j.caption,
     videoUrl: j.status === "RENDERED" || j.status === "POSTING" || j.status === "POSTED" ? j.videoUrl : null,
-    error: j.error,
+    error: ownerJobError(j.status, j.error, t.video.errors),
     createdAt: j.createdAt.toISOString(),
     postedAt: j.postedAt ? j.postedAt.toISOString() : null,
     objective: spec.plan?.objective ?? null,
@@ -101,11 +106,13 @@ export default async function VideoPage({ searchParams }: { searchParams: Promis
       canFb={!!store.fbPageId}
       canIg={!!store.igUserId}
       products={state.products.map((p) => ({ id: p.id, name: p.name, hasPhoto: p.photos.length > 0 }))}
-      allowances={allow}
+      allowances={{ LITE: allow.LITE, PRO: allow.PRO }}
       auto={{ mode: store.videoAutoMode, tier: store.videoAutoTier === "PRO" ? "PRO" : "LITE", hour: store.videoAutoHour }}
       jobs={views}
       configure={can(ws.role, "configure")}
       workspaceId={ws.id}
+      today={allow.today}
+      aiPercent={aiState.percent}
       refs={refs.map((x) => ({ pathname: x.pathname, url: x.url, kind: x.kind, name: x.name, size: x.size }))}
       refLimits={{ images: REF_LIMITS.images, videos: REF_LIMITS.videos, imageMb: REF_LIMITS.imageBytes / 1048576, videoMb: REF_LIMITS.videoBytes / 1048576 }}
       plan={

@@ -6,7 +6,9 @@ import { adVideoEnabled } from "./enabled";
 import { startOfShopDay } from "@/lib/shop/pipeline";
 import type { StorePlan } from "@/lib/shop/plans";
 import { AD_CLAIM_MS, AD_MAX_TRIES, createAdVideo, prepareQueued, type Target } from "./prepare";
-import { allowance, countVideo, isVideoTier, videosUsed } from "./limits";
+import { chooseTier } from "@/lib/ai/meter";
+import { limitsOf } from "@/lib/shop/tenant-plans";
+import { defaultTierFor, isVideoTier, refundVideo, videosToday, videosUsed, type VideoTier } from "./limits";
 import { publishAdVideo } from "./publish";
 
 const HOUR = 3_600_000;
@@ -29,7 +31,8 @@ export function isVideoDue(store: { videoAutoHour: number; videoAutoLastAt: Date
 /** Makes the day's video for every store whose automation is due. Returns counts by outcome. */
 export async function runVideoAutomation(now = Date.now()): Promise<Record<string, number>> {
   const stores = await db.store.findMany({
-    where: { videoAutoMode: { in: ["DRAFT", "PUBLISH"] }, pausedReason: null },
+    // A store on the free plan has no video allowance: it must not sit at the front of the queue forever.
+    where: { videoAutoMode: { in: ["DRAFT", "PUBLISH"] }, pausedReason: null, plan: { not: "FREE" } },
     orderBy: { videoAutoLastAt: { sort: "asc", nulls: "first" } },
     select: { id: true, tenantId: true, plan: true, videoAutoMode: true, videoAutoTier: true, videoAutoHour: true, videoAutoLastAt: true, fbPageId: true, igUserId: true, tenant: { select: { ownerId: true } } },
     take: 50,
@@ -39,10 +42,21 @@ export async function runVideoAutomation(now = Date.now()): Promise<Record<strin
   for (const s of stores) {
     try {
       if (!isVideoDue(s, now)) continue;
-      if (!isVideoTier(s.videoAutoTier)) continue;
-      const a = allowance(s.plan as StorePlan, s.videoAutoTier, await videosUsed(s.id, s.videoAutoTier));
-      if (a.left < 1) {
+      // The tier follows the workspace's plans: Opus videos if it has the Opus plan, else Haiku.
+      const lim = await limitsOf(s.tenantId);
+      const wanted: VideoTier = isVideoTier(s.videoAutoTier) ? s.videoAutoTier : "LITE";
+      const tier: VideoTier = lim.videos[wanted] > 0 ? wanted : defaultTierFor(s.plan as StorePlan);
+      if ((await videosUsed(s.tenantId, tier)) >= lim.videos[tier]) {
         bump("no_allowance");
+        continue;
+      }
+      // Checked before the day is claimed, so a full day or a spent AI allowance is not retried every minute.
+      if ((await videosToday(s.tenantId)) >= lim.videosPerDay) {
+        bump("daily_full");
+        continue;
+      }
+      if (!(await chooseTier({ scope: s.tenantId }, "haiku").catch(() => "haiku" as const))) {
+        bump("no_ai_allowance");
         continue;
       }
       // Claim the day first, so two overlapping ticks never make two videos.
@@ -54,7 +68,7 @@ export async function runVideoAutomation(now = Date.now()): Promise<Record<strin
       const made = await createAdVideo({
         tenantId: s.tenantId,
         storeId: s.id,
-        tier: s.videoAutoTier,
+        tier,
         topic: null,
         // No product chosen here: the daily plan aims the video (the product buyers ask about, an occasion, or the whole shop).
         productId: null,
@@ -121,12 +135,12 @@ export async function tickAdVideos(opts: { deadline: number }): Promise<Record<s
           { status: { in: ["QUEUED", "READY"] }, tries: { gte: AD_MAX_TRIES }, updatedAt: { lt: new Date(Date.now() - QUEUED_STUCK_MS) } },
         ],
       },
-      select: { id: true, storeId: true, tier: true, status: true },
+      select: { id: true, tenantId: true, storeId: true, tier: true, status: true, createdAt: true },
       take: 10,
     });
     for (const d of stuck) {
       const c = await db.adVideo.updateMany({ where: { id: d.id, status: d.status, tries: { gte: AD_MAX_TRIES } }, data: { status: "FAILED", error: "the video could not be made", claimedAt: null } });
-      if (c.count === 1 && d.storeId && isVideoTier(d.tier)) await countVideo(d.storeId, d.tier, -1);
+      if (c.count === 1 && isVideoTier(d.tier)) await refundVideo(d.tenantId, d.tier, d.createdAt, { keepDay: true });
     }
   } catch (e) {
     console.error("[advideo] tick failed:", e instanceof Error ? e.message : "unknown error");

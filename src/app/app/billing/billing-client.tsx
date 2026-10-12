@@ -14,7 +14,7 @@ import { startNewsCheckoutAction, startShopCheckoutAction } from "./actions";
 
 /** What can be bought for each product, in the order the buttons appear. */
 const PLANS: Record<BillingProduct, readonly string[]> = {
-  SHOP: ["MERCHANT", "PRO"],
+  SHOP: ["MERCHANT", "PRO", "MAX"],
   NEWS: ["LITE", "MANUAL", "AUTO", "ENTERPRISE"],
   // Studio top-ups are bought on the Studio page.
   STUDIO: [],
@@ -51,6 +51,8 @@ export interface BillingProps {
   result: "paid" | "paid_test" | "pending" | null;
   targets: BillingTarget[];
   invoices: InvoiceRow[];
+  /** Plan codes that are not for sale yet (the Opus plan, until it is switched on). */
+  hiddenPlans?: string[];
 }
 
 /** One feature row's value in the reader's language: a count, a refresh interval, or one of the fixed phrases. */
@@ -62,6 +64,7 @@ function featureValue(t: Dict, feature: PlanFeature): string {
   if (v === "all") return f.all;
   if (v === "promptFocus") return f.promptFocus;
   if (v === "promptFull") return f.promptFull;
+  if (v === "opus") return f.opus;
   return feature.key === "refresh" ? f.refresh(v) : t.fmt.num(v);
 }
 
@@ -72,7 +75,7 @@ function StatusBadge({ status }: { status: InvoiceRow["status"] }) {
   return <span className="gm-badge ghost">{status === "EXPIRED" ? s.EXPIRED : s.CANCELLED}</span>;
 }
 
-export function BillingClient({ product, configured, env, result, targets, invoices }: BillingProps) {
+export function BillingClient({ product, configured, env, result, targets, invoices, hiddenPlans = [] }: BillingProps) {
   const tr = useT();
   const b = tr.billing;
   const lang = useLang();
@@ -138,7 +141,7 @@ export function BillingClient({ product, configured, env, result, targets, invoi
             <div className="gm-grid lg">
               {PLANS[product].map((plan) => {
                 const price = priceFor(product, plan);
-                if (price == null) return null;
+                if (price == null || hiddenPlans.includes(plan)) return null;
                 const name = planLabel(plan, lang);
                 const amount = formatMoney(price, "IQD", lang);
                 const current = t.plan === plan;

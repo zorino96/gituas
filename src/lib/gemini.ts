@@ -1,17 +1,14 @@
-import { GoogleGenAI } from "@google/genai";
+// RETIRED. The first product's Gemini features (agents, marketing plan, personality, engagement drafts) are
+// gone from every screen, and no current feature calls this file: all text is Claude Haiku or Opus through
+// src/lib/ai/provider.ts, which counts every call against the workspace's allowance. This stub never calls
+// Google, so the old /dashboard server actions cannot spend the key even if someone reaches them directly.
+// (Speech uses its own code in src/lib/voice and is unaffected.)
+import type { GoogleGenAI } from "@google/genai";
 
 export function isGeminiConfigured(): boolean {
-  return !!process.env.GOOGLE_AI_API_KEY && process.env.GOOGLE_AI_API_KEY.length > 0;
+  return false;
 }
 
-let cached: GoogleGenAI | null = null;
-
 export function getGemini(): GoogleGenAI {
-  if (!isGeminiConfigured()) {
-    throw new Error("GOOGLE_AI_API_KEY is not configured");
-  }
-  if (!cached) {
-    cached = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY! });
-  }
-  return cached;
+  throw new Error("Gemini is retired: use src/lib/ai/provider.ts");
 }

@@ -1,22 +1,14 @@
 // The director: one model call that turns a brand's facts (and what the owner asked for) into the
-// storyboard JSON of a video ad. LITE uses Claude Haiku, PRO uses Claude Opus 5.5, both through
-// kurd.gg. Whatever comes back goes through normalizeSpec; if it cannot be repaired the video is
+// storyboard JSON of a video ad. LITE uses Claude Haiku, PRO uses Claude Opus 5.5 (only the plan that
+// includes Opus makes PRO videos), both through kurd.gg. Whatever comes back goes through
+// normalizeSpec; if it cannot be repaired the video is
 // still made from a plain storyboard written from the facts, so a model hiccup never costs the
 // owner a video.
 
-import { kurdggConfigured, kurdggJson } from "@/lib/ai/kurdgg";
-import { completeJson, type JsonCall } from "@/lib/ai/provider";
+import { completeJson, type JsonCall, type Meter } from "@/lib/ai/provider";
 import type { AdBrief } from "./brief";
 import type { VideoTier } from "./limits";
 import { AD_ICONS, LOOK_VOCAB, lookFromSeed, lookKey, normalizeSpec, styleOf, type AdLook, type AdScene, type AdSpec, type DailyBrief } from "./spec";
-
-/** Claude Opus 5.5 as kurd.gg names it (listed by GET /v1/models); KURDGG_MODEL_VIDEO_PRO overrides it. */
-export const DEFAULT_PRO_MODEL = "cc/claude-opus-5-5";
-
-export function modelFor(tier: VideoTier): string | undefined {
-  if (tier === "PRO") return process.env.KURDGG_MODEL_VIDEO_PRO?.trim() || DEFAULT_PRO_MODEL;
-  return process.env.KURDGG_MODEL_VIDEO_LITE?.trim() || process.env.KURDGG_MODEL?.trim() || undefined;
-}
 
 /** The most scenes a tier may use. */
 export const MAX_SCENES: Record<VideoTier, number> = { LITE: 6, PRO: 7 };
@@ -25,7 +17,7 @@ const CORE = `You are a creative director who makes short vertical video ads (Re
 
 Language: every on-screen text and every spoken line is Central Kurdish (Sorani, Arabic script, letters ە ێ ۆ ڕ ڵ). Natural, warm, spoken; no English words, no Latin letters.
 Truth: use ONLY the facts you are given (brand name, tagline, delivery note, product name and description, the owner's request). Never invent prices, discounts, ingredients, results, guarantees, awards, numbers, stock or dates. Never write a price: the engine draws prices from the shop's own data.
-Spoken lines ("voice"): one natural sentence of 6 to 14 words, NO digits, no emoji, no hashtags. Say the brand name at most once in the whole video, and write it in Kurdish letters. Never read phone numbers (the engine shows them).
+Spoken lines ("voice"): one natural sentence of 6 to 14 words, NO digits, no emoji, no hashtags. All the spoken lines of the whole video together are at most 80 words (about 35 seconds): five or six scenes, not more. Say the brand name at most once in the whole video, and write it in Kurdish letters. Never read phone numbers (the engine shows them).
 On-screen text ("text"): 1 to 5 words. "sub": an optional small line of up to 8 words, no prices and no numbers.
 Scene types: hook (the brand appears; opens the video), value (one thing the shop stands for, with an icon), product (a photo; needs a photo index: the product's own photos come first, then the owner's reference pictures), footage (one of the owner's own short clips plays behind the text; needs a clip index), offer (ONLY when the owner's request states an offer or occasion; use their words, never make one up), cta (invite the viewer to get in touch; closes the video).
 Icons (value scenes): ${AD_ICONS.join(", ")}.
@@ -124,23 +116,13 @@ export function fallbackSpec(brief: AdBrief, seed: string = brief.name, avoid: A
 
 export type DirectorCall = (call: JsonCall, timeoutMs: number) => Promise<{ data: unknown; model: string }>;
 
-/** kurd.gg with the tier's model; a PRO call that fails is tried once on the LITE model, then on the general chain. */
-export function defaultDirector(tier: VideoTier): DirectorCall {
-  return async (call, timeoutMs) => {
-    const started = Date.now();
-    const left = () => Math.max(8_000, timeoutMs - (Date.now() - started));
-    if (kurdggConfigured()) {
-      const models = [modelFor(tier), ...(tier === "PRO" ? [modelFor("LITE")] : [])].filter((m, i, a): m is string => !!m && a.indexOf(m) === i);
-      for (const model of models) {
-        try {
-          return await kurdggJson({ ...call, model }, model === models[0] ? timeoutMs : left());
-        } catch {
-          /* the next model, then the general chain */
-        }
-      }
-    }
-    return completeJson({ ...call, budgetMs: left() });
-  };
+/**
+ * kurd.gg with the tier's model (Opus for PRO, Haiku for LITE). The store's allowance decides whether
+ * Opus is really used: when the Opus part of its month is gone the call is made with Haiku, and when
+ * the whole allowance is gone it is refused and the plain storyboard is used.
+ */
+export function defaultDirector(tier: VideoTier, meter?: Meter): DirectorCall {
+  return (call, timeoutMs) => completeJson({ ...call, tier: tier === "PRO" ? "opus" : "haiku", meter: call.meter ?? meter, budgetMs: timeoutMs });
 }
 
 export interface Written {
@@ -159,6 +141,8 @@ export interface WriteInput extends DirectorContext {
   seed?: string;
   /** The reference pictures, already small data URLs. */
   images?: string[];
+  /** The store whose allowance pays for the call. */
+  meter?: Meter;
 }
 
 export async function writeAdSpec(input: WriteInput): Promise<Written> {
@@ -182,14 +166,21 @@ export async function writeAdSpec(input: WriteInput): Promise<Written> {
     .filter(Boolean)
     .join(" ");
   const opts = { photos: brief.photos.length, clips: brief.clips.length, hasTopic: !!topic?.trim(), maxScenes: MAX_SCENES[tier], seed, avoid: input.avoidLooks ?? [], allowed };
-  const timeout = tier === "PRO" ? 32_000 : 20_000;
+  const timeout = tier === "PRO" ? 40_000 : 20_000;
   const ctx: DirectorContext = { plan: input.plan, avoidLooks: input.avoidLooks, recentHooks: input.recentHooks, refPictures: input.images?.length ?? 0 };
   let problems: string[] | undefined;
   let model = "none";
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const out = await call(
-        { system: directorSystem(tier), user: directorUser(brief, topic, problems, ctx), strength: "strong", thinking: false, ...(input.images?.length ? { images: input.images } : {}) },
+        {
+          system: directorSystem(tier),
+          user: directorUser(brief, topic, problems, ctx),
+          strength: "strong",
+          maxTokens: tier === "PRO" ? 3200 : 2400,
+          meter: input.meter,
+          ...(input.images?.length ? { images: input.images } : {}),
+        },
         timeout,
       );
       model = out.model;

@@ -5,7 +5,7 @@
 
 import { put } from "@vercel/blob";
 
-import { completeJson } from "@/lib/ai/provider";
+import { completeJson, type Meter } from "@/lib/ai/provider";
 import { isNotSoraniRefusal } from "@/lib/news/video";
 import { speak, type Speech } from "@/lib/voice/tts";
 import type { AdScene } from "./spec";
@@ -26,7 +26,7 @@ const defaultStore: Store = async (pathname, audio, mime) =>
   (await put(pathname, audio, { access: "public", contentType: mime, addRandomSuffix: false, allowOverwrite: true })).url;
 
 /** The same line in plainer, more Kurdish Sorani, for a voice that did not accept it. */
-export const resayAdLine: Resay = async (line) => {
+export const makeResay = (meter?: Meter): Resay => async (line) => {
   try {
     const { data } = await completeJson<{ voice: string }>(
       {
@@ -35,7 +35,9 @@ Use everyday Kurdish words and letters (ە ێ ۆ ڕ ڵ); no Latin letters, no di
 Reply with JSON only: {"voice":"..."}`,
         user: `<<<\n${line}\n>>>`,
         strength: "fast",
-        thinking: false,
+        tier: "haiku",
+        meter,
+        maxTokens: 120,
       },
       (d) => {
         const v = (d as { voice?: unknown })?.voice;
@@ -47,6 +49,8 @@ Reply with JSON only: {"voice":"..."}`,
     return null;
   }
 };
+
+export const resayAdLine: Resay = makeResay();
 
 const ext = (mime: string) => (/wav/i.test(mime) ? "wav" : "mp3");
 
@@ -62,9 +66,11 @@ export async function voiceScenes(input: {
   say?: Say;
   resay?: Resay;
   store?: Store;
+  /** The store whose allowance pays for the rewrite of a refused line. */
+  meter?: Meter;
 }): Promise<VoicedScene[]> {
   const say = input.say ?? defaultSay;
-  const resay = input.resay ?? resayAdLine;
+  const resay = input.resay ?? makeResay(input.meter);
   const store = input.store ?? defaultStore;
 
   async function one(scene: AdScene, i: number): Promise<VoicedScene | null> {

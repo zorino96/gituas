@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 
@@ -63,6 +64,10 @@ interface Props {
   jobs: VideoJobView[];
   configure: boolean;
   workspaceId: string;
+  /** Videos made today and the most one store makes in a day. */
+  today: { used: number; max: number };
+  /** How much of this month's AI allowance is used, 0 to 100. */
+  aiPercent: number;
   refs: RefView[];
   refLimits: { images: number; videos: number; imageMb: number; videoMb: number };
   plan: PlanView | null;
@@ -72,13 +77,16 @@ interface Props {
 /** Statuses in which something is still going on: the page refreshes itself. */
 const BUSY = ["QUEUED", "READY", "RENDERING", "POSTING"];
 
-export function VideoClient({ storeId, stores, canFb, canIg, products, allowances, auto, jobs, configure, workspaceId, refs, refLimits, plan, notes }: Props) {
+export function VideoClient({ storeId, stores, canFb, canIg, products, allowances, auto, jobs, configure, workspaceId, today, aiPercent, refs, refLimits, plan, notes }: Props) {
   const router = useRouter();
   const t = useT();
   const v = t.video;
   const lang = useLang();
   const uid = useId();
-  const [tier, setTier] = useState<Tier>(allowances.LITE.left > 0 || allowances.PRO.left === 0 ? "LITE" : "PRO");
+  // Start on a tier the plan has and that still has videos in it (a plan with Opus has no Haiku videos).
+  const [tier, setTier] = useState<Tier>(
+    (["LITE", "PRO"] as Tier[]).find((x) => allowances[x].left > 0) ?? (["LITE", "PRO"] as Tier[]).find((x) => allowances[x].limit > 0) ?? "LITE",
+  );
   const [productId, setProductId] = useState("");
   const [topic, setTopic] = useState("");
   const [voice, setVoice] = useState("shilan");
@@ -113,6 +121,24 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
     });
   }
 
+  // The free plan has no videos: say so and point at the plans, instead of a form that cannot be used.
+  if (allowances.LITE.limit === 0 && allowances.PRO.limit === 0) {
+    return (
+      <div>
+        <h2 className="gm-title kufi">{v.title}</h2>
+        <p className="gm-sub">{v.sub}</p>
+        <div className="gm-empty">
+          <b className="kufi">{v.paidOnly}</b>
+          <p style={{ marginTop: 12 }}>
+            <Link href="/app/billing" className="gm-btn">
+              {v.seePlans}
+            </Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h2 className="gm-title kufi">{v.title}</h2>
@@ -135,16 +161,21 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
         <div className="gm-field">
           <label>{v.tierLabel}</label>
           <div className="gm-seg" role="group" aria-label={v.tierLabel}>
-            <button type="button" aria-pressed={tier === "LITE"} onClick={() => setTier("LITE")}>
-              {v.lite}
-            </button>
-            <button type="button" aria-pressed={tier === "PRO"} onClick={() => setTier("PRO")}>
-              {v.pro}
-            </button>
+            {allowances.LITE.limit > 0 && (
+              <button type="button" aria-pressed={tier === "LITE"} onClick={() => setTier("LITE")}>
+                {v.lite}
+              </button>
+            )}
+            {allowances.PRO.limit > 0 && (
+              <button type="button" aria-pressed={tier === "PRO"} onClick={() => setTier("PRO")}>
+                {v.pro}
+              </button>
+            )}
           </div>
           <p className="gm-hint">
-            {tier === "LITE" ? v.liteHint : v.proHint} · {left.limit > 0 ? v.left(left.left, left.limit) : v.noneLeft}
+            {tier === "LITE" ? v.liteHint : v.proHint} · {left.limit > 0 ? v.left(left.left, left.limit) : v.noneLeft} · {v.dailyHint(today.used, today.max)}
           </p>
+          <p className="gm-hint">{aiPercent >= 100 ? v.aiAllowanceDone : v.aiAllowance(aiPercent)}</p>
         </div>
 
         <div className="gm-field">
@@ -197,7 +228,7 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
         )}
 
         <div>
-          <button type="button" className="gm-btn" disabled={pending || left.left < 1 || (publish && !targets.length)} onClick={create}>
+          <button type="button" className="gm-btn" disabled={pending || left.left < 1 || today.used >= today.max || (publish && !targets.length)} onClick={create}>
             {v.create}
           </button>
           {note && <p className={note.ok ? "gm-ok" : "gm-err"}>{note.text}</p>}
@@ -452,7 +483,8 @@ function AutoCard({ storeId, auto, allowances, canPublish }: { storeId: string; 
   const v = useT().video;
   const { pending, message, run } = useSaver();
   const [mode, setMode] = useState(auto.mode);
-  const [tier, setTier] = useState<Tier>(auto.tier);
+  // The tier follows the plan: a plan with Opus videos has no Haiku ones, and the others the other way round.
+  const [tier, setTier] = useState<Tier>(allowances[auto.tier].limit > 0 ? auto.tier : allowances.PRO.limit > 0 ? "PRO" : "LITE");
   const [hour, setHour] = useState(auto.hour);
   return (
     <>
@@ -477,7 +509,7 @@ function AutoCard({ storeId, auto, allowances, canPublish }: { storeId: string; 
         {mode !== "OFF" && (
           <div className="gm-row" style={{ flexWrap: "wrap" }}>
             <div className="gm-seg" role="group" aria-label={v.tierLabel}>
-              <button type="button" aria-pressed={tier === "LITE"} onClick={() => setTier("LITE")}>
+              <button type="button" aria-pressed={tier === "LITE"} disabled={allowances.LITE.limit === 0} onClick={() => setTier("LITE")}>
                 {v.lite}
               </button>
               <button type="button" aria-pressed={tier === "PRO"} disabled={allowances.PRO.limit === 0} onClick={() => setTier("PRO")}>

@@ -6,11 +6,13 @@ import { after } from "next/server";
 import { db } from "@/lib/db";
 import { adVideoEnabled } from "@/lib/advideo/enabled";
 import { isVideoTier } from "@/lib/advideo/limits";
+import { aiFor } from "@/lib/ai/for-store";
 import { createAdVideo, prepareAdVideo, type Target } from "@/lib/advideo/prepare";
 import { publishAdVideo } from "@/lib/advideo/publish";
 import { isRefPath, removeRef } from "@/lib/advideo/refs";
 import { getDailyBrief, loadMarketNotes, readTodaysBrief, saveMarketNotes } from "@/lib/advideo/strategy";
 import { dict, getLang } from "@/lib/i18n";
+import { ownerJobError } from "@/lib/advideo/job-error";
 import { can } from "@/lib/newsroom/roles";
 import { isPawanVoice } from "@/lib/voice/voices";
 import { currentWorkspace } from "@/app/app/data";
@@ -24,7 +26,7 @@ async function ownedStore(storeId: string, role: "publish" | "configure") {
   const e = t.video.errors;
   if (!ws || !adVideoEnabled()) return { ok: false, error: e.signIn } as const;
   if (!can(ws.role, role)) return { ok: false, error: e.notAllowed } as const;
-  const store = await db.store.findFirst({ where: { id: storeId, tenantId: ws.id }, select: { id: true, fbPageId: true, igUserId: true } });
+  const store = await db.store.findFirst({ where: { id: storeId, tenantId: ws.id }, select: { id: true, plan: true, fbPageId: true, igUserId: true } });
   if (!store) return { ok: false, error: e.store } as const;
   return { ok: true, ws, store, e } as const;
 }
@@ -104,7 +106,7 @@ export async function refreshPlanAction(storeId: string): Promise<VideoResult> {
     revalidatePath("/app/video");
     return { ok: true };
   }
-  const made = await getDailyBrief({ tenantId: r.ws.id, storeId: r.store.id, tier: "LITE", force: true });
+  const made = await getDailyBrief({ tenantId: r.ws.id, storeId: r.store.id, tier: "LITE", force: true, meter: aiFor({ tenantId: r.ws.id }).meter });
   if (!made) return { ok: false, error: r.e.store };
   revalidatePath("/app/video");
   // The model could not be reached: the plan made earlier today (if any) stays, and the owner is told.
@@ -128,7 +130,7 @@ export async function saveMarketNotesAction(storeId: string, text: string): Prom
     return { ok: false, error: r.e.failed };
   }
   // New notes are always a reason to think again: no waiting period here.
-  const made = await getDailyBrief({ tenantId: r.ws.id, storeId: r.store.id, tier: "LITE", force: true });
+  const made = await getDailyBrief({ tenantId: r.ws.id, storeId: r.store.id, tier: "LITE", force: true, meter: aiFor({ tenantId: r.ws.id }).meter });
   revalidatePath("/app/video");
   if (!made) return { ok: false, error: r.e.store };
   return made.failed ? { ok: false, error: r.e.notesPlanFailed } : { ok: true };
@@ -142,4 +144,19 @@ export async function removeRefAction(storeId: string, pathname: string): Promis
   const done = await removeRef(r.ws.id, r.store.id, pathname);
   revalidatePath("/app/video");
   return done ? { ok: true } : { ok: false, error: r.e.failed };
+}
+
+export type VideoJobStatus =
+  | { ok: true; status: string; url: string | null; pathname: string | null; caption: string | null; error: string | null }
+  | { ok: false; error: string };
+
+/** Where one of this workspace's AI videos stands: the publish page waits on it while the video is made. */
+export async function videoJobStatusAction(jobId: string): Promise<VideoJobStatus> {
+  const [ws, t] = await Promise.all([currentWorkspace(), getLang().then(dict)]);
+  if (!ws || !adVideoEnabled()) return { ok: false, error: t.video.errors.signIn };
+  if (!can(ws.role, "publish")) return { ok: false, error: t.video.errors.notAllowed };
+  const job = await db.adVideo.findFirst({ where: { id: String(jobId), tenantId: ws.id }, select: { status: true, videoUrl: true, videoPath: true, caption: true, error: true } });
+  if (!job) return { ok: false, error: t.video.errors.state };
+  const ready = ["RENDERED", "POSTING", "POSTED"].includes(job.status);
+  return { ok: true, status: job.status, url: ready ? job.videoUrl : null, pathname: ready ? job.videoPath : null, caption: job.caption, error: ownerJobError(job.status, job.error, t.video.errors) };
 }

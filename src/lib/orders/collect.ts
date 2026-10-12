@@ -3,6 +3,7 @@
 // those fields out of what the buyer wrote; everything the bot sends is fixed
 // copy plus values from the order and store rows, so it never invents a number.
 
+import type { AiOptions } from "@/lib/ai/for-store";
 import { completeJson } from "@/lib/ai/provider";
 import { normalizePhone } from "@/lib/merchant/phone";
 import { feeFor, type CardStore } from "@/lib/shop/compose";
@@ -149,14 +150,14 @@ export function hasDetails(d: Details): boolean {
 }
 
 /** The fields in one buyer message. Never throws: a failed AI call falls back to plain matching. */
-export async function extractDetails(text: string, inStock: InStock): Promise<Details> {
+export async function extractDetails(text: string, inStock: InStock, aiOpts?: AiOptions): Promise<Details> {
   const t = text.trim().slice(0, 600);
   if (!t) return {};
   const options = inStock.map((v) => v.label).filter(Boolean);
   const user = `${options.length ? `Options: ${options.join(", ")}\n` : ""}"""${t}"""`;
   let ai: unknown = null;
   try {
-    ai = (await completeJson({ system: EXTRACT_SYSTEM, user, strength: "fast", thinking: false, budgetMs: 20_000 })).data;
+    ai = (await completeJson({ system: EXTRACT_SYSTEM, user, strength: "fast", tier: "haiku", meter: aiOpts?.meter, essential: true, maxTokens: 300, budgetMs: 20_000 })).data;
   } catch {
     // plain matching below
   }

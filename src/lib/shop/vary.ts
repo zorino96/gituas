@@ -1,3 +1,4 @@
+import type { AiOptions } from "@/lib/ai/for-store";
 import { completeJson, type JsonCall } from "@/lib/ai/provider";
 import { hasDigit } from "./digits";
 import type { Lang } from "./money";
@@ -21,13 +22,15 @@ const defaultCompleter: Completer = async (call) => (await completeJson(call)).d
  * bot (and are not flagged as spam). The rewrite must pass the guard — no
  * digits, at most MAX_REPLY characters — or the sample goes out verbatim.
  */
-export async function varySample(sample: string, lang: Lang, complete: Completer = defaultCompleter): Promise<{ text: string; ai: boolean }> {
+export async function varySample(sample: string, lang: Lang, complete: Completer = defaultCompleter, ai?: AiOptions): Promise<{ text: string; ai: boolean }> {
   try {
     const data = await complete({
       system: `You rewrite a short reply that a shop posts on social media. Write it in ${LANG_NAME[lang]}. Keep the meaning and the warm tone, change the wording. One or two short sentences, at most one emoji. Never write any number, price, size or phone number. Return JSON {"text": "..."}.`,
       user: `"""${sample.slice(0, MAX_REPLY)}"""`,
       strength: "fast",
-      thinking: false,
+      tier: "haiku",
+      meter: ai?.meter,
+      maxTokens: 220,
     });
     const out = (data as { text?: unknown } | null)?.text;
     const text = typeof out === "string" ? out.trim() : "";

@@ -13,6 +13,7 @@ import { OCCASION_KU } from "./calendar";
 import type { VideoTier } from "./limits";
 import { gatherSignals, signalsText, type Signals } from "./signals";
 import { OBJECTIVES, type DailyBrief, type Objective } from "./spec";
+import type { Meter } from "@/lib/ai/provider";
 import { defaultDirector, type DirectorCall } from "./write";
 
 const NOTES_MAX = 800;
@@ -177,6 +178,8 @@ export async function getDailyBrief(input: {
   call?: DirectorCall;
   /** How long the model may take (a video being prepared cannot wait as long as the page can). */
   timeoutMs?: number;
+  /** The store whose allowance pays for the call (the plan is always made by Haiku). */
+  meter?: Meter;
 }): Promise<BriefResult | null> {
   const now = input.now ?? Date.now();
   const date = baghdadDate(now);
@@ -193,8 +196,8 @@ export async function getDailyBrief(input: {
   if (!signals) return null;
   let brief: DailyBrief | null = null;
   try {
-    const call = input.call ?? defaultDirector(input.tier);
-    const out = await call({ system: PLAN_SYSTEM, user: signalsText(signals), strength: "strong", thinking: false }, input.timeoutMs ?? (input.tier === "PRO" ? 30_000 : 20_000));
+    const call = input.call ?? defaultDirector("LITE", input.meter);
+    const out = await call({ system: PLAN_SYSTEM, user: signalsText(signals), strength: "strong", maxTokens: 900, meter: input.meter }, input.timeoutMs ?? 20_000);
     brief = validateBrief(out.data, signals, date, out.model);
   } catch {
     brief = null;

@@ -171,6 +171,8 @@ export const LIMITS = {
   textWords: 5,
   subWords: 8,
   voiceWords: 16,
+  /** All the spoken words of one ad: about 35 seconds of voice. A longer ad costs more voice and more render time and is watched less. */
+  voiceTotalWords: 80,
   caption: 500,
   why: 300,
 } as const;
@@ -323,6 +325,19 @@ export function normalizeSpec(raw: unknown, o: NormalizeOptions): Normalized {
 
   const middle = scenes.filter((s) => s !== hook && s !== cta && s.type !== "hook" && s.type !== "cta");
   const ordered = [hook!, ...middle.slice(0, Math.max(0, o.maxScenes - 2)), cta!];
+  // A time limit: scenes are dropped from the back of the middle until the spoken words fit.
+  const spoken = () => ordered.reduce((n, sc) => n + words(sc.voice).length, 0);
+  while (spoken() > LIMITS.voiceTotalWords && ordered.length > LIMITS.scenesMin) {
+    // The owner's own offer, a product and the owner's clips stay; the plain value scenes go first, last ones first.
+    let drop = -1;
+    for (let k = ordered.length - 2; k >= 1; k--) {
+      if (ordered[k].type === "value") {
+        drop = k;
+        break;
+      }
+    }
+    ordered.splice(drop >= 0 ? drop : ordered.length - 2, 1);
+  }
   if (ordered.length < LIMITS.scenesMin) return { ok: false, errors: [`only ${ordered.length} usable scenes; at least ${LIMITS.scenesMin} are needed`] };
 
   const caption = typeof r.caption === "string" ? Array.from(r.caption.trim()).slice(0, LIMITS.caption).join("") : "";

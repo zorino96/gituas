@@ -1,3 +1,4 @@
+import { modelFor } from "@/lib/ai/models";
 import { NextResponse } from "next/server";
 
 import { completeJson } from "@/lib/ai/provider";
@@ -21,7 +22,7 @@ export async function GET(req: Request) {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: process.env.KURDGG_MODEL?.trim(),
+          model: modelFor("haiku"),
           ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
           messages: [
             { role: "system", content: 'Reply with JSON only: {"text": "<one sentence>"}' },

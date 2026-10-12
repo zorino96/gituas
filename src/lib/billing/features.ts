@@ -1,4 +1,4 @@
-import { SHOP_LIMITS, type StorePlan } from "@/lib/shop/plans";
+import { SHOP_LIMITS, planUsesOpus, type StorePlan } from "@/lib/shop/plans";
 import { NEWS_LIMITS, type Plan } from "./plans";
 import type { BillingProduct } from "./prices";
 
@@ -16,13 +16,16 @@ export type FeatureKey =
   | "videos"
   | "shopPosts"
   | "shopReplies"
-  | "shopAi";
+  | "shopAi"
+  | "shopSmart"
+  | "shopVideos"
+  | "shopOpus";
 
 /**
  * A number is a count (for `refresh`, a number of seconds); the words are the few values that are
  * not numbers: the two autopilot modes, and "every post" for a shop plan with no post cap.
  */
-export type FeatureValue = number | "autoDraft" | "autoPublish" | "all" | "promptFocus" | "promptFull";
+export type FeatureValue = number | "autoDraft" | "autoPublish" | "all" | "promptFocus" | "promptFull" | "opus";
 
 export interface PlanFeature {
   key: FeatureKey;
@@ -54,5 +57,9 @@ export function planFeatures(product: BillingProduct, plan: string): PlanFeature
     { key: "shopPosts", value: l.posts ?? "all" },
     { key: "shopReplies", value: l.repliesPerDay },
     { key: "shopAi", value: l.aiVaryPerMonth },
+    { key: "shopSmart", value: l.smartPerMonth },
+    { key: "shopVideos", value: l.videosPerMonth },
+    // Listed only on the plan that includes it.
+    ...(planUsesOpus(plan as StorePlan) ? [{ key: "shopOpus", value: "opus" } as const] : []),
   ];
 }
