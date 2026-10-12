@@ -23,7 +23,8 @@ export interface Transcript {
 
 /** WhatsApp/Instagram voice notes are short; anything bigger is not read (cost and time). */
 export const STT_MAX_BYTES = 8 * 1024 * 1024;
-const TIMEOUT_MS = 40_000;
+/** A voice note is answered after it is read: a slow engine must not hold the buyer's reply. */
+const TIMEOUT_MS = 15_000;
 const KURDGG_BASE = () => (process.env.KURDGG_BASE_URL?.trim() || "https://api.kurd.gg/v1").replace(/\/$/, "");
 const PAWAN_BASE = "https://api.pawan.krd/v1";
 const GEMINI3_MODEL = () => process.env.STT_GEMINI3_MODEL?.trim() || "ag/gemini-3.8-flash";
@@ -34,11 +35,12 @@ const PROMPT =
   "Output only the transcript, nothing else.";
 
 /**
- * The default order. Pawan's Kurdish model first (made for Sorani), Gemini 2.5 Flash when Pawan refuses
- * (no credits on the account answers 402). 2026-10-12: Gemini read WhatsApp-quality Sorani notes at
- * about 25-30 % character error; Pawan could not be measured (account had no credits). STT_ORDER overrides.
+ * The default order. Gemini 2.5 Flash first: on 2026-10-12 it read WhatsApp-quality Sorani notes in
+ * ~1.3 s at about 25-30 % character error, while Pawan answered 402 (no credits) and later only timed
+ * out. Pawan's Kurdish model stays next; once its account works, measure it with the voice lab and
+ * put it first with STT_ORDER=pawan-asr,gemini if it reads better.
  */
-export const DEFAULT_ORDER: SttEngine[] = ["pawan-asr", "gemini", "whisper"];
+export const DEFAULT_ORDER: SttEngine[] = ["gemini", "pawan-asr", "whisper"];
 
 export function sttOrder(env: Record<string, string | undefined> = process.env): SttEngine[] {
   const all: SttEngine[] = ["pawan-asr", "whisper", "gemini", "gemini3"];
