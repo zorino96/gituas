@@ -898,6 +898,16 @@ model NewsDraft {
 }
 
 /// A news page's look: logo, three colours, heading font.
+/// What the AI learned about a shop's buyers from their messages (src/lib/orders/ai-audience.ts), refreshed weekly.
+model AudienceInsight {
+  tenantId  String   @id
+  /// { interests, angles, questions, note, genderLean } — about the buyers as a group, never a person.
+  data      Json
+  /// How many anonymous messages it was built from.
+  basedOn   Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
 model BrandKit {
   tenantId    String   @id
   logoPath    String?

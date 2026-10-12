@@ -3,6 +3,7 @@
 // and gender of the followers. Pure, so the rules can be tested; the screens label the codes.
 
 import type { IgAudience } from "@/lib/publishers/instagram-audience";
+import type { AiAudience } from "./ai-audience";
 import type { BuyerProfile } from "./stats";
 
 export const AD_PLATFORMS = ["FB", "IG", "TT", "YT"] as const;
@@ -21,6 +22,8 @@ export interface PlatformTargeting {
   ageMax: number;
   gender: "all" | "women" | "men";
   languages: string[];
+  /** Interests for detailed targeting, from what buyers write about (AI). */
+  interests: string[];
   placements: Placement[];
   format: Format;
   /** Baghdad hours to run the ad. */
@@ -29,6 +32,8 @@ export interface PlatformTargeting {
   dailyIqd: [number, number];
   /** True when the age range came from the shop's own Instagram followers. */
   fromFollowers: boolean;
+  /** True when the gender came from the buyers' messages (no Instagram data). */
+  genderFromMessages: boolean;
 }
 
 const KRI = ["erbil", "sulaymaniyah", "duhok", "halabja"];
@@ -97,16 +102,20 @@ export function targetCities(buyerCities: string[], deliverCities: string[]): st
   return KRI;
 }
 
-export function targetingFor(profile: BuyerProfile, ig: IgAudience | null, deliverCities: string[]): Record<AdPlatform, PlatformTargeting> {
+export function targetingFor(profile: BuyerProfile, ig: IgAudience | null, deliverCities: string[], ai: AiAudience | null = null): Record<AdPlatform, PlatformTargeting> {
   const ages = coreAges(ig?.ages);
-  const gender = coreGender(ig);
+  // Instagram's follower numbers win; without them, the buyers' messages when they make it plain.
+  const igGender = coreGender(ig);
+  const aiGender = ig?.women == null && (ai?.genderLean === "women" || ai?.genderLean === "men") ? ai.genderLean : null;
+  const gender = igGender !== "all" ? igGender : (aiGender ?? "all");
+  const interests = ai?.interests ?? [];
   const locations = targetCities(profile.cities, deliverCities);
   const hours = profile.hours.length ? profile.hours : DEFAULT_HOURS;
   const languages = profile.languages.length ? profile.languages : ["ckb"];
   const out = {} as Record<AdPlatform, PlatformTargeting>;
   for (const p of AD_PLATFORMS) {
     const [ageMin, ageMax] = ages ?? DEFAULT_AGE[p];
-    out[p] = { platform: p, ...PLATFORM[p], locations, ageMin, ageMax, gender, languages, hours, fromFollowers: !!ages };
+    out[p] = { platform: p, ...PLATFORM[p], locations, ageMin, ageMax, gender, languages, interests, hours, fromFollowers: !!ages, genderFromMessages: gender === aiGender && aiGender !== null };
   }
   return out;
 }

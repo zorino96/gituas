@@ -1,12 +1,15 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useState, useTransition } from "react";
 
 import { useLang, useT } from "@/lib/i18n/client";
 import { CITIES, cityLabel } from "@/lib/orders/cities";
 import { courierSheets, type BuyerProfile, type CityRow, type WeekStats } from "@/lib/orders/stats";
 import { ADS_URL, AD_PLATFORMS, type AdPlatform, type PlatformTargeting } from "@/lib/orders/targeting";
 import type { IgAudience } from "@/lib/publishers/instagram-audience";
+import type { AiAudience } from "@/lib/orders/ai-audience";
+import { useRouter } from "next/navigation";
+import { refreshAudienceAction } from "./audience-action";
 import { formatMoney } from "@/lib/shop/money";
 import { SaveMessage, useSaver } from "../automation/shared";
 import { priceText } from "../products/products-client";
@@ -237,6 +240,7 @@ function AudienceCard({ a }: { a: BuyerProfile }) {
 export interface BoostView {
   targeting: Record<AdPlatform, PlatformTargeting>;
   ig: IgAudience | null;
+  ai: (AiAudience & { basedOn: number; updatedAt: string }) | null;
   worked: string[];
   cityTags: string[];
 }
@@ -257,8 +261,9 @@ function BoostCard({ b }: { b: BoostView }) {
     [bo.objective, bo.objectives[x.objective]],
     [bo.locations, x.locations.map((c) => cityLabel(c, lang)).join("، ")],
     [bo.age, `${x.ageMin}–${x.ageMax}${x.fromFollowers ? ` (${bo.fromFollowers})` : ""}`],
-    [bo.gender, bo.genders[x.gender]],
+    [bo.gender, `${bo.genders[x.gender]}${x.genderFromMessages ? ` (${bo.fromMessages})` : ""}`],
     [bo.language, x.languages.map(langName).join("، ")],
+    ...(x.interests.length ? [[bo.interests, x.interests.join(", ")] as [string, string]] : []),
     [bo.placements, x.placements.map((p) => bo.placementNames[p]).join("، ")],
     [bo.format, bo.formats[x.format]],
     [bo.hours, x.hours.map((h) => `${String(h).padStart(2, "0")}:00`).join("، ")],
@@ -290,6 +295,8 @@ function BoostCard({ b }: { b: BoostView }) {
         <a className="gm-btn quiet small" href={ADS_URL[tab]} target="_blank" rel="noreferrer">{bo.open[tab]}</a>
       </div>
 
+      <AiAudienceSection ai={b.ai} />
+
       {b.ig && (
         <>
           <p className="gm-sub" style={{ margin: "14px 0 4px", fontWeight: 600 }}>{bo.igTitle}</p>
@@ -306,6 +313,51 @@ function BoostCard({ b }: { b: BoostView }) {
         {copied === "tags" ? t.orders.audience.copied : bo.copyTags}
       </button>
     </div>
+  );
+}
+
+/** What the AI read in the buyers' messages: who buys, ad angles, the questions an ad should answer. */
+function AiAudienceSection({ ai }: { ai: BoostView["ai"] }) {
+  const t = useT();
+  const a = t.orders.boost.ai;
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const refresh = () =>
+    start(async () => {
+      setError(null);
+      const r = await refreshAudienceAction();
+      if (r.ok) router.refresh();
+      else setError(r.error);
+    });
+  return (
+    <>
+      <p className="gm-sub" style={{ margin: "14px 0 4px", fontWeight: 600 }}>{a.title}</p>
+      {ai ? (
+        <>
+          <p className="gm-hint" style={{ margin: 0 }}>{a.sub(ai.basedOn)}</p>
+          {ai.note && <p style={{ margin: "6px 0" }} dir="auto">{ai.note}</p>}
+          {ai.angles.length > 0 && (
+            <>
+              <p className="gm-hint" style={{ margin: "6px 0 2px", fontWeight: 600 }}>{a.angles}</p>
+              <ul className="gm-hint" style={{ margin: 0, paddingInlineStart: 18 }} dir="auto">{ai.angles.map((x) => <li key={x}>{x}</li>)}</ul>
+            </>
+          )}
+          {ai.questions.length > 0 && (
+            <>
+              <p className="gm-hint" style={{ margin: "6px 0 2px", fontWeight: 600 }}>{a.questions}</p>
+              <ul className="gm-hint" style={{ margin: 0, paddingInlineStart: 18 }} dir="auto">{ai.questions.map((x) => <li key={x}>{x}</li>)}</ul>
+            </>
+          )}
+        </>
+      ) : (
+        <p className="gm-hint" style={{ margin: 0 }}>{a.none}</p>
+      )}
+      <button type="button" className="gm-btn quiet small" style={{ marginTop: 6 }} disabled={pending} onClick={refresh}>
+        {pending ? a.refreshing : a.refresh}
+      </button>
+      {error && <p className="gm-err" role="alert" style={{ marginTop: 4 }}>{error}</p>}
+    </>
   );
 }
 

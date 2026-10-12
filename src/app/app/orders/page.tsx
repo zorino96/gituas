@@ -4,6 +4,7 @@ import { can } from "@/lib/newsroom/roles";
 import { loadBuyerProfile, ordersByPost } from "@/lib/orders/audience";
 import { cityHashtags, workedHashtags } from "@/lib/orders/hashtags";
 import { targetingFor } from "@/lib/orders/targeting";
+import { parseAiAudience } from "@/lib/orders/ai-audience";
 import { cityFees } from "@/lib/shop/compose";
 import { fetchIgAudience, fetchIgPosts } from "@/lib/publishers/instagram-audience";
 import { ordersByCity, weekReport } from "@/lib/orders/stats";
@@ -20,7 +21,7 @@ export default async function OrdersPage() {
   const lang = await getLang();
   if (!can(ws.role, "engage")) return <p className="gm-note warn">{dict(lang).nr.team.roles.notAllowed}</p>;
 
-  const [orders, forStats, products, audience, ig, igPosts, stores] = await Promise.all([
+  const [orders, forStats, products, audience, ig, igPosts, stores, insight] = await Promise.all([
     db.order.findMany({ where: { tenantId: ws.id }, orderBy: { createdAt: "desc" }, take: LIST_LIMIT }),
     // The last year is enough for the cards; it keeps the page light as orders pile up.
     db.order.findMany({ where: { tenantId: ws.id, createdAt: { gt: new Date(Date.now() - 365 * 86_400_000) } }, select: { city: true, amountMinor: true, status: true, currency: true, createdAt: true, productName: true } }),
@@ -30,12 +31,15 @@ export default async function OrdersPage() {
     fetchIgAudience(ws.id),
     fetchIgPosts(ws.id),
     db.store.findMany({ where: { tenantId: ws.id }, select: { deliveryCityFees: true, deliveryFeeMinor: true, deliveryCurrency: true } }),
+    db.audienceInsight.findUnique({ where: { tenantId: ws.id }, select: { data: true, basedOn: true, updatedAt: true } }),
   ]);
+  const ai = insight ? parseAiAudience(insight.data) : null;
   const deliverCities = [...new Set(stores.flatMap((s) => Object.keys(cityFees({ ...s, deliveryTime: null }))))];
   const perPost = await ordersByPost(ws.id, igPosts.map((p) => p.id));
   const boost = {
-    targeting: targetingFor(audience, ig, deliverCities),
+    targeting: targetingFor(audience, ig, deliverCities, ai),
     ig,
+    ai: ai ? { ...ai, basedOn: insight!.basedOn, updatedAt: insight!.updatedAt.toISOString() } : null,
     worked: workedHashtags(igPosts, perPost),
     cityTags: cityHashtags(audience.cities),
   };

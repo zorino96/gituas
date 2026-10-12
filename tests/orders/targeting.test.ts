@@ -85,3 +85,27 @@ describe("instagram audience", () => {
     expect(breakdownRows(null)).toEqual([]);
   });
 });
+
+describe("AI audience from buyer messages", () => {
+  it("removes anything that identifies a buyer before the AI sees it", async () => {
+    const { scrub } = await import("@/lib/orders/ai-audience");
+    expect(scrub("نرخی چەندە؟ ژمارەم 0750 123 4567 @zana_99 https://x.co/a mail me a@b.com")).toBe("نرخی چەندە؟ ژمارەم mail me");
+    expect(scrub("٠٧٥٠١٢٣٤٥٦٧ بنێرە")).toBe("بنێرە");
+  });
+
+  it("keeps only short plain lists and a known gender value", async () => {
+    const { parseAiAudience } = await import("@/lib/orders/ai-audience");
+    expect(parseAiAudience({ interests: ["Fashion", 5, "Cosmetics"], angles: ["گەیاندنی خێرا"], questions: [], note: "  x ", genderLean: "other" })).toEqual({
+      interests: ["Fashion", "Cosmetics"], angles: ["گەیاندنی خێرا"], questions: [], note: "x", genderLean: "unknown",
+    });
+    expect(parseAiAudience({})).toBeNull();
+  });
+
+  it("uses the messages' gender lean only when Instagram has no gender, and passes interests to every platform", () => {
+    const ai = { interests: ["Fashion"], angles: [], questions: [], note: "", genderLean: "women" as const };
+    const t = targetingFor(profile, null, [], ai);
+    expect([t.FB.gender, t.FB.genderFromMessages, t.TT.interests]).toEqual(["women", true, ["Fashion"]]);
+    const withIg = targetingFor(profile, { ages: [], women: 0.5, men: 0.5, cities: [] }, [], ai);
+    expect([withIg.FB.gender, withIg.FB.genderFromMessages]).toEqual(["all", false]);
+  });
+});
