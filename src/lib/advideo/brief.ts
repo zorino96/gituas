@@ -6,6 +6,7 @@ import { SHOP_ORIGIN } from "@/lib/hosts";
 import { isJpegPath, isOwnBlobUrl, isOwnPathname } from "@/lib/merchant/caption";
 import { formatMoney } from "@/lib/shop/money";
 import { deliveryLine } from "@/lib/shop/compose";
+import type { RefItem } from "./refs";
 
 export interface AdProduct {
   id: string;
@@ -14,6 +15,8 @@ export interface AdProduct {
   /** The price as the shop shows it ("لە ٢٥٬٠٠٠ دینار"), or null for no price. */
   priceLine: string | null;
   photos: string[];
+  /** Whether any variant can be bought (a product with no variants counts as in stock). */
+  inStock: boolean;
 }
 
 export interface AdBrief {
@@ -31,8 +34,14 @@ export interface AdBrief {
   product: AdProduct | null;
   /** Other products on sale, to talk about the shop in general. */
   catalog: { name: string; priceLine: string | null }[];
-  /** Photos a product scene may show: the product's, else the newest products'. */
+  /** Photos a product scene may show: the product's own, then the owner's reference pictures, else the newest products'. */
   photos: string[];
+  /** How many of the photos are the owner's reference pictures. */
+  refPhotos: number;
+  /** The positions, in `photos`, of the owner's reference pictures. */
+  refIndices: number[];
+  /** The owner's own short clips (reference videos), shown inside the ad. */
+  clips: string[];
 }
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -60,7 +69,7 @@ export function usablePhotos(urls: string[], tenantId: string): string[] {
   return urls.filter((u) => isOwnBlobUrl(u, tenantId) && isJpegPath(new URL(u).pathname));
 }
 
-export async function loadAdBrief(storeId: string, productId: string | null): Promise<AdBrief | null> {
+export async function loadAdBrief(storeId: string, productId: string | null, refs: RefItem[] = []): Promise<AdBrief | null> {
   const store = await db.store.findUnique({
     where: { id: storeId },
     include: { tenant: { select: { id: true, name: true, whatsappNumber: true } } },
@@ -76,18 +85,30 @@ export async function loadAdBrief(storeId: string, productId: string | null): Pr
       select: { id: true, name: true, description: true, photos: true, variants: { select: { amountMinor: true, currency: true, inStock: true } } },
     }),
   ]);
-  const chosen = productId ? products.find((p) => p.id === productId) ?? null : null;
+  let chosen = productId ? products.find((p) => p.id === productId) ?? null : null;
+  // The chosen product may be older than the 24 most recently edited: it is still the one to show.
+  if (productId && !chosen) {
+    chosen = await db.product.findFirst({
+      where: { id: productId, storeId, active: true },
+      select: { id: true, name: true, description: true, photos: true, variants: { select: { amountMinor: true, currency: true, inStock: true } } },
+    });
+  }
   const asProduct = (p: (typeof products)[number]): AdProduct => ({
     id: p.id,
     name: p.name,
     description: p.description?.trim() || null,
     priceLine: priceLineOf(p.variants),
     photos: usablePhotos(p.photos, tenantId),
+    inStock: p.variants.length === 0 || p.variants.some((v) => v.inStock),
   });
   const product = chosen ? asProduct(chosen) : null;
   const others = products.filter((p) => p.id !== chosen?.id);
   // A chosen product shows only its own photos (none: the ad has no product scene); a shop-wide ad uses the newest products' photos.
-  const photos = product ? product.photos.slice(0, MAX_PHOTOS) : others.flatMap((p) => usablePhotos(p.photos, tenantId).slice(0, 1)).slice(0, MAX_PHOTOS);
+  const own = product ? product.photos : others.flatMap((p) => usablePhotos(p.photos, tenantId).slice(0, 1));
+  // The owner's reference pictures are their own choice of how the brand looks: they come after the product's photos, before the filler.
+  const refImages = refs.filter((r) => r.kind === "image" && isOwnBlobUrl(r.url, tenantId)).map((r) => r.url);
+  const photos = [...(product ? own : [...refImages, ...own]), ...(product ? refImages : [])].slice(0, MAX_PHOTOS);
+  const clips = refs.filter((r) => r.kind === "video" && isOwnBlobUrl(r.url, tenantId)).map((r) => r.url).slice(0, 3);
   return {
     name: store.name.trim() || store.tenant.name || (store.igUsername ? `@${store.igUsername}` : "Shop"),
     tagline: kit?.tagline?.trim() || null,
@@ -102,5 +123,8 @@ export async function loadAdBrief(storeId: string, productId: string | null): Pr
     product,
     catalog: others.slice(0, 8).map((p) => ({ name: p.name, priceLine: priceLineOf(p.variants) })),
     photos,
+    refPhotos: photos.filter((u) => refImages.includes(u)).length,
+    refIndices: photos.flatMap((u, i) => (refImages.includes(u) ? [i] : [])),
+    clips,
   };
 }

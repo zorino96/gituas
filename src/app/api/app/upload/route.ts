@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 
 import { currentWorkspace } from "@/app/app/data";
+import { db } from "@/lib/db";
+import { REF_LIMITS, refKind, refStoreOf } from "@/lib/advideo/ref-paths";
+import { can } from "@/lib/newsroom/roles";
 
 export const runtime = "nodejs";
 
@@ -29,6 +32,22 @@ export async function POST(req: Request): Promise<NextResponse> {
         const ws = await currentWorkspace();
         if (!ws) throw new Error("Not signed in");
         if (!pathname.startsWith(`merchant/${ws.id}/`) || pathname.includes("..")) throw new Error("Invalid path");
+        // Reference pictures and clips for AI video ads end up inside ads that may be posted by themselves: only people who
+        // can publish may add them, only to a store of this workspace, and each kind has its own types and size.
+        if (pathname.startsWith(`merchant/${ws.id}/advideo-ref/`)) {
+          const storeId = refStoreOf(pathname, ws.id);
+          const kind = refKind(pathname);
+          if (!storeId || !kind) throw new Error("Invalid path");
+          if (!can(ws.role, "publish")) throw new Error("Not allowed");
+          const store = await db.store.findFirst({ where: { id: storeId, tenantId: ws.id }, select: { id: true } });
+          if (!store) throw new Error("Invalid path");
+          return {
+            allowedContentTypes: kind === "image" ? ["image/jpeg", "image/png", "image/webp"] : ["video/mp4", "video/quicktime"],
+            maximumSizeInBytes: kind === "image" ? REF_LIMITS.imageBytes : REF_LIMITS.videoBytes,
+            addRandomSuffix: true,
+            tokenPayload: JSON.stringify({ tenantId: ws.id }),
+          };
+        }
         return {
           allowedContentTypes: ALLOWED,
           maximumSizeInBytes: MAX_BYTES,

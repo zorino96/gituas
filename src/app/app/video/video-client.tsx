@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useId, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { upload } from "@vercel/blob/client";
 
 import { useLang, useT } from "@/lib/i18n/client";
+import { cityLabel } from "@/lib/orders/cities";
 import { PAWAN_VOICES, VOICE_NAMES } from "@/lib/voice/voices";
 import { SaveMessage, SwitchRow, useSaver } from "../automation/shared";
-import { createVideoAction, publishVideoAction, saveVideoAutoAction } from "./actions";
+import { createVideoAction, publishVideoAction, refreshPlanAction, removeRefAction, saveMarketNotesAction, saveVideoAutoAction, type VideoResult } from "./actions";
 
 type Tier = "LITE" | "PRO";
 
@@ -22,6 +24,32 @@ export interface VideoJobView {
   error: string | null;
   createdAt: string;
   postedAt: string | null;
+  /** The plan this video was made for, and what came of it. */
+  objective: string | null;
+  why: string | null;
+  look: string | null;
+  comments: number | null;
+  orders: number | null;
+}
+
+export interface RefView {
+  pathname: string;
+  url: string;
+  kind: "image" | "video";
+  name: string;
+  size: number;
+}
+
+export interface PlanView {
+  objective: string;
+  why: string;
+  format: string;
+  priceMode: "engagement" | "conversion";
+  cta: "whatsapp" | "dm" | "comment";
+  urgent: boolean;
+  product: string | null;
+  boost: { worth: boolean; cities: string[]; note: string };
+  source: "model" | "rules";
 }
 
 interface Props {
@@ -34,12 +62,17 @@ interface Props {
   auto: { mode: string; tier: Tier; hour: number };
   jobs: VideoJobView[];
   configure: boolean;
+  workspaceId: string;
+  refs: RefView[];
+  refLimits: { images: number; videos: number; imageMb: number; videoMb: number };
+  plan: PlanView | null;
+  notes: string;
 }
 
 /** Statuses in which something is still going on: the page refreshes itself. */
 const BUSY = ["QUEUED", "READY", "RENDERING", "POSTING"];
 
-export function VideoClient({ storeId, stores, canFb, canIg, products, allowances, auto, jobs, configure }: Props) {
+export function VideoClient({ storeId, stores, canFb, canIg, products, allowances, auto, jobs, configure, workspaceId, refs, refLimits, plan, notes }: Props) {
   const router = useRouter();
   const t = useT();
   const v = t.video;
@@ -59,7 +92,7 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
   const busy = jobs.some((j) => BUSY.includes(j.status));
   useEffect(() => {
     if (!busy) return;
-    const timer = setInterval(() => router.refresh(), 6000);
+    const timer = setInterval(() => router.refresh(), 10_000);
     return () => clearInterval(timer);
   }, [busy, router]);
 
@@ -95,6 +128,8 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
         </select>
       )}
 
+      <PlanCard storeId={storeId} plan={plan} notes={notes} />
+
       <p className="gm-sec">{v.makeSec}</p>
       <div className="gm-card gm-stack">
         <div className="gm-field">
@@ -115,7 +150,7 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
         <div className="gm-field">
           <label htmlFor={`${uid}-product`}>{v.productLabel}</label>
           <select id={`${uid}-product`} className="gm-input" value={productId} onChange={(e) => setProductId(e.target.value)}>
-            <option value="">{v.wholeShop}</option>
+            <option value="">{v.aiChooses}</option>
             {products.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -169,6 +204,8 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
         </div>
       </div>
 
+      <RefsCard storeId={storeId} workspaceId={workspaceId} refs={refs} limits={refLimits} />
+
       {configure && <AutoCard storeId={storeId} auto={auto} allowances={allowances} canPublish={canFb || canIg} />}
 
       <p className="gm-sec">{v.listSec}</p>
@@ -184,6 +221,230 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
         </div>
       )}
     </div>
+  );
+}
+
+/** Today's plan: what kind of video matters now and why, boost advice, and the owner's notes about the market. */
+function PlanCard({ storeId, plan, notes }: { storeId: string; plan: PlanView | null; notes: string }) {
+  const router = useRouter();
+  const v = useT().video;
+  const lang = useLang();
+  const [text, setText] = useState(notes);
+  const [pending, start] = useTransition();
+  const [err, setErr] = useState<string | null>(null);
+
+  function run(fn: () => Promise<VideoResult>) {
+    setErr(null);
+    start(async () => {
+      const r = await fn();
+      if (r.ok) router.refresh();
+      else setErr(r.error);
+    });
+  }
+
+  return (
+    <>
+      <p className="gm-sec">{v.planSec}</p>
+      <div className="gm-card gm-stack">
+        <p className="gm-hint" style={{ marginTop: 0 }}>
+          {v.planSub}
+        </p>
+        {plan ? (
+          <>
+            <div className="gm-chips">
+              <span className="gm-badge">{v.objectives[plan.objective] ?? plan.objective}</span>
+              {plan.urgent && <span className="gm-badge warn">{v.planUrgent}</span>}
+              <span className="gm-badge ghost">{v.planBy[plan.source]}</span>
+            </div>
+            <p className="gm-text">{plan.why}</p>
+            <p className="gm-hint">
+              {v.planProduct}: {plan.product ?? v.planShop} · {v.planFormat}: {v.formats[plan.format] ?? plan.format.replace(/_/g, " ")}
+            </p>
+            <p className="gm-hint">
+              {v.planPrice}: {v.priceModes[plan.priceMode]} · {v.planCta}: {v.ctas[plan.cta]}
+            </p>
+            <div>
+              <b className="kufi">{v.boostSec}</b>
+              <p className="gm-text" style={{ marginBottom: 4 }}>
+                {plan.boost.worth ? v.boostYes : v.boostNo}
+                {plan.boost.note ? ` ${plan.boost.note}` : ""}
+              </p>
+              {plan.boost.cities.length > 0 && (
+                <p className="gm-hint" style={{ marginTop: 0 }}>
+                  {v.boostCities}: {plan.boost.cities.map((c) => cityLabel(c, lang)).join("، ")}
+                </p>
+              )}
+            </div>
+          </>
+        ) : (
+          <p className="gm-hint">{v.planNone}</p>
+        )}
+        <div>
+          <button type="button" className="gm-btn quiet small" disabled={pending} onClick={() => run(() => refreshPlanAction(storeId))}>
+            {pending ? v.planThinking : plan ? v.planRemake : v.planMake}
+          </button>
+        </div>
+
+        <div className="gm-field">
+          <label>{v.notesSec}</label>
+          <textarea className="gm-textarea" style={{ minHeight: 84 }} value={text} maxLength={800} placeholder={v.notesPlaceholder} onChange={(e) => setText(e.target.value)} />
+          <p className="gm-hint">{v.notesHelp}</p>
+        </div>
+        <div>
+          <button type="button" className="gm-btn small" disabled={pending || text.trim() === notes.trim()} onClick={() => run(() => saveMarketNotesAction(storeId, text))}>
+            {v.notesSave}
+          </button>
+          {err && <p className="gm-err">{err}</p>}
+        </div>
+      </div>
+    </>
+  );
+}
+
+const MB = 1024 * 1024;
+/** Some systems give a clip no type: the file's ending says what it is. */
+const MIME_BY_EXT: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", mp4: "video/mp4", mov: "video/quicktime" };
+const mimeOf = (f: File) => (f.type && f.type in MIME_BY_EXT_REVERSE ? f.type : MIME_BY_EXT[f.name.split(".").pop()?.toLowerCase() ?? ""] ?? f.type);
+const REF_TYPES: Record<string, { kind: "image" | "video"; ext: string }> = {
+  "image/jpeg": { kind: "image", ext: "jpg" },
+  "image/png": { kind: "image", ext: "png" },
+  "image/webp": { kind: "image", ext: "webp" },
+  "video/mp4": { kind: "video", ext: "mp4" },
+  "video/quicktime": { kind: "video", ext: "mov" },
+};
+const MIME_BY_EXT_REVERSE: Record<string, true> = Object.fromEntries(Object.keys(REF_TYPES).map((k) => [k, true]));
+
+/** The owner's reference pictures and clips: the AI studies the pictures, the video shows both. */
+function RefsCard({ storeId, workspaceId, refs, limits }: { storeId: string; workspaceId: string; refs: RefView[]; limits: Props["refLimits"] }) {
+  const router = useRouter();
+  const v = useT().video;
+  const [busy, setBusy] = useState(false);
+  const [pending, start] = useTransition();
+  const [err, setErr] = useState<string | null>(null);
+  const images = refs.filter((r) => r.kind === "image");
+  const videos = refs.filter((r) => r.kind === "video");
+  const imageInput = useRef<HTMLInputElement>(null);
+  const videoInput = useRef<HTMLInputElement>(null);
+
+  async function add(files: File[]) {
+    setErr(null);
+    setBusy(true);
+    let nImages = images.length;
+    let nVideos = videos.length;
+    try {
+      for (const file of files) {
+        const mime = mimeOf(file);
+        const type = REF_TYPES[mime];
+        if (!type) {
+          setErr(v.refBadType);
+          continue;
+        }
+        const max = type.kind === "image" ? limits.imageMb : limits.videoMb;
+        if (file.size > max * MB) {
+          setErr(v.refTooBig(max));
+          continue;
+        }
+        if (type.kind === "image" ? nImages >= limits.images : nVideos >= limits.videos) {
+          setErr(v.refFull);
+          continue;
+        }
+        try {
+          await upload(`merchant/${workspaceId}/advideo-ref/${storeId}/${Date.now()}.${type.ext}`, file, {
+            access: "public",
+            handleUploadUrl: "/api/app/upload",
+            contentType: mime,
+            multipart: file.size > 20 * MB,
+          });
+          if (type.kind === "image") nImages++;
+          else nVideos++;
+        } catch {
+          setErr(v.refFailed);
+        }
+      }
+    } finally {
+      setBusy(false);
+      router.refresh();
+    }
+  }
+
+  function remove(pathname: string) {
+    setErr(null);
+    start(async () => {
+      const r = await removeRefAction(storeId, pathname);
+      if (r.ok) router.refresh();
+      else setErr(r.error);
+    });
+  }
+
+  return (
+    <>
+      <p className="gm-sec">{v.refSec}</p>
+      <div className="gm-card gm-stack">
+        <p className="gm-hint" style={{ marginTop: 0 }}>
+          {v.refSub}
+        </p>
+        {refs.length === 0 ? (
+          <p className="gm-hint">{v.refEmpty}</p>
+        ) : (
+          <div className="gm-stack">
+            {refs.map((r) => (
+              <div key={r.pathname} className="gm-row">
+                {r.kind === "image" ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img className="gm-thumb" src={r.url} alt="" />
+                ) : (
+                  <video className="gm-thumb" src={r.url} muted playsInline preload="metadata" />
+                )}
+                <span className="gm-hint gm-ltr" style={{ margin: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {r.name} · {(r.size / MB).toFixed(1)} MB
+                </span>
+                <button type="button" className="gm-btn danger small" disabled={pending || busy} onClick={() => remove(r.pathname)}>
+                  {v.refRemove}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="gm-hint" style={{ marginTop: 0 }}>
+          {v.refCount(images.length, limits.images, videos.length, limits.videos)}
+        </p>
+        <div className="gm-row" style={{ flexWrap: "wrap" }}>
+          <button type="button" className="gm-btn quiet small" disabled={busy || images.length >= limits.images} onClick={() => imageInput.current?.click()}>
+            {busy ? v.refUploading : v.refAddImage}
+          </button>
+          <input
+            ref={imageInput}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            hidden
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              e.target.value = "";
+              if (files.length) void add(files);
+            }}
+          />
+          <button type="button" className="gm-btn quiet small" disabled={busy || videos.length >= limits.videos} onClick={() => videoInput.current?.click()}>
+            {busy ? v.refUploading : v.refAddVideo}
+          </button>
+          <input
+            ref={videoInput}
+            type="file"
+            accept="video/mp4,video/quicktime"
+            hidden
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              e.target.value = "";
+              if (files.length) void add(files);
+            }}
+          />
+        </div>
+        <p className="gm-hint" style={{ marginTop: 0 }}>
+          {v.refRights}
+        </p>
+        {err && <p className="gm-err">{err}</p>}
+      </div>
+    </>
   );
 }
 
@@ -280,6 +541,22 @@ function JobCard({ job, canFb, canIg }: { job: VideoJobView; canFb: boolean; can
             {job.productName ? ` · ${job.productName}` : ""}
             {job.topic ? ` · ${job.topic}` : ""}
           </p>
+          {job.objective && (
+            <p className="gm-hint" style={{ marginTop: 4 }}>
+              {v.objectives[job.objective] ?? job.objective}
+              {job.why ? ` — ${job.why}` : ""}
+            </p>
+          )}
+          {job.look && (
+            <p className="gm-hint gm-ltr" style={{ marginTop: 4 }}>
+              {v.jobLook}: {job.look}
+            </p>
+          )}
+          {job.comments !== null && job.orders !== null && (
+            <p className="gm-hint" style={{ marginTop: 4 }}>
+              {v.resultComments(job.comments)} · {v.resultOrders(job.orders)}
+            </p>
+          )}
         </div>
       </div>
 

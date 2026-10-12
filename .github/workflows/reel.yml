@@ -54,8 +54,9 @@ jobs:
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: node worker.mjs
-      # AI video ads: a script and a voice written by the app, drawn here by render.py. The worker keeps
-      # the secret to itself; the render runs in a child process whose environment has none.
+      # AI video ads: a script and a voice written by the app, drawn here by render.py. Three steps, so the
+      # picture and clip decoders (which read files the shops uploaded) never run in a step that has the
+      # secret: fetch and upload have it, the drawing in between does not.
       - uses: actions/setup-python@v5
         if: steps.peek.outputs.ads != '0'
         with:
@@ -69,9 +70,19 @@ jobs:
           sudo apt-get install -y -qq ffmpeg libgl1 libegl1 fontconfig
           pip install -r adfilm/requirements.txt
           cd adfilm && npm ci --no-audit --no-fund
-      - name: Render the ads
+      - name: Fetch the ads
         if: steps.peek.outputs.ads != '0'
         working-directory: adfilm
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
-        run: node worker.mjs
+        run: node worker.mjs fetch
+      - name: Draw the ads (no secrets)
+        if: steps.peek.outputs.ads != '0'
+        working-directory: adfilm
+        run: node worker.mjs render
+      - name: Upload the ads
+        if: ${{ always() && steps.peek.outputs.ads != '0' }}
+        working-directory: adfilm
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: node worker.mjs upload

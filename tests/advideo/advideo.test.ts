@@ -11,10 +11,10 @@ vi.mock("@/lib/advideo/publish", () => ({ publishAdVideo: vi.fn() }));
 vi.mock("@/lib/advideo/prepare", async (orig) => ({ ...(await orig<typeof import("@/lib/advideo/prepare")>()), prepareQueued: vi.fn() }));
 
 import { allowance, VIDEO_LIMITS } from "@/lib/advideo/limits";
-import { baghdadHour, isVideoDue, pickProductForVideo } from "@/lib/advideo/auto";
+import { baghdadHour, isVideoDue } from "@/lib/advideo/auto";
 import { displayPhone, priceLineOf, usablePhotos, type AdBrief } from "@/lib/advideo/brief";
 import { buildRenderProps } from "@/lib/advideo/prepare";
-import { normalizeSpec } from "@/lib/advideo/spec";
+import { lookFromSeed, normalizeSpec } from "@/lib/advideo/spec";
 import { voiceScenes } from "@/lib/advideo/voice";
 import { directorUser, fallbackSpec, modelFor, writeAdSpec, type DirectorCall } from "@/lib/advideo/write";
 
@@ -56,7 +56,7 @@ describe("normalizeSpec", () => {
   });
 
   it("cuts words and scenes to the limits and points a bad photo index at a real photo", () => {
-    const long = Array.from({ length: 40 }, (_, i) => `وشە${i}`).join(" ");
+    const long = Array.from({ length: 40 }, (_, i) => `وشە${String.fromCharCode(0x0627 + (i % 20))}`).join(" ");
     const r = normalizeSpec(
       { ...good, scenes: [scene("hook", { text: long }), ...Array.from({ length: 9 }, () => scene("value")), scene("product", { photo: 99 }), scene("cta")] },
       { photos: 2, hasTopic: false, maxScenes: 6 },
@@ -117,9 +117,12 @@ const brief: AdBrief = {
   logoUrl: null,
   handle: "@botolio",
   phone: "0750 123 4567",
-  product: { id: "p1", name: "جانتای ڕەش", description: null, priceLine: "٢٥٬٠٠٠ دینار", photos: ["https://x/p1.jpg"] },
+  product: { id: "p1", name: "جانتای ڕەش", description: null, priceLine: "٢٥٬٠٠٠ دینار", photos: ["https://x/p1.jpg"], inStock: true },
   catalog: [{ name: "جزدان", priceLine: null }],
   photos: ["https://x/p1.jpg"],
+  refPhotos: 0,
+  refIndices: [],
+  clips: [],
 };
 
 describe("the director", () => {
@@ -211,7 +214,11 @@ describe("voiceScenes", () => {
 describe("buildRenderProps", () => {
   it("hands the renderer the brand, the photos and each scene with its voice clip, and nothing secret", () => {
     const spec = fallbackSpec(brief);
-    const props = buildRenderProps(brief, "bold", spec.scenes.map((s, i) => ({ scene: s, url: `https://blob/vo-${i}.mp3` })));
+    const look = lookFromSeed("botolio:2026-10-12");
+    const props = buildRenderProps(brief, { style: "bold", look, plan: { objective: "sell_product", why: "x", format: "showcase", priceMode: "conversion", cta: "dm" } }, spec.scenes.map((s, i) => ({ scene: s, url: `https://blob/vo-${i}.mp3` })));
+    expect(props.look).toEqual(look);
+    expect(props.plan).toEqual({ objective: "sell_product", priceMode: "conversion", cta: "dm" });
+    expect(props.clips).toEqual([]);
     expect(props.version).toBe(1);
     expect(props.style).toBe("bold");
     expect(props.size).toEqual([1080, 1920]);
@@ -237,12 +244,5 @@ describe("the daily automation's clock", () => {
     expect(isVideoDue(store, at(18))).toBe(true);
     expect(isVideoDue({ ...store, videoAutoLastAt: new Date(at(18)) }, at(21))).toBe(false);
     expect(isVideoDue({ ...store, videoAutoLastAt: new Date(at(18, 11)) }, at(18, 12))).toBe(true);
-  });
-
-  it("features the product that has gone longest without a video, photos only", () => {
-    const products = [{ id: "a", hasPhoto: true }, { id: "b", hasPhoto: true }, { id: "c", hasPhoto: false }];
-    expect(pickProductForVideo(products, new Map([["a", 200], ["b", 100]]))).toBe("b");
-    expect(pickProductForVideo(products, new Map([["a", 200]]))).toBe("b");
-    expect(pickProductForVideo([{ id: "c", hasPhoto: false }], new Map())).toBeNull();
   });
 });

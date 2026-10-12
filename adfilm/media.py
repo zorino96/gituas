@@ -24,15 +24,30 @@ except ImportError:
 
 def probe_media(path):
     """{'width', 'height', 'fps', 'duration', 'frames', 'has_audio'} for a video or image file."""
-    out = subprocess.run(['ffprobe', '-v', 'error', '-show_entries',
-                          'stream=codec_type,width,height,r_frame_rate,nb_frames:format=duration',
+    # Only plain files: a playlist or script that names other protocols is never followed.
+    out = subprocess.run(['ffprobe', '-v', 'error', '-protocol_whitelist', 'file', '-show_entries',
+                          'stream=codec_type,width,height,r_frame_rate,nb_frames:stream_side_data=rotation:stream_tags=rotate:format=duration',
                           '-of', 'json', path], capture_output=True, text=True, encoding='utf-8', errors='replace', check=True).stdout
     d = json.loads(out)
     v = next((s for s in d.get('streams', []) if s.get('codec_type') == 'video'), {})
     num, den = (v.get('r_frame_rate') or '0/1').split('/')
     fps = float(num) / float(den) if float(den) else 0.0
     dur = float(d.get('format', {}).get('duration') or 0.0)
-    return dict(width=v.get('width'), height=v.get('height'), fps=fps, duration=dur,
+    # A phone holds its camera sideways and writes a rotation: ffmpeg turns the picture upright, so the size it
+    # delivers is the stored size swapped.
+    rot = 0
+    for sd in v.get('side_data_list') or []:
+        if 'rotation' in sd:
+            rot = int(round(float(sd['rotation'])))
+    if not rot:
+        try:
+            rot = int(round(float((v.get('tags') or {}).get('rotate') or 0)))
+        except (TypeError, ValueError):
+            rot = 0
+    width, height = v.get('width'), v.get('height')
+    if abs(rot) % 180 == 90:
+        width, height = height, width
+    return dict(width=width, height=height, fps=fps, duration=dur,
                 frames=int(v['nb_frames']) if str(v.get('nb_frames', '')).isdigit() else int(round(dur * fps)),
                 has_audio=any(s.get('codec_type') == 'audio' for s in d.get('streams', [])))
 
@@ -70,7 +85,7 @@ class Footage:
 
     def _open(self, n):
         self.close()
-        self._proc = subprocess.Popen(['ffmpeg', '-v', 'error', '-ss', f'{n / self.fps:.6f}', '-i', self.path,
+        self._proc = subprocess.Popen(['ffmpeg', '-v', 'error', '-protocol_whitelist', 'file', '-ss', f'{n / self.fps:.6f}', '-i', self.path,
                                        '-vf', f'scale={self.w}:{self.h}:flags=bicubic', '-f', 'rawvideo',
                                        '-pix_fmt', 'rgba', '-'], stdout=subprocess.PIPE)
         self._next = n

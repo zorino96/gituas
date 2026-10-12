@@ -26,13 +26,6 @@ export function isVideoDue(store: { videoAutoHour: number; videoAutoLastAt: Date
   return !store.videoAutoLastAt || store.videoAutoLastAt < startOfShopDay(new Date(now));
 }
 
-/** The product whose last video is the oldest (or that never had one): products with photos only. */
-export function pickProductForVideo(products: { id: string; hasPhoto: boolean }[], lastUsed: Map<string, number>): string | null {
-  const usable = products.filter((p) => p.hasPhoto);
-  if (!usable.length) return null;
-  return usable.reduce((best, p) => ((lastUsed.get(p.id) ?? 0) < (lastUsed.get(best.id) ?? 0) ? p : best)).id;
-}
-
 /** Makes the day's video for every store whose automation is due. Returns counts by outcome. */
 export async function runVideoAutomation(now = Date.now()): Promise<Record<string, number>> {
   const stores = await db.store.findMany({
@@ -58,20 +51,13 @@ export async function runVideoAutomation(now = Date.now()): Promise<Record<strin
       if (claim.count !== 1) continue;
 
       const targets = [s.fbPageId ? "FB" : null, s.igUserId ? "IG" : null].filter((t): t is Target => !!t);
-      const [products, recent] = await Promise.all([
-        db.product.findMany({ where: { storeId: s.id, active: true }, select: { id: true, photos: true } }),
-        db.adVideo.findMany({ where: { storeId: s.id, productId: { not: null }, createdAt: { gt: new Date(now - 90 * 24 * HOUR) } }, select: { productId: true, createdAt: true } }),
-      ]);
-      const lastUsed = new Map<string, number>();
-      for (const r of recent) if (r.productId) lastUsed.set(r.productId, Math.max(lastUsed.get(r.productId) ?? 0, r.createdAt.getTime()));
-      const productId = pickProductForVideo(products.map((p) => ({ id: p.id, hasPhoto: p.photos.length > 0 })), lastUsed);
-
       const made = await createAdVideo({
         tenantId: s.tenantId,
         storeId: s.id,
         tier: s.videoAutoTier,
         topic: null,
-        productId,
+        // No product chosen here: the daily plan aims the video (the product buyers ask about, an occasion, or the whole shop).
+        productId: null,
         voice: "shilan",
         targets,
         autoPost: s.videoAutoMode === "PUBLISH" && targets.length > 0,

@@ -6,12 +6,14 @@
 // An attempt holds a short lease (claimedAt) so two callers never prepare one video at once.
 
 import { db } from "@/lib/db";
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import type { StorePlan } from "@/lib/shop/plans";
 import { loadAdBrief, type AdBrief } from "./brief";
 import { adVideoEnabled } from "./enabled";
 import { allowance, countVideo, isVideoTier, videosUsed, type VideoTier } from "./limits";
-import type { AdScene, AdSpec } from "./spec";
+import { refImagesForModel, listRefs } from "./refs";
+import type { AdLook, AdPlan, AdScene, AdSpec } from "./spec";
+import { baghdadDate, getDailyBrief } from "./strategy";
 import { voiceScenes, type VoicedScene } from "./voice";
 import { writeAdSpec } from "./write";
 
@@ -21,6 +23,8 @@ export const AD_MAX_TRIES = 3;
 export const AD_CLAIM_MS = 25 * 60 * 1000;
 /** A script + voice attempt owns its job for this long; after that another caller may take over. */
 export const AD_PREPARE_LEASE_MS = 90 * 1000;
+/** The day's plan, made inside a video's preparation, may take this long (a page can wait longer). */
+const PLAN_TIMEOUT_MS = 12_000;
 /** Videos one store may have in the making at once. */
 export const AD_IN_FLIGHT_MAX = 3;
 
@@ -89,9 +93,15 @@ export interface RenderProps {
   version: 1;
   size: [number, number];
   style: AdSpec["style"];
+  /** The design chosen for this brand and this day. */
+  look: AdLook;
+  /** What the video is for (the renderer shows the price only in conversion mode). */
+  plan: Pick<AdPlan, "objective" | "priceMode" | "cta"> | null;
   brand: { name: string; tagline: string | null; primary: string; accent: string; logoUrl: string | null; handle: string | null; phone: string | null };
   product: { name: string; priceLine: string | null } | null;
   photos: string[];
+  /** The owner's own clips. */
+  clips: string[];
   scenes: RenderScene[];
   music: { style: "ambient" | "lofi" | "drive"; bpm: number; key: string; mode: "minor" | "major" };
 }
@@ -103,11 +113,14 @@ const MUSIC: Record<AdSpec["style"], RenderProps["music"]> = {
 };
 
 /** Everything the renderer needs, as plain JSON (no secrets): brand, photos, the scenes with their voice clips. */
-export function buildRenderProps(brief: AdBrief, style: AdSpec["style"], voiced: VoicedScene[]): RenderProps {
+export function buildRenderProps(brief: AdBrief, spec: Pick<AdSpec, "style" | "look" | "plan">, voiced: VoicedScene[]): RenderProps {
+  const style = spec.style;
   return {
     version: 1,
     size: [1080, 1920],
     style,
+    look: spec.look,
+    plan: spec.plan ? { objective: spec.plan.objective, priceMode: spec.plan.priceMode, cta: spec.plan.cta } : null,
     brand: {
       name: brief.name,
       tagline: brief.tagline,
@@ -119,6 +132,7 @@ export function buildRenderProps(brief: AdBrief, style: AdSpec["style"], voiced:
     },
     product: brief.product ? { name: brief.product.name, priceLine: brief.product.priceLine } : null,
     photos: brief.photos,
+    clips: brief.clips,
     scenes: voiced.map((v) => ({ ...v.scene, audio: v.url })),
     music: MUSIC[style],
   };
@@ -149,12 +163,43 @@ export async function prepareAdVideo(jobId: string): Promise<boolean> {
   const tries = found.tries + 1;
   try {
     if (!found.storeId) throw new Error("no store");
-    const brief = await loadAdBrief(found.storeId, found.productId);
-    if (!brief) throw new Error("store not found");
     const tier: VideoTier = found.tier === "PRO" ? "PRO" : "LITE";
-    const written = await writeAdSpec({ tier, brief, topic: found.topic });
+    // The owner's reference pictures and clips, and today's plan (made once a day, the strategist always on the quick model).
+    const [refs, planned] = await Promise.all([
+      listRefs(found.tenantId, found.storeId),
+      getDailyBrief({ tenantId: found.tenantId, storeId: found.storeId, tier: "LITE", timeoutMs: PLAN_TIMEOUT_MS }).catch(() => null),
+    ]);
+    const day = planned?.brief ?? null;
+    // What the owner asked for wins over the day's plan: their own words, or a product other than the plan's.
+    const ownerDirected = !!found.topic?.trim() || (!!found.productId && !!day && found.productId !== day.productId);
+    let plan = ownerDirected ? null : day;
+    // A video made without a product is the strategist's to aim: the product it picked, or the shop as a whole.
+    let productId = found.productId ?? plan?.productId ?? null;
+    let brief = await loadAdBrief(found.storeId, productId, refs);
+    if (!brief) throw new Error("store not found");
+    // A product the plan picked this morning may have sold out or lost its photo since: the video is then about the shop.
+    if (!found.productId && productId && (!brief.product || !brief.product.inStock || brief.product.photos.length === 0)) {
+      productId = null;
+      plan = null;
+      brief = await loadAdBrief(found.storeId, null, refs);
+      if (!brief) throw new Error("store not found");
+    }
+    const recent = await db.adVideo.findMany({
+      where: { storeId: found.storeId, id: { not: found.id }, spec: { not: Prisma.DbNull } },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+      select: { spec: true },
+    });
+    const recentSpecs = recent.map((r) => r.spec as { look?: AdLook; scenes?: { type?: string; text?: string }[] } | null);
+    const avoidLooks = recentSpecs.map((r) => r?.look).filter((l): l is AdLook => !!l);
+    const recentHooks = recentSpecs.map((r) => r?.scenes?.find((x) => x.type === "hook")?.text).filter((t): t is string => !!t);
+    const images = await refImagesForModel(refs);
+    const written = await writeAdSpec({
+      tier, brief, topic: found.topic, plan, avoidLooks, recentHooks, images,
+      seed: `${found.storeId}:${baghdadDate(now)}:${found.id}`,
+    });
     const voiced = await voiceScenes({ tenantId: found.tenantId, jobId: found.id, voice: found.voice, scenes: written.spec.scenes });
-    const props = buildRenderProps(brief, written.spec.style, voiced);
+    const props = buildRenderProps(brief, written.spec, voiced);
     const spec: AdSpec = { ...written.spec, scenes: voiced.map((v) => v.scene) };
     await db.adVideo.updateMany({
       where: { id: found.id, status: "QUEUED" },
@@ -166,6 +211,7 @@ export async function prepareAdVideo(jobId: string): Promise<boolean> {
         spec: spec as unknown as Prisma.InputJsonValue,
         props: props as unknown as Prisma.InputJsonValue,
         caption: written.spec.caption,
+        productId,
         model: `${written.model}${written.fallback ? " (plain storyboard)" : ""}`.slice(0, 120),
         error: null,
       },

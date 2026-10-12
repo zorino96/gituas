@@ -14,12 +14,16 @@ vi.mock("@/lib/advideo/limits", async (orig) => ({ ...(await orig<typeof import(
 vi.mock("@/lib/advideo/brief", async (orig) => ({ ...(await orig<typeof import("@/lib/advideo/brief")>()), loadAdBrief: vi.fn() }));
 vi.mock("@/lib/advideo/write", () => ({ writeAdSpec: vi.fn() }));
 vi.mock("@/lib/advideo/voice", () => ({ voiceScenes: vi.fn() }));
+vi.mock("@/lib/advideo/refs", () => ({ listRefs: vi.fn(), refImagesForModel: vi.fn() }));
+vi.mock("@/lib/advideo/strategy", () => ({ getDailyBrief: vi.fn(), baghdadDate: () => "2026-10-12" }));
 
 import { db } from "@/lib/db";
 import { loadAdBrief } from "@/lib/advideo/brief";
 import { countVideo, videosUsed } from "@/lib/advideo/limits";
 import { AD_MAX_TRIES, AD_PREPARE_LEASE_MS, createAdVideo, prepareAdVideo } from "@/lib/advideo/prepare";
-import { AD_ICONS } from "@/lib/advideo/spec";
+import { listRefs, refImagesForModel } from "@/lib/advideo/refs";
+import { AD_ICONS, lookFromSeed, type AdLook } from "@/lib/advideo/spec";
+import { getDailyBrief } from "@/lib/advideo/strategy";
 import { voiceScenes } from "@/lib/advideo/voice";
 import { writeAdSpec } from "@/lib/advideo/write";
 
@@ -73,8 +77,24 @@ describe("prepareAdVideo", () => {
     for (const t of Object.values(m)) for (const f of Object.values(t)) f.mockReset();
     vi.stubEnv("AD_VIDEO_ENABLED", "1");
     m.adVideo.updateMany.mockResolvedValue({ count: 1 });
-    vi.mocked(loadAdBrief).mockResolvedValue({ name: "B", tagline: null, deliveryNote: null, deliveryLine: null, primary: "#000000", accent: "#E0A526", logoUrl: null, handle: null, phone: null, product: null, catalog: [], photos: [] });
-    vi.mocked(writeAdSpec).mockResolvedValue({ spec: { style: "elegant", scenes: [{ type: "hook", text: "a", sub: null, voice: "ب", icon: null, photo: null }, { type: "cta", text: "b", sub: null, voice: "ب", icon: null, photo: null }], caption: "c" }, model: "m", fallback: false });
+    m.adVideo.findMany.mockResolvedValue([]);
+    vi.mocked(listRefs).mockResolvedValue([]);
+    vi.mocked(refImagesForModel).mockResolvedValue([]);
+    vi.mocked(getDailyBrief).mockResolvedValue(null);
+    vi.mocked(loadAdBrief).mockResolvedValue({ name: "B", tagline: null, deliveryNote: null, deliveryLine: null, primary: "#000000", accent: "#E0A526", logoUrl: null, handle: null, phone: null, product: null, catalog: [], photos: [], refPhotos: 0, refIndices: [], clips: [] });
+    vi.mocked(writeAdSpec).mockResolvedValue({
+      spec: {
+        style: "elegant",
+        look: lookFromSeed("s1"),
+        scenes: [
+          { type: "hook", text: "a", sub: null, voice: "ب", icon: null, photo: null, clip: null },
+          { type: "cta", text: "b", sub: null, voice: "ب", icon: null, photo: null, clip: null },
+        ],
+        caption: "c",
+      },
+      model: "m",
+      fallback: false,
+    });
     vi.mocked(voiceScenes).mockImplementation(async ({ scenes }) => scenes.map((scene, i) => ({ scene, url: `https://blob/${i}.mp3` })));
   });
 
@@ -90,6 +110,69 @@ describe("prepareAdVideo", () => {
     expect(await prepareAdVideo("v1")).toBe(true);
     const done = m.adVideo.updateMany.mock.calls.at(-1)![0] as { data: Record<string, unknown> };
     expect(done.data).toMatchObject({ status: "READY", tries: 0, claimedAt: null });
+  });
+
+  const shown = { id: "p9", name: "X", description: null, priceLine: null, photos: ["https://x/p9.jpg"], inStock: true };
+  const withProduct = (product: typeof shown | null) =>
+    vi.mocked(loadAdBrief).mockResolvedValue({ name: "B", tagline: null, deliveryNote: null, deliveryLine: null, primary: "#000000", accent: "#E0A526", logoUrl: null, handle: null, phone: null, product, catalog: [], photos: product?.photos ?? [], refPhotos: 0, refIndices: [], clips: [] });
+  const dayPlan = (over: Record<string, unknown> = {}) => ({
+    cached: true,
+    brief: { date: "2026-10-12", objective: "sell_product" as const, productId: "p9", why: "x", format: "showcase", priceMode: "engagement" as const, cta: "dm" as const, urgent: false, avoid: [], lookMood: "warm", boost: { worth: false, cities: [], note: "" }, source: "model" as const, model: "m", ...over },
+  });
+
+  it("drops the plan's product when it sold out or lost its photo since the plan was made", async () => {
+    m.adVideo.findUnique.mockResolvedValue(row());
+    vi.mocked(getDailyBrief).mockResolvedValue(dayPlan());
+    withProduct({ ...shown, inStock: false });
+    expect(await prepareAdVideo("v1")).toBe(true);
+    expect(loadAdBrief).toHaveBeenLastCalledWith("s1", null, []);
+    expect(vi.mocked(writeAdSpec).mock.calls[0][0].plan).toBeNull();
+    const done = m.adVideo.updateMany.mock.calls.at(-1)![0] as { data: Record<string, unknown> };
+    expect(done.data.productId).toBeNull();
+  });
+
+  it("lets the owner's own words win over the day's plan", async () => {
+    m.adVideo.findUnique.mockResolvedValue(row({ topic: "ئۆفەری جەژن" }));
+    vi.mocked(getDailyBrief).mockResolvedValue(dayPlan());
+    withProduct(shown);
+    await prepareAdVideo("v1");
+    expect(vi.mocked(writeAdSpec).mock.calls[0][0].plan).toBeNull();
+    expect(loadAdBrief).toHaveBeenCalledWith("s1", null, []);
+  });
+
+  it("aims a video without a product at the one the daily plan picked, and remembers it", async () => {
+    withProduct(shown);
+    m.adVideo.findUnique.mockResolvedValue(row());
+    vi.mocked(getDailyBrief).mockResolvedValue({
+      cached: true,
+      brief: { date: "2026-10-12", objective: "sell_product", productId: "p9", why: "x", format: "showcase", priceMode: "engagement", cta: "dm", urgent: false, avoid: [], lookMood: "warm", boost: { worth: false, cities: [], note: "" }, source: "model", model: "m" },
+    });
+    expect(await prepareAdVideo("v1")).toBe(true);
+    expect(loadAdBrief).toHaveBeenCalledWith("s1", "p9", []);
+    const done = m.adVideo.updateMany.mock.calls.at(-1)![0] as { data: Record<string, unknown> };
+    expect(done.data).toMatchObject({ status: "READY", productId: "p9" });
+    expect(vi.mocked(writeAdSpec).mock.calls[0][0].plan?.objective).toBe("sell_product");
+  });
+
+  it("keeps the owner's own product choice over the plan's", async () => {
+    withProduct({ ...shown, id: "mine" });
+    m.adVideo.findUnique.mockResolvedValue(row({ productId: "mine" }));
+    vi.mocked(getDailyBrief).mockResolvedValue({
+      cached: true,
+      brief: { date: "2026-10-12", objective: "trust", productId: "p9", why: "x", format: "showcase", priceMode: "engagement", cta: "dm", urgent: false, avoid: [], lookMood: "warm", boost: { worth: false, cities: [], note: "" }, source: "rules", model: "rules" },
+    });
+    await prepareAdVideo("v1");
+    expect(loadAdBrief).toHaveBeenCalledWith("s1", "mine", []);
+  });
+
+  it("hands the director the looks and hooks of the last videos and goes on without a plan", async () => {
+    m.adVideo.findMany.mockResolvedValue([{ spec: { look: lookFromSeed("old"), scenes: [{ type: "hook", text: "هۆکی کۆن" }] } }, { spec: null }]);
+    m.adVideo.findUnique.mockResolvedValue(row());
+    expect(await prepareAdVideo("v1")).toBe(true);
+    const call = vi.mocked(writeAdSpec).mock.calls[0][0];
+    expect(call.avoidLooks).toEqual([lookFromSeed("old") as AdLook]);
+    expect(call.recentHooks).toEqual(["هۆکی کۆن"]);
+    expect(call.plan).toBeNull();
   });
 
   it("leaves a job another caller is preparing right now", async () => {

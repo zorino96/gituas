@@ -8,6 +8,8 @@ import { adVideoEnabled } from "@/lib/advideo/enabled";
 import { isVideoTier } from "@/lib/advideo/limits";
 import { createAdVideo, prepareAdVideo, type Target } from "@/lib/advideo/prepare";
 import { publishAdVideo } from "@/lib/advideo/publish";
+import { isRefPath, removeRef } from "@/lib/advideo/refs";
+import { getDailyBrief, loadMarketNotes, readTodaysBrief, saveMarketNotes } from "@/lib/advideo/strategy";
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
 import { isPawanVoice } from "@/lib/voice/voices";
@@ -88,4 +90,56 @@ export async function saveVideoAutoAction(storeId: string, input: { mode: string
   });
   revalidatePath("/app/video");
   return { ok: true };
+}
+
+/** A plan made less than this long ago is not made again (each one is a model call). */
+const REPLAN_GAP_MS = 90_000;
+
+/** Makes (or makes again) today's plan for a store. */
+export async function refreshPlanAction(storeId: string): Promise<VideoResult> {
+  const r = await ownedStore(storeId, "publish");
+  if (!r.ok) return r;
+  const existing = await readTodaysBrief(r.ws.id, r.store.id);
+  if (existing?.madeAt && Date.now() - existing.madeAt < REPLAN_GAP_MS) {
+    revalidatePath("/app/video");
+    return { ok: true };
+  }
+  const made = await getDailyBrief({ tenantId: r.ws.id, storeId: r.store.id, tier: "LITE", force: true });
+  if (!made) return { ok: false, error: r.e.store };
+  revalidatePath("/app/video");
+  // The model could not be reached: the plan made earlier today (if any) stays, and the owner is told.
+  return made.failed ? { ok: false, error: r.e.planFailed } : { ok: true };
+}
+
+/** The owner's own words about the market; the plan reads them every day. Saving them makes the plan again. */
+export async function saveMarketNotesAction(storeId: string, text: string): Promise<VideoResult> {
+  const r = await ownedStore(storeId, "publish");
+  if (!r.ok) return r;
+  if (typeof text !== "string") return { ok: false, error: r.e.failed };
+  try {
+    const before = await loadMarketNotes(r.ws.id, r.store.id);
+    await saveMarketNotes(r.ws.id, r.store.id, text);
+    // Words that did not change are no reason to ask the model again.
+    if (before.trim() === Array.from(text.trim()).slice(0, 800).join("")) {
+      revalidatePath("/app/video");
+      return { ok: true };
+    }
+  } catch {
+    return { ok: false, error: r.e.failed };
+  }
+  // New notes are always a reason to think again: no waiting period here.
+  const made = await getDailyBrief({ tenantId: r.ws.id, storeId: r.store.id, tier: "LITE", force: true });
+  revalidatePath("/app/video");
+  if (!made) return { ok: false, error: r.e.store };
+  return made.failed ? { ok: false, error: r.e.notesPlanFailed } : { ok: true };
+}
+
+/** Removes one of the store's reference pictures or clips. */
+export async function removeRefAction(storeId: string, pathname: string): Promise<VideoResult> {
+  const r = await ownedStore(storeId, "publish");
+  if (!r.ok) return r;
+  if (!isRefPath(pathname, r.ws.id, r.store.id)) return { ok: false, error: r.e.state };
+  const done = await removeRef(r.ws.id, r.store.id, pathname);
+  revalidatePath("/app/video");
+  return done ? { ok: true } : { ok: false, error: r.e.failed };
 }

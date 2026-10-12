@@ -14,6 +14,21 @@ const PER_CALL = 2;
 /** The upload token for one video lives this long. */
 const UPLOAD_TOKEN_MS = 40 * 60 * 1000;
 
+/**
+ * The host of our own Blob store, read from a file the app itself stored for this job (a voice clip): the
+ * worker downloads from this host only, not from any Vercel Blob store.
+ */
+function ownBlobHost(props: unknown): string | null {
+  const scenes = (props as { scenes?: { audio?: unknown }[] } | null)?.scenes;
+  const first = scenes?.find((s) => typeof s?.audio === "string")?.audio;
+  try {
+    const host = new URL(first as string).hostname;
+    return host.endsWith(".public.blob.vercel-storage.com") ? host : null;
+  } catch {
+    return null;
+  }
+}
+
 function authorized(req: Request): boolean {
   const secret = process.env.CRON_SECRET;
   return !!secret && req.headers.get("authorization") === `Bearer ${secret}`;
@@ -61,7 +76,7 @@ export async function GET(req: Request) {
       addRandomSuffix: false,
       allowOverwrite: true,
     });
-    jobs.push({ id: c.id, props: c.props, pathname, uploadToken });
+    jobs.push({ id: c.id, props: c.props, pathname, uploadToken, blobHost: ownBlobHost(c.props) });
   }
   return NextResponse.json({ jobs });
 }
