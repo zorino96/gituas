@@ -109,3 +109,22 @@ describe("AI audience from buyer messages", () => {
     expect([withIg.FB.gender, withIg.FB.genderFromMessages]).toEqual(["all", false]);
   });
 });
+
+describe("boost advice for one post", () => {
+  it("keeps the AI's answer inside sane bounds and the shop's cities", async () => {
+    const { parseAdvice } = await import("@/lib/orders/post-advice");
+    const a = parseAdvice(
+      { worthBoosting: true, reason: "x", bestPlatform: "IG", platformWhy: "y", objective: "messages", ageMin: 10, ageMax: 90, gender: "women", interests: ["Fashion"], locations: ["erbil", "mars"], dailyIqd: [1000, 900000], creativeScore: 14, creativeNotes: ["a", "b"] },
+      ["erbil", "duhok"],
+      true,
+    );
+    expect(a).toMatchObject({ bestPlatform: "IG", ageMin: 18, ageMax: 65, gender: "women", locations: ["erbil"], dailyIqd: [5000, 400000], creativeScore: 10 });
+  });
+
+  it("refuses an answer without a known platform, and drops the score when the media was not seen", async () => {
+    const { parseAdvice } = await import("@/lib/orders/post-advice");
+    expect(parseAdvice({ bestPlatform: "MySpace" }, [], true)).toBeNull();
+    const a = parseAdvice({ bestPlatform: "TT", locations: [] }, ["sulaymaniyah"], false);
+    expect([a?.creativeScore, a?.objective, a?.locations, a?.dailyIqd[0]]).toEqual([null, "whatsapp_traffic", ["sulaymaniyah"], 35000]);
+  });
+});
