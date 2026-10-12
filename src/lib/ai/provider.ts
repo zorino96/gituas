@@ -19,6 +19,8 @@ export interface JsonCall {
   thinking?: boolean;
   /** At most this long overall (ms), for side calls that must not outlive their caller. Default 50 s. */
   budgetMs?: number;
+  /** kurd.gg only: an exact model id (for example the video director) instead of the one `strength` picks. */
+  model?: string;
 }
 
 export interface JsonResult {

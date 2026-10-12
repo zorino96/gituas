@@ -59,15 +59,32 @@ export async function POST(req: Request) {
 
   if ((input as { op: string }).op === "llm-json") {
     // One JSON completion with the server's kurd.gg key (the model the desks use), e.g. an ad script for a brand.
-    const r = input as unknown as { system: string; user: string; strength?: "fast" | "strong" };
+    const r = input as unknown as { system: string; user: string; strength?: "fast" | "strong"; model?: string };
     if (!kurdggConfigured()) return NextResponse.json({ error: "kurd.gg is not configured" }, { status: 400 });
     const t0 = Date.now();
     try {
-      const out = await kurdggJson({ system: String(r.system ?? ""), user: String(r.user ?? ""), strength: r.strength === "strong" ? "strong" : "fast" }, 50_000);
+      const out = await kurdggJson(
+        { system: String(r.system ?? ""), user: String(r.user ?? ""), strength: r.strength === "strong" ? "strong" : "fast", model: typeof r.model === "string" ? r.model : undefined },
+        55_000,
+      );
       return NextResponse.json({ ok: true, model: out.model, ms: Date.now() - t0, data: out.data });
     } catch (e) {
       return NextResponse.json({ ok: false, error: e instanceof Error ? e.message.replace(/[A-Za-z0-9_-]{30,}/g, "…").slice(0, 300) : "failed" });
     }
+  }
+
+  if ((input as { op: string }).op === "kurdgg-models") {
+    // The model ids kurd.gg offers this key (names only), to choose the video models.
+    const key = process.env.KURDGG_API_KEY?.trim();
+    if (!key) return NextResponse.json({ error: "no key" }, { status: 400 });
+    const base = (process.env.KURDGG_BASE_URL?.trim() || "https://api.kurd.gg/v1").replace(/\/$/, "");
+    const res = await fetch(`${base}/models`, { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(20_000) });
+    const body = (await res.json().catch(() => null)) as { data?: { id?: string }[] } | null;
+    return NextResponse.json({
+      status: res.status,
+      current: { fast: process.env.KURDGG_MODEL?.trim() ?? null, strong: process.env.KURDGG_MODEL_STRONG?.trim() ?? null },
+      models: (body?.data ?? []).map((m) => m.id).filter((id): id is string => typeof id === "string"),
+    });
   }
 
   if ((input as { op: string }).op === "tts-speak") {
