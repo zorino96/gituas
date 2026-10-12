@@ -21,6 +21,8 @@ export interface JsonCall {
   budgetMs?: number;
   /** kurd.gg only: an exact model id (for example the video director) instead of the one `strength` picks. */
   model?: string;
+  /** kurd.gg only: pictures the model should look at (https URLs or data: URLs), after the text of `user`. */
+  images?: string[];
 }
 
 export interface JsonResult {

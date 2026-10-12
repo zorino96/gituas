@@ -59,12 +59,12 @@ export async function POST(req: Request) {
 
   if ((input as { op: string }).op === "llm-json") {
     // One JSON completion with the server's kurd.gg key (the model the desks use), e.g. an ad script for a brand.
-    const r = input as unknown as { system: string; user: string; strength?: "fast" | "strong"; model?: string };
+    const r = input as unknown as { system: string; user: string; strength?: "fast" | "strong"; model?: string; images?: string[] };
     if (!kurdggConfigured()) return NextResponse.json({ error: "kurd.gg is not configured" }, { status: 400 });
     const t0 = Date.now();
     try {
       const out = await kurdggJson(
-        { system: String(r.system ?? ""), user: String(r.user ?? ""), strength: r.strength === "strong" ? "strong" : "fast", model: typeof r.model === "string" ? r.model : undefined },
+        { system: String(r.system ?? ""), user: String(r.user ?? ""), strength: r.strength === "strong" ? "strong" : "fast", model: typeof r.model === "string" ? r.model : undefined, images: Array.isArray(r.images) ? r.images.filter((x) => typeof x === "string").slice(0, 6) : undefined },
         55_000,
       );
       return NextResponse.json({ ok: true, model: out.model, ms: Date.now() - t0, data: out.data });

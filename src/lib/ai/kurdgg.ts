@@ -58,7 +58,7 @@ export function sseContent(raw: string): { content: string; model: string | null
 }
 
 /** timeoutMs is the caller's to choose: completeJson budgets it against the overall deadline. */
-export async function kurdggJson({ system, user, strength, model: override }: JsonCall, timeoutMs: number): Promise<JsonResult> {
+export async function kurdggJson({ system, user, strength, model: override, images }: JsonCall, timeoutMs: number): Promise<JsonResult> {
   const base = (process.env.KURDGG_BASE_URL?.trim() || DEFAULT_BASE).replace(/\/$/, "");
   const model = override?.trim() || modelFor(strength);
   const res = await fetch(`${base}/chat/completions`, {
@@ -71,7 +71,12 @@ export async function kurdggJson({ system, user, strength, model: override }: Js
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: `${system}\n\nReply with one JSON object only.` },
-        { role: "user", content: user },
+        {
+          role: "user",
+          content: images?.length
+            ? [{ type: "text", text: user }, ...images.slice(0, 6).map((url) => ({ type: "image_url", image_url: { url } }))]
+            : user,
+        },
       ],
     }),
     signal: AbortSignal.timeout(timeoutMs),
