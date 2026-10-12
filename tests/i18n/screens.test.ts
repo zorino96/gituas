@@ -47,7 +47,7 @@ describe("orders text", () => {
 
 describe("settings text", () => {
   it("has a message for every OAuth error the settings page can show", () => {
-    expect(Object.keys(ar.settings.connectErrors).sort()).toEqual(["access_denied", "provider_mismatch", "state_expired", "token_exchange_failed"]);
+    expect(Object.keys(ar.settings.connectErrors).sort()).toEqual(["access_denied", "account_limit", "provider_mismatch", "state_expired", "token_exchange_failed"]);
     expect(Object.keys(ar.settings.connNote)).toEqual(["META_FACEBOOK", "META_INSTAGRAM", "TIKTOK", "YOUTUBE"]);
   });
 });

@@ -10,6 +10,7 @@ import { withAccounts } from "@/lib/oauth/account-scope";
 import { assertWithin, LimitReached, limitMessage, newsroomFrozenError } from "@/lib/billing/limits";
 import { ckb, type Dict } from "@/lib/i18n/ckb";
 import { captionProblems, isJpegPath, isKnownTarget, isOwnBlobUrl, isOwnPathname, youtubeOptionProblems, youtubeProblem, type Target, type YouTubeOptions } from "@/lib/merchant/caption";
+import { clampAccounts } from "@/lib/merchant/accounts-policy";
 import { tiktokProblems } from "@/lib/merchant/tiktok-rules";
 import { recordNewsPublish } from "@/lib/news/publish-record";
 import { checkDraft } from "@/lib/news/rules";
@@ -89,6 +90,11 @@ export async function publishForWorkspace(
   ws: { id: string; kind: "MERCHANT" | "NEWS"; role: Role },
   input: PublishInput,
   t: Dict = ckb,
+  /**
+   * Server-side only (never from a request): `continuation` marks the later half of an autopilot story
+   * that was spread over several Pages. Its results are added to the draft's, and the story is not counted twice.
+   */
+  opts: { continuation?: boolean } = {},
 ): Promise<PublishOutcome[] | { error: string }> {
   const m = t.actions.publish;
   const targets = [...new Set(input.targets)];
@@ -178,8 +184,8 @@ export async function publishForWorkspace(
       unknownAccount.push({ target, ok: false, error: m.unknownTarget });
       continue;
     }
-    // TikTok's own rules show one creator's settings per post: one account.
-    for (const id of target === "TT" ? known.slice(0, 1) : known) {
+    // TikTok's own rules show one creator's settings per post: one account; the others are capped too.
+    for (const id of clampAccounts(known, target)) {
       jobs.push({ target, accountId: id, accountName: rows.find((r) => r.providerAccountId === id)?.providerAccountName ?? undefined });
     }
   }
@@ -276,7 +282,7 @@ export async function publishForWorkspace(
   }
   if (input.newsDraftId) {
     try {
-      await recordNewsPublish(ws.id, input.newsDraftId, results);
+      await recordNewsPublish(ws.id, input.newsDraftId, results, { continuation: opts.continuation === true });
     } catch (e) {
       // The post already went out; a bookkeeping failure must not turn that into a reported failure.
       console.error("recordNewsPublish failed:", e instanceof Error ? e.message : "unknown error");

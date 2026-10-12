@@ -51,6 +51,22 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
   const origin = new URL(req.url).origin;
   const backTo = isAppOrigin(origin) ? `${origin}${returnTo}` : returnTo;
 
+  // The Settings screen asks the person to confirm they own the account or are authorized to manage
+  // it, and sends ack=1 when they did; it is kept in the audit log. Other entry points just proceed.
+  if (new URL(req.url).searchParams.get("ack") === "1") {
+    await db.auditLog
+      .create({
+        data: {
+          tenantId,
+          actor: "USER",
+          action: "integrations.authority_confirmed",
+          reasoning: `Confirmed ownership of, or authorization to manage, the ${upper} account being connected.`,
+          metadata: { provider: upper, userId: session.user.id },
+        },
+      })
+      .catch(() => undefined);
+  }
+
   try {
     const url = await buildAuthorizeUrl(upper, tenantId, backTo, session.user.id);
     return NextResponse.redirect(url);

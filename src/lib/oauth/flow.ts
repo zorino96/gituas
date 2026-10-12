@@ -1,6 +1,7 @@
 import { randomBytes, createHash } from "node:crypto";
 
 import { db } from "@/lib/db";
+import { accountRoom, AccountLimitError } from "@/lib/oauth/account-limit";
 import { vaultDecrypt, vaultEncrypt } from "@/lib/vault";
 import { can } from "@/lib/newsroom/roles";
 import { findProvider, type ProviderConfig } from "@/lib/oauth/registry";
@@ -387,6 +388,9 @@ async function saveCredential(
   account: { id: string; name: string; avatarUrl?: string },
 ): Promise<void> {
   const provider = cfg.provider;
+  // A new account over the plan's limit is refused; one already connected is only refreshed.
+  const room = await accountRoom(tenantId, provider, [account.id]);
+  if (!room.ok) throw new AccountLimitError(room.cap);
   const expiresAt = token.expires_in ? new Date(Date.now() + token.expires_in * 1000) : null;
   const fields = {
     providerAccountName: account.name,
@@ -465,13 +469,20 @@ export async function loadPageChoice(choiceId: string, userId: string): Promise<
  * stored user token for that Page id, so a tampered form can only pick among
  * the Pages Facebook itself says the person runs.
  */
-export async function completeFacebookPageChoice(choiceId: string, pageIds: string[], userId: string): Promise<{ redirectTo: string } | null> {
+export async function completeFacebookPageChoice(choiceId: string, pageIds: string[], userId: string): Promise<{ redirectTo: string; limit?: number } | null> {
   const choice = await ownedChoice(choiceId, userId);
   const cfg = findProvider("META_FACEBOOK");
   if (!choice || !cfg) return null;
   const { pages } = await fetchFacebookPages(vaultDecrypt(choice.userTokenEncrypted));
   const chosen = pages.filter((p) => pageIds.includes(p.id));
   if (!chosen.length) return null;
+  // All or none: with the chosen Pages over the plan's limit nothing is connected, and the person is
+  // told why. (The choice holds a long-lived user token, so it is dropped here too.)
+  const room = await accountRoom(choice.tenantId, "META_FACEBOOK", chosen.map((p) => p.id));
+  if (!room.ok) {
+    await db.oAuthPageChoice.delete({ where: { id: choiceId } }).catch(() => undefined);
+    return { redirectTo: choice.redirectTo, limit: room.cap };
+  }
   for (const page of chosen) {
     const account = await fetchProviderAccount(cfg, page.access_token);
     if (account.id === "unknown") account.id = page.id;

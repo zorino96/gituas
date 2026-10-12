@@ -10,7 +10,7 @@ import { useT } from "@/lib/i18n/client";
 import { NewsCard, CARD_H, CARD_W } from "@/lib/cards/templates";
 import { brandFrom, FRAME_TEXT, mediaSrc, type FrameText } from "@/lib/cards/brand";
 import { ReferencePicker } from "./color-picker";
-import { AUTO_DAILY_MAX, AUTO_MIN_GAP, AUTO_MODES, AUTO_TARGETS, type AutoMode, type AutoTarget } from "@/lib/news/autopilot-settings";
+import { AUTO_DAILY_MAX, AUTO_MIN_GAP, AUTO_MODES, AUTO_TARGETS, MAX_AUTO_ACCOUNTS, type AutoMode, type AutoTarget } from "@/lib/news/autopilot-settings";
 import { GROUPS, type SourceGroup, type SourceLang } from "@/lib/news/catalog";
 import { subcategoryLabel, TAXONOMY } from "@/lib/news/taxonomy";
 import { VOICE_NOTE_MAX } from "@/lib/news/voice";
@@ -180,7 +180,13 @@ export function NewsSettings(p: NewsSettingsProps) {
 
   // With several Pages / Instagram accounts: which ones the autopilot posts to (none ticked = the first one).
   const [autoAccounts, setAutoAccounts] = useState<string[]>(ap.accounts);
-  const toggleAutoAccount = (key: string) => setAutoAccounts((list) => (list.includes(key) ? list.filter((x) => x !== key) : [...list, key]));
+  const toggleAutoAccount = (key: string) =>
+    setAutoAccounts((list) => {
+      if (list.includes(key)) return list.filter((x) => x !== key);
+      // At most MAX_AUTO_ACCOUNTS per platform (the server holds the same line).
+      const platform = key.split(":")[0];
+      return list.filter((x) => x.startsWith(`${platform}:`)).length >= MAX_AUTO_ACCOUNTS ? list : [...list, key];
+    });
 
   function saveAutopilot() {
     if (auto.mode === "PUBLISH" && !window.confirm(tn.autoConfirm)) return;
@@ -519,6 +525,10 @@ export function NewsSettings(p: NewsSettingsProps) {
                   <span dir="auto">{a.name}</span>
                 </label>
               ))}
+              {autoAccounts.filter((x) => x.startsWith(`${k}:`)).length >= 2 && (
+                <small className="gm-note warn" style={{ margin: "4px 0 0" }}>{tn.autoAccountsWarn}</small>
+              )}
+              {ap.accountLists[k].length > MAX_AUTO_ACCOUNTS && <small className="gm-hint" style={{ margin: 0 }}>{tn.autoAccountsMax(MAX_AUTO_ACCOUNTS)}</small>}
             </div>
           ))}
           {[tn.autoTikTok, tn.autoYouTube].map((label) => (

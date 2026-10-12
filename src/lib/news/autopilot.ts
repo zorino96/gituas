@@ -22,6 +22,7 @@ import { renderAndStoreCard } from "@/lib/cards/server-render";
 import { db } from "@/lib/db";
 import { NEWSROOM_ORIGIN } from "@/lib/hosts";
 import { publishForWorkspace } from "@/lib/merchant/publish-core";
+import { splitForStagger, type StaggerLater } from "./stagger";
 import { AUTO_TARGETS, autoAccountsFor, autoTargetsFor, inQuietHours, type AutoMode, type AutoTarget } from "./autopilot-settings";
 import { RETRY_DEADLINE_MS } from "./draft";
 import { loadActiveFocus } from "./focus";
@@ -462,15 +463,19 @@ async function postDraft(
     }
     if (run.deadline - Date.now() < POST_MIN_MS) return await failed("This run had no time left to post.", "out of time");
 
+    // With several Pages chosen, the first of each platform gets the story now and the others follow
+    // a few minutes apart (below), so identical posts do not land on many accounts in the same minute.
+    const split = splitForStagger(run.accounts);
     const results = await publishForWorkspace(
       { id: tenantId, kind: "NEWS", role: "OWNER" },
-      { caption: post.caption, targets: allowed, media: post.media, newsDraftId: draft.id, igDeadlineMs: post.igMs, accounts: run.accounts },
+      { caption: post.caption, targets: allowed, media: post.media, newsDraftId: draft.id, igDeadlineMs: post.igMs, accounts: split.now },
     );
     if (!Array.isArray(results)) return await failed("The post was refused.", results.error);
     const sent = results.filter((r) => r.ok);
     if (!sent.length) {
       return await failed("No page accepted the post.", results.map((r) => `${r.target}: ${r.error ?? "failed"}`).join(" | "));
     }
+    if (split.later.length) await scheduleLaterPages(tenantId, draft.id, post, split.later);
 
     // From here on the post is out: nothing below may report it as a failure.
     run.done.published++;
@@ -491,6 +496,41 @@ async function postDraft(
     return "next";
   } catch (e) {
     return failed("The card or the post failed.", e);
+  }
+}
+
+/**
+ * The later Pages of a story: one scheduled post each, a few minutes apart, run by the same clock
+ * as a person's scheduled posts. `stagger: true` tells the runner that it continues a story that is
+ * already counted. Best effort: the story is out on the first Page whatever happens here.
+ */
+async function scheduleLaterPages(
+  tenantId: string,
+  draftId: string,
+  post: { caption: string; media: { url: string; pathname: string; type: "IMAGE" | "VIDEO" } },
+  later: StaggerLater[],
+): Promise<void> {
+  try {
+    const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { ownerId: true } });
+    if (!tenant?.ownerId) return;
+    const from = Date.now();
+    await db.scheduledPost.createMany({
+      data: later.map((l) => ({
+        tenantId,
+        createdById: tenant.ownerId,
+        runAt: new Date(from + l.afterMin * 60_000),
+        input: {
+          caption: post.caption,
+          targets: [l.target],
+          media: post.media,
+          newsDraftId: draftId,
+          accounts: { [l.target]: [l.accountId] },
+          stagger: true,
+        },
+      })),
+    });
+  } catch (e) {
+    console.error("[autopilot] could not schedule the later pages:", e instanceof Error ? e.message : "unknown error");
   }
 }
 

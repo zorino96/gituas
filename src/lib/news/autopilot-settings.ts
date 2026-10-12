@@ -10,6 +10,9 @@ export type AutoMode = (typeof AUTO_MODES)[number];
  * every post, and YouTube takes video only, so neither can be added here.
  */
 export const AUTO_TARGETS = ["FB", "IG"] as const;
+
+/** Pages or Instagram accounts of one platform the autopilot may post one story to. */
+export const MAX_AUTO_ACCOUNTS = 3;
 export type AutoTarget = (typeof AUTO_TARGETS)[number];
 
 export const AUTO_DAILY_MAX = { min: 1, max: 200, fallback: 20 } as const;
@@ -32,7 +35,8 @@ export function autoAccountsFor(saved: readonly unknown[] | null | undefined): P
     if (!m) continue;
     const target = m[1] as AutoTarget;
     const list = (out[target] ??= []);
-    if (!list.includes(m[2])) list.push(m[2]);
+    // At most MAX_AUTO_ACCOUNTS per platform: the same story on a long list of Pages is what spam systems look for.
+    if (!list.includes(m[2]) && list.length < MAX_AUTO_ACCOUNTS) list.push(m[2]);
   }
   return Object.keys(out).length ? out : undefined;
 }

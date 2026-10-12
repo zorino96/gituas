@@ -18,6 +18,7 @@ vi.mock("@/lib/db", () => ({
     newsDraft: { count: vi.fn(), create: vi.fn(), findMany: vi.fn() },
     auditLog: { create: vi.fn() },
     newsVideo: { findMany: vi.fn(), count: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
+    scheduledPost: { createMany: vi.fn() },
   },
 }));
 vi.mock("@/app/app/data", () => ({
@@ -367,6 +368,8 @@ interface Desk {
   frozen?: boolean;
   gapMin?: number;
   items?: ReturnType<typeof item>[];
+  /** The desk's saved Page choice, as "FB:<id>" / "IG:<id>". */
+  accounts?: string[];
 }
 
 function desk(d: Desk = {}) {
@@ -378,6 +381,7 @@ function desk(d: Desk = {}) {
     lastAutoAt: null as Date | null,
     voiceNote: "ڕستەی کورت",
     categories: [] as string[],
+    autoAccounts: d.accounts ?? ([] as string[]),
   };
   m.newsSettings.findUnique.mockImplementation(async () => ({ ...settings }));
   m.newsSettings.update.mockImplementation(async ({ data }: { data: { lastAutoAt: Date } }) => {
@@ -392,6 +396,7 @@ function desk(d: Desk = {}) {
   });
   m.tenant.findUnique.mockResolvedValue({
     kind: "NEWS",
+    ownerId: "owner1",
     plan: d.plan ?? "AUTO",
     planPaidUntil: new Date(Date.now() + (d.frozen ? -1 : 1) * 86_400_000),
     trialEndsAt: null,
@@ -531,6 +536,50 @@ describe("runAutopilot", () => {
     expect(audits()).toContain("news.autopilot_published");
     // The publish count is recordNewsPublish's, inside publishForWorkspace: only the draft is counted here.
     expect(vi.mocked(countUsage).mock.calls).toEqual([["t1", "draft"]]);
+  });
+
+  it("posts a story to the first chosen Page now and schedules the others a few minutes apart", async () => {
+    desk({ mode: "PUBLISH", accounts: ["FB:111", "FB:222", "FB:333"] });
+    const before = Date.now();
+    expect(await runAutopilot("t1")).toEqual({ drafted: 1, published: 1 });
+    expect(publishForWorkspace).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(publishForWorkspace).mock.calls[0][1]).toMatchObject({ targets: ["FB", "IG"], accounts: { FB: ["111"] } });
+
+    expect(m.scheduledPost.createMany).toHaveBeenCalledTimes(1);
+    const { data } = m.scheduledPost.createMany.mock.calls[0][0] as {
+      data: { tenantId: string; createdById: string; runAt: Date; input: Record<string, unknown> }[];
+    };
+    expect(data).toHaveLength(2);
+    expect(data.map((r) => r.input.accounts)).toEqual([{ FB: ["222"] }, { FB: ["333"] }]);
+    for (const r of data) {
+      expect(r).toMatchObject({ tenantId: "t1", createdById: "owner1" });
+      expect(r.input).toMatchObject({ targets: ["FB"], newsDraftId: "d-a", stagger: true, caption: `${DRAFT.headline}\n\n${DRAFT.body}` });
+    }
+    // Five and ten minutes after the first post.
+    expect(data[0].runAt.getTime() - before).toBeGreaterThanOrEqual(5 * 60_000);
+    expect(data[0].runAt.getTime() - before).toBeLessThan(5 * 60_000 + 60_000);
+    expect(data[1].runAt.getTime() - before).toBeGreaterThanOrEqual(10 * 60_000);
+  });
+
+  it("never posts a story to more than three Pages of a platform, however many are saved", async () => {
+    desk({ mode: "PUBLISH", accounts: ["FB:101", "FB:102", "FB:103", "FB:104", "FB:105"] });
+    expect(await runAutopilot("t1")).toEqual({ drafted: 1, published: 1 });
+    expect(vi.mocked(publishForWorkspace).mock.calls[0][1]).toMatchObject({ accounts: { FB: ["101"] } });
+    const { data } = m.scheduledPost.createMany.mock.calls[0][0] as { data: { input: { accounts: { FB: string[] } } }[] };
+    expect(data.map((r) => r.input.accounts.FB[0])).toEqual(["102", "103"]);
+  });
+
+  it("schedules nothing when one Page is chosen", async () => {
+    desk({ mode: "PUBLISH", accounts: ["FB:111"] });
+    expect(await runAutopilot("t1")).toEqual({ drafted: 1, published: 1 });
+    expect(m.scheduledPost.createMany).not.toHaveBeenCalled();
+  });
+
+  it("keeps the story posted when the later Pages cannot be scheduled", async () => {
+    desk({ mode: "PUBLISH", accounts: ["FB:111", "FB:222"] });
+    m.scheduledPost.createMany.mockRejectedValue(new Error("db down"));
+    expect(await runAutopilot("t1")).toEqual({ drafted: 1, published: 1 });
+    expect(audits()).toContain("news.autopilot_published");
   });
 
   it("only drafts when no allowed page is connected", async () => {

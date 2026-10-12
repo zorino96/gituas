@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { isAppOrigin } from "@/lib/hosts";
 import { completeOAuth } from "@/lib/oauth/flow";
+import { AccountLimitError } from "@/lib/oauth/account-limit";
 import type { OAuthProvider } from "@/generated/prisma/client";
 
 export const runtime = "nodejs";
@@ -54,7 +55,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
     // forward an opaque code.
     const msg = err instanceof Error ? err.message : "OAuth failed";
     console.error(`[oauth:${provider}] callback failed:`, msg);
-    const code = /state/i.test(msg)
+    const code = err instanceof AccountLimitError
+      ? "account_limit"
+      : /state/i.test(msg)
       ? "state_expired"
       : /exchange|token/i.test(msg)
         ? "token_exchange_failed"

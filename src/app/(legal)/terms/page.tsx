@@ -10,7 +10,7 @@ export default function TermsPage() {
   return (
     <article>
       <h1 className="font-display text-4xl md:text-5xl leading-tight">Terms of Service</h1>
-      <Updated date="October 10, 2026" />
+      <Updated date="October 12, 2026" />
 
       <Lead>
         These Terms govern your access to and use of Gituas (gituas.com) and Hawalnoos
@@ -44,6 +44,15 @@ export default function TermsPage() {
         {" "}— and you are responsible for ensuring your use of Gituas complies with them. You can
         revoke access at any time by disconnecting the account in Settings. TikTok posts are always
         started by you: Gituas never posts to TikTok automatically.
+      </P>
+      <P>
+        <strong>Accounts you connect.</strong> You may connect only accounts you own, or accounts
+        whose owner has authorized you to manage them (for example a client&rsquo;s Page, with the
+        client&rsquo;s permission). You confirm this each time you connect an account. If you manage
+        accounts for clients, you are responsible for having their permission and for keeping each
+        client&rsquo;s accounts and data separate. You may connect several accounts of one platform
+        up to the limit of your plan; do not use several accounts to post the same content in order
+        to inflate reach, or to get around a platform&rsquo;s limits.
       </P>
       <P>
         <strong>YouTube.</strong> Gituas uses YouTube API Services to publish videos to, and read

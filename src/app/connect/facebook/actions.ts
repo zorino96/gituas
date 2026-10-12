@@ -23,7 +23,7 @@ export async function choosePageAction(formData: FormData): Promise<void> {
   const userId = session?.user?.id;
   const choiceId = String(formData.get("c") ?? "");
   if (!userId) redirect("/login");
-  let done: { redirectTo: string } | null = null;
+  let done: { redirectTo: string; limit?: number } | null = null;
   try {
     const pageIds = formData.getAll("page").map(String).filter(Boolean).slice(0, 100);
     done = await completeFacebookPageChoice(choiceId, pageIds, userId);
@@ -31,6 +31,8 @@ export async function choosePageAction(formData: FormData): Promise<void> {
     console.error("[oauth:facebook] page choice failed:", err instanceof Error ? err.message : "unknown error");
   }
   if (!done) redirect(`/connect/facebook?c=${encodeURIComponent(choiceId)}&error=1`);
+  // Over the plan's limit of accounts: back to where the connect started, with the reason.
+  if (done.limit) redirect(withParam(done.redirectTo, "error", "account_limit"));
   redirect(withParam(done.redirectTo, "connected", "meta_facebook"));
 }
 

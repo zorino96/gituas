@@ -6,6 +6,7 @@ import { publishForWorkspace, type PublishInput } from "@/lib/merchant/publish-c
 import { finishPendingInstagram } from "@/lib/publishers/instagram-finish";
 import { pollStudio } from "@/lib/studio/jobs";
 import { SCHEDULE_NO_TIKTOK } from "@/lib/merchant/schedule";
+import { isStaggered } from "@/lib/news/stagger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,7 +26,8 @@ async function run(tenantId: string, raw: unknown): Promise<Outcome> {
   const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { id: true, kind: true } });
   if (!tenant) return { status: "FAILED", lastError: "tenant not found" };
   // The post was authorised when it was scheduled, so it runs as the owner.
-  const r = await publishForWorkspace({ id: tenant.id, kind: tenant.kind, role: "OWNER" }, input);
+  // A row the autopilot created for the later Pages of a story says so itself; nothing a request sends can.
+  const r = await publishForWorkspace({ id: tenant.id, kind: tenant.kind, role: "OWNER" }, input, undefined, { continuation: isStaggered(raw) });
   if (!Array.isArray(r)) return { status: "FAILED", lastError: r.error };
   const failed = r.filter((o) => !o.ok).map((o) => `${o.target}: ${o.error ?? "failed"}`);
   return {

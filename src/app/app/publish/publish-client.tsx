@@ -19,6 +19,7 @@ import { postAdviceAction, suggestHashtagsAction } from "./hashtags-action";
 import type { PostAdvice } from "@/lib/orders/post-advice";
 import { AdviceCard } from "../advice-card";
 import { cityLabel } from "@/lib/orders/cities";
+import { MAX_ACCOUNTS_PER_POST } from "@/lib/merchant/accounts-policy";
 import { formatMoney } from "@/lib/shop/money";
 import { imageToJpeg } from "./to-jpeg";
 
@@ -119,6 +120,8 @@ export function PublishClient({
       // TikTok posts to one account at a time (its rules show one creator's settings).
       if (tg === "TT") return { ...s, TT: [id] };
       const has = s[tg].includes(id);
+      // A post goes to at most MAX_ACCOUNTS_PER_POST accounts of one platform (the server holds the same line).
+      if (!has && s[tg].length >= MAX_ACCOUNTS_PER_POST) return s;
       return { ...s, [tg]: has ? s[tg].filter((x) => x !== id) : [...s[tg], id] };
     });
   const [tt, setTt] = useState<TikTokContext | null>(null);
@@ -685,6 +688,12 @@ export function PublishClient({
                     <span dir="auto">{a.name}</span>
                   </label>
                 ))}
+                {tg !== "TT" && sel[tg].length >= 2 && (
+                  <small className="gm-note warn" style={{ margin: "4px 0 0" }}>{t.publish.sameContentWarn(sel[tg].length, t.platform[tg])}</small>
+                )}
+                {tg !== "TT" && accountLists[tg].length > MAX_ACCOUNTS_PER_POST && (
+                  <small className="gm-hint" style={{ margin: 0 }}>{t.publish.maxAccounts(MAX_ACCOUNTS_PER_POST)}</small>
+                )}
               </div>
             )}
             {tg === "YT" && <p className="gm-hint">{t.publish.ytPrivate}</p>}

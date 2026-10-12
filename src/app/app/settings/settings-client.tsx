@@ -53,6 +53,27 @@ export function SettingsClient({
   const s = t.settings;
   // not_allowed is worded with the team roles, not with the connect errors.
   const connectErrors: Record<string, string> = { ...s.connectErrors, not_allowed: t.nr.team.roles.notAllowed };
+  // The person confirms they own the accounts they connect, or are authorized to manage them (an
+  // agency for a client's Page). Remembered in this browser; the server records it when it is sent.
+  const [ack, setAck] = useState(false);
+  const [needAck, setNeedAck] = useState(false);
+  useEffect(() => {
+    try {
+      setAck(window.localStorage.getItem("gm_authority_ack") === "1");
+    } catch {
+      /* storage blocked: the box simply starts empty */
+    }
+  }, []);
+  const toggleAck = (v: boolean) => {
+    setAck(v);
+    if (v) setNeedAck(false);
+    try {
+      window.localStorage.setItem("gm_authority_ack", v ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  };
+  const connectHref = (provider: string) => `/api/oauth/${provider.toLowerCase()}/start?next=${base}/settings${ack ? "&ack=1" : ""}`;
   const [raw, setRaw] = useState(whatsappNumber ? localForm(whatsappNumber) : "");
   const [saved, setSaved] = useState<string | null>(whatsappNumber);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -97,6 +118,11 @@ export function SettingsClient({
 
       <p className="gm-sec">{s.accountsSec}</p>
       <div className="gm-card">
+        <label className="gm-row" style={{ gap: 8, alignItems: "flex-start", marginBottom: 10 }}>
+          <input type="checkbox" checked={ack} onChange={(e) => toggleAck(e.target.checked)} style={{ marginTop: 3 }} />
+          <small>{s.authorityAck}</small>
+        </label>
+        {needAck && !ack && <p className="gm-err" role="alert">{s.authorityNeeded}</p>}
         {connections.map((c) => (
           <Fragment key={c.provider}>
             <div className="gm-target">
@@ -106,7 +132,16 @@ export function SettingsClient({
                 </p>
                 {!c.accounts.length && <small>{c.note}</small>}
               </div>
-              <a href={`/api/oauth/${c.provider.toLowerCase()}/start?next=${base}/settings`} className={`gm-btn small ${c.accounts.length ? "quiet" : ""}`}>
+              <a
+                href={connectHref(c.provider)}
+                className={`gm-btn small ${c.accounts.length ? "quiet" : ""}`}
+                onClick={(e) => {
+                  if (!ack) {
+                    e.preventDefault();
+                    setNeedAck(true);
+                  }
+                }}
+              >
                 {c.accounts.length ? s.addAnother : s.connect}
               </a>
             </div>
@@ -120,7 +155,7 @@ export function SettingsClient({
                   <small dir="auto">{a.name}</small>
                 </div>
                 <div className="gm-row" style={{ gap: 6 }}>
-                  <a href={`/api/oauth/${c.provider.toLowerCase()}/start?next=${base}/settings`} className="gm-btn small quiet">
+                  <a href={connectHref(c.provider)} className="gm-btn small quiet">
                     {s.reconnect}
                   </a>
                   <button
