@@ -63,7 +63,7 @@ export default async function MobilePreviewPage() {
       <header className="border-b border-line">
         <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
           <Link
-            href={session ? "/dashboard" : "/"}
+            href={session ? "/app" : "/"}
             className="inline-flex items-center gap-2 text-sm text-fg-dim hover:text-fg"
           >
             <ArrowLeft className="h-4 w-4" />

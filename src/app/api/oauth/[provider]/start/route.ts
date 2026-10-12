@@ -25,7 +25,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
   // The parsed, normalised path is what's checked and stored, so encoded
   // dot-segments can't smuggle in another host.
   const cleaned = safeNext(next, "");
-  const returnTo = /^\/(app|newsroom|dashboard)(\/|\?|$)/.test(cleaned) ? cleaned : "/dashboard/integrations";
+  const returnTo = /^\/(app|newsroom|dashboard)(\/|\?|$)/.test(cleaned) ? cleaned : "/app/settings";
 
   // The shop and the newsroom connect pages to the workspace being worked in,
   // and only owners and editors may. The operator dashboard keeps its own tenant.

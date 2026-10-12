@@ -21,7 +21,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ provider: strin
   // row still says where that was.
   const errorHome = async () => {
     const row = state ? await db.oAuthState.findUnique({ where: { state }, select: { redirectTo: true } }).catch(() => null) : null;
-    return row?.redirectTo ?? "/dashboard/integrations";
+    return row?.redirectTo ?? "/app/settings";
   };
 
   if (oauthError) {

@@ -72,7 +72,7 @@ function TopBar({ signedIn }: { signedIn: boolean }) {
         </nav>
         <div className="flex items-center gap-4 text-sm">
           {signedIn ? (
-            <Link href="/dashboard" className="rounded-full bg-money text-bg px-4 py-2 font-medium hover:shadow-money transition-shadow">
+            <Link href="/app" className="rounded-full bg-money text-bg px-4 py-2 font-medium hover:shadow-money transition-shadow">
               the night desk →
             </Link>
           ) : (
@@ -150,7 +150,7 @@ function Hero({ signedIn }: { signedIn: boolean }) {
 
         <div className="reveal mt-12 flex flex-wrap items-center gap-4" style={{ animationDelay: "0.55s" }}>
           <Link
-            href={signedIn ? "/dashboard" : "/login"}
+            href={signedIn ? "/app" : "/login"}
             className="group rounded-full bg-money text-bg px-7 py-3.5 font-medium inline-flex items-center gap-2 shadow-money hover:shadow-money-lg transition-all"
           >
             connect github
@@ -520,7 +520,7 @@ function Pricing({ signedIn }: { signedIn: boolean }) {
                 ))}
               </ul>
               <Link
-                href={signedIn ? "/dashboard" : "/login"}
+                href={signedIn ? "/app" : "/login"}
                 className={`mt-7 block text-center rounded-full py-2.5 text-sm font-medium transition-all ${
                   t.highlight ? "bg-money text-bg hover:shadow-money" : "border border-line text-fg hover:border-money/50 hover:text-money"
                 }`}
@@ -602,8 +602,8 @@ function Footer() {
 }
 
 const FOOT_LINKS: Record<string, string> = {
-  wallet: "/dashboard/wallet",
-  approvals: "/dashboard/approvals",
+  wallet: "/app",
+  approvals: "/app",
   privacy: "/privacy",
   terms: "/terms",
   "data deletion": "/data-deletion",

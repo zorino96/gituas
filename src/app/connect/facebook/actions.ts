@@ -11,7 +11,7 @@ function withParam(path: string, key: string, value: string): string {
   const url = new URL(path, "https://x");
   const ownOrigin = url.origin === "https://x" || isAppOrigin(url.origin);
   if (!ownOrigin || !/^\/(app|newsroom|dashboard)(\/|$)/.test(url.pathname)) {
-    return `/dashboard/integrations?${key}=${encodeURIComponent(value)}`;
+    return `/app/settings?${key}=${encodeURIComponent(value)}`;
   }
   url.searchParams.set(key, value);
   return url.origin === "https://x" ? url.pathname + url.search : url.toString();

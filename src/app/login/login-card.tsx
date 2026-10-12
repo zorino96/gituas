@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { GithubIcon } from "@/components/icons/github";
 
-export function LoginCard({ callbackUrl = "/dashboard" }: { callbackUrl?: string }) {
+export function LoginCard({ callbackUrl = "/app" }: { callbackUrl?: string }) {
   const [busy, setBusy] = useState(false);
 
   return (

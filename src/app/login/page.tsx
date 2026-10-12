@@ -50,7 +50,7 @@ async function resolveNext(sp: LoginParams): Promise<string> {
   // sign-in — not the shop's — and a second attempt doesn't create the
   // account under the wrong product.
   const cookieNext = sp.error && !sp.next && !callbackUrlPath ? await callbackCookiePath() : undefined;
-  return safeNext(sp.next ?? callbackUrlPath ?? cookieNext, sp.error ? "/app" : "/dashboard");
+  return safeNext(sp.next ?? callbackUrlPath ?? cookieNext, "/app");
 }
 
 export async function generateMetadata({
