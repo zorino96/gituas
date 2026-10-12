@@ -43,8 +43,9 @@ describe("voice notes", () => {
     expect(metaMediaUrl("not a url")).toBe(false);
   });
 
-  it("engines are tried only when their key is set, Gemini first", () => {
-    expect(sttOrder({ PAWAN_API_KEY: "p", GOOGLE_AI_API_KEY: "g" })).toEqual(["gemini", "pawan-asr", "whisper"]);
+  it("engines are tried only when their key is set, Pawan first", () => {
+    expect(sttOrder({ PAWAN_API_KEY: "p", GOOGLE_AI_API_KEY: "g" })).toEqual(["pawan-asr", "gemini", "whisper"]);
+    expect(sttOrder({ PAWAN_API_KEY: "p", GOOGLE_AI_API_KEY: "g", KURDGG_API_KEY: "k" })).toEqual(["pawan-asr", "gemini3", "gemini", "whisper"]);
     expect(sttOrder({ GOOGLE_AI_API_KEY: "g" })).toEqual(["gemini"]);
     expect(sttOrder({ STT_ORDER: "gemini,pawan-asr", PAWAN_API_KEY: "p", GOOGLE_AI_API_KEY: "g" })).toEqual(["gemini", "pawan-asr"]);
     expect(sttOrder({})).toEqual([]);

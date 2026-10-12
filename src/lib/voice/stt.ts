@@ -7,7 +7,7 @@
 //               lists it but answers "does not support STT" (2026-10-12), so it is not used for audio.
 //    whisper    OpenAI Whisper large-v3 on api.pawan.krd (PAWAN_API_KEY)
 //    gemini     Gemini 2.5 Flash with the audio inline (GOOGLE_AI_API_KEY)
-//    gemini3    Gemini 3.x Flash through kurd.gg's chat API (OpenAI "input_audio" part); slow, opt-in only
+//    gemini3    Gemini 3.x Flash through kurd.gg's chat API (OpenAI "input_audio" part); accurate, slower
 //
 //  transcribe() is what the product uses: the order in STT_ORDER (default below), first engine that
 //  answers with text wins; null when none could. Never throws.
@@ -35,12 +35,13 @@ const PROMPT =
   "Output only the transcript, nothing else.";
 
 /**
- * The default order. Gemini 2.5 Flash first: on 2026-10-12 it read WhatsApp-quality Sorani notes in
- * ~1.3 s at about 25-30 % character error, while Pawan answered 402 (no credits) and later only timed
- * out. Pawan's Kurdish model stays next; once its account works, measure it with the voice lab and
- * put it first with STT_ORDER=pawan-asr,gemini if it reads better.
+ * The default order, from the 2026-10-12 comparison (10 WhatsApp-quality Sorani voice notes, read by a
+ * Pawan voice and a Gemini voice, live keys): Pawan pkrd/asr-ku-large 98 % of characters right in
+ * ~2.7 s; Gemini 3.8 Flash (kurd.gg) also 98 % but ~6 s with a timeout; Gemini 2.5 Flash 83 % in
+ * ~1.6 s. Pawan first, Gemini 3.8 when Pawan fails (no credits, outage), Gemini 2.5 last.
+ * STT_ORDER overrides.
  */
-export const DEFAULT_ORDER: SttEngine[] = ["gemini", "pawan-asr", "whisper"];
+export const DEFAULT_ORDER: SttEngine[] = ["pawan-asr", "gemini3", "gemini", "whisper"];
 
 export function sttOrder(env: Record<string, string | undefined> = process.env): SttEngine[] {
   const all: SttEngine[] = ["pawan-asr", "whisper", "gemini", "gemini3"];
