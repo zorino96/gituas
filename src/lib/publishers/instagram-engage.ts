@@ -53,12 +53,13 @@ export interface IgMedia {
   permalink?: string;
   timestamp?: string;
   comments_count?: number;
+  like_count?: number;
 }
 
 /** Recent media on the account (used to surface comments + per-post insights). */
 export async function fetchMedia(tenantId: string, limit = 6): Promise<IgResult<IgMedia[]>> {
   return withCred(tenantId, async (cred) => {
-    const fields = "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,comments_count";
+    const fields = "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,comments_count,like_count";
     const r = await fetch(
       `${V}/${cred.igUserId}/media?fields=${fields}&limit=${limit}&access_token=${encodeURIComponent(cred.token)}`,
     );
@@ -363,5 +364,18 @@ export async function fetchMediaInsights(
       value: m.values?.[0]?.value ?? 0,
     }));
     return { ok: true, data };
+  });
+}
+
+/** One of the account's own media items (the Boost section), with its like and comment counts. */
+export async function fetchMediaItem(tenantId: string, mediaId: string): Promise<IgResult<IgMedia & { igUserId: string }>> {
+  return withCred(tenantId, async (cred) => {
+    const fields = "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,comments_count,like_count,owner";
+    const r = await fetch(`${V}/${encodeURIComponent(mediaId)}?fields=${fields}&access_token=${encodeURIComponent(cred.token)}`);
+    const j = (await r.json()) as IgMedia & { owner?: { id?: string } };
+    if (!r.ok) return fail("IG media", r.status, j);
+    // Only the connected account's own media: an id from the browser is never trusted on its own.
+    if (j.owner?.id && j.owner.id !== cred.igUserId) return { ok: false, error: "not this account's media" };
+    return { ok: true, data: { ...j, igUserId: cred.igUserId } };
   });
 }

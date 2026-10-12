@@ -363,3 +363,28 @@ export async function fetchPageInsights(tenantId: string): Promise<FbResult<FbMe
     return { ok: true, data: out };
   });
 }
+
+/** One of the Page's own posts (the Boost section): caption, picture, likes and comments. */
+export async function fetchPagePost(tenantId: string, postId: string): Promise<FbResult<FbPost & { pageId: string }>> {
+  return withCred(tenantId, async (cred) => {
+    if (!postId.startsWith(`${cred.pageId}_`)) return { ok: false, error: "not this Page's post" };
+    const fields = "id,message,permalink_url,created_time,full_picture,comments.summary(true).limit(0),likes.summary(true).limit(0)";
+    const r = await fetch(`${FB_V}/${encodeURIComponent(postId)}?fields=${fields}&access_token=${encodeURIComponent(cred.token)}`);
+    const p = (await r.json()) as Record<string, unknown>;
+    if (!r.ok) return fail("FB post", r.status, p);
+    const total = (v: unknown) => (v as { summary?: { total_count?: number } })?.summary?.total_count;
+    return {
+      ok: true,
+      data: {
+        id: String(p.id),
+        message: p.message as string | undefined,
+        permalink_url: p.permalink_url as string | undefined,
+        created_time: p.created_time as string | undefined,
+        full_picture: p.full_picture as string | undefined,
+        comments_count: total(p.comments),
+        likes_count: total(p.likes),
+        pageId: cred.pageId,
+      },
+    };
+  });
+}

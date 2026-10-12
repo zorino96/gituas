@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useT } from "@/lib/i18n/client";
 import type { BuyerProfile } from "@/lib/orders/stats";
 import { friendlyError } from "../format";
-import { useAudienceText } from "../orders/orders-client";
+import { useAudienceText } from "../boost/boost-cards";
 import { setPostAutomationAction } from "./actions";
 import { Knob, SaveMessage, useSaver, type PostAutoView, type PostView, type TemplateView } from "./shared";
 

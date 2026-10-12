@@ -2,6 +2,7 @@
 // The message is stored as "[audio] <transcript>" — the same media token WhatsApp media already use —
 // before the pipeline runs; when nothing could be heard it stays "[audio]" and the owner listens.
 import { db } from "@/lib/db";
+import { metaMediaUrl } from "@/lib/meta-cdn";
 import { WA_GRAPH } from "@/lib/whatsapp/cloud";
 import { STT_MAX_BYTES, transcribe } from "@/lib/voice/stt";
 import { accountFor } from "./meta-client";
@@ -12,15 +13,7 @@ export type VoiceSource =
   /** WhatsApp: a media id the store's token can fetch. */
   | { kind: "wa"; mediaId: string };
 
-/** Only Meta's own CDNs are fetched: a webhook url is never followed anywhere else. */
-export function metaMediaUrl(raw: string): boolean {
-  try {
-    const u = new URL(raw);
-    return u.protocol === "https:" && /(^|\.)(fbcdn\.net|fbsbx\.com|cdninstagram\.com|facebook\.com|whatsapp\.net)$/.test(u.hostname);
-  } catch {
-    return false;
-  }
-}
+export { metaMediaUrl };
 
 async function readCapped(res: Response): Promise<Buffer | null> {
   const size = Number(res.headers.get("content-length") ?? 0);
