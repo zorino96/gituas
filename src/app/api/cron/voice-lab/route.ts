@@ -40,9 +40,9 @@ export async function POST(req: Request) {
 
   if ((input as { op: string }).op === "stt-raw") {
     // One raw transcription request, to find the form a gateway accepts (model id, file type, fields).
-    const r = input as unknown as { base: "kurdgg" | "pawan"; model: string; audio: string; mime: string; filename: string; fields?: Record<string, string> };
+    const r = input as unknown as { base: "kurdgg" | "pawan"; keyFrom?: "kurdgg" | "pawan"; model: string; audio: string; mime: string; filename: string; fields?: Record<string, string> };
     const kurdgg = r.base === "kurdgg";
-    const key = (kurdgg ? process.env.KURDGG_API_KEY : process.env.PAWAN_API_KEY)?.trim();
+    const key = ((r.keyFrom ?? r.base) === "kurdgg" ? process.env.KURDGG_API_KEY : process.env.PAWAN_API_KEY)?.trim();
     if (!key) return NextResponse.json({ error: "no key" }, { status: 400 });
     const base = kurdgg ? (process.env.KURDGG_BASE_URL?.trim() || "https://api.kurd.gg/v1").replace(/\/$/, "") : "https://api.pawan.krd/v1";
     const fd = new FormData();
