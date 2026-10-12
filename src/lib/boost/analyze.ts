@@ -51,7 +51,10 @@ export async function analyzePost(tenantId: string, platform: BoostPlatform, pos
 
   if (platform === "IG") {
     const m = await fetchMediaItem(tenantId, postId);
-    if (!m.ok || !m.data) return { ok: false, error: "not_found" };
+    if (!m.ok || !m.data) {
+      console.error("[boost] IG post not read:", (m.error ?? "").slice(0, 200));
+      return { ok: false, error: "not_found" };
+    }
     caption = m.data.caption ?? "";
     mediaType = m.data.media_type === "VIDEO" ? "VIDEO" : "IMAGE";
     mediaUrl = m.data.media_url ?? m.data.thumbnail_url ?? null;
@@ -63,7 +66,10 @@ export async function analyzePost(tenantId: string, platform: BoostPlatform, pos
     comments = sampleLines((c?.data ?? []).filter((x) => x.from?.id !== own).map((x) => x.text));
   } else {
     const p = await fetchPagePost(tenantId, postId);
-    if (!p.ok || !p.data) return { ok: false, error: "not_found" };
+    if (!p.ok || !p.data) {
+      console.error("[boost] FB post not read:", (p.error ?? "").slice(0, 200));
+      return { ok: false, error: "not_found" };
+    }
     caption = p.data.message ?? "";
     mediaType = p.data.full_picture ? "IMAGE" : null;
     mediaUrl = p.data.full_picture ?? null;
