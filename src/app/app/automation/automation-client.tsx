@@ -9,7 +9,7 @@ import { useT } from "@/lib/i18n/client";
 import { saveStoreSettingsAction } from "./actions";
 import { PostsSection } from "./posts-section";
 import type { BuyerProfile } from "@/lib/orders/stats";
-import { AutopilotSection, CommentsSection, DeliverySection } from "./settings-sections";
+import { CommentsSection, DeliverySection } from "./settings-sections";
 import { SaveMessage, SwitchRow, useSaver, type PostAutoView, type PostView, type StoreSettings, type StoreView, type TemplateView, type Usage } from "./shared";
 import { TemplatesSection } from "./templates-section";
 
@@ -24,7 +24,6 @@ export interface AutomationProps {
   postErrors: { platform: "FB" | "IG"; message: string }[];
   usage: Usage;
   audience: BuyerProfile;
-  lastDraft: { caption: string; thumb: string; at: string } | null;
 }
 
 function Check({ done, label, hint, action }: { done: boolean; label: string; hint?: string; action?: React.ReactNode }) {
@@ -41,7 +40,7 @@ function Check({ done, label, hint, action }: { done: boolean; label: string; hi
   );
 }
 
-export function AutomationClient({ store, stores, templates, products, postAutomations, posts, postErrors, usage, audience, lastDraft }: AutomationProps) {
+export function AutomationClient({ store, stores, templates, products, postAutomations, posts, postErrors, usage, audience }: AutomationProps) {
   const router = useRouter();
   const t = useT();
   const a = t.automation;
@@ -147,9 +146,7 @@ export function AutomationClient({ store, stores, templates, products, postAutom
         </div>
       </div>
 
-      <div className="gm-section">
-        <AutopilotSection settings={settings} save={save} paid={usage.plan === "MERCHANT" || usage.plan === "PRO"} lastDraft={lastDraft} />
-      </div>
+      {/* Automatic posting has its own screen: /app/autopilot ("Auto posts"). */}
       <TemplatesSection storeId={store.id} templates={templates} defaultTemplateId={store.defaultTemplateId} />
       <div className="gm-cols-2">
         <div className="gm-section">

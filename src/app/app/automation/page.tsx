@@ -3,11 +3,11 @@ import Link from "next/link";
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
 import { loadBuyerProfile } from "@/lib/orders/audience";
-import type { AutoDraft } from "@/lib/shop/autopilot";
 import { cityFees } from "@/lib/shop/compose";
 import { loadShopState } from "@/lib/shop/state";
 import { currentWorkspace, loadConnections, loadPosts, requireWorkspace } from "../data";
 import { AutomationClient } from "./automation-client";
+import { storeView } from "./store-view";
 import type { PostAutoView, PostView } from "./shared";
 
 export const dynamic = "force-dynamic";
@@ -58,28 +58,11 @@ export default async function AutomationPage({ searchParams }: { searchParams: P
   }
   const recent: PostView[] = posts.map((p) => ({ platform: p.platform, id: p.id, caption: p.caption, thumbUrl: p.thumbUrl ?? null, permalink: p.permalink ?? null, createdAt: iso(p.createdAt) }));
   const audience = await loadBuyerProfile(ws.id);
-  const draft = store.autoDraft as AutoDraft | null;
 
   return (
     <AutomationClient
       key={store.id}
-      store={{
-        id: store.id,
-        automationEnabled: store.automationEnabled,
-        expiryDays: store.expiryDays,
-        stopBefore: store.stopBefore ? new Date(store.stopBefore.getTime() + 3 * 3_600_000).toISOString().slice(0, 10) : "",
-        likeComments: store.likeComments,
-        autoHideSpam: store.autoHideSpam,
-        deliveryFee: store.deliveryFeeMinor == null ? "" : String(store.deliveryFeeMinor),
-        deliveryTime: store.deliveryTime ?? "",
-        cityFees: Object.fromEntries(Object.entries(cityFees(store)).map(([k, v]) => [k, String(v)])),
-        autoMode: store.autoMode,
-        autoPerDay: store.autoPerDay,
-        defaultDm: store.defaultDm ?? "",
-        defaultTemplateId: store.defaultTemplateId,
-        pausedReason: store.pausedReason,
-        webhooksAt: store.webhooksAt ? store.webhooksAt.toISOString() : null,
-      }}
+      store={storeView(store)}
       stores={state.stores.map((s) => ({ id: s.id, name: s.name || (s.igUsername ? `@${s.igUsername}` : "—") }))}
       templates={state.templates.map((t) => ({
         id: t.id,
@@ -95,7 +78,6 @@ export default async function AutomationPage({ searchParams }: { searchParams: P
       postErrors={errors}
       usage={state.usage}
       audience={audience}
-      lastDraft={draft?.media?.url ? { caption: draft.caption, thumb: draft.media.url, at: draft.at } : null}
     />
   );
 }

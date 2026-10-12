@@ -78,7 +78,8 @@ export const en: Dict = {
   nav: {
     label: "Sections",
     today: "Today",
-    automation: "Automation",
+    automation: "Auto replies",
+    autopilot: "Auto posts",
     orders: "Orders",
     comments: "Comments",
     messages: "Messages",
@@ -583,8 +584,15 @@ export const en: Dict = {
     },
   },
 
+  autopilotPage: {
+    title: "Auto posts",
+    sub: "Gituas prepares or publishes posts for you — your product photos and videos, at the hours buyers write most.",
+    more: "Also: schedule your own posts in Publish, and make ad pictures in Studio.",
+    publish: "Publish",
+    studio: "Studio",
+  },
   automation: {
-    title: "Automation",
+    title: "Auto replies",
     sub: "Automatic replies to comments and messages",
     noPageTitle: "You haven't connected a page yet",
     noPageBody: "Connect Facebook or Instagram in Settings, and Automation will appear here.",

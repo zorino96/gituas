@@ -30,6 +30,7 @@ async function ownedStore(storeId: string) {
 
 const done = (id?: string): ActionResult => {
   revalidatePath("/app/automation");
+  revalidatePath("/app/autopilot");
   revalidatePath("/app/products");
   return { ok: true, id };
 };

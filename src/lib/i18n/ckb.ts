@@ -84,7 +84,8 @@ export const ckb = {
   nav: {
     label: "بەشەکان",
     today: "ئەمڕۆ",
-    automation: "ئۆتۆمەیشن",
+    automation: "وەڵامی خۆکار",
+    autopilot: "پۆستی خۆکار",
     orders: "داواکاری",
     comments: "کۆمێنت",
     messages: "نامە",
@@ -602,8 +603,15 @@ export const ckb = {
     },
   },
 
+  autopilotPage: {
+    title: "پۆستی خۆکار",
+    sub: "گیتواس پۆستەکانت بۆ ئامادە دەکات یان بڵاویان دەکاتەوە — وێنە و ڤیدیۆی بەرهەمەکانت، لەو کاتانەی کڕیاران زیاتر نامە دەنێرن.",
+    more: "هەروەها: پۆستی خۆت لە «بڵاوکردنەوە» ڕێک بخە، و وێنەی ڕیکلام لە «ستۆدیۆ» دروست بکە.",
+    publish: "بڵاوکردنەوە",
+    studio: "ستۆدیۆ",
+  },
   automation: {
-    title: "ئۆتۆمەیشن",
+    title: "وەڵامی خۆکار",
     sub: "وەڵامدانەوەی خۆکار بۆ کۆمێنت و نامە",
     /** Shown on both the automation and the products screen when no page is connected yet. */
     noPageTitle: "هێشتا پەیجێکت پەیوەست نەکردووە",

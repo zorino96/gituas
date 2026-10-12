@@ -668,6 +668,10 @@ export function NewsSettings(p: NewsSettingsProps) {
                     onChange={(e) => setVideo((v) => ({ ...v, dailyMax: e.target.value }))}
                   />
                 </div>
+              </>
+            )}
+            {/* The voice is used by automatic videos and by the ones a person makes, so it shows either way. */}
+            <>
                 <p className="gm-hint" style={{ margin: 0, fontWeight: 700 }}>{tn.videoVoice}</p>
                 <div className="gm-chips">
                   {PAWAN_VOICES.map((voice) => (
@@ -744,8 +748,7 @@ export function NewsSettings(p: NewsSettingsProps) {
                     onChange={(e) => setVideo((v) => ({ ...v, speed: Number(e.target.value) }))}
                   />
                 </div>
-              </>
-            )}
+            </>
             <p className="gm-hint" style={{ margin: 0 }}>{tn.videoUsage(video.used, video.quota)}</p>
             <button
               type="button"
