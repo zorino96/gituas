@@ -342,6 +342,7 @@ export const en: Dict = {
     subShop: "Which post brought you customers, and how many people tapped through to WhatsApp.",
     fbFollowers: "Facebook followers",
     whatsapp7d: "WhatsApp taps · 7 days",
+    own: { dms: "Buyer messages · 28 days", comments: "Comments · 28 days", orders: "Orders · 28 days" },
     ig: {
       followers: "Instagram followers",
       reach_7d: "Instagram reach · 7 days",

@@ -11,6 +11,18 @@ import { ago } from "../format";
 
 export const maxDuration = 60;
 
+/** The shop's own numbers for the last 28 days, from what Gituas already receives: no Meta insights needed. */
+async function loadOwnNumbers(tenantId: string) {
+  const since = new Date(Date.now() - 28 * 86_400_000);
+  const where = { store: { tenantId }, direction: "INBOUND" as const, createdAt: { gt: since } };
+  const [dms, comments, orders] = await Promise.all([
+    db.conversationMessage.count({ where: { ...where, channelType: "DM" } }),
+    db.conversationMessage.count({ where: { ...where, channelType: "COMMENT" } }),
+    db.order.count({ where: { tenantId, createdAt: { gt: since }, status: { notIn: ["CANCELLED", "RETURNED"] } } }),
+  ]);
+  return { dms, comments, orders };
+}
+
 /** The shop's own buyer signals for the market card, and its product names for the Ad Library links. */
 async function loadMarket(tenantId: string) {
   const since = new Date(Date.now() - 60 * 86_400_000);
@@ -44,7 +56,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
     return { conns, insights, posts, youtube };
   });
   const top = rankPosts(posts, 5).filter((p) => p.commentCount > 0);
-  const market = ws.kind === "MERCHANT" ? await loadMarket(ws.id) : null;
+  const [market, own] = ws.kind === "MERCHANT" ? await Promise.all([loadMarket(ws.id), loadOwnNumbers(ws.id)]) : [null, null];
   const mk = t.insights.market;
   const pick = (list: { name: string; value: number }[], keys: string[], labels: Record<string, string>) =>
     keys.flatMap((k) => {
@@ -56,6 +68,13 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
     ...pick(insights.igMetrics, IG_KEYS, t.insights.ig),
     ...pick(insights.fbMetrics, FB_KEYS, t.insights.fb),
     ...(ws.kind === "MERCHANT" ? [{ key: "wa", label: t.insights.whatsapp7d, value: insights.waTaps7d }] : []),
+    ...(own
+      ? [
+          { key: "own-dms", label: t.insights.own.dms, value: own.dms },
+          { key: "own-comments", label: t.insights.own.comments, value: own.comments },
+          { key: "own-orders", label: t.insights.own.orders, value: own.orders },
+        ]
+      : []),
   ];
 
   return (

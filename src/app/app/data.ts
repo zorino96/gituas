@@ -15,7 +15,6 @@ import { fetchComments, fetchConversations, fetchMedia, fetchUserInsights } from
 import {
   fetchPageCommentThreads,
   fetchPageConversations,
-  fetchPageInsights,
   fetchPagePosts,
   fetchPageProfile,
 } from "@/lib/publishers/facebook-engage";
@@ -353,18 +352,18 @@ export interface InsightsResult {
 export async function loadInsights(tenantId: string, conns: Connections): Promise<InsightsResult> {
   const notes: string[] = [];
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const [profile, fbMetrics, igMetrics, waTaps7d] = await Promise.all([
+  // Facebook Page statistics need read_insights, which Meta never approved and Gituas no longer asks
+  // for: they are not fetched. The shop's own numbers (messages, comments, orders) stand in for them.
+  const [profile, igMetrics, waTaps7d] = await Promise.all([
     conns.META_FACEBOOK.connected ? fetchPageProfile(tenantId) : Promise.resolve(null),
-    conns.META_FACEBOOK.connected ? fetchPageInsights(tenantId) : Promise.resolve(null),
     conns.META_INSTAGRAM.connected ? fetchUserInsights(tenantId) : Promise.resolve(null),
     db.auditLog.count({ where: { tenantId, action: "wa.tap", createdAt: { gte: since } } }),
   ]);
   if (profile && !profile.ok) notes.push(`FB: ${profile.error}`);
-  if (fbMetrics && !fbMetrics.ok) notes.push(`FB: ${fbMetrics.error}`);
   if (igMetrics && !igMetrics.ok) notes.push(`IG: ${igMetrics.error}`);
   return {
     fbFollowers: profile?.ok ? profile.data?.followers : undefined,
-    fbMetrics: fbMetrics?.ok ? (fbMetrics.data ?? []) : [],
+    fbMetrics: [],
     igMetrics: igMetrics?.ok ? (igMetrics.data ?? []) : [],
     waTaps7d,
     notes,

@@ -350,6 +350,7 @@ export const ckb = {
     subShop: "کام پۆست کڕیاری بۆ هێنایت، و چەند کەس چوونە وەتسئەپ.",
     fbFollowers: "شوێنکەوتووی فەیسبووک",
     whatsapp7d: "چوونە وەتسئەپ · ٧ ڕۆژ",
+    own: { dms: "نامەی کڕیار · ٢٨ ڕۆژ", comments: "کۆمێنت · ٢٨ ڕۆژ", orders: "داواکاری · ٢٨ ڕۆژ" },
     /** Instagram metrics, by the names the engage client returns. */
     ig: {
       followers: "شوێنکەوتووی ئینستاگرام",
