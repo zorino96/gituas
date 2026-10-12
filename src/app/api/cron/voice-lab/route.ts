@@ -59,16 +59,14 @@ export async function POST(req: Request) {
     // The product's own speak(): which provider answered (or why none did), with the server's keys.
     const r = input as unknown as { text: string; lang: "ckb" | "ar" | "en"; voice?: string; env?: { TTS_SORANI?: string } };
     const { speak } = await import("@/lib/voice/tts");
-    const before = process.env.TTS_SORANI;
-    if (r.env?.TTS_SORANI !== undefined) process.env.TTS_SORANI = r.env.TTS_SORANI;
+    // The routing switch is passed in, never written into the process environment.
+    const env = r.env?.TTS_SORANI !== undefined ? { ...process.env, TTS_SORANI: r.env.TTS_SORANI } : undefined;
     try {
       const t0 = Date.now();
-      const s = await speak({ text: String(r.text ?? ""), lang: r.lang ?? "ckb", voice: r.voice });
+      const s = await speak({ text: String(r.text ?? ""), lang: r.lang ?? "ckb", voice: r.voice, env });
       return NextResponse.json({ ok: true, provider: s.provider, mime: s.mime, bytes: s.audio.length, ms: Date.now() - t0, audio: s.audio.toString("base64") });
     } catch (e) {
       return NextResponse.json({ ok: false, error: e instanceof Error ? e.message.replace(/[A-Za-z0-9_-]{30,}/g, "…").slice(0, 300) : "failed" });
-    } finally {
-      process.env.TTS_SORANI = before;
     }
   }
 

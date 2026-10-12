@@ -184,7 +184,7 @@ async function geminiOnce(text: string, lang: VoiceLang, gender: VoiceGender): P
 }
 
 /** Read `text` aloud in `lang`: the first provider that answers wins. */
-export async function speak(input: { text: string; lang: VoiceLang; gender?: VoiceGender; voice?: string; speed?: number; clone?: CloneVoice | null }): Promise<Speech> {
+export async function speak(input: { text: string; lang: VoiceLang; gender?: VoiceGender; voice?: string; speed?: number; clone?: CloneVoice | null; env?: Record<string, string | undefined> }): Promise<Speech> {
   const text = speechText(input.text);
   const gender = input.gender ?? "male";
   if (!text) throw new SpeechUnavailable(["empty text"]);
@@ -200,7 +200,7 @@ export async function speak(input: { text: string; lang: VoiceLang; gender?: Voi
       console.error("[voice]", why);
     }
   }
-  for (const p of providersFor(input.lang)) {
+  for (const p of providersFor(input.lang, input.env)) {
     try {
       return p === "pawan" ? await pawan(text, gender, input.voice, input.speed) : await gemini(text, input.lang, gender);
     } catch (e) {
