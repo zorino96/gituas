@@ -2,6 +2,7 @@
 // reads live from the platforms — nothing here is cached, so what the merchant
 // sees is what their customers see.
 
+import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { accountWhere, type AccountChoice } from "@/lib/oauth/account-scope";
 import { auth, ensureWorkspace } from "@/auth";
@@ -54,6 +55,16 @@ export async function listWorkspaces(): Promise<Workspace[]> {
   const session = await auth();
   if (!session?.user?.id) return [];
   return (await membershipsOf(session.user.id)).map((m) => ({ ...m.tenant, role: m.role }));
+}
+
+/**
+ * The signed-in workspace for a page. The layout redirects signed-out visitors too, but a page renders
+ * alongside its layout, so it must not assume one: without this it throws before the redirect lands.
+ */
+export async function requireWorkspace(next?: string): Promise<Workspace> {
+  const ws = await currentWorkspace();
+  if (!ws) redirect(next ? `/login?next=${encodeURIComponent(next)}` : "/login");
+  return ws;
 }
 
 export async function currentWorkspace(): Promise<Workspace | null> {

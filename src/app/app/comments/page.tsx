@@ -1,11 +1,11 @@
 import { loadCommentOutcomes } from "@/lib/shop/state";
 import { withAccounts } from "@/lib/oauth/account-scope";
 import { AccountSwitcher } from "../account-switcher";
-import { accountChoiceFrom, currentWorkspace, loadConnections, loadPosts } from "../data";
+import { accountChoiceFrom, currentWorkspace, loadConnections, loadPosts, requireWorkspace } from "../data";
 import { CommentsClient } from "./comments-client";
 
 export default async function CommentsPage({ searchParams }: { searchParams: Promise<{ fb?: string; ig?: string }> }) {
-  const ws = (await currentWorkspace())!;
+  const ws = await requireWorkspace();
   const { choice, lists } = await accountChoiceFrom(ws.id, await searchParams);
   // Everything below reads the chosen Page / Instagram account (or the default one).
   const { conns, posts, errors } = await withAccounts(choice, async () => {

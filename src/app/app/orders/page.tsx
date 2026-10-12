@@ -8,7 +8,7 @@ import { parseAiAudience } from "@/lib/orders/ai-audience";
 import { cityFees } from "@/lib/shop/compose";
 import { fetchIgAudience, fetchIgPosts } from "@/lib/publishers/instagram-audience";
 import { ordersByCity, weekReport } from "@/lib/orders/stats";
-import { currentWorkspace } from "../data";
+import { currentWorkspace, requireWorkspace } from "../data";
 import { OrdersClient, type CityCard, type OrderView } from "./orders-client";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 const LIST_LIMIT = 200;
 
 export default async function OrdersPage() {
-  const ws = (await currentWorkspace())!;
+  const ws = await requireWorkspace();
   const lang = await getLang();
   if (!can(ws.role, "engage")) return <p className="gm-note warn">{dict(lang).nr.team.roles.notAllowed}</p>;
 

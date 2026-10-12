@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
 import { brandFrom } from "@/lib/cards/brand";
-import { currentWorkspace } from "@/app/app/data";
+import { currentWorkspace, requireWorkspace } from "@/app/app/data";
 import { NewsEditor } from "./editor";
 import { VideoPanel } from "./video-panel";
 import { videoQuotaFor } from "@/lib/billing/plans";
@@ -12,7 +12,7 @@ import { CARD_KINDS, type CardKind } from "@/lib/news/types";
 export const maxDuration = 60;
 
 export default async function NewsItemPage({ params }: { params: Promise<{ id: string }> }) {
-  const ws = (await currentWorkspace())!;
+  const ws = await requireWorkspace("/newsroom/news");
   if (ws.kindChosen && ws.kind !== "NEWS") redirect("/newsroom");
   const { id } = await params;
   const [item, kit, tenant] = await Promise.all([

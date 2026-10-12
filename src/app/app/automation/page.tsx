@@ -6,7 +6,7 @@ import { loadBuyerProfile } from "@/lib/orders/audience";
 import type { AutoDraft } from "@/lib/shop/autopilot";
 import { cityFees } from "@/lib/shop/compose";
 import { loadShopState } from "@/lib/shop/state";
-import { currentWorkspace, loadConnections, loadPosts } from "../data";
+import { currentWorkspace, loadConnections, loadPosts, requireWorkspace } from "../data";
 import { AutomationClient } from "./automation-client";
 import type { PostAutoView, PostView } from "./shared";
 
@@ -18,7 +18,7 @@ const iso = (raw: string | undefined) => {
 };
 
 export default async function AutomationPage({ searchParams }: { searchParams: Promise<{ store?: string }> }) {
-  const ws = (await currentWorkspace())!;
+  const ws = await requireWorkspace();
   const t = dict(await getLang());
   if (!can(ws.role, "configure")) return <p className="gm-note warn">{t.nr.team.roles.notAllowed}</p>;
 

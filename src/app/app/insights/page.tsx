@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { withAccounts } from "@/lib/oauth/account-scope";
 import { adLibraryUrl, marketSignals } from "@/lib/orders/market";
 import { AccountSwitcher } from "../account-switcher";
-import { accountChoiceFrom, baseFor, currentWorkspace, loadConnections, loadInsights, loadPosts, loadYouTube } from "../data";
+import { accountChoiceFrom, baseFor, currentWorkspace, loadConnections, loadInsights, loadPosts, loadYouTube, requireWorkspace } from "../data";
 import { rankPosts } from "@/lib/merchant/state";
 import { dict, getLang } from "@/lib/i18n";
 import { ago } from "../format";
@@ -48,7 +48,7 @@ const FB_KEYS = ["page_post_engagements", "page_views_total", "page_total_action
 
 export default async function InsightsPage({ searchParams }: { searchParams: Promise<{ fb?: string; ig?: string; yt?: string }> }) {
   const t = dict(await getLang());
-  const ws = (await currentWorkspace())!;
+  const ws = await requireWorkspace();
   const { choice, lists } = await accountChoiceFrom(ws.id, await searchParams);
   const { conns, insights, posts, youtube } = await withAccounts(choice, async () => {
     const conns = await loadConnections(ws.id);

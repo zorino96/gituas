@@ -1,11 +1,11 @@
 import { db } from "@/lib/db";
 import { withAccounts } from "@/lib/oauth/account-scope";
 import { AccountSwitcher } from "../account-switcher";
-import { accountChoiceFrom, currentWorkspace, loadConnections, loadConversations } from "../data";
+import { accountChoiceFrom, currentWorkspace, loadConnections, loadConversations, requireWorkspace } from "../data";
 import { MessagesClient } from "./messages-client";
 
 export default async function MessagesPage({ searchParams }: { searchParams: Promise<{ fb?: string; ig?: string }> }) {
-  const ws = (await currentWorkspace())!;
+  const ws = await requireWorkspace();
   const { choice, lists } = await accountChoiceFrom(ws.id, await searchParams);
   const { conns, conversations, unreadable, errors } = await withAccounts(choice, async () => {
     const conns = await loadConnections(ws.id);

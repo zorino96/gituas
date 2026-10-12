@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
-import { currentWorkspace } from "@/app/app/data";
+import { currentWorkspace, requireWorkspace } from "@/app/app/data";
 import { NEWS_LIMITS, seatsLeft } from "@/lib/billing/plans";
 import { inviteState } from "@/lib/newsroom/invite";
 import { can } from "@/lib/newsroom/roles";
 import { TeamClient } from "./team-client";
 
 export default async function TeamPage() {
-  const ws = (await currentWorkspace())!;
+  const ws = await requireWorkspace("/newsroom/news");
   if (ws.kind !== "NEWS") redirect("/newsroom");
   const now = new Date();
   // Only the owner acts on invites, so only the owner sees who was invited.

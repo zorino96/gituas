@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
 import { dict, getLang } from "@/lib/i18n";
-import { currentWorkspace } from "@/app/app/data";
+import { currentWorkspace, requireWorkspace } from "@/app/app/data";
 
 const DAYS = 3;
 
@@ -13,7 +13,7 @@ const DAYS = 3;
  * publish page with the video, its caption and only that platform ready.
  */
 export default async function VideosPage() {
-  const ws = (await currentWorkspace())!;
+  const ws = await requireWorkspace("/newsroom/news");
   if (ws.kindChosen && ws.kind !== "NEWS") redirect("/newsroom");
   const t = dict(await getLang());
   const te = t.nr.news.editor;

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { currentWorkspace } from "@/app/app/data";
+import { currentWorkspace, requireWorkspace } from "@/app/app/data";
 import { BillingClient } from "@/app/app/billing/billing-client";
 import { workspaceChips } from "@/app/app/billing/chips";
 import { loadAccounts, loadInvoices, settleReturn } from "@/app/app/billing/load";
@@ -13,7 +13,7 @@ import { can } from "@/lib/newsroom/roles";
 export const dynamic = "force-dynamic";
 
 export default async function NewsroomBillingPage({ searchParams }: { searchParams: Promise<{ invoice?: string }> }) {
-  const ws = (await currentWorkspace())!;
+  const ws = await requireWorkspace("/newsroom/news");
   if (ws.kind !== "NEWS") redirect("/newsroom");
   if (!can(ws.role, "configure")) return <p className="gm-note warn">{dict(await getLang()).nr.team.roles.notAllowed}</p>;
 

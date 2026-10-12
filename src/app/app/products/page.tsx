@@ -3,13 +3,13 @@ import Link from "next/link";
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
 import { loadShopState } from "@/lib/shop/state";
-import { currentWorkspace, loadConnections } from "../data";
+import { currentWorkspace, loadConnections, requireWorkspace } from "../data";
 import { ProductsClient } from "./products-client";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProductsPage({ searchParams }: { searchParams: Promise<{ store?: string }> }) {
-  const ws = (await currentWorkspace())!;
+  const ws = await requireWorkspace();
   const t = dict(await getLang());
   if (!can(ws.role, "configure")) return <p className="gm-note warn">{t.nr.team.roles.notAllowed}</p>;
 

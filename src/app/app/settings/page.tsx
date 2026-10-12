@@ -7,7 +7,7 @@ import { usageOf } from "@/lib/billing/limits";
 import { dict, getLang } from "@/lib/i18n";
 import { AUTO_DAILY_MAX, AUTO_MIN_GAP, autoTargetsFor, isAutoMode } from "@/lib/news/autopilot-settings";
 import { catalogAvailable } from "@/lib/news/catalog";
-import { currentWorkspace, loadAccountLists, loadConnections } from "../data";
+import { currentWorkspace, loadAccountLists, loadConnections, requireWorkspace } from "../data";
 import { SettingsClient } from "./settings-client";
 import type { NewsSettingsProps } from "./news-settings";
 
@@ -18,7 +18,7 @@ export default async function SettingsPage({
 }) {
   const sp = await searchParams;
   const t = dict(await getLang());
-  const ws = (await currentWorkspace())!;
+  const ws = await requireWorkspace();
   const session = await auth();
   const [conns, lists, me] = await Promise.all([
     loadConnections(ws.id),

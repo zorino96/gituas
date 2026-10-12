@@ -15,7 +15,7 @@ import { groupByCluster } from "@/lib/news/cluster";
 import { ingest } from "@/lib/news/ingest";
 import { dict, getLang } from "@/lib/i18n";
 import { categoryLabel, categoryWhere, regionLabel, REGIONS, TAXONOMY } from "@/lib/news/taxonomy";
-import { currentWorkspace } from "@/app/app/data";
+import { currentWorkspace, requireWorkspace } from "@/app/app/data";
 import { ago } from "@/app/app/format";
 import { checklist, checklistDone } from "@/lib/newsroom/checklist";
 import { AutoRefresh } from "./auto-refresh";
@@ -43,7 +43,7 @@ export default async function NewsPage({
 }: {
   searchParams: Promise<{ tab?: string; cat?: string; region?: string; lang?: string; src?: string }>;
 }) {
-  const ws = (await currentWorkspace())!;
+  const ws = await requireWorkspace("/newsroom/news");
   if (ws.kindChosen && ws.kind !== "NEWS") redirect("/newsroom");
   const sp = await searchParams;
   const tab = TABS.find((x) => x.key === sp.tab) ?? TABS[0];

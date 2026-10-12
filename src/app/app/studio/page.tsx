@@ -7,13 +7,13 @@ import { imagePrice } from "@/lib/studio/pricing";
 import { walletBalance } from "@/lib/studio/wallet";
 import { settleReturn } from "../billing/load";
 import { studioReadyFor } from "@/lib/studio/ready";
-import { currentWorkspace } from "../data";
+import { currentWorkspace, requireWorkspace } from "../data";
 import { StudioClient, type StudioAssetView, type StudioProduct } from "./studio-client";
 
 export const dynamic = "force-dynamic";
 
 export default async function StudioPage({ searchParams }: { searchParams: Promise<{ invoice?: string }> }) {
-  const ws = (await currentWorkspace())!;
+  const ws = await requireWorkspace();
   const t = dict(await getLang());
   if (ws.kind !== "MERCHANT") return <p className="gm-note warn">{t.studio.shopOnly}</p>;
   if (!can(ws.role, "publish")) return <p className="gm-note warn">{t.nr.team.roles.notAllowed}</p>;

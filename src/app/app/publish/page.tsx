@@ -6,7 +6,7 @@ import { isOwnPathname } from "@/lib/merchant/caption";
 import type { AutoDraft } from "@/lib/shop/autopilot";
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
-import { baseFor, currentWorkspace, loadAccountLists, loadConnections } from "../data";
+import { baseFor, currentWorkspace, loadAccountLists, loadConnections, requireWorkspace } from "../data";
 import { PublishClient } from "./publish-client";
 import { listScheduled } from "./schedule-actions";
 
@@ -15,7 +15,7 @@ export const maxDuration = 60;
 
 export default async function PublishPage({ searchParams }: { searchParams: Promise<{ draft?: string; video?: string; to?: string; studio?: string; auto?: string }> }) {
   const t = dict(await getLang());
-  const ws = (await currentWorkspace())!;
+  const ws = await requireWorkspace();
   if (!can(ws.role, "publish")) {
     return (
       <p className="gm-note">

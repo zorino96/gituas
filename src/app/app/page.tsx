@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { MessageCircle, MessagesSquare, Phone, SquarePlus } from "lucide-react";
 
-import { currentWorkspace, loadConnections, loadConversations, loadInsights, loadPosts } from "./data";
+import { currentWorkspace, loadConnections, loadConversations, loadInsights, loadPosts, requireWorkspace } from "./data";
 import { dict, getLang } from "@/lib/i18n";
 import { commentState, countStates } from "@/lib/merchant/state";
 import { ago } from "./format";
@@ -10,7 +10,7 @@ export const maxDuration = 60;
 
 export default async function TodayPage() {
   const t = dict(await getLang());
-  const ws = (await currentWorkspace())!;
+  const ws = await requireWorkspace();
   const conns = await loadConnections(ws.id);
   const anyConnected = conns.META_FACEBOOK.connected || conns.META_INSTAGRAM.connected;
 

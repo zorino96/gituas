@@ -4,7 +4,7 @@ import { can } from "@/lib/newsroom/roles";
 import { accountFor } from "@/lib/shop/meta-client";
 import { listTemplates, WA_APP_ID, WA_CONFIG_ID, WA_GRAPH, type WaTemplate } from "@/lib/whatsapp/cloud";
 import { mediaToken } from "@/lib/whatsapp/webhook";
-import { currentWorkspace } from "../data";
+import { currentWorkspace, requireWorkspace } from "../data";
 import { WhatsAppClient, type WaChat, type WaLine } from "./whatsapp-client";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +14,7 @@ const DAY = 86_400_000;
 const SINCE_DAYS = 30;
 
 export default async function WhatsAppPage() {
-  const ws = (await currentWorkspace())!;
+  const ws = await requireWorkspace();
   const t = dict(await getLang());
   if (ws.kind !== "MERCHANT") return <p className="gm-note warn">{t.wa.shopOnly}</p>;
   if (!can(ws.role, "engage")) return <p className="gm-note warn">{t.nr.team.roles.notAllowed}</p>;
