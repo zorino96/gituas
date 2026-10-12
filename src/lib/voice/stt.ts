@@ -3,11 +3,11 @@
 // ---------------------------------------------------------------------------
 //
 //  Engines (all keys stay on the server):
-//    pawan-asr  Pawan.Krd's Kurdish model (pkrd/asr-ku-large), through kurd.gg (KURDGG_API_KEY)
-//               or, without it, api.pawan.krd (PAWAN_API_KEY)
-//    whisper    OpenAI Whisper large-v3, through kurd.gg
+//    pawan-asr  Pawan.Krd's Kurdish model (pkrd/asr-ku-large) on api.pawan.krd (PAWAN_API_KEY). kurd.gg
+//               lists it but answers "does not support STT" (2026-10-12), so it is not used for audio.
+//    whisper    OpenAI Whisper large-v3 on api.pawan.krd (PAWAN_API_KEY)
 //    gemini     Gemini 2.5 Flash with the audio inline (GOOGLE_AI_API_KEY)
-//    gemini3    Gemini 3.x Flash through kurd.gg's chat API (OpenAI "input_audio" part)
+//    gemini3    Gemini 3.x Flash through kurd.gg's chat API (OpenAI "input_audio" part); slow, opt-in only
 //
 //  transcribe() is what the product uses: the order in STT_ORDER (default below), first engine that
 //  answers with text wins; null when none could. Never throws.
@@ -33,7 +33,11 @@ const PROMPT =
   "If it is Badini/Kurmanji, write it in the Kurdish Arabic script too. If it is Arabic or English, write it in that language. " +
   "Output only the transcript, nothing else.";
 
-/** The default order, chosen by the 2026-10-12 comparison (scratchpad asr test); STT_ORDER overrides it. */
+/**
+ * The default order. Pawan's Kurdish model first (made for Sorani), Gemini 2.5 Flash when Pawan refuses
+ * (no credits on the account answers 402). 2026-10-12: Gemini read WhatsApp-quality Sorani notes at
+ * about 25-30 % character error; Pawan could not be measured (account had no credits). STT_ORDER overrides.
+ */
 export const DEFAULT_ORDER: SttEngine[] = ["pawan-asr", "gemini", "whisper"];
 
 export function sttOrder(env: Record<string, string | undefined> = process.env): SttEngine[] {
@@ -44,9 +48,8 @@ export function sttOrder(env: Record<string, string | undefined> = process.env):
 }
 
 export function engineReady(e: SttEngine, env: Record<string, string | undefined> = process.env): boolean {
-  const kurdgg = !!env.KURDGG_API_KEY?.trim();
-  if (e === "pawan-asr") return kurdgg || !!env.PAWAN_API_KEY?.trim();
-  if (e === "whisper" || e === "gemini3") return kurdgg;
+  if (e === "pawan-asr" || e === "whisper") return !!env.PAWAN_API_KEY?.trim();
+  if (e === "gemini3") return !!env.KURDGG_API_KEY?.trim();
   return !!env.GOOGLE_AI_API_KEY?.trim();
 }
 
@@ -135,15 +138,12 @@ export async function transcribeWith(engine: SttEngine, audio: Buffer, mime: str
   const t0 = Date.now();
   let text = "";
   let model = "";
-  const kurdgg = process.env.KURDGG_API_KEY?.trim();
   if (engine === "pawan-asr") {
     model = "pkrd/asr-ku-large";
-    text = kurdgg
-      ? await openAiTranscription(KURDGG_BASE(), kurdgg, model, audio, mime)
-      : await openAiTranscription(PAWAN_BASE, process.env.PAWAN_API_KEY!.trim(), model, audio, mime);
+    text = await openAiTranscription(PAWAN_BASE, process.env.PAWAN_API_KEY!.trim(), model, audio, mime);
   } else if (engine === "whisper") {
-    model = "pkrd/openai/whisper-large-v3";
-    text = await openAiTranscription(KURDGG_BASE(), kurdgg!, model, audio, mime);
+    model = "openai/whisper-large-v3";
+    text = await openAiTranscription(PAWAN_BASE, process.env.PAWAN_API_KEY!.trim(), model, audio, mime);
   } else if (engine === "gemini") {
     model = "gemini-2.5-flash";
     text = await geminiDirect(audio, mime);

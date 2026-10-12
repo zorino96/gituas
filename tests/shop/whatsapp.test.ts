@@ -19,7 +19,7 @@ describe("parseWaPayload", () => {
         messages: [{ from: "9647701112222", id: "wamid.1", timestamp: "1", type: "text", text: { body: "سڵاو نرخی چەندە؟" } }],
       }),
     );
-    expect(evs).toEqual([{ kind: "message", phoneNumberId: "PN1", messageId: "wamid.1", from: "9647701112222", name: "Aram", text: "سڵاو نرخی چەندە؟" }]);
+    expect(evs).toEqual([{ kind: "message", phoneNumberId: "PN1", messageId: "wamid.1", from: "9647701112222", name: "Aram", text: "سڵاو نرخی چەندە؟", audioId: null }]);
   });
 
   it("turns media into a token with its caption, and button/list replies into their title", () => {

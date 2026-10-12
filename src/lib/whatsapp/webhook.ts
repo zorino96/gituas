@@ -12,6 +12,8 @@ export type WaEvent =
       name: string | null;
       /** The text, or a media token like "[image]" plus its caption. */
       text: string;
+      /** A voice note's media id, when the message is one (its words are filled in later). */
+      audioId: string | null;
     }
   /** The merchant answered from the WhatsApp Business app on their phone (coexistence). */
   | { kind: "echo"; phoneNumberId: string; to: string };
@@ -75,7 +77,8 @@ export function parseWaPayload(body: unknown): WaEvent[] {
           const from = str(m.from);
           const text = messageText(m);
           if (!messageId || !from || text === null) continue;
-          out.push({ kind: "message", phoneNumberId, messageId, from, name: names.get(from) ?? null, text });
+          const audioId = m.type === "audio" ? str(obj(m.audio).id) : null;
+          out.push({ kind: "message", phoneNumberId, messageId, from, name: names.get(from) ?? null, text, audioId });
         }
       } else if (c.field === "smb_message_echoes") {
         for (const raw of arr(v.message_echoes)) {

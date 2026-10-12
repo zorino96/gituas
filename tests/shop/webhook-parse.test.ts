@@ -50,11 +50,11 @@ describe("parseEntry — messages", () => {
       { sender: { id: "S1" }, message: { mid: "m2", text: "x", is_echo: true } },
       { sender: { id: "IG" }, message: { mid: "m3", text: "ours" } },
     ] });
-    expect(ev).toEqual([{ kind: "dm", platform: "META_INSTAGRAM", accountId: "IG", messageId: "m1", senderId: "S1", text: "قیاسی L هەیە؟" }]);
+    expect(ev).toEqual([{ kind: "dm", platform: "META_INSTAGRAM", accountId: "IG", messageId: "m1", senderId: "S1", text: "قیاسی L هەیە؟", audioUrl: null }]);
   });
   it("reads a Facebook DM", () => {
     expect(parseEntry("page", { id: "PAGE", messaging: [{ sender: { id: "PSID" }, message: { mid: "m1", text: "hi" } }] })).toEqual([
-      { kind: "dm", platform: "META_FACEBOOK", accountId: "PAGE", messageId: "m1", senderId: "PSID", text: "hi" },
+      { kind: "dm", platform: "META_FACEBOOK", accountId: "PAGE", messageId: "m1", senderId: "PSID", text: "hi", audioUrl: null },
     ]);
   });
   it("returns nothing for an entry without an id", () => {

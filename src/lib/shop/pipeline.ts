@@ -288,7 +288,8 @@ async function planDm(msg: Msg): Promise<string[]> {
   }
 
   const whatsapp = platform === "WHATSAPP";
-  const text = (whatsapp ? typedText(msg.content ?? "") : (msg.content ?? "")).trim();
+  // typedText: a media token's caption, or a voice note's transcript ("[audio] <words>"), on every platform.
+  const text = typedText(msg.content ?? "").trim();
 
   // A buyer in the middle of giving their order details (or whose order comment we answered privately): this message is the next answer.
   const collecting = text ? ((await collectingOrder(store.id, senderId, now)) ?? (whatsapp ? null : await commentOrder(store.id, senderId, now))) : null;

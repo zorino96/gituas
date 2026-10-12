@@ -14,6 +14,7 @@ import { after, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { pauseThread } from "@/lib/shop/pause";
 import { processMessage } from "@/lib/shop/pipeline";
+import { transcribeVoiceNote } from "@/lib/shop/voice-note";
 import { WA_VERIFY_TOKEN } from "@/lib/whatsapp/cloud";
 import { parseWaPayload, type WaEvent } from "@/lib/whatsapp/webhook";
 
@@ -88,7 +89,12 @@ export async function POST(req: Request) {
     }
     const id = await ingest(store.id, ev);
     if (id) {
-      after(() => processMessage(id).catch((e) => console.error("[shop] whatsapp processing failed:", e instanceof Error ? e.message : "unknown error")));
+      const audioId = ev.audioId;
+      after(async () => {
+        // A voice note is read first, so the AI answers its words.
+        if (audioId) await transcribeVoiceNote(id, store.id, { kind: "wa", mediaId: audioId });
+        await processMessage(id).catch((e) => console.error("[shop] whatsapp processing failed:", e instanceof Error ? e.message : "unknown error"));
+      });
     }
   }
   // Always 200 quickly so Meta doesn't retry/back off.

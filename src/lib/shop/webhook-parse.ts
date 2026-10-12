@@ -14,7 +14,17 @@ export type ShopEvent =
       authorName: string | null;
       text: string;
     }
-  | { kind: "dm"; platform: MetaPlatform; accountId: string; messageId: string; senderId: string; text: string };
+  | {
+      kind: "dm";
+      platform: MetaPlatform;
+      accountId: string;
+      messageId: string;
+      senderId: string;
+      /** The typed text; "[audio]" for a voice note (its words are filled in later, see voice-note.ts). */
+      text: string;
+      /** A voice note's CDN url, when the message is one. */
+      audioUrl: string | null;
+    };
 
 type Obj = Record<string, unknown>;
 const str = (v: unknown): string | null => (typeof v === "string" && v ? v : null);
@@ -65,7 +75,10 @@ export function parseEntry(object: string | undefined, entry: unknown): ShopEven
     const senderId = str(((m?.sender ?? {}) as Obj).id);
     const messageId = str(msg.mid);
     if (!messageId || !senderId || msg.is_echo === true || senderId === accountId) continue;
-    out.push({ kind: "dm", platform, accountId, messageId, senderId, text: text(msg.text) });
+    const audio = (Array.isArray(msg.attachments) ? (msg.attachments as Obj[]) : []).find((a) => a?.type === "audio");
+    const audioUrl = audio ? str(((audio.payload ?? {}) as Obj).url) : null;
+    const typed = text(msg.text);
+    out.push({ kind: "dm", platform, accountId, messageId, senderId, text: typed || (audioUrl ? "[audio]" : ""), audioUrl });
   }
   return out;
 }

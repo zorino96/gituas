@@ -211,6 +211,11 @@ export default function PrivacyPage() {
           phone numbers and account tokens are never sent to them; we send only what each task needs.
         </LI>
         <LI>
+          <Strong>Voice messages.</Strong> When a buyer sends a voice message, its audio is sent to
+          Pawan.Krd (Kurdish speech recognition) or, as a fallback, Google (Gemini) to turn it into
+          text, so the shop and its assistant can read it. Gituas keeps only that text, not the audio.
+        </LI>
+        <LI>
           <Strong>Studio pictures.</Strong> Higgsfield makes the Studio&rsquo;s product pictures. It
           receives the product photo you choose and a description of the scene; never buyer messages,
           names or phone numbers. Your logo, text and price are added by our own servers afterwards.

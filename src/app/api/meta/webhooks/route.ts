@@ -14,6 +14,7 @@ import { after, NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
 import { processMessage } from "@/lib/shop/pipeline";
+import { transcribeVoiceNote } from "@/lib/shop/voice-note";
 import { parseEntry, type ShopEvent } from "@/lib/shop/webhook-parse";
 
 export const runtime = "nodejs";
@@ -152,11 +153,14 @@ export async function POST(req: Request) {
       for (const ev of parseEntry(body.object, entry)) {
         const id = await ingestShop(store.id, ev);
         if (id) {
-          after(() =>
-            processMessage(id, { delay: ev.kind === "comment" }).catch((e) =>
+          const audioUrl = ev.kind === "dm" ? ev.audioUrl : null;
+          after(async () => {
+            // A voice note is read first, so the AI answers its words.
+            if (audioUrl) await transcribeVoiceNote(id, store.id, { kind: "url", url: audioUrl });
+            await processMessage(id, { delay: ev.kind === "comment" }).catch((e) =>
               console.error("[shop] processing failed:", e instanceof Error ? e.message : "unknown error"),
-            ),
-          );
+            );
+          });
         }
       }
       continue;

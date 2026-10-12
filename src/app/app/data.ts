@@ -305,6 +305,24 @@ export interface ConversationsResult {
   errors: { platform: "FB" | "IG"; message: string }[];
 }
 
+/**
+ * Meta lists a buyer's voice note with no text; the words Gituas heard (stored on the same message
+ * id, see src/lib/shop/voice-note.ts) are shown instead, marked with a microphone.
+ */
+async function fillVoiceNotes(tenantId: string, conversations: MConversation[]): Promise<void> {
+  const blank = conversations.flatMap((c) => c.messages.filter((m) => !m.fromUs && !m.text && m.id));
+  if (!blank.length) return;
+  const rows = await db.conversationMessage.findMany({
+    where: { store: { tenantId }, externalMessageId: { in: blank.map((m) => m.id) }, content: { startsWith: "[audio] " } },
+    select: { externalMessageId: true, content: true },
+  });
+  const heard = new Map(rows.map((r) => [r.externalMessageId, (r.content ?? "").slice("[audio] ".length)]));
+  for (const m of blank) {
+    const words = heard.get(m.id);
+    if (words) m.text = `🎤 ${words}`;
+  }
+}
+
 export async function loadConversations(tenantId: string, conns: Connections): Promise<ConversationsResult> {
   const errors: ConversationsResult["errors"] = [];
   const [ig, fb] = await Promise.all([
@@ -337,6 +355,7 @@ export async function loadConversations(tenantId: string, conns: Connections): P
     });
   }
   out.sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
+  await fillVoiceNotes(tenantId, out);
   const readable = out.filter((c) => c.messages.length > 0 || c.participantId);
   return { conversations: readable, unreadable: out.length - readable.length, errors };
 }
