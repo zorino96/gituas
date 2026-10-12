@@ -10,7 +10,7 @@ export default function PrivacyPage() {
   return (
     <article>
       <h1 className="font-display text-4xl md:text-5xl leading-tight">Privacy Policy</h1>
-      <Updated date="October 10, 2026" />
+      <Updated date="October 12, 2026" />
 
       <Lead>
         This policy covers Gituas (gituas.com), a tool for shops and creators to publish to their own
@@ -220,7 +220,8 @@ export default function PrivacyPage() {
         </LI>
         <LI>
           <Strong>Hosting and storage.</Strong> Vercel (the application and uploaded files, through
-          Vercel Blob) and Neon (the database).
+          Vercel Blob) and Supabase (the database). Neon held the database until October 2026 and
+          keeps older records until they are moved to Supabase.
         </LI>
         <LI>
           <Strong>Video rendering.</Strong> GitHub Actions builds news videos from the story text, card
