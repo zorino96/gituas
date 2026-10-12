@@ -38,6 +38,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ results });
   }
 
+  if ((input as { op: string }).op === "stt-raw") {
+    // One raw transcription request, to find the form a gateway accepts (model id, file type, fields).
+    const r = input as unknown as { base: "kurdgg" | "pawan"; model: string; audio: string; mime: string; filename: string; fields?: Record<string, string> };
+    const kurdgg = r.base === "kurdgg";
+    const key = (kurdgg ? process.env.KURDGG_API_KEY : process.env.PAWAN_API_KEY)?.trim();
+    if (!key) return NextResponse.json({ error: "no key" }, { status: 400 });
+    const base = kurdgg ? (process.env.KURDGG_BASE_URL?.trim() || "https://api.kurd.gg/v1").replace(/\/$/, "") : "https://api.pawan.krd/v1";
+    const fd = new FormData();
+    fd.append("file", new Blob([new Uint8Array(Buffer.from(r.audio, "base64"))], { type: r.mime }), r.filename);
+    fd.append("model", r.model);
+    for (const [k, v] of Object.entries(r.fields ?? {})) fd.append(k, v);
+    const t0 = Date.now();
+    const res = await fetch(`${base}/audio/transcriptions`, { method: "POST", headers: { Authorization: `Bearer ${key}` }, body: fd, signal: AbortSignal.timeout(55_000) });
+    const text = (await res.text()).replace(new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), "…").slice(0, 600);
+    return NextResponse.json({ status: res.status, ms: Date.now() - t0, body: text });
+  }
+
   if (input.op === "tts") {
     const kurdgg = input.provider === "kurdgg";
     const key = (kurdgg ? process.env.KURDGG_API_KEY : process.env.PAWAN_API_KEY)?.trim();
