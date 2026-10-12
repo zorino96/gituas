@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 import { db } from "@/lib/db";
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
@@ -6,7 +8,7 @@ import { STUDIO_PACKS } from "@/lib/billing/prices";
 import { imagePrice } from "@/lib/studio/pricing";
 import { walletBalance } from "@/lib/studio/wallet";
 import { settleReturn } from "../billing/load";
-import { studioReadyFor } from "@/lib/studio/ready";
+import { studioEnabled, studioReadyFor } from "@/lib/studio/ready";
 import { currentWorkspace, requireWorkspace } from "../data";
 import { StudioClient, type StudioAssetView, type StudioProduct } from "./studio-client";
 
@@ -14,6 +16,8 @@ export const dynamic = "force-dynamic";
 
 export default async function StudioPage({ searchParams }: { searchParams: Promise<{ invoice?: string }> }) {
   const ws = await requireWorkspace();
+  // Switched off (src/lib/studio/ready.ts): the page stays in the repo, but nobody lands on it.
+  if (!studioEnabled()) redirect("/app");
   const t = dict(await getLang());
   if (ws.kind !== "MERCHANT") return <p className="gm-note warn">{t.studio.shopOnly}</p>;
   if (!can(ws.role, "publish")) return <p className="gm-note warn">{t.nr.team.roles.notAllowed}</p>;

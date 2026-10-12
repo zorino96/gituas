@@ -7,7 +7,7 @@ interface Props {
 const AGENTS = [
   { handle: "@claude", glyph: "C", action: "merged PR #284 · checkout v2", time: "18m" },
   { handle: "@gemini", glyph: "G", action: "queued tiktok caption", time: "4m" },
-  { handle: "@higgsfield", glyph: "H", action: "render 6s promo · 47%", time: "now" },
+  { handle: "@motion", glyph: "M", action: "render 6s promo · 47%", time: "now" },
   { handle: "@router", glyph: "R", action: "paused google-ads #44 · cpa>ltv", time: "22m" },
 ];
 

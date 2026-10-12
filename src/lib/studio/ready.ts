@@ -1,9 +1,19 @@
 import { higgsfieldConfigured } from "./higgsfield";
 import { imageModel } from "./presets";
 
-/** Whether the Studio can make pictures here: the key pair and the model are set. Server only, and light enough for layouts. */
+/**
+ * The Studio's master switch. It is OFF (decided 2026-10-12): the owner took the Higgsfield Studio
+ * out of the product to make video ads with the programmatic motion engine instead. Nothing was
+ * deleted — pages, actions, jobs, renderer, webhook and tables are all still here — so setting
+ * STUDIO_ENABLED=1 (with the Higgsfield keys) brings it back.
+ */
+export function studioEnabled(): boolean {
+  return process.env.STUDIO_ENABLED?.trim() === "1";
+}
+
+/** Whether the Studio can make pictures here: switched on, and the key pair and the model are set. Server only, and light enough for layouts. */
 export function studioReady(): boolean {
-  return higgsfieldConfigured() && !!imageModel();
+  return studioEnabled() && higgsfieldConfigured() && !!imageModel();
 }
 
 /**

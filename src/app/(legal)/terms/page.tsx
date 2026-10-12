@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { studioEnabled } from "@/lib/studio/ready";
 import { Updated, Lead, H2, P, UL, LI, Strong, InLink, ExtLink } from "../prose";
 
 export const metadata: Metadata = {
@@ -121,16 +122,18 @@ export default function TermsPage() {
         are provided by the <ExtLink href="https://www.gdeltproject.org/">GDELT Project</ExtLink>.
       </P>
 
-      <P>
-        <Strong>Studio pictures.</Strong> The Studio uses AI (Higgsfield) to place your product photo in
-        a new scene. You must only use photos of products you sell and have the right to use, and you
-        are responsible for checking that every picture shows the product truthfully before you post
-        it. Studio pictures are paid in advance from a Studio balance you top up through Wayl; the price
-        is shown before each picture, a picture that fails or is blocked by content moderation is
-        refunded to the balance, the balance does not expire, and it can only be used for Studio
-        pictures (it is not paid back in cash). Prices may change; a new price applies only to pictures
-        made after the change.
-      </P>
+      {studioEnabled() && (
+        <P>
+          <Strong>Studio pictures.</Strong> The Studio uses AI (Higgsfield) to place your product photo in
+          a new scene. You must only use photos of products you sell and have the right to use, and you
+          are responsible for checking that every picture shows the product truthfully before you post
+          it. Studio pictures are paid in advance from a Studio balance you top up through Wayl; the price
+          is shown before each picture, a picture that fails or is blocked by content moderation is
+          refunded to the balance, the balance does not expire, and it can only be used for Studio
+          pictures (it is not paid back in cash). Prices may change; a new price applies only to pictures
+          made after the change.
+        </P>
+      )}
 
       <H2>7. Fees</H2>
       <P>

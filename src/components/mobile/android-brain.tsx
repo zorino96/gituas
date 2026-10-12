@@ -18,7 +18,7 @@ export function AndroidBrain() {
           <Pill active>@router · auto</Pill>
           <Pill>@claude</Pill>
           <Pill>@gemini</Pill>
-          <Pill>@higgsfield</Pill>
+          <Pill>@motion</Pill>
         </div>
 
         <div className="mt-4 space-y-3">

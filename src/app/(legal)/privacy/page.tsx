@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { studioEnabled } from "@/lib/studio/ready";
 import { Updated, Lead, H2, P, UL, LI, Strong, InLink, ExtLink } from "../prose";
 
 export const metadata: Metadata = {
@@ -215,11 +216,13 @@ export default function PrivacyPage() {
           Pawan.Krd (Kurdish speech recognition) or, as a fallback, Google (Gemini) to turn it into
           text, so the shop and its assistant can read it. Gituas keeps only that text, not the audio.
         </LI>
-        <LI>
-          <Strong>Studio pictures.</Strong> Higgsfield makes the Studio&rsquo;s product pictures. It
-          receives the product photo you choose and a description of the scene; never buyer messages,
-          names or phone numbers. Your logo, text and price are added by our own servers afterwards.
-        </LI>
+        {studioEnabled() && (
+          <LI>
+            <Strong>Studio pictures.</Strong> Higgsfield makes the Studio&rsquo;s product pictures. It
+            receives the product photo you choose and a description of the scene; never buyer messages,
+            names or phone numbers. Your logo, text and price are added by our own servers afterwards.
+          </LI>
+        )}
         <LI>
           <Strong>Voice-over.</Strong> Pawan.Krd text-to-speech reads the script of a news video aloud.
           An Enterprise desk may upload a short recording of a voice, with the words spoken in it and

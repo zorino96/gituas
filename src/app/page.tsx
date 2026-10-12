@@ -367,7 +367,7 @@ function Constellation() {
     { id: "claude", x: 22, y: 30, r: 4.2, role: "code · bug-fix PRs" },
     { id: "gemini", x: 50, y: 18, r: 4.6, role: "research · plans · drafts" },
     { id: "router", x: 50, y: 52, r: 6.4, role: "picks the right mind", bright: true },
-    { id: "higgsfield", x: 78, y: 32, r: 4, role: "video creative" },
+    { id: "motion", x: 78, y: 32, r: 4, role: "video creative" },
     { id: "flux", x: 30, y: 72, r: 3.6, role: "static imagery" },
     { id: "vector mem", x: 74, y: 70, r: 3.8, role: "per-tenant memory" },
   ];

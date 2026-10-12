@@ -78,7 +78,7 @@ function handleFor(actor: string): string {
     case "AI_CLAUDE": return "@claude";
     case "AI_GEMINI": return "@gemini";
     case "AI_ROUTER": return "@router";
-    case "AI_HIGGSFIELD": return "@higgsfield";
+    case "AI_HIGGSFIELD": return "@motion";
     case "USER": return "@founder";
     case "SYSTEM": return "@stripe";
     default: return `@${actor.toLowerCase()}`;

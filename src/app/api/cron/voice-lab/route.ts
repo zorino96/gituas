@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { kurdggConfigured, kurdggJson } from "@/lib/ai/kurdgg";
 import { engineReady, transcribeWith, type SttEngine } from "@/lib/voice/stt";
 
 export const runtime = "nodejs";
@@ -10,6 +11,7 @@ export const maxDuration = 60;
  * The owner's voice lab (CRON_SECRET only), to compare engines with the server's own keys:
  *   {op:"stt", audio: base64, mime, engines?: SttEngine[]}  → each engine's transcript and time
  *   {op:"tts", provider: "pawan"|"kurdgg", body: {...}}     → the audio a TTS request returns (base64)
+ *   {op:"llm-json", system, user, strength?}                → one JSON completion through kurd.gg (Claude Haiku), to try prompts
  * Keys never leave the server; provider errors are reduced to a status and an error type.
  */
 export async function POST(req: Request) {
@@ -53,6 +55,19 @@ export async function POST(req: Request) {
     const res = await fetch(`${base}/audio/transcriptions`, { method: "POST", headers: { Authorization: `Bearer ${key}` }, body: fd, signal: AbortSignal.timeout(55_000) });
     const text = (await res.text()).replace(new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), "…").slice(0, 600);
     return NextResponse.json({ status: res.status, ms: Date.now() - t0, body: text });
+  }
+
+  if ((input as { op: string }).op === "llm-json") {
+    // One JSON completion with the server's kurd.gg key (the model the desks use), e.g. an ad script for a brand.
+    const r = input as unknown as { system: string; user: string; strength?: "fast" | "strong" };
+    if (!kurdggConfigured()) return NextResponse.json({ error: "kurd.gg is not configured" }, { status: 400 });
+    const t0 = Date.now();
+    try {
+      const out = await kurdggJson({ system: String(r.system ?? ""), user: String(r.user ?? ""), strength: r.strength === "strong" ? "strong" : "fast" }, 50_000);
+      return NextResponse.json({ ok: true, model: out.model, ms: Date.now() - t0, data: out.data });
+    } catch (e) {
+      return NextResponse.json({ ok: false, error: e instanceof Error ? e.message.replace(/[A-Za-z0-9_-]{30,}/g, "…").slice(0, 300) : "failed" });
+    }
   }
 
   if ((input as { op: string }).op === "tts-speak") {

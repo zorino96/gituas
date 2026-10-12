@@ -14,11 +14,14 @@ export function AutopilotClient({
   stores,
   paid,
   lastDraft,
+  studio = false,
 }: {
   store: StoreView;
   stores: { id: string; name: string }[];
   paid: boolean;
   lastDraft: { caption: string; thumb: string; at: string } | null;
+  /** Whether this workspace has the Studio (it is switched off for now: src/lib/studio/ready.ts). */
+  studio?: boolean;
 }) {
   const router = useRouter();
   const t = useT();
@@ -50,8 +53,12 @@ export function AutopilotClient({
       <p className="gm-hint">
         {ap.more}{" "}
         <Link href="/app/publish" className="gm-link">{ap.publish}</Link>
-        {" · "}
-        <Link href="/app/studio" className="gm-link">{ap.studio}</Link>
+        {studio && (
+          <>
+            {" · "}
+            <Link href="/app/studio" className="gm-link">{ap.studio}</Link>
+          </>
+        )}
       </p>
     </div>
   );

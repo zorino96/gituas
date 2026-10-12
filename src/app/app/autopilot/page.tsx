@@ -4,6 +4,7 @@ import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
 import type { AutoDraft } from "@/lib/shop/autopilot";
 import { loadShopState } from "@/lib/shop/state";
+import { studioReadyFor } from "@/lib/studio/ready";
 import { loadConnections, requireWorkspace } from "../data";
 import { storeView } from "../automation/store-view";
 import { AutopilotClient } from "./autopilot-client";
@@ -40,6 +41,7 @@ export default async function AutopilotPage({ searchParams }: { searchParams: Pr
       stores={state.stores.map((s) => ({ id: s.id, name: s.name || (s.igUsername ? `@${s.igUsername}` : "—") }))}
       paid={state.usage.plan === "MERCHANT" || state.usage.plan === "PRO"}
       lastDraft={draft?.media?.url ? { caption: draft.caption, thumb: draft.media.url, at: draft.at } : null}
+      studio={studioReadyFor(ws.id)}
     />
   );
 }
