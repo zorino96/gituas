@@ -1,6 +1,7 @@
 name: reel
-# Renders Hawalnoos auto-videos: claims voiced jobs from the app, renders them with Remotion (reel/),
-# uploads each to Blob with a one-file token and reports back. Quiet when nothing is waiting.
+# Renders Hawalnoos auto-videos (Remotion, reel/) and the shops' AI video ads (Python + Skia, adfilm/): claims
+# jobs from the app, renders them, uploads each to Blob with a one-file token and reports back.
+# Quiet when nothing is waiting.
 on:
   schedule:
     - cron: "*/5 * * * *"
@@ -18,11 +19,17 @@ jobs:
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          if [ -z "$CRON_SECRET" ]; then echo "n=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ -z "$CRON_SECRET" ]; then echo "n=0" >> "$GITHUB_OUTPUT"; echo "reels=0" >> "$GITHUB_OUTPUT"; echo "ads=0" >> "$GITHUB_OUTPUT"; exit 0; fi
           body=$(curl -fsS -m 30 -H "Authorization: Bearer $CRON_SECRET" "https://gituas.com/api/cron/reel-jobs?peek=1" || echo '{"waiting":0}')
           n=$(echo "$body" | sed -nE 's/.*"waiting":([0-9]+).*/\1/p')
-          echo "waiting: ${n:-0}"
+          reels=$(echo "$body" | sed -nE 's/.*"reels":([0-9]+).*/\1/p')
+          ads=$(echo "$body" | sed -nE 's/.*"ads":([0-9]+).*/\1/p')
+          # An older app answers only "waiting": those are all reels.
+          if [ -z "$reels" ]; then reels="${n:-0}"; fi
+          echo "waiting: ${n:-0} (reels ${reels:-0}, ads ${ads:-0})"
           echo "n=${n:-0}" >> "$GITHUB_OUTPUT"
+          echo "reels=${reels:-0}" >> "$GITHUB_OUTPUT"
+          echo "ads=${ads:-0}" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         if: steps.peek.outputs.n != '0'
       - uses: actions/setup-node@v4
@@ -30,14 +37,37 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: reel/package-lock.json
+          cache-dependency-path: |
+            reel/package-lock.json
+            adfilm/package-lock.json
       - name: Install
-        if: steps.peek.outputs.n != '0'
+        if: steps.peek.outputs.reels != '0'
         working-directory: reel
         run: npm ci --no-audit --no-fund
       - name: Render
-        if: steps.peek.outputs.n != '0'
+        if: steps.peek.outputs.reels != '0'
         working-directory: reel
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: node worker.mjs
+      # AI video ads: a script and a voice written by the app, drawn here by render.py. The worker keeps
+      # the secret to itself; the render runs in a child process whose environment has none.
+      - uses: actions/setup-python@v5
+        if: steps.peek.outputs.ads != '0'
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: adfilm/requirements.txt
+      - name: Install the ad renderer
+        if: steps.peek.outputs.ads != '0'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg libgl1 libegl1 fontconfig
+          pip install -r adfilm/requirements.txt
+          cd adfilm && npm ci --no-audit --no-fund
+      - name: Render the ads
+        if: steps.peek.outputs.ads != '0'
+        working-directory: adfilm
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: node worker.mjs

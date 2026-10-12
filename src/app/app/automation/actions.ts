@@ -38,7 +38,7 @@ const done = (id?: string): ActionResult => {
 /** Saves only the settings that are present: each screen section sends its own fields, so two quick saves cannot undo each other. */
 export async function saveStoreSettingsAction(
   storeId: string,
-  input: Partial<{ automationEnabled: boolean; expiryDays: number; stopBefore: string; likeComments: boolean; autoHideSpam: boolean; deliveryFee: string; deliveryTime: string; defaultDm: string; cityFees: Record<string, string>; autoMode: string; autoPerDay: number }>,
+  input: Partial<{ aiReplies: boolean; aiBrief: string; automationEnabled: boolean; expiryDays: number; stopBefore: string; likeComments: boolean; autoHideSpam: boolean; deliveryFee: string; deliveryTime: string; defaultDm: string; cityFees: Record<string, string>; autoMode: string; autoPerDay: number }>,
 ): Promise<ActionResult> {
   const r = await ownedStore(storeId);
   if (r.error !== undefined) return { ok: false, error: r.error };
@@ -96,6 +96,8 @@ export async function saveStoreSettingsAction(
   }
   if (input.deliveryTime !== undefined) data.deliveryTime = Array.from(input.deliveryTime.trim()).slice(0, 60).join("") || null;
   if (input.defaultDm !== undefined) data.defaultDm = Array.from(input.defaultDm.trim()).slice(0, 1000).join("") || null;
+  if (input.aiReplies !== undefined) data.aiReplies = !!input.aiReplies;
+  if (input.aiBrief !== undefined) data.aiBrief = Array.from(String(input.aiBrief).trim()).slice(0, 1500).join("") || null;
   if (Object.keys(data).length) await db.store.update({ where: { id: r.store.id }, data });
   return done();
 }

@@ -17,3 +17,20 @@ export async function countAiVary(storeId: string): Promise<void> {
     update: { count: { increment: 1 } },
   });
 }
+
+// Smart replies (the assistant writes in the owner's words): counted per store and month.
+const SMART_METRIC = "shop_ai_smart";
+
+export async function smartUsed(storeId: string): Promise<number> {
+  const row = await db.usage.findUnique({ where: { tenantId_month_metric: { tenantId: storeId, month: monthKey(), metric: SMART_METRIC } }, select: { count: true } });
+  return row?.count ?? 0;
+}
+
+export async function countSmart(storeId: string): Promise<void> {
+  const month = monthKey();
+  await db.usage.upsert({
+    where: { tenantId_month_metric: { tenantId: storeId, month, metric: SMART_METRIC } },
+    create: { tenantId: storeId, month, metric: SMART_METRIC, count: 1 },
+    update: { count: { increment: 1 } },
+  });
+}

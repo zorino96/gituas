@@ -3,7 +3,7 @@ import { newestFirst, unexpired } from "@/lib/oauth/pick";
 import type { MetaPlatform } from "./meta-client";
 import { startOfShopDay } from "./pipeline";
 import { dailyCap, SHOP_LIMITS, type StorePlan } from "./plans";
-import { aiVaryUsed } from "./quota";
+import { aiVaryUsed, smartUsed } from "./quota";
 
 const DAY = 86_400_000;
 
@@ -15,13 +15,14 @@ export async function loadShopState(tenantId: string, storeId?: string, preferAc
   const store = stores.find((s) => s.id === storeId) ?? stores.find(isPreferred) ?? stores[0] ?? null;
   if (!store) return { stores, store: null } as const;
   const now = new Date();
-  const [templates, products, posts, activePosts, sentToday, aiUsed] = await Promise.all([
+  const [templates, products, posts, activePosts, sentToday, aiUsed, smartCount] = await Promise.all([
     db.automationTemplate.findMany({ where: { storeId: store.id }, orderBy: { createdAt: "asc" } }),
     db.product.findMany({ where: { storeId: store.id, active: true }, include: { variants: { orderBy: { position: "asc" } } }, orderBy: { updatedAt: "desc" } }),
     db.postAutomation.findMany({ where: { storeId: store.id }, orderBy: { postCreatedAt: "desc" }, take: 60 }),
     db.postAutomation.count({ where: { storeId: store.id, enabled: true, activeUntil: { gt: now } } }),
     db.outboxJob.count({ where: { storeId: store.id, status: "SENT", kind: { in: ["PUBLIC_REPLY", "PRIVATE_REPLY", "DM_ANSWER"] }, updatedAt: { gte: startOfShopDay(now) } } }),
     aiVaryUsed(store.id),
+    smartUsed(store.id),
   ]);
   const plan = store.plan as StorePlan;
   return {
@@ -30,7 +31,7 @@ export async function loadShopState(tenantId: string, storeId?: string, preferAc
     templates,
     products,
     posts,
-    usage: { plan, activePosts, postSlots: SHOP_LIMITS[plan].posts, sentToday, cap: dailyCap(plan, store.dailyCap), aiUsed, aiLimit: SHOP_LIMITS[plan].aiVaryPerMonth },
+    usage: { plan, activePosts, postSlots: SHOP_LIMITS[plan].posts, sentToday, cap: dailyCap(plan, store.dailyCap), aiUsed, aiLimit: SHOP_LIMITS[plan].aiVaryPerMonth, smartUsed: smartCount, smartLimit: SHOP_LIMITS[plan].smartPerMonth },
   } as const;
 }
 

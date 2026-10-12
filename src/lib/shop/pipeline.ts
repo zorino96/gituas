@@ -16,9 +16,12 @@ import { dailyCap, SHOP_LIMITS, type StorePlan } from "./plans";
 import { decideComment, decideDm, limitDecision, MIN_CONFIDENCE } from "./policy";
 import { runJob } from "./outbox";
 import { aiVaryUsed, countAiVary } from "./quota";
+import { smartTry } from "./smart-glue";
 import { varySample } from "./vary";
 
 const DAY = 86_400_000;
+/** The kinds of buyer message the assistant may answer in the owner's words (complaints and abuse stay with the owner). */
+const SMART_TYPES: readonly string[] = ["QUESTION", "NEGOTIATION", "OTHER", "ORDER"];
 /** Before Meta's 24 h messaging window closes. */
 const FOLLOWUP_MS = 20 * 3_600_000;
 /** Meta allows a private reply only within 7 days of the comment. */
@@ -223,7 +226,23 @@ async function planComment(msg: Msg): Promise<string[]> {
     card = { text: dmText({ greeting, product, store, lang: c.language, waUrl: wa }), elements: fbCardElements(product, store, c.language, wa) };
   }
 
-  const specs = buildCommentJobs({ decision, platform, commentId, authorName: msg.authorHandle, publicText, card, defaultDm: store.defaultDm });
+  // Smart replies: the assistant writes the first message (and the public line) in the owner's words. The fixed
+  // card above is what goes out when they are off, over the month's allowance, or the writing fails the guard.
+  let defaultDm = store.defaultDm;
+  if (store.aiReplies && priv?.kind === "PRIVATE_REPLY") {
+    const link = product && priv.whatsapp ? waUrl(store.tenant, waText(product, c.language)) : null;
+    const s = await smartTry({ store, kind: "dm_first", lang: c.language, message: msg.content ?? "", product, waLink: link });
+    if (s) {
+      if (priv.content === "card" && card) card = { text: s.text, elements: [] };
+      else if (priv.content === "default_dm") defaultDm = s.text;
+      if (pub?.kind === "PUBLIC_REPLY") {
+        const sp = await smartTry({ store, kind: "public", lang: c.language, message: msg.content ?? "", product, waLink: null });
+        if (sp) publicText = sp.text;
+      }
+    }
+  }
+
+  const specs = buildCommentJobs({ decision, platform, commentId, authorName: msg.authorHandle, publicText, card, defaultDm });
   const ids = await createJobs(store.id, msg.id, specs);
   if (limited && !decision.flag && !specs.length) {
     await finish(msg.id, "SKIPPED", "author_limit", { commentType: c.type, intent: c.intent, language: c.language, confidence: c.confidence });
@@ -339,8 +358,26 @@ async function planDm(msg: Msg): Promise<string[]> {
     const alt = await alternativeProduct(store.id, product.id);
     if (alt) answer = `${answer}\n\n${alternativeLine(alt, c.language)}`;
   }
-  const specs = buildDmJobs({ actions: decision.actions, recipientId: senderId, photos: product?.photos ?? [], answerText: answer });
-  const flag = decision.flag ?? (ans && !answer ? "needs_you" : null);
+  // Smart replies: where the fixed answers cannot (a question they do not cover, a haggle, a message with no
+  // product yet) the assistant answers in the owner's words, within the guards. An order being collected keeps
+  // its own step-by-step answers.
+  let actions = decision.actions;
+  let smartFlag: string | null | undefined;
+  if (store.aiReplies && text && c && c.confidence >= MIN_CONFIDENCE && SMART_TYPES.includes(c.type) && !(ordering && orderId && answer)) {
+    const link = !whatsapp && product ? waUrl(store.tenant, waText(product, c.language)) : null;
+    // A voice note reaches here as its transcript ("[audio] <words>" is what is stored): speech recognition can mishear.
+    const viaVoice = (msg.content ?? "").trimStart().startsWith("[audio]");
+    const s = await smartTry({ store, kind: "dm_followup", lang: c.language, message: text, product, waLink: link, senderId, messageId: msg.id, viaVoice });
+    if (s) {
+      answer = s.text;
+      // "unclear" is the dashboard's pile for messages the assistant could not make sense of: the buyer got a
+      // polite request to say it again, and the owner can listen to the voice note on the platform.
+      smartFlag = s.unclear ? "unclear" : s.needsOwner ? "needs_you" : null;
+      if (!actions.some((a) => a.kind === "DM_ANSWER")) actions = [...actions, { kind: "DM_ANSWER", intent: c.intent, whatsapp: false }];
+    }
+  }
+  const specs = buildDmJobs({ actions, recipientId: senderId, photos: product?.photos ?? [], answerText: answer });
+  const flag = smartFlag !== undefined ? smartFlag : decision.flag ?? (ans && !answer ? "needs_you" : null);
   const ids = await createJobs(store.id, msg.id, specs, product?.id ?? null);
   // Answered a question but no order yet: one nudge in 20 h, cancelled if the buyer writes or orders first.
   if (answer && product && c?.type === "QUESTION" && !(await db.order.count({ where: { storeId: store.id, buyerKey: senderId, status: { in: ["NEW", "CONFIRMED"] } } }))) {

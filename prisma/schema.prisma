@@ -1083,6 +1083,17 @@ model Store {
   autoLastAt        DateTime?
   /// The last post the autopilot prepared ({ productId, caption, media, at }); opened in Publish for one-tap TikTok/YouTube.
   autoDraft         Json?
+  /// Smart replies: the assistant writes the first message and the answers in the owner's words (aiBrief), within the guards, instead of fixed templates.
+  aiReplies         Boolean              @default(false)
+  /// The owner's own instructions to the assistant: how to greet, how to talk about price, what never to say.
+  aiBrief           String?
+  /// AI video automation: "OFF" | "DRAFT" (make a video each day and keep it for review) | "PUBLISH" (make it and post it).
+  videoAutoMode     String               @default("OFF")
+  /// "LITE" (Claude Haiku writes it) or "PRO" (Claude Opus writes it).
+  videoAutoTier     String               @default("LITE")
+  /// Hour of the day (Baghdad time) after which the day's video is made.
+  videoAutoHour     Int                  @default(18)
+  videoAutoLastAt   DateTime?
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
   tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -1302,4 +1313,43 @@ model Order {
   @@index([tenantId, city])
   @@index([tenantId, status])
   @@index([tenantId, buyerKey])
+}
+
+/// A brand video ad made by the AI (a script written by Claude, read by Pawan TTS, rendered by the motion engine).
+model AdVideo {
+  id          String    @id @default(cuid())
+  tenantId    String
+  storeId     String?
+  /// LITE (Haiku writes the script) or PRO (Opus 5.5 art-directs it).
+  tier        String    @default("LITE")
+  /// QUEUED → READY (script and voice done, waiting for the renderer) → RENDERING → RENDERED → POSTED, or FAILED.
+  status      String    @default("QUEUED")
+  /// MANUAL (a person pressed Create) or AUTO (the daily automation).
+  source      String    @default("MANUAL")
+  /// What the owner asked for, in their words (an offer, an occasion); null = the brand in general.
+  topic       String?
+  productId   String?
+  voice       String    @default("shilan")
+  /// The script: scenes with their on-screen text and spoken line, the style and the post text.
+  spec        Json?
+  /// What the renderer needs: brand, palette, logo, photos and the voice clips with their Blob URLs.
+  props       Json?
+  model       String?
+  caption     String?
+  videoPath   String?
+  videoUrl    String?
+  /// Post to Facebook / Instagram as soon as it is rendered.
+  autoPost    Boolean   @default(false)
+  targets     String[]  @default([])
+  results     Json?
+  postedAt    DateTime?
+  tries       Int       @default(0)
+  error       String?
+  claimedAt   DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([tenantId, createdAt])
+  @@index([status, updatedAt])
 }

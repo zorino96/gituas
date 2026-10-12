@@ -18,6 +18,8 @@ export function storeView(store: Store): StoreView {
     cityFees: Object.fromEntries(Object.entries(cityFees(store)).map(([k, v]) => [k, String(v)])),
     autoMode: store.autoMode,
     autoPerDay: store.autoPerDay,
+    aiReplies: store.aiReplies,
+    aiBrief: store.aiBrief ?? "",
     defaultDm: store.defaultDm ?? "",
     defaultTemplateId: store.defaultTemplateId,
     pausedReason: store.pausedReason,

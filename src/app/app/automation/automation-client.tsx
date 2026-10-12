@@ -9,7 +9,7 @@ import { useT } from "@/lib/i18n/client";
 import { saveStoreSettingsAction } from "./actions";
 import { PostsSection } from "./posts-section";
 import type { BuyerProfile } from "@/lib/orders/stats";
-import { CommentsSection, DeliverySection } from "./settings-sections";
+import { CommentsSection, DeliverySection, SmartRepliesSection } from "./settings-sections";
 import { SaveMessage, SwitchRow, useSaver, type PostAutoView, type PostView, type StoreSettings, type StoreView, type TemplateView, type Usage } from "./shared";
 import { TemplatesSection } from "./templates-section";
 
@@ -58,6 +58,8 @@ export function AutomationClient({ store, stores, templates, products, postAutom
     cityFees: store.cityFees,
     autoMode: store.autoMode,
     autoPerDay: store.autoPerDay,
+    aiReplies: store.aiReplies,
+    aiBrief: store.aiBrief,
   }));
 
   async function save(patch: Partial<StoreSettings>) {
@@ -147,6 +149,7 @@ export function AutomationClient({ store, stores, templates, products, postAutom
       </div>
 
       {/* Automatic posting has its own screen: /app/autopilot ("Auto posts"). */}
+      <SmartRepliesSection settings={settings} save={save} usage={usage} />
       <TemplatesSection storeId={store.id} templates={templates} defaultTemplateId={store.defaultTemplateId} />
       <div className="gm-cols-2">
         <div className="gm-section">

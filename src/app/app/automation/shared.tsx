@@ -21,6 +21,9 @@ export interface StoreSettings {
   cityFees: Record<string, string>;
   autoMode: string;
   autoPerDay: number;
+  /** Smart replies: the assistant writes in the owner's words. */
+  aiReplies: boolean;
+  aiBrief: string;
 }
 
 export interface StoreView extends StoreSettings {
@@ -63,6 +66,8 @@ export interface Usage {
   cap: number;
   aiUsed: number;
   aiLimit: number;
+  smartUsed: number;
+  smartLimit: number;
 }
 
 export type Message = { ok: boolean; text: string } | null;

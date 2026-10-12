@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { publishForWorkspace, type PublishInput } from "@/lib/merchant/publish-core";
+import { tickAdVideos } from "@/lib/advideo/auto";
 import { finishPendingInstagram } from "@/lib/publishers/instagram-finish";
 import { pollStudio } from "@/lib/studio/jobs";
 import { SCHEDULE_NO_TIKTOK } from "@/lib/merchant/schedule";
@@ -48,6 +49,9 @@ export async function GET(req: Request) {
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  // AI video ads: the day's videos, one script and voice, posts of rendered videos. It runs beside the
+  // scheduled posts below (its model call and voice take most of the minute) and never throws.
+  const videos = tickAdVideos({ deadline: Date.now() + 52_000 });
   // Instagram videos that were still processing when they were published: finish the ready ones.
   const instagram = await finishPendingInstagram();
   // Studio pictures whose Higgsfield webhook did not arrive, and renders that were cut.
@@ -90,5 +94,5 @@ export async function GET(req: Request) {
     }),
   );
 
-  return NextResponse.json({ due: due.length, ran: claimed.length, instagram, studio });
+  return NextResponse.json({ due: due.length, ran: claimed.length, instagram, studio, videos: await videos });
 }

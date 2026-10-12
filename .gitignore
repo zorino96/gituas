@@ -44,3 +44,9 @@ src/generated
 
 .vercel
 .env*
+
+# python bytecode and render output of adfilm/
+__pycache__/
+*.pyc
+adfilm/out/
+adfilm/job.json

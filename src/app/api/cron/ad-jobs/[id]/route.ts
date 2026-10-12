@@ -1,0 +1,46 @@
+import { after, NextResponse } from "next/server";
+
+import { db } from "@/lib/db";
+import { countVideo, isVideoTier } from "@/lib/advideo/limits";
+import { AD_MAX_TRIES } from "@/lib/advideo/prepare";
+import { publishAdVideo } from "@/lib/advideo/publish";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+/**
+ * The render worker reports one video: `{ url }` once it is uploaded to the path it was given, or
+ * `{ error }`. A rendered video is posted right away when it was made to post itself.
+ */
+export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  const { id } = await ctx.params;
+  const body = (await req.json().catch(() => null)) as { url?: unknown; error?: unknown } | null;
+  const job = await db.adVideo.findUnique({ where: { id } });
+  if (!job || job.status !== "RENDERING") return NextResponse.json({ error: "not rendering" }, { status: 409 });
+
+  const pathname = `merchant/${job.tenantId}/advideo/${job.id}/ad.mp4`;
+  const url = typeof body?.url === "string" ? body.url : "";
+  // Only the file this job's token could write: our Blob store, this exact path.
+  let ok = false;
+  try {
+    const u = new URL(url);
+    ok = u.protocol === "https:" && u.hostname.endsWith(".public.blob.vercel-storage.com") && u.pathname === `/${pathname}`;
+  } catch {
+    ok = false;
+  }
+  if (!ok) {
+    const error = (typeof body?.error === "string" ? body.error : "bad upload").slice(0, 300);
+    const last = job.tries >= AD_MAX_TRIES;
+    await db.adVideo.update({ where: { id }, data: { error, status: last ? "FAILED" : "READY", claimedAt: null } });
+    if (last && job.storeId && isVideoTier(job.tier)) await countVideo(job.storeId, job.tier, -1);
+    return NextResponse.json({ ok: false });
+  }
+  await db.adVideo.update({ where: { id }, data: { status: "RENDERED", videoUrl: url, videoPath: pathname, error: null } });
+  if (job.autoPost) after(() => publishAdVideo(id).then(() => undefined));
+  return NextResponse.json({ ok: true });
+}

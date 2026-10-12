@@ -6,7 +6,7 @@ import { useLang, useT } from "@/lib/i18n/client";
 import { CITIES } from "@/lib/orders/cities";
 
 import type { ActionResult } from "./actions";
-import { SaveMessage, SwitchRow, useSaver, type StoreSettings } from "./shared";
+import { SaveMessage, SwitchRow, useSaver, type StoreSettings, type Usage } from "./shared";
 
 type Save = (patch: Partial<StoreSettings>) => Promise<ActionResult>;
 
@@ -144,6 +144,45 @@ export function CommentsSection({ settings, save }: { settings: StoreSettings; s
             <SaveMessage message={message} />
           </div>
         </div>
+      </div>
+    </>
+  );
+}
+
+/** Smart replies: the assistant writes the first message and the answers in the owner's own words, within guards that live on the server. */
+export function SmartRepliesSection({ settings, save, usage }: { settings: StoreSettings; save: Save; usage: Usage }) {
+  const uid = useId();
+  const a = useT().automation;
+  const { pending, message, run } = useSaver();
+  const [on, setOn] = useState(settings.aiReplies);
+  const [brief, setBrief] = useState(settings.aiBrief);
+
+  return (
+    <>
+      <p className="gm-sec">{a.smartSec}</p>
+      <div className="gm-card gm-stack">
+        <SwitchRow label={a.smartSwitch} hint={a.smartHint} checked={on} disabled={pending} onToggle={() => setOn((v) => !v)} />
+        <div className="gm-field">
+          <label htmlFor={`${uid}-brief`}>{a.smartBrief}</label>
+          {/* 1500 is the server's limit (src/lib/shop/smart.ts SMART_BRIEF_MAX); that file is server-only. */}
+          <textarea
+            id={`${uid}-brief`}
+            className="gm-textarea"
+            style={{ minHeight: 190 }}
+            value={brief}
+            maxLength={1500}
+            placeholder={a.smartPlaceholder}
+            onChange={(e) => setBrief(e.target.value)}
+          />
+          <p className="gm-hint">{a.smartBriefHint}</p>
+        </div>
+        <div>
+          <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => save({ aiReplies: on, aiBrief: brief }))}>
+            {a.save}
+          </button>
+          <SaveMessage message={message} />
+        </div>
+        <p className="gm-hint">{a.smartUsage(usage.smartUsed, usage.smartLimit)}</p>
       </div>
     </>
   );

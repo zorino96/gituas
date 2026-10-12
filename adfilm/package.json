@@ -1,0 +1,9 @@
+{
+  "name": "adfilm",
+  "private": true,
+  "type": "module",
+  "description": "Render worker for the AI video ads (worker.mjs claims jobs, render.py draws them)",
+  "dependencies": {
+    "@vercel/blob": "2.8.0"
+  }
+}
