@@ -106,6 +106,13 @@ describe("accountRoom", () => {
     expect(await accountRoom("t1", "META_FACEBOOK" as OAuthProvider, ["p2", "p3"])).toEqual({ ok: true });
   });
 
+  it("does not count a placeholder id as a new account, so a full workspace can still reconnect", async () => {
+    newsDesk("MANUAL");
+    have("p1", "p2", "p3");
+    expect(await accountRoom("t1", "YOUTUBE" as OAuthProvider, ["unknown"])).toEqual({ ok: true });
+    expect(await accountRoom("t1", "YOUTUBE" as OAuthProvider, ["act_99"])).toEqual({ ok: true });
+  });
+
   it("reads a shop's cap from its best store", async () => {
     shop("FREE", "PRO");
     have("p1", "p2", "p3", "p4");

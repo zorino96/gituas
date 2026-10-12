@@ -39,8 +39,10 @@ export async function accountRoom(tenantId: string, provider: OAuthProvider, acc
   const cap = accountCap(tenant.kind, plans);
   if (cap == null) return { ok: true };
   const rows = await db.oAuthCredential.findMany({ where: { tenantId, provider }, select: { providerAccountId: true } });
-  const have = new Set(rows.map((r) => r.providerAccountId).filter((id) => id !== "unknown" && !id.startsWith("act_")));
-  const fresh = [...new Set(accountIds)].filter((id) => !have.has(id));
+  const isAccount = (id: string) => id !== "unknown" && !id.startsWith("act_");
+  const have = new Set(rows.map((r) => r.providerAccountId).filter(isAccount));
+  // A placeholder id (an account the platform would not describe) is not a new account either.
+  const fresh = [...new Set(accountIds)].filter((id) => isAccount(id) && !have.has(id));
   if (!fresh.length) return { ok: true };
   return have.size + fresh.length <= cap ? { ok: true } : { ok: false, cap, have: have.size };
 }
