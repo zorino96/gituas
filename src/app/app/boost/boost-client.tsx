@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 import { useLang, useT } from "@/lib/i18n/client";
 import type { BoostPost } from "@/lib/boost/posts";
@@ -8,12 +9,14 @@ import type { SavedAnalysis } from "@/lib/boost/cache";
 import type { BuyerProfile } from "@/lib/orders/stats";
 import { AdviceCard } from "../advice-card";
 import { kuDateTime } from "../format";
-import { analyzePostAction } from "./actions";
+import { analyzePostAction, moveInstagramAction } from "./actions";
 import { AudienceCard, BoostCard, type BoostView } from "./boost-cards";
 
 const key = (p: BoostPost) => `${p.platform}:${p.id}`;
 
 export function BoostClient({
+  business,
+  igElsewhere,
   audience,
   boost,
   posts,
@@ -22,6 +25,10 @@ export function BoostClient({
   left: initialLeft,
   accounts,
 }: {
+  /** The business (store) being shown, when the workspace has several. */
+  business: string | null;
+  /** The connected Instagram account belongs to another business: say where, instead of mixing it in. */
+  igElsewhere: { account: string; business: string; moveTo: { storeId: string; igUserId: string; business: string } | null } | null;
   audience: BuyerProfile;
   boost: BoostView;
   posts: BoostPost[];
@@ -56,6 +63,8 @@ export function BoostClient({
     <div>
       <h2 className="gm-title kufi">{b.title}</h2>
       <p className="gm-sub">{b.sub}</p>
+      {business && <p className="gm-hint" style={{ fontWeight: 600 }}>{b.business(business)}</p>}
+      {igElsewhere && <IgElsewhere x={igElsewhere} />}
 
       <p className="gm-sec">{b.shopSec}</p>
       <AudienceCard a={audience} />
@@ -117,7 +126,7 @@ function PostRow({
         )}
         <div style={{ minWidth: 0, flex: 1 }}>
           <small className="gm-hint">
-            {t.platform[p.platform]}
+            {t.platform[p.platform]} · {p.account}
             {p.mediaType === "VIDEO" ? " · 🎬" : ""}
             {p.createdAt ? ` · ${kuDateTime(p.createdAt, t)}` : ""}
           </small>
@@ -142,6 +151,32 @@ function PostRow({
       </div>
       {error && <p className="gm-err" role="alert">{error}</p>}
       {analysis && <AdviceCard a={analysis.advice} />}
+    </div>
+  );
+}
+
+/** The Instagram account belongs to another business: say which, and offer to move it here. */
+function IgElsewhere({ x }: { x: { account: string; business: string; moveTo: { storeId: string; igUserId: string; business: string } | null } }) {
+  const b = useT().boost;
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const move = () =>
+    start(async () => {
+      setError(null);
+      const r = await moveInstagramAction({ storeId: x.moveTo!.storeId, igUserId: x.moveTo!.igUserId });
+      if (r.ok) router.refresh();
+      else setError(r.error);
+    });
+  return (
+    <div className="gm-note" style={{ marginBottom: 10 }}>
+      <p style={{ margin: 0 }}>{b.igElsewhere(x.account, x.business)}</p>
+      {x.moveTo && (
+        <button type="button" className="gm-btn small" style={{ marginTop: 8 }} disabled={pending} onClick={move}>
+          {pending ? "…" : b.moveHere(x.account, x.moveTo.business)}
+        </button>
+      )}
+      {error && <p className="gm-err" role="alert">{error}</p>}
     </div>
   );
 }

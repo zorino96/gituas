@@ -763,6 +763,11 @@ export const ar: Dict = {
     failed: "تعذّر التحليل الآن. حاول مرة أخرى.",
     none: "لا توجد منشورات بعد. اربط فيسبوك أو إنستغرام، أو انشر منشوراً.",
     shopOnly: "الترويج للمتاجر.",
+    business: (name: string) => `النشاط: ${name}`,
+    igElsewhere: (account: string, business: string) => `حساب إنستغرام ${account} تابع لنشاط «${business}»، لذا تظهر منشوراته هناك. اختر تلك الصفحة في الأعلى لرؤيتها.`,
+    moveHere: (account: string, business: string) => `انقل ${account} إلى «${business}»`,
+    moveFailed: "تعذّر نقل الحساب. حدّث الصفحة وحاول مرة أخرى.",
+    moveTaken: "لهذا النشاط حساب إنستغرام بالفعل.",
   },
   orders: {
     title: "الطلبات",

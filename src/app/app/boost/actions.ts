@@ -1,5 +1,6 @@
 "use server";
 
+import { db } from "@/lib/db";
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
 import { withAccounts } from "@/lib/oauth/account-scope";
@@ -39,4 +40,33 @@ export async function analyzePostAction(input: { platform: "FB" | "IG"; postId: 
   const next = withAnalysis(await readBoostCache(ws.id), key, r.analysis);
   await writeBoostCache(ws.id, next);
   return { ok: true, key, analysis: r.analysis, left: Math.max(0, allowance - next.used), cached: false };
+}
+
+/**
+ * Put the connected Instagram account in another business (store) of this workspace: the one whose
+ * Page is chosen. Accounts join a store when they are connected, and with several Pages the first
+ * guess can be the wrong business. The account's history stays where it was.
+ */
+export async function moveInstagramAction(input: { storeId: string; igUserId: string }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const [ws, t] = await Promise.all([currentWorkspace(), getLang().then(dict)]);
+  const b = t.boost;
+  if (!ws) return { ok: false, error: t.actions.common.signIn };
+  if (ws.kind !== "MERCHANT") return { ok: false, error: b.shopOnly };
+  if (!can(ws.role, "configure")) return { ok: false, error: t.nr.team.roles.notAllowed };
+  const igUserId = String(input?.igUserId ?? "");
+  const [target, cred] = await Promise.all([
+    db.store.findFirst({ where: { id: String(input?.storeId ?? ""), tenantId: ws.id }, select: { id: true, igUserId: true } }),
+    db.oAuthCredential.findFirst({ where: { tenantId: ws.id, provider: "META_INSTAGRAM", providerAccountId: igUserId }, select: { providerAccountName: true } }),
+  ]);
+  if (!target || !cred) return { ok: false, error: b.moveFailed };
+  if (target.igUserId === igUserId) return { ok: true };
+  if (target.igUserId) return { ok: false, error: b.moveTaken };
+  await db.$transaction([
+    db.store.updateMany({ where: { tenantId: ws.id, igUserId }, data: { igUserId: null } }),
+    db.store.update({ where: { id: target.id }, data: { igUserId, igUsername: (cred.providerAccountName ?? "").replace(/^@/, "") || null } }),
+  ]);
+  await db.auditLog.create({
+    data: { tenantId: ws.id, actor: "USER", action: "store.instagram_moved", reasoning: `Moved Instagram ${cred.providerAccountName ?? igUserId} to another business.`, metadata: { igUserId, storeId: target.id } },
+  });
+  return { ok: true };
 }

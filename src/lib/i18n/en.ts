@@ -771,6 +771,11 @@ export const en: Dict = {
     failed: "The analysis could not be made right now. Try again.",
     none: "No posts yet. Connect Facebook or Instagram, or publish a post.",
     shopOnly: "Boost is for shops.",
+    business: (name: string) => `Business: ${name}`,
+    igElsewhere: (account: string, business: string) => `Instagram ${account} is part of the business “${business}”, so its posts show there. Choose that Page above to see them.`,
+    moveHere: (account: string, business: string) => `Move ${account} to “${business}”`,
+    moveFailed: "That account could not be moved. Refresh and try again.",
+    moveTaken: "This business already has an Instagram account.",
   },
   orders: {
     title: "Orders",

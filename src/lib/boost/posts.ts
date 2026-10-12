@@ -12,6 +12,8 @@ export type BoostPlatform = "FB" | "IG";
 
 export interface BoostPost {
   platform: BoostPlatform;
+  /** The Page or Instagram account the post is on, as the shop sees it. */
+  account: string;
   id: string;
   caption: string;
   thumbUrl: string | null;
@@ -29,17 +31,29 @@ export interface BoostPost {
 
 export const BOOST_DAYS = 90;
 
-export async function loadBoostPosts(tenantId: string, conns: Connections, perPlatform = 12): Promise<{ posts: BoostPost[]; errors: { platform: BoostPlatform; message: string }[] }> {
+/**
+ * `include` says which of the two connected accounts belong to the business being shown: a
+ * workspace with several Pages is shown one business at a time (see the Boost page).
+ */
+export async function loadBoostPosts(
+  tenantId: string,
+  conns: Connections,
+  include: { fb: boolean; ig: boolean } = { fb: true, ig: true },
+  perPlatform = 12,
+): Promise<{ posts: BoostPost[]; errors: { platform: BoostPlatform; message: string }[] }> {
   const errors: { platform: BoostPlatform; message: string }[] = [];
   const [ig, fb] = await Promise.all([
-    conns.META_INSTAGRAM.connected ? fetchMedia(tenantId, perPlatform) : Promise.resolve(null),
-    conns.META_FACEBOOK.connected ? fetchPagePosts(tenantId, perPlatform) : Promise.resolve(null),
+    include.ig && conns.META_INSTAGRAM.connected ? fetchMedia(tenantId, perPlatform) : Promise.resolve(null),
+    include.fb && conns.META_FACEBOOK.connected ? fetchPagePosts(tenantId, perPlatform) : Promise.resolve(null),
   ]);
+  const igName = conns.META_INSTAGRAM.name ?? "Instagram";
+  const fbName = conns.META_FACEBOOK.name ?? "Facebook";
   const posts: Omit<BoostPost, "messages" | "orders" | "productName">[] = [];
   if (ig && !ig.ok) errors.push({ platform: "IG", message: ig.error ?? "Instagram failed" });
   for (const m of ig?.data ?? []) {
     posts.push({
       platform: "IG",
+      account: igName,
       id: m.id,
       caption: m.caption ?? "",
       thumbUrl: (m.media_type === "VIDEO" ? m.thumbnail_url : m.media_url) ?? null,
@@ -54,6 +68,7 @@ export async function loadBoostPosts(tenantId: string, conns: Connections, perPl
   for (const p of fb?.data ?? []) {
     posts.push({
       platform: "FB",
+      account: fbName,
       id: p.id,
       caption: p.message ?? "",
       thumbUrl: p.full_picture ?? null,

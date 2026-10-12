@@ -27,20 +27,45 @@ export default async function BoostPage({ searchParams }: { searchParams: Promis
   if (!can(ws.role, "engage")) return <p className="gm-note warn">{t.nr.team.roles.notAllowed}</p>;
 
   const { choice, lists } = await accountChoiceFrom(ws.id, await searchParams);
-  const { conns, list, ig, igPosts } = await withAccounts(choice, async () => {
-    const conns = await loadConnections(ws.id);
-    const [list, ig, igPosts] = await Promise.all([loadBoostPosts(ws.id, conns), fetchIgAudience(ws.id), fetchIgPosts(ws.id)]);
-    return { conns, list, ig, igPosts };
+  const stores = await db.store.findMany({
+    where: { tenantId: ws.id },
+    select: { id: true, name: true, fbPageId: true, igUserId: true, deliveryCityFees: true, deliveryFeeMinor: true, deliveryCurrency: true },
   });
-  const [audience, stores, insight, cache, allowance] = await Promise.all([
-    loadBuyerProfile(ws.id),
-    db.store.findMany({ where: { tenantId: ws.id }, select: { deliveryCityFees: true, deliveryFeeMinor: true, deliveryCurrency: true } }),
+  const { conns, list, ig, igPosts, store, igElsewhere } = await withAccounts(choice, async () => {
+    const conns = await loadConnections(ws.id);
+    // One business at a time: the chosen Page decides it (or the Instagram account, with no Page).
+    // A Page and an Instagram account of two different businesses are never mixed in one list.
+    const fbId = conns.META_FACEBOOK.connected ? conns.META_FACEBOOK.accountId : undefined;
+    const igId = conns.META_INSTAGRAM.connected ? conns.META_INSTAGRAM.accountId : undefined;
+    const store = stores.find((s) => fbId && s.fbPageId === fbId) ?? stores.find((s) => igId && s.igUserId === igId) ?? (stores.length === 1 ? stores[0] : null);
+    const include = {
+      fb: !!fbId && (!store || !store.fbPageId || store.fbPageId === fbId),
+      ig: !!igId && (!store || store.igUserId === igId || (!store.igUserId && !stores.some((s) => s.igUserId === igId))),
+    };
+    const owner = igId && !include.ig ? stores.find((s) => s.igUserId === igId) : undefined;
+    const [list, ig, igPosts] = await Promise.all([
+      loadBoostPosts(ws.id, conns, include),
+      include.ig ? fetchIgAudience(ws.id) : Promise.resolve(null),
+      include.ig ? fetchIgPosts(ws.id) : Promise.resolve([]),
+    ]);
+    const igElsewhere = owner
+      ? {
+          account: conns.META_INSTAGRAM.name ?? "Instagram",
+          business: owner.name,
+          // It can join the business being shown when that one has no Instagram account yet.
+          moveTo: store && !store.igUserId && igId ? { storeId: store.id, igUserId: igId, business: store.name } : null,
+        }
+      : null;
+    return { conns, list, ig, igPosts, store, igElsewhere };
+  });
+  const [audience, insight, cache, allowance] = await Promise.all([
+    loadBuyerProfile(ws.id, store?.id),
     db.audienceInsight.findUnique({ where: { tenantId: ws.id }, select: { data: true, basedOn: true, updatedAt: true } }),
     readBoostCache(ws.id),
     dailyAllowance(ws.id),
   ]);
   const ai = insight ? parseAiAudience(insight.data) : null;
-  const deliverCities = [...new Set(stores.flatMap((s) => Object.keys(cityFees({ ...s, deliveryTime: null }))))];
+  const deliverCities = [...new Set((store ? [store] : stores).flatMap((s) => Object.keys(cityFees({ ...s, deliveryTime: null }))))];
   const perPost = await ordersByPost(ws.id, igPosts.map((p) => p.id));
   const boost = {
     targeting: targetingFor(audience, ig, deliverCities, ai),
@@ -55,6 +80,8 @@ export default async function BoostPage({ searchParams }: { searchParams: Promis
     <>
       <AccountSwitcher lists={{ FB: lists.META_FACEBOOK, IG: lists.META_INSTAGRAM }} selected={{ FB: conns.META_FACEBOOK.accountId, IG: conns.META_INSTAGRAM.accountId }} />
       <BoostClient
+        business={store?.name ?? null}
+        igElsewhere={igElsewhere}
         audience={audience}
         boost={boost}
         posts={list.posts}
