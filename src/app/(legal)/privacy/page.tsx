@@ -222,6 +222,10 @@ export default function PrivacyPage() {
         </LI>
         <LI>
           <Strong>Voice-over.</Strong> Pawan.Krd text-to-speech reads the script of a news video aloud.
+          An Enterprise desk may upload a short recording of a voice, with the words spoken in it and
+          the speaker&rsquo;s consent; that recording is kept in our storage (Vercel Blob) at a private
+          address and is sent to Pawan.Krd with each script so the video is read in that voice. The
+          desk can remove it at any time from its settings.
         </LI>
         <LI>
           <Strong>Hosting and storage.</Strong> Vercel (the application and uploaded files, through

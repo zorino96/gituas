@@ -17,7 +17,7 @@ import { VOICE_NOTE_MAX } from "@/lib/news/voice";
 import { FOCUS_PROMPT_MAX, type FilterMode } from "@/lib/news/focus-shared";
 import type { PromptFilter } from "@/lib/billing/plans";
 import type { LibraryClip } from "@/lib/news/clips";
-import { PAWAN_VOICES, SPEECH_SPEED, VOICE_NAMES } from "@/lib/voice/voices";
+import { CUSTOM_VOICE, PAWAN_VOICES, SPEECH_SPEED, VOICE_NAMES } from "@/lib/voice/voices";
 import { useLang } from "@/lib/i18n/client";
 import {
   addRssSourceAction,
@@ -34,6 +34,8 @@ import {
   addNewsClipAction,
   deleteNewsClipAction,
   previewVoiceAction,
+  saveVoiceCloneAction,
+  deleteVoiceCloneAction,
   saveVoiceNoteAction,
   setKeywordFilterAction,
   toggleCatalogSourceAction,
@@ -49,7 +51,21 @@ export interface NewsSettingsProps {
   /** Keywords or a prompt; `level` is what the plan includes (none on LITE and MANUAL). */
   filter: { level: PromptFilter; mode: FilterMode; focus: string; exclude: string; broad: boolean };
   /** Auto-video: `quota` 0 means the plan has none; `full` is ENTERPRISE (the prompt). */
-  video: { quota: number; used: number; full: boolean; mode: "OFF" | "AUTO"; style: "TEMPLATE" | "HIGHLIGHT"; clips: LibraryClip[]; topics: string[]; dailyMax: number; voice: string; speed: number; prompt: string };
+  video: {
+    quota: number;
+    used: number;
+    full: boolean;
+    mode: "OFF" | "AUTO";
+    style: "TEMPLATE" | "HIGHLIGHT";
+    clips: LibraryClip[];
+    topics: string[];
+    dailyMax: number;
+    voice: string;
+    speed: number;
+    prompt: string;
+    /** The desk's own voice recording (ENTERPRISE). */
+    clone: { saved: boolean; text: string; seconds: number };
+  };
   voiceNote: string;
   autopilot: {
     mode: AutoMode;
@@ -96,6 +112,40 @@ export function NewsSettings(p: NewsSettingsProps) {
   const lang = useLang();
   const [video, setVideo] = useState({ ...p.video, dailyMax: String(p.video.dailyMax) });
   const [hearing, setHearing] = useState<string | null>(null);
+  const [clone, setClone] = useState({ file: null as File | null, text: p.video.clone.text, consent: false, busy: false });
+
+  /** Read the chosen recording (length from the browser), send it with its words and the consent. */
+  async function saveClone() {
+    const file = clone.file;
+    if (!file) return setMsg({ ok: false, text: tn.cloneBadFile });
+    setClone((c) => ({ ...c, busy: true }));
+    try {
+      const url = URL.createObjectURL(file);
+      const seconds = await new Promise<number>((resolve) => {
+        const a = new Audio();
+        a.preload = "metadata";
+        a.onloadedmetadata = () => resolve(a.duration);
+        a.onerror = () => resolve(0);
+        a.src = url;
+      });
+      URL.revokeObjectURL(url);
+      const audio = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
+        r.onerror = () => reject(new Error("read failed"));
+        r.readAsDataURL(file);
+      });
+      const res = await saveVoiceCloneAction({ audio, mime: file.type, seconds, text: clone.text, consent: clone.consent });
+      if (!res.ok) return setMsg({ ok: false, text: res.error });
+      setMsg({ ok: true, text: tn.cloneSaved });
+      setVideo((v) => ({ ...v, voice: CUSTOM_VOICE }));
+      router.refresh();
+    } catch {
+      setMsg({ ok: false, text: tn.cloneBadFile });
+    } finally {
+      setClone((c) => ({ ...c, busy: false }));
+    }
+  }
   const [filter, setFilter] = useState(p.filter);
 
   async function listen(voice: string) {
@@ -637,6 +687,51 @@ export function NewsSettings(p: NewsSettingsProps) {
                     </span>
                   ))}
                 </div>
+                {video.full && (
+                  <div className="gm-card gm-stack" style={{ gap: 10 }}>
+                    <p className="gm-hint" style={{ margin: 0, fontWeight: 700 }}>{tn.cloneTitle}</p>
+                    <p className="gm-hint" style={{ margin: 0 }}>{tn.cloneHint}</p>
+                    {p.video.clone.saved && (
+                      <div className="gm-row" style={{ gap: 6, flexWrap: "wrap" }}>
+                        <button type="button" className="gm-chip" aria-pressed={video.voice === CUSTOM_VOICE} onClick={() => setVideo((v) => ({ ...v, voice: CUSTOM_VOICE }))}>
+                          {tn.cloneVoiceName} · {Math.round(p.video.clone.seconds)}s
+                        </button>
+                        <button type="button" className="gm-btn quiet small" aria-label={`${tn.videoListen}: ${tn.cloneVoiceName}`} disabled={hearing !== null} onClick={() => listen(CUSTOM_VOICE)}>
+                          {hearing === CUSTOM_VOICE ? "…" : "▶"}
+                        </button>
+                        <button
+                          type="button"
+                          className="gm-btn quiet small"
+                          disabled={pending}
+                          onClick={() =>
+                            run(async () => {
+                              const r = await deleteVoiceCloneAction();
+                              if (r.ok) setVideo((v) => ({ ...v, voice: v.voice === CUSTOM_VOICE ? "male" : v.voice }));
+                              return r;
+                            }, tn.cloneDeleted)
+                          }
+                        >
+                          {tn.cloneDelete}
+                        </button>
+                      </div>
+                    )}
+                    <div className="gm-field">
+                      <label htmlFor="ns-clone-file">{tn.cloneFile}</label>
+                      <input id="ns-clone-file" type="file" accept="audio/wav,audio/x-wav,audio/mpeg,audio/mp3,audio/mp4,audio/x-m4a,audio/ogg" onChange={(e) => setClone((c) => ({ ...c, file: e.target.files?.[0] ?? null }))} />
+                    </div>
+                    <div className="gm-field">
+                      <label htmlFor="ns-clone-text">{tn.cloneText}</label>
+                      <textarea id="ns-clone-text" className="gm-textarea" dir="auto" rows={2} maxLength={400} value={clone.text} onChange={(e) => setClone((c) => ({ ...c, text: e.target.value }))} />
+                    </div>
+                    <label className="gm-row" style={{ gap: 8, alignItems: "flex-start" }}>
+                      <input type="checkbox" checked={clone.consent} onChange={(e) => setClone((c) => ({ ...c, consent: e.target.checked }))} />
+                      <small>{tn.cloneConsent}</small>
+                    </label>
+                    <button type="button" className="gm-btn" disabled={clone.busy || !clone.file || !clone.consent || !clone.text.trim()} onClick={saveClone}>
+                      {clone.busy ? "…" : tn.cloneSave}
+                    </button>
+                  </div>
+                )}
                 <div className="gm-field">
                   <label htmlFor="ns-video-speed">{tn.videoSpeed(video.speed.toFixed(2))}</label>
                   <input

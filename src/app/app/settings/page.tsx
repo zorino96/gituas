@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { loadVoiceClone } from "@/lib/voice/clone";
 import { isFrameText } from "@/lib/cards/brand";
 import { db } from "@/lib/db";
 import { canAutoPublish, promptFilterFor, refreshSecFor, videoQuotaFor } from "@/lib/billing/plans";
@@ -65,6 +66,11 @@ export default async function SettingsPage({
         voice: settings?.videoVoice ?? "male",
         speed: settings?.videoSpeed ?? 1,
         prompt: settings?.videoPrompt ?? "",
+        clone: await (async () => {
+          if (tenant?.plan !== "ENTERPRISE") return { saved: false, text: "", seconds: 0 };
+          const c = await loadVoiceClone(ws.id);
+          return { saved: !!c, text: c?.text ?? "", seconds: c?.seconds ?? 0 };
+        })(),
       },
       filter: {
         level: promptFilterFor(tenant?.plan),

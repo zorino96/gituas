@@ -20,6 +20,8 @@ import { completeJson } from "@/lib/ai/provider";
 import { countUsage, usageOf } from "@/lib/billing/limits";
 import { videoQuotaFor } from "@/lib/billing/plans";
 import { cleanSpeed, isPawanVoice, speak } from "@/lib/voice/tts";
+import { CUSTOM_VOICE, deskVoice } from "@/lib/voice/voices";
+import { cloneVoiceFor } from "@/lib/voice/clone";
 import { clipsForStory } from "./clips";
 import { cleanFocusPrompt } from "./focus-shared";
 import { categoryLabel, matchesChoice, normalizeChoice } from "./taxonomy";
@@ -222,7 +224,7 @@ export async function queueVideoIfWanted(
         draftId,
         style: clips.length ? "HIGHLIGHT" : "TEMPLATE",
         clips,
-        voice: isPawanVoice(settings!.videoVoice) ? settings!.videoVoice : "male",
+        voice: deskVoice(settings!.videoVoice, plan),
         speed: cleanSpeed(settings!.videoSpeed),
       },
       select: { id: true },
@@ -273,12 +275,15 @@ export async function prepareVideo(jobId: string): Promise<boolean> {
     const { system, user } = reelPrompt(draft);
     const script = (await completeJson({ system, user, strength: "fast", thinking: false }, parseReelScript)).data;
 
+    // The desk's own voice (ENTERPRISE): read once per video; without it a ready-made voice reads.
+    const clone = job.voice === CUSTOM_VOICE ? await cloneVoiceFor(job.tenantId) : null;
+    const readyVoice = job.voice === CUSTOM_VOICE ? "male" : job.voice;
     const segments = [];
     for (const [i, original] of script.segments.entries()) {
       let seg = original;
       let voice;
       try {
-        voice = await speak({ text: seg.say, lang: "ckb", voice: job.voice, speed: job.speed });
+        voice = await speak({ text: seg.say, lang: "ckb", voice: readyVoice, speed: job.speed, clone });
       } catch (e) {
         if (!isNotSoraniRefusal(e)) throw e;
         // Pawan did not read the sentence as Sorani: say it once more in plainer Sorani, and leave
@@ -287,7 +292,7 @@ export async function prepareVideo(jobId: string): Promise<boolean> {
         try {
           if (!again) throw e;
           seg = { ...seg, say: again };
-          voice = await speak({ text: seg.say, lang: "ckb", voice: job.voice, speed: job.speed });
+          voice = await speak({ text: seg.say, lang: "ckb", voice: readyVoice, speed: job.speed, clone });
         } catch (e2) {
           if (seg.kind === "stat" || seg.kind === "fact") continue;
           throw e2;

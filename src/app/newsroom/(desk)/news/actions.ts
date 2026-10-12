@@ -11,7 +11,10 @@ import { del, put } from "@vercel/blob";
 import { cleanDailyMax, isVideoMode, ownClips, prepareVideo, VIDEO_STYLES } from "@/lib/news/video";
 import { CLIP_LIBRARY_MAX, cleanClipLabel, type LibraryClip } from "@/lib/news/clips";
 import { isOwnPhoto, PHOTO_LIBRARY_MAX, photoForStory } from "@/lib/news/photos";
-import { cleanSpeed, isPawanVoice, speak } from "@/lib/voice/tts";
+import { cleanSpeed, isPawanVoice, speak, speakWithClone } from "@/lib/voice/tts";
+import { CUSTOM_VOICE, deskVoice } from "@/lib/voice/voices";
+import { CLONE_MAX_BYTES, CLONE_MIMES, cleanCloneSeconds, cleanCloneText, deleteVoiceClone, loadVoiceClone, referenceDataUri, saveVoiceClone } from "@/lib/voice/clone";
+import { auth } from "@/auth";
 import { AiUnavailable, type Strength } from "@/lib/ai/provider";
 import { autoAccountsFor, autoTargetsFor, parseAutopilot } from "@/lib/news/autopilot-settings";
 import { catalogEntry } from "@/lib/news/catalog";
@@ -424,7 +427,8 @@ export async function saveVideoSettingsAction(input: {
     videoStyle: (VIDEO_STYLES as readonly string[]).includes(input?.style ?? "") ? input.style! : "TEMPLATE",
     videoTopics: normalizeChoice(Array.isArray(input?.topics) ? input.topics.slice(0, 60).map(String) : []),
     videoDailyMax: cleanDailyMax(input?.dailyMax),
-    videoVoice: isPawanVoice(input?.voice) ? input.voice : "male",
+    // The desk's own voice only once its recording is saved (ENTERPRISE).
+    videoVoice: input?.voice === CUSTOM_VOICE && (tenant?.plan !== "ENTERPRISE" || !(await loadVoiceClone(ws.id))) ? "male" : deskVoice(input?.voice, tenant?.plan),
     videoSpeed: cleanSpeed(input?.speed),
     // The prompt is ENTERPRISE's; on other plans what was saved stays as it is.
     ...(tenant?.plan === "ENTERPRISE" ? { videoPrompt: cleanFocusPrompt(input?.prompt) } : {}),
@@ -534,7 +538,7 @@ export async function makeVideoAction(draftId: string, clips: string[]): Promise
       draftId: draft.id,
       style: own.length ? "HIGHLIGHT" : "TEMPLATE",
       clips: own,
-      voice: isPawanVoice(settings?.videoVoice) ? settings!.videoVoice : "male",
+      voice: deskVoice(settings?.videoVoice, tenant?.plan),
       speed: cleanSpeed(settings?.videoSpeed),
       autoPost: false,
     },
@@ -565,10 +569,18 @@ export async function previewVoiceAction(voice: string, speed: number): Promise<
   if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
   const tenant = await db.tenant.findUnique({ where: { id: ws.id }, select: { plan: true } });
   if (videoQuotaFor(tenant?.plan) < 1) return { ok: false, error: t.settings.news.videoPlanOnly };
-  if (!isPawanVoice(voice)) return { ok: false, error: t.common.error };
+  if (!isPawanVoice(voice) && voice !== CUSTOM_VOICE) return { ok: false, error: t.common.error };
   const s = cleanSpeed(speed);
   try {
-    const audio = await speak({ text: VOICE_SAMPLE, lang: "ckb", voice, speed: s });
+    let audio;
+    if (voice === CUSTOM_VOICE) {
+      // The desk's own voice: only the clone may answer here, so the desk hears what it will get.
+      const clone = tenant?.plan === "ENTERPRISE" ? await loadVoiceClone(ws.id) : null;
+      if (!clone) return { ok: false, error: t.settings.news.cloneMissing };
+      audio = await speakWithClone(VOICE_SAMPLE, { dataUri: await referenceDataUri(clone), seconds: clone.seconds, text: clone.text }, s);
+    } else {
+      audio = await speak({ text: VOICE_SAMPLE, lang: "ckb", voice, speed: s });
+    }
     const blob = await put(`merchant/${ws.id}/voice-preview/${voice}-${s}.mp3`, audio.audio, {
       access: "public",
       contentType: audio.mime,
@@ -611,5 +623,48 @@ export async function saveNewsFilterAction(input: { mode: string; focus: string;
     after(() => judgeFocus(ws.id));
   }
   revalidatePath("/newsroom/news");
+  return { ok: true };
+}
+
+/** The desk's own voice: is a recording saved, and its words (ENTERPRISE). */
+export async function voiceCloneStatusAction(): Promise<Result<{ saved: boolean; text: string; seconds: number; consentAt: string | null }>> {
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  const clone = await loadVoiceClone(ws.id);
+  return { ok: true, saved: !!clone, text: clone?.text ?? "", seconds: clone?.seconds ?? 0, consentAt: clone?.consentAt ?? null };
+}
+
+/**
+ * Save the desk's voice recording (ENTERPRISE): a short clip, the exact words spoken in it, and the
+ * person's confirmation that the speaker agreed to their voice being copied for the desk's videos.
+ */
+export async function saveVoiceCloneAction(input: { audio: string; mime: string; seconds: number; text: string; consent: boolean }): Promise<Result> {
+  const { ws, m, t } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
+  const tn = t.settings.news;
+  const tenant = await db.tenant.findUnique({ where: { id: ws.id }, select: { plan: true } });
+  if (tenant?.plan !== "ENTERPRISE") return { ok: false, error: tn.clonePlanOnly };
+  if (input?.consent !== true) return { ok: false, error: tn.cloneNeedsConsent };
+  const text = cleanCloneText(input?.text);
+  if (!text) return { ok: false, error: tn.cloneNeedsText };
+  const seconds = cleanCloneSeconds(input?.seconds);
+  if (!seconds) return { ok: false, error: tn.cloneBadLength };
+  const mime = String(input?.mime ?? "").toLowerCase().split(";")[0];
+  if (!(CLONE_MIMES as readonly string[]).includes(mime)) return { ok: false, error: tn.cloneBadFile };
+  const audio = Buffer.from(String(input?.audio ?? ""), "base64");
+  if (audio.length < 1024 || audio.length > CLONE_MAX_BYTES) return { ok: false, error: tn.cloneBadFile };
+  const session = await auth();
+  await saveVoiceClone(ws.id, { audio, mime, seconds, text, consentBy: session?.user?.email ?? session?.user?.id ?? "unknown" });
+  return { ok: true };
+}
+
+/** Remove the desk's voice recording; its videos go back to a ready-made voice. */
+export async function deleteVoiceCloneAction(): Promise<Result> {
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
+  await deleteVoiceClone(ws.id);
+  await db.newsSettings.updateMany({ where: { tenantId: ws.id, videoVoice: CUSTOM_VOICE }, data: { videoVoice: "male" } });
   return { ok: true };
 }

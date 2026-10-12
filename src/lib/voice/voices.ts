@@ -35,6 +35,15 @@ export const VOICE_NAMES: Record<PawanVoice, { ku: string; en: string }> = {
 
 export const SPEECH_SPEED = { min: 0.8, max: 1.3, fallback: 1 } as const;
 
+/** The desk's own (cloned) voice, ENTERPRISE only — see src/lib/voice/clone.ts. */
+export const CUSTOM_VOICE = "custom";
+
+/** The voice a desk's videos use: its own voice on ENTERPRISE, else a Pawan voice, else "male". */
+export function deskVoice(v: unknown, plan: string | null | undefined): string {
+  if (v === CUSTOM_VOICE) return plan === "ENTERPRISE" ? CUSTOM_VOICE : "male";
+  return isPawanVoice(v) ? v : "male";
+}
+
 export function isPawanVoice(v: unknown): v is PawanVoice {
   return typeof v === "string" && (PAWAN_VOICES as readonly string[]).includes(v);
 }

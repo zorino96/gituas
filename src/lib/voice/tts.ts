@@ -32,6 +32,15 @@ const TIMEOUT_MS = 45_000;
 
 const PAWAN_URL = "https://api.pawan.krd/v1/audio/speech";
 const PAWAN_MODEL = "pkrd/tts-ku";
+/** The private model that reads in the voice of a reference recording (ENTERPRISE desks, src/lib/voice/clone.ts). */
+const PAWAN_CLONE_MODEL = "pkrd/tts-ku-private";
+
+/** A desk's own voice: the reference recording as a data URI, its length and the words spoken in it. */
+export interface CloneVoice {
+  dataUri: string;
+  seconds: number;
+  text: string;
+}
 import { cleanSpeed, isPawanVoice, SPEECH_SPEED } from "./voices";
 
 export { cleanSpeed, isPawanVoice, PAWAN_VOICES, SPEECH_SPEED } from "./voices";
@@ -108,6 +117,30 @@ async function pawan(text: string, gender: VoiceGender, voice?: string, speed: n
   return { audio, mime: "audio/mpeg", provider: "pawan" };
 }
 
+async function pawanClone(text: string, clone: CloneVoice, speed: number = SPEECH_SPEED.fallback): Promise<Speech> {
+  const res = await fetch(PAWAN_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.PAWAN_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: PAWAN_CLONE_MODEL,
+      input: text,
+      response_format: "mp3",
+      speed: cleanSpeed(speed),
+      sample_rate: 24000,
+      language: "ckb",
+      voice_reference: clone.dataUri,
+      voice_reference_length: clone.seconds,
+      voice_reference_text: clone.text,
+    }),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  const audio = Buffer.from(await res.arrayBuffer());
+  if (!res.ok || audio.length < 512 || /json/i.test(res.headers.get("content-type") ?? "")) {
+    throw new Error(`pawan-clone ${res.status}: ${audio.toString("utf8", 0, 160)}`);
+  }
+  return { audio, mime: "audio/mpeg", provider: "pawan" };
+}
+
 /** Gemini does not officially speak Kurdish and now and then answers without audio; a second try usually speaks. */
 const GEMINI_TRIES = 2;
 
@@ -151,11 +184,22 @@ async function geminiOnce(text: string, lang: VoiceLang, gender: VoiceGender): P
 }
 
 /** Read `text` aloud in `lang`: the first provider that answers wins. */
-export async function speak(input: { text: string; lang: VoiceLang; gender?: VoiceGender; voice?: string; speed?: number }): Promise<Speech> {
+export async function speak(input: { text: string; lang: VoiceLang; gender?: VoiceGender; voice?: string; speed?: number; clone?: CloneVoice | null }): Promise<Speech> {
   const text = speechText(input.text);
   const gender = input.gender ?? "male";
   if (!text) throw new SpeechUnavailable(["empty text"]);
   const reasons: string[] = [];
+  // The desk's own voice first; when Pawan will not clone it (no access, no credits), the desk's
+  // chosen ready-made voice reads instead, so a video is never lost to the clone.
+  if (input.clone && input.lang === "ckb" && process.env.PAWAN_API_KEY) {
+    try {
+      return await pawanClone(text, input.clone, input.speed);
+    } catch (e) {
+      const why = e instanceof Error ? e.message : String(e);
+      reasons.push(why);
+      console.error("[voice]", why);
+    }
+  }
   for (const p of providersFor(input.lang)) {
     try {
       return p === "pawan" ? await pawan(text, gender, input.voice, input.speed) : await gemini(text, input.lang, gender);
@@ -166,4 +210,12 @@ export async function speak(input: { text: string; lang: VoiceLang; gender?: Voi
     }
   }
   throw new SpeechUnavailable(reasons);
+}
+
+/** Only the desk's own voice (no fallback): for the preview, so the desk hears exactly that voice. */
+export async function speakWithClone(text: string, clone: CloneVoice, speed?: number): Promise<Speech> {
+  if (!process.env.PAWAN_API_KEY) throw new SpeechUnavailable(["no Pawan key"]);
+  const t = speechText(text);
+  if (!t) throw new SpeechUnavailable(["empty text"]);
+  return pawanClone(t, clone, speed);
 }
