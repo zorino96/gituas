@@ -5,13 +5,28 @@ import { BarChart3, LayoutTemplate, ShieldCheck, Sparkles, Send, Users } from "l
 
 import { currentWorkspace, listWorkspaces } from "@/app/app/data";
 import { LangSwitch } from "@/app/app/lang-switch";
+import { NEWSROOM_ORIGIN } from "@/lib/hosts";
 import { dict, getLang } from "@/lib/i18n";
 import { NewsroomRoot } from "./desk-shell";
 import { ShopNotice } from "./shop-notice";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = dict(await getLang()).nr.shell;
-  return { title: t.name, description: t.landing.metaDescription };
+  return {
+    metadataBase: new URL(NEWSROOM_ORIGIN),
+    title: t.name,
+    description: t.landing.metaDescription,
+    alternates: { canonical: "/" },
+    openGraph: {
+      type: "website",
+      url: "/",
+      siteName: "Hawalnoos",
+      title: t.name,
+      description: t.landing.metaDescription,
+      images: [{ url: "/brand/hawalnoos-cover-1640x624.png", width: 1640, height: 624 }],
+    },
+    twitter: { card: "summary_large_image", title: t.name, description: t.landing.metaDescription, images: ["/brand/hawalnoos-cover-1640x624.png"] },
+  };
 }
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 export const dynamic = "force-dynamic";

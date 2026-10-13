@@ -18,7 +18,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const next = safeNext((await searchParams).next, "/app");
   const t = dict(await getLang());
-  return { title: `${t.auth.signup.pageTitle} — ${next.startsWith("/newsroom") ? t.nr.shell.name : t.brand}` };
+  return { title: `${t.auth.signup.pageTitle} — ${next.startsWith("/newsroom") ? t.nr.shell.name : t.brand}`, robots: { index: false, follow: false } };
 }
 
 export default async function SignupPage({ searchParams }: { searchParams: Promise<{ next?: string | string[] }> }) {

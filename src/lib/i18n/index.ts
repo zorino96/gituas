@@ -24,10 +24,11 @@
  * This file imports next/headers, so client components must import from "./client", not here
  * (type-only imports from here are fine).
  */
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { ar } from "./ar";
 import { ckb, type Dict } from "./ckb";
+import { detectLang } from "./detect";
 import { en } from "./en";
 import type { Lang } from "./lang";
 
@@ -46,8 +47,17 @@ export function dict(lang: Lang): Dict {
   return lang === "ar" ? ar : lang === "en" ? en : ckb;
 }
 
-/** The language from the gm_lang cookie; Sorani when it is missing or unknown. Server only. */
+/**
+ * The language of this request, server only: the gm_lang cookie when the visitor chose one, else the browser's
+ * Accept-Language and country (English for the world, Sorani at home in Iraq; rules in ./detect.ts).
+ */
 export async function getLang(): Promise<Lang> {
   const v = (await cookies()).get(LANG_COOKIE)?.value;
-  return isLang(v) ? v : DEFAULT_LANG;
+  if (isLang(v)) return v;
+  try {
+    const h = await headers();
+    return detectLang({ acceptLanguage: h.get("accept-language"), country: h.get("x-vercel-ip-country") });
+  } catch {
+    return DEFAULT_LANG;
+  }
 }

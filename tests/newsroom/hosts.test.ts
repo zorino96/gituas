@@ -19,6 +19,11 @@ describe("routeFor on the newsroom domain", () => {
     });
     expect(routeFor("localhost:3012", "/newsroom/card-render/abc123", "?t=1800000300.ab")).toEqual({ kind: "next" });
   });
+  it("sends the public website's language pages to the shop domain", () => {
+    expect(r("/en")).toEqual({ kind: "redirect", url: `${SHOP_ORIGIN}/en` });
+    expect(r("/ku/guides/kurdish-ai-video-ads")).toEqual({ kind: "redirect", url: `${SHOP_ORIGIN}/ku/guides/kurdish-ai-video-ads` });
+    expect(r("/english")).toEqual({ kind: "next" });
+  });
   it("sends shop and operator pages to the shop domain", () => {
     expect(r("/app/settings", "?a=1")).toEqual({ kind: "redirect", url: `${SHOP_ORIGIN}/app/settings?a=1` });
     expect(r("/dashboard")).toEqual({ kind: "redirect", url: `${SHOP_ORIGIN}/dashboard` });
@@ -44,6 +49,9 @@ describe("routeFor on the shop domain", () => {
     expect(r("/newsroom/news", "?tab=new")).toEqual({ kind: "redirect", url: `${NEWSROOM_ORIGIN}/newsroom/news?tab=new` });
     expect(r("/newsroom")).toEqual({ kind: "redirect", url: `${NEWSROOM_ORIGIN}/newsroom` });
     expect(r("/login", "?next=%2Fnewsroom%2Fnews")).toEqual({ kind: "redirect", url: `${NEWSROOM_ORIGIN}/login?next=%2Fnewsroom%2Fnews` });
+  });
+  it("serves the public website's language pages as they are", () => {
+    for (const p of ["/en", "/ku/pricing", "/ar/guides/kurdish-ai-video-ads"]) expect(r(p)).toEqual({ kind: "next" });
   });
   it("shows the welcome page at the root", () => {
     expect(r("/")).toEqual({ kind: "rewrite", path: "/welcome" });

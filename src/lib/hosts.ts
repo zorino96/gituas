@@ -15,6 +15,8 @@ const NEXT: Route = { kind: "next" };
 const AUTH_PAGES = new Set(["/login", "/signup", "/forgot"]);
 /** Shop-only and operator-only areas. */
 const SHOP_ONLY = /^\/(app|dashboard|mobile|w)(\/|$)/;
+/** The public website's pages (landing, guides, pricing in /en /ku /ar) belong to the shop domain. */
+const SITE_PAGES = /^\/(en|ku|ar)(\/|$)/;
 const NEWSROOM = /^\/newsroom(\/|$)/;
 
 /** Where a request belongs, by host and path. Pure, so the proxy stays thin and testable. */
@@ -30,7 +32,7 @@ export function routeFor(hostHeader: string, path: string, search: string): Rout
   if (NEWS_HOSTS.has(host)) {
     if (host !== "hawalnoos.com") return { kind: "redirect", url: `${NEWSROOM_ORIGIN}${path}${search}` };
     if (path === "/") return { kind: "rewrite", path: "/newsroom" };
-    if (SHOP_ONLY.test(path)) return { kind: "redirect", url: `${SHOP_ORIGIN}${path}${search}` };
+    if (SHOP_ONLY.test(path) || SITE_PAGES.test(path)) return { kind: "redirect", url: `${SHOP_ORIGIN}${path}${search}` };
     if (AUTH_PAGES.has(path)) {
       if (next.startsWith("/app")) return { kind: "redirect", url: `${SHOP_ORIGIN}${path}${search}` };
       if (!next && !params.has("callbackUrl")) {

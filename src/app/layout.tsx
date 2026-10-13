@@ -24,10 +24,14 @@ const splineMono = Spline_Sans_Mono({
   display: "swap",
 });
 
+// The defaults of every page that has none of its own (the website's pages set theirs: src/lib/site/seo.ts).
 export const metadata: Metadata = {
-  title: "gituas — the night shift for indie software",
+  metadataBase: new URL("https://gituas.com"),
+  title: "Gituas — AI replies, orders and video ads for shops in Kurdistan and Iraq",
   description:
-    "give it to us and sleep. connect a repo, fund the wallet, close the laptop. our agents deploy, market, scale and route the earnings to your bank — and leave a note for the morning.",
+    "Gituas answers your Facebook and Instagram comments and messages in Kurdish and Arabic, collects orders, and makes video ads and pictures with AI. Free to start.",
+  applicationName: "Gituas",
+  openGraph: { siteName: "Gituas", type: "website" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

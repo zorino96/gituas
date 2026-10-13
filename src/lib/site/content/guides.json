@@ -1,0 +1,2390 @@
+[
+ {
+  "slug": "automatic-replies-facebook-instagram-comments",
+  "en": {
+   "slug": "automatic-replies-facebook-instagram-comments",
+   "title": "How to reply automatically to Facebook and Instagram comments in Kurdish and Arabic",
+   "metaTitle": "Automatic Facebook and Instagram Comment Replies in Kurdish",
+   "metaDescription": "How to reply to 'how much?' comments on Facebook and Instagram in Kurdish and Arabic, with a public reply, a private price message and set-up steps.",
+   "answer": "Gituas replies to Facebook and Instagram comments automatically, in Kurdish (Sorani) and Arabic. A comment such as «نرخی چەندە؟» (“how much?”) gets a short public reply, and the price and details reach the buyer privately in a direct message within seconds. You link a product with its prices to a post once; the Free plan covers the newest 3 posts.",
+   "keyPoints": [
+    "A «نرخی چەندە؟» comment gets a public reply plus a private price message within seconds.",
+    "Replies use the product linked to the post; Gituas never invents a price.",
+    "Complaints, haggling, abuse and unclear messages go to the owner.",
+    "Free plan: 0 IQD, newest 3 posts, up to 100 automatic replies a day."
+   ],
+   "sections": [
+    {
+     "h2": "Why do price comments need a fast answer?",
+     "paragraphs": [
+      "Because the buyer asks in public and then waits for the seller to answer. «نرخی چەندە؟» is one of the questions sellers in Kurdistan and Iraq get again and again, together with delivery to my city, size or colour, and address.",
+      "Online selling in Kurdistan and Iraq runs largely through social media: a comment, then a direct message or WhatsApp, then cash on delivery. Estimates say most Iraqi e-commerce is social-led, and a 2020 survey in the Kurdistan Region found cash on delivery at about two thirds of online orders.",
+      "A price question sits under the post, where other readers can see whether it was answered. Answering within seconds, around the clock, is what automatic replies are for."
+     ]
+    },
+    {
+     "h2": "What should you automate?",
+     "paragraphs": [
+      "Automate the questions that have one fixed answer, and keep the rest for yourself. The test is simple: if two buyers asking the same question should get the same answer, automate it. Complaints, haggling and abuse stay with you; Gituas hands those over.",
+      "Good candidates:"
+     ],
+     "bullets": [
+      "Price, taken from the product's own prices.",
+      "Sizes and other product details you have entered.",
+      "Where and how to order, including the WhatsApp order link.",
+      "Delivery details that you have written into your instructions."
+     ]
+    },
+    {
+     "h2": "How does a public reply plus a private message work?",
+     "paragraphs": [
+      "Gituas posts a short public reply under the comment and sends the price and details privately in a direct message, within seconds. It works on Facebook Pages and Instagram, around the clock.",
+      "The public reply shows everyone reading that the page answers. The private message carries the detail and starts a direct message conversation, where Gituas can continue in Kurdish or Arabic and collect the order step by step: name, phone, city, address, product and size.",
+      "A public reply might read: «سوپاس بۆ پرسیارەکەت، نرخ و وردەکارییەکان بۆ نامەی تایبەتت نێردران.» (Thank you for your question, the price and details were sent to your private message.) The exact wording follows how you told Gituas to talk."
+     ]
+    },
+    {
+     "h2": "How do you link a product to a post?",
+     "paragraphs": [
+      "You link a product to the post it is advertised in, so the reply knows what the comment is about. The product holds a name, photos, prices and sizes.",
+      "When someone comments under that post, the reply takes its numbers from that product and from your instructions. It does not guess.",
+      "On the Free plan only the newest 3 posts get automatic replies, so link a product to a recent post."
+     ]
+    },
+    {
+     "h2": "What guardrails apply to automatic replies?",
+     "paragraphs": [
+      "Gituas never invents a price, and it hands unclear or difficult messages to you. It does not replace your judgement."
+     ],
+     "bullets": [
+      "Numbers: every number comes from the shop's product data or your instructions.",
+      "Voice: you write how it should talk, including tone and how to speak about price.",
+      "Hand-over: complaints, abuse, haggling and messages it cannot make out go to a “needs you” or “unclear” list.",
+      "Clean page: it hides spam and repeated comments."
+     ]
+    },
+    {
+     "h2": "What do Meta's rules change?",
+     "paragraphs": [
+      "Meta's rules apply to automatic replies, for example the 24-hour messaging window for direct messages. Your Facebook Page or Instagram account must also be connected.",
+      "Meta's rules can change, so check Meta's own documentation for the current terms.",
+      "Gituas does not currently reply automatically on WhatsApp. WhatsApp appears as an order link, with the shop's number and a ready order message, placed in replies and posts."
+     ]
+    },
+    {
+     "h2": "How do you set it up in Gituas?",
+     "paragraphs": [
+      "Setup takes four steps: connect the shop, add the product with its prices, link the product to a post and switch on automatic replies. Have your prices and product photos ready first.",
+      "Gituas is an AI assistant for shops and businesses that sell on Facebook and Instagram in Kurdistan and Iraq. It answers comments and messages in Kurdish and Arabic, collects orders, and makes video ads and pictures with AI. A shop in Gituas is one connected Facebook Page or Instagram account, and a plan is bought per shop per month."
+     ]
+    },
+    {
+     "h2": "What should you review each day?",
+     "paragraphs": [
+      "Open the list of messages that need you first. Automatic replies handle the routine; your attention goes to the exceptions."
+     ],
+     "bullets": [
+      "The needs-you and unclear lists: complaints, haggling and anything Gituas could not make out.",
+      "The Orders list, organised by city and status. The courier handoff text can be copied.",
+      "Flagged voice notes, if your plan reads them: speech recognition may mishear.",
+      "Insights: the last weeks of messages, comments and orders in one place."
+     ]
+    },
+    {
+     "h2": "What does the Free plan cover?",
+     "paragraphs": [
+      "The Free plan costs 0 IQD and has no time limit. It covers automatic replies on the newest 3 posts, up to 100 automatic replies a day and 10 AI-written replies a month, plus 1 Boost analysis a day.",
+      "It has no AI video ads, no AI pictures and no voice-note reading.",
+      "Merchant, at 15,000 IQD per shop per month, extends replies to the newest 25 posts and up to 1,000 a day. Pro, at 25,000 IQD, covers all posts and up to 5,000 a day. A paid plan that is not renewed falls back to Free. You pay in Iraqi dinar through Wayl with FIB, ZainCash, QiCard, FastPay or card."
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "name": "Connect the shop",
+     "text": "Connect the Facebook Page or Instagram account you sell from."
+    },
+    {
+     "name": "Add the product with its prices",
+     "text": "Enter the product's name, photos, prices and sizes. Write how Gituas should talk, including how to speak about price."
+    },
+    {
+     "name": "Link the product to a post",
+     "text": "Choose the post that advertises the product, preferably a recent one. Replies under that post will use the product's data."
+    },
+    {
+     "name": "Switch on automatic replies",
+     "text": "Turn on automatic replies for the shop. You can also ask the in-app assistant in Kurdish; it acts only after you press Confirm."
+    }
+   ],
+   "faq": [
+    {
+     "q": "Can Gituas reply automatically on WhatsApp?",
+     "a": "No. Gituas does not currently reply automatically on WhatsApp. WhatsApp is used as an order link placed in replies and posts."
+    },
+    {
+     "q": "Can the automatic reply give a wrong price?",
+     "a": "Gituas never invents a price: every number comes from the shop's own product data or the owner's instructions. If a price is wrong, the product data or instructions need updating, so keep them up to date."
+    },
+    {
+     "q": "What happens when a buyer haggles or complains?",
+     "a": "Gituas hands the conversation to the owner through a needs-you or unclear list instead of guessing."
+    }
+   ],
+   "related": [
+    "ai-replies-without-inventing-prices",
+    "sell-on-social-media-iraq-kurdistan"
+   ]
+  },
+  "ku": {
+   "slug": "automatic-replies-facebook-instagram-comments",
+   "title": "چۆن وەڵامی کۆمێنتەکانی فەیسبووک و ئینستاگرام بە شێوەی خۆکار بدەیتەوە، بە کوردی و عەرەبی",
+   "metaTitle": "وەڵامی خۆکار بۆ کۆمێنتەکانی فەیسبووک و ئینستاگرام بە کوردی",
+   "metaDescription": "چۆن وەڵامی کۆمێنتی «نرخی چەندە؟» لەسەر فەیسبووک و ئینستاگرام بە کوردی و عەرەبی بدەیتەوە: وەڵامی گشتی، نرخ بە نامەی تایبەت و هەنگاوەکانی ڕێکخستن.",
+   "answer": "گیتواس بە شێوەی خۆکار وەڵامی کۆمێنتەکانی فەیسبووک و ئینستاگرام دەداتەوە، بە کوردی (سۆرانی) و عەرەبی. بۆ کۆمێنتێکی وەک «نرخی چەندە؟» وەڵامێکی گشتیی کورت دەنووسرێت، و نرخ و وردەکارییەکانیش لە ماوەی چەند چرکەیەکدا بە نامەی تایبەت بۆ کڕیار دەنێردرێن. تۆ تەنها یەک جار بەرهەمێک لەگەڵ نرخەکانی بە پۆستێکەوە دەبەستیتەوە؛ پلانی بەخۆڕایی نوێترین ٣ پۆست دەگرێتەوە.",
+   "keyPoints": [
+    "بۆ کۆمێنتی «نرخی چەندە؟»، لە ماوەی چەند چرکەیەکدا وەڵامێکی گشتی دەنووسرێت و نرخیش بە نامەی تایبەت دەنێردرێت.",
+    "وەڵامەکان ئەو بەرهەمە بەکار دەهێنن کە بە پۆستەکەوە بەستراوە؛ گیتواس هەرگیز نرخ لە خۆیەوە دروست ناکات.",
+    "سکاڵا، چەنەبازی لەسەر نرخ، جنێو و نامە ناڕوونەکان دەدرێنە دەست خاوەنەکە.",
+    "پلانی بەخۆڕایی: ٠ دینار، نوێترین ٣ پۆست، تا ١٠٠ وەڵامی خۆکار لە ڕۆژێکدا."
+   ],
+   "sections": [
+    {
+     "h2": "بۆچی کۆمێنتی نرخ پێویستی بە وەڵامی خێرایە؟",
+     "paragraphs": [
+      "چونکە کڕیار لە بەردەم هەموواندا دەپرسێت و پاشان چاوەڕێی وەڵامی فرۆشیار دەکات. «نرخی چەندە؟» یەکێکە لەو پرسیارانەی فرۆشیارانی کوردستان و عێراق دووبارە و دووبارە ڕووبەڕووی دەبنەوە، لەگەڵ پرسیاری گەیاندن بۆ شارەکەم، قیاس یان ڕەنگ، و ناونیشان.",
+      "فرۆشتن لە کوردستان و عێراقدا بە زۆری لە ڕێگەی سۆشیاڵ میدیاوە ئەنجام دەدرێت: کۆمێنت، پاشان نامە یان واتساپ، پاشان پارەدان لە کاتی گەیاندندا. خەمڵاندنەکان دەڵێن زۆربەی بازرگانیی ئەلیکترۆنیی عێراق بە سۆشیاڵ میدیا بەڕێوە دەچێت، و ڕاپرسییەکی ساڵی ٢٠٢٠ لە هەرێمی کوردستان دەریخست کە پارەدان لە کاتی گەیاندندا نزیکەی دوو لەسەر سێی داواکارییە ئۆنلاینەکانە.",
+      "پرسیاری نرخ لە ژێر پۆستەکەدایە و خوێنەرانی دیکە دەبینن وەڵام دراوەتەوە یان نا. وەڵامدانەوە لە ماوەی چەند چرکەیەکدا و شەو و ڕۆژ، ئەو کارەیە کە وەڵامی خۆکار بۆی دروست کراوە."
+     ]
+    },
+    {
+     "h2": "چی دەبێت خۆکار بکرێت؟",
+     "paragraphs": [
+      "ئەو پرسیارانە خۆکار بکە کە تەنها یەک وەڵامی جێگیریان هەیە، و ئەوانی تر بۆ خۆت بهێڵەرەوە. پێوەرەکە سادەیە: ئەگەر دوو کڕیار هەمان پرسیار بکەن و دەبێت هەمان وەڵام وەربگرن، خۆکاری بکە. سکاڵا، چەنەبازی و جنێو لای تۆ دەمێننەوە؛ گیتواس ئەوانە دەداتە دەستی تۆ.",
+      "ئەمانە هەڵبژاردەی باشن:"
+     ],
+     "bullets": [
+      "نرخ، کە لە نرخەکانی خودی بەرهەمەکەوە وەردەگیرێت.",
+      "قیاس و وردەکارییەکانی تری بەرهەم کە تۆ تۆمارت کردوون.",
+      "کوێ و چۆن داواکاری بکرێت، لەگەڵ لینکی داواکاریی واتساپ.",
+      "زانیاریی گەیاندن کە لە ڕێنماییەکانتدا نووسیوتە."
+     ]
+    },
+    {
+     "h2": "وەڵامی گشتی لەگەڵ نامەی تایبەت چۆن کار دەکات؟",
+     "paragraphs": [
+      "گیتواس وەڵامێکی گشتیی کورت لە ژێر کۆمێنتەکە دادەنێت و نرخ و وردەکارییەکان لە ماوەی چەند چرکەیەکدا بە نامەی تایبەت دەنێرێت. لەسەر پەیجەکانی فەیسبووک و لەسەر ئینستاگرام کار دەکات، شەو و ڕۆژ.",
+      "وەڵامی گشتی بە هەموو ئەو کەسانەی دەیخوێننەوە نیشان دەدات کە پەیجەکە وەڵام دەداتەوە. نامەی تایبەتەکە وردەکارییەکان دەگەیەنێت و گفتوگۆیەکی تایبەت دەست پێ دەکات، کە گیتواس دەتوانێت تێیدا بە کوردی یان عەرەبی بەردەوام بێت و داواکارییەکە هەنگاو بە هەنگاو کۆ بکاتەوە: ناو، ژمارەی تەلەفون، شار، ناونیشان، بەرهەم و قیاس.",
+      "نموونەی وەڵامێکی گشتی: «سوپاس بۆ پرسیارەکەت، نرخ و وردەکارییەکان بۆ نامەی تایبەتت نێردران.» دەقی ڕاستەقینەی وەڵامەکە بەپێی ئەو شێوازەیە کە تۆ بە گیتواست گوتووە چۆن قسە بکات."
+     ]
+    },
+    {
+     "h2": "چۆن بەرهەمێک بە پۆستێکەوە دەبەستیتەوە؟",
+     "paragraphs": [
+      "بەرهەمێک دەبەستیتەوە بەو پۆستەی کە ڕیکلامی بۆ دەکات، بۆ ئەوەی وەڵامەکە بزانێت کۆمێنتەکە دەربارەی چییە. بەرهەمەکە ناو، وێنە، نرخ و قیاسەکانی تێدایە.",
+      "کاتێک کەسێک لە ژێر ئەو پۆستە کۆمێنت دەنووسێت، وەڵامەکە ژمارەکانی لەو بەرهەمە و لە ڕێنماییەکانی تۆ وەردەگرێت. گریمانە ناکات.",
+      "لە پلانی بەخۆڕایی تەنها نوێترین ٣ پۆست وەڵامی خۆکاریان هەیە، بۆیە بەرهەمەکە بە پۆستێکی نوێوە ببەستەرەوە."
+     ]
+    },
+    {
+     "h2": "چ پارێزگارییەک بۆ وەڵامە خۆکارەکان هەیە؟",
+     "paragraphs": [
+      "گیتواس هەرگیز نرخ لە خۆیەوە دروست ناکات، و ئەو نامانەی ناڕوون یان ئاڵۆزن دەیداتە دەستی تۆ. شوێنی هەڵسەنگاندنی تۆ ناگرێتەوە."
+     ],
+     "bullets": [
+      "ژمارەکان: هەموو ژمارەیەک لە زانیاریی بەرهەمی دوکانەکە یان لە ڕێنماییەکانی تۆوە دێت.",
+      "شێواز: تۆ دەنووسیت چۆن قسە بکات، لەوانە تۆنی قسەکردن و چۆنیەتی باسکردنی نرخ.",
+      "ڕادەستکردن بە تۆ: سکاڵا، جنێو، چەنەبازی و ئەو نامانەی ناتوانێت لێیان تێبگات دەچنە لیستی «پێویستی بە تۆیە» یان «ڕوون نییە».",
+      "پەیجی پاک: سپام و کۆمێنتی دووبارە دەشارێتەوە."
+     ]
+    },
+    {
+     "h2": "یاساکانی Meta چی دەگۆڕن؟",
+     "paragraphs": [
+      "یاساکانی Meta بەسەر وەڵامە خۆکارەکاندا جێبەجێ دەبن، وەک ئەو ماوە ٢٤ کاتژمێرییەی کە بۆ ناردنی نامەی تایبەت دیاری کراوە. هەروەها پێویستە پەیجی فەیسبووک یان ئەکاونتی ئینستاگرامەکەت بەسترابێتەوە.",
+      "یاساکانی Meta لەوانەیە بگۆڕدرێن، بۆیە بۆ زانینی مەرجەکانی ئێستا سەیری بەڵگەنامە فەرمییەکانی Meta بکە.",
+      "گیتواس ئێستا بە شێوەی خۆکار لە واتساپ وەڵام ناداتەوە. واتساپ وەک لینکی داواکاری دەردەکەوێت، لەگەڵ ژمارەی دوکانەکە و نامەیەکی ئامادەی داواکاری، و لە وەڵامەکان و پۆستەکاندا دادەنرێت."
+     ]
+    },
+    {
+     "h2": "چۆن لە گیتواس ڕێکی دەخەیت؟",
+     "paragraphs": [
+      "ڕێکخستنەکە چوار هەنگاوە: دوکانەکە ببەستەرەوە، بەرهەمەکە لەگەڵ نرخەکانی زیاد بکە، بەرهەمەکە بە پۆستێکەوە ببەستەرەوە، و وەڵامی خۆکار بکەرەوە. با پێشتر نرخەکان و وێنەی بەرهەمەکانت ئامادە بن.",
+      "گیتواس یاریدەدەرێکی ژیریی دەستکردە (AI) بۆ ئەو دوکان و بزنسانەی لە کوردستان و عێراق لەسەر فەیسبووک و ئینستاگرام دەفرۆشن. وەڵامی کۆمێنت و نامەکان بە کوردی و عەرەبی دەداتەوە، داواکاری کۆ دەکاتەوە، و ڤیدیۆی ڕیکلام و وێنە بە AI دروست دەکات. دوکان لە گیتواس بریتییە لە یەک پەیجی فەیسبووک یان یەک ئەکاونتی ئینستاگرامی بەستراو، و پلان بۆ هەر دوکانێک مانگانە دەکڕدرێت."
+     ]
+    },
+    {
+     "h2": "ڕۆژانە سەیری چی بکەیت؟",
+     "paragraphs": [
+      "یەکەم جار لیستی ئەو نامانە بکەرەوە کە پێویستیان بە تۆیە. وەڵامی خۆکار کارە ڕۆتینییەکان دەکات؛ سەرنجی تۆ بۆ ئەو حاڵەتە نائاساییانەیە."
+     ],
+     "bullets": [
+      "لیستەکانی «پێویستی بە تۆیە» و «ڕوون نییە»: سکاڵا، چەنەبازی و هەر شتێک گیتواس لێی تێنەگەیشت.",
+      "لیستی داواکارییەکان، ڕێکخراو بەپێی شار و دۆخ. دەقی ڕادەستکردن بە گەیەنەر دەتوانرێت کۆپی بکرێت.",
+      "نامە دەنگییە نیشانکراوەکان، ئەگەر پلانەکەت دەیانخوێنێتەوە: ناسینەوەی دەنگ ڕەنگە هەڵە ببیستێت.",
+      "ئامار: نامە و کۆمێنت و داواکارییەکانی دوایین هەفتەکان لە یەک شوێندا."
+     ]
+    },
+    {
+     "h2": "پلانی بەخۆڕایی چی دەگرێتەوە؟",
+     "paragraphs": [
+      "پلانی بەخۆڕایی ٠ دینارە و سنووری کاتی نییە. وەڵامی خۆکار بۆ نوێترین ٣ پۆست دەگرێتەوە، تا ١٠٠ وەڵامی خۆکار لە ڕۆژێکدا، و ١٠ وەڵامی بە AI نووسراو لە مانگێکدا، لەگەڵ ١ شیکاریی بووست لە ڕۆژێکدا.",
+      "ڤیدیۆی ڕیکلامی AI، وێنەی AI و خوێندنەوەی نامەی دەنگی تێدا نییە.",
+      "پلانی Merchant، بە ١٥٬٠٠٠ دینار مانگانە بۆ هەر دوکانێک، وەڵامەکان بۆ نوێترین ٢٥ پۆست و تا ١٬٠٠٠ وەڵام لە ڕۆژێکدا فراوان دەکات. پلانی Pro، بە ٢٥٬٠٠٠ دینار، هەموو پۆستەکان دەگرێتەوە، لەگەڵ تا ٥٬٠٠٠ وەڵام لە ڕۆژێکدا. ئەگەر پلانێکی بە پارە نوێ نەکرێتەوە، دەگەڕێتەوە بۆ پلانی بەخۆڕایی. بە دیناری عێراقی لە ڕێگەی Wayl پارە دەدەیت، بە FIB، ZainCash، QiCard، FastPay یان کارت."
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "name": "دوکانەکە ببەستەرەوە",
+     "text": "ئەو پەیجی فەیسبووک یان ئەکاونتی ئینستاگرامە ببەستەرەوە کە لێوە دەفرۆشیت."
+    },
+    {
+     "name": "بەرهەمەکە لەگەڵ نرخەکانی زیاد بکە",
+     "text": "ناو، وێنە، نرخ و قیاسەکانی بەرهەمەکە تۆمار بکە. بنووسە گیتواس چۆن قسە بکات، لەوانە چۆن باسی نرخ بکات."
+    },
+    {
+     "name": "بەرهەمەکە بە پۆستێکەوە ببەستەرەوە",
+     "text": "ئەو پۆستە هەڵبژێرە کە ڕیکلامی بەرهەمەکە دەکات، باشترە نوێ بێت. وەڵامەکانی ژێر ئەو پۆستە زانیاریی بەرهەمەکە بەکار دەهێنن."
+    },
+    {
+     "name": "وەڵامی خۆکار بکەرەوە",
+     "text": "وەڵامی خۆکار بۆ دوکانەکە بکەرەوە. دەشتوانیت بە کوردی داوا لە یاریدەدەری ناو ئەپەکە بکەیت؛ ئەو تەنها دوای ئەوەی کلیک لە «پەسەندکردن» دەکەیت کار دەکات."
+    }
+   ],
+   "faq": [
+    {
+     "q": "گیتواس دەتوانێت لە واتساپ بە شێوەی خۆکار وەڵام بداتەوە؟",
+     "a": "نەخێر. گیتواس ئێستا بە شێوەی خۆکار لە واتساپ وەڵام ناداتەوە. واتساپ وەک لینکی داواکاری بەکار دەهێنرێت کە لە وەڵامەکان و پۆستەکاندا دادەنرێت."
+    },
+    {
+     "q": "ئایا وەڵامی خۆکار دەکرێت نرخێکی هەڵە بدات؟",
+     "a": "گیتواس هەرگیز نرخ لە خۆیەوە دروست ناکات: هەموو ژمارەیەک لە زانیاریی بەرهەمی دوکانەکە یان لە ڕێنماییەکانی خاوەنەکەوە دێت. ئەگەر نرخێک هەڵە بێت، پێویستە زانیاریی بەرهەم یان ڕێنماییەکان نوێ بکرێنەوە، بۆیە هەمیشە نوێیان بکەرەوە."
+    },
+    {
+     "q": "کاتێک کڕیار چەنەبازی دەکات یان سکاڵا دەکات چی ڕوو دەدات؟",
+     "a": "گیتواس گفتوگۆکە دەخاتە لیستی «پێویستی بە تۆیە» یان «ڕوون نییە» بۆ خاوەنەکە، لە جیاتی ئەوەی گریمانە بکات."
+    }
+   ],
+   "related": [
+    "ai-replies-without-inventing-prices",
+    "sell-on-social-media-iraq-kurdistan"
+   ]
+  },
+  "ar": {
+   "slug": "automatic-replies-facebook-instagram-comments",
+   "title": "كيف ترد تلقائياً على تعليقات Facebook و Instagram بالكردية والعربية",
+   "metaTitle": "الردود التلقائية على تعليقات Facebook و Instagram بالكردية",
+   "metaDescription": "كيف ترد تلقائياً على تعليقات «بكم؟» في Facebook و Instagram بالكردية والعربية: رد علني، ورسالة خاصة بالسعر، وخطوات الإعداد.",
+   "answer": "يرد Gituas تلقائياً على تعليقات Facebook و Instagram بالكردية (السورانية) والعربية. التعليق مثل «بكم؟» (بالكردية «نرخی چەندە؟») يحصل على رد علني قصير، ويصل السعر والتفاصيل إلى المشتري في رسالة خاصة خلال ثوانٍ. تربط منتجاً وأسعاره بمنشور مرة واحدة؛ والخطة المجانية تشمل أحدث ٣ منشورات.",
+   "keyPoints": [
+    "تعليق «بكم؟» يحصل على رد علني ورسالة خاصة بالسعر خلال ثوانٍ.",
+    "الردود تعتمد على المنتج المربوط بالمنشور؛ ولا يخترع Gituas سعراً أبداً.",
+    "الشكاوى والمساومة والإساءة والرسائل غير الواضحة تُحوَّل إلى صاحب المتجر.",
+    "الخطة المجانية: ٠ دينار، أحدث ٣ منشورات، حتى ١٠٠ رد تلقائي في اليوم."
+   ],
+   "sections": [
+    {
+     "h2": "لماذا يحتاج سؤال السعر في التعليقات إلى رد سريع؟",
+     "paragraphs": [
+      "لأن المشتري يسأل أمام الجميع ثم ينتظر رد البائع. «بكم؟» من الأسئلة التي يتلقاها البائعون في كردستان والعراق مراراً، مع سؤال التوصيل إلى مدينتي، والمقاس أو اللون، والعنوان.",
+      "يجري البيع في كردستان والعراق في الغالب عبر وسائل التواصل الاجتماعي: تعليق، ثم رسالة خاصة أو WhatsApp، ثم الدفع عند الاستلام. تشير التقديرات إلى أن معظم التجارة الإلكترونية في العراق تقودها وسائل التواصل، وأن استطلاعاً أُجري عام ٢٠٢٠ في إقليم كردستان وجد أن الدفع عند الاستلام يمثل نحو ثلثي الطلبات عبر الإنترنت.",
+      "سؤال السعر يبقى تحت المنشور، حيث يرى القراء الآخرون هل أُجيب عنه أم لا. والرد خلال ثوانٍ وعلى مدار الساعة هو ما صُمّمت له الردود التلقائية."
+     ]
+    },
+    {
+     "h2": "ما الذي ينبغي أن يكون تلقائياً؟",
+     "paragraphs": [
+      "اترك للردود التلقائية الأسئلة التي لها إجابة واحدة ثابتة، واحتفظ بالباقي لنفسك. والمعيار بسيط: إذا كان مشتريان يسألان السؤال نفسه ويجب أن يحصلا على الإجابة نفسها، فاتركه للرد التلقائي. الشكاوى والمساومة والإساءة تبقى عندك؛ Gituas يحوّلها إليك.",
+      "أمثلة مناسبة:"
+     ],
+     "bullets": [
+      "السعر، مأخوذاً من أسعار المنتج نفسه.",
+      "المقاسات وتفاصيل المنتج الأخرى التي أدخلتها.",
+      "أين وكيف يُطلب المنتج، بما في ذلك رابط الطلب عبر WhatsApp.",
+      "معلومات التوصيل التي كتبتها في تعليماتك."
+     ]
+    },
+    {
+     "h2": "كيف يعمل الرد العلني مع الرسالة الخاصة؟",
+     "paragraphs": [
+      "ينشر Gituas رداً علنياً قصيراً تحت التعليق، ويرسل السعر والتفاصيل في رسالة خاصة خلال ثوانٍ. يعمل على صفحات Facebook وعلى Instagram، على مدار الساعة.",
+      "الرد العلني يُظهر لكل من يقرأ أن الصفحة ترد. أما الرسالة الخاصة فتحمل التفاصيل وتبدأ محادثة خاصة، يستطيع Gituas فيها المتابعة بالكردية أو العربية وجمع الطلب خطوة بخطوة: الاسم والهاتف والمدينة والعنوان والمنتج والمقاس.",
+      "قد يكون الرد العلني مثلاً: «شكراً لسؤالك، السعر والتفاصيل وصلتك في رسالة خاصة.» وتتبع الصياغة الفعلية الطريقة التي طلبت بها من Gituas أن يتحدث."
+     ]
+    },
+    {
+     "h2": "كيف تربط منتجاً بمنشور؟",
+     "paragraphs": [
+      "تربط المنتج بالمنشور الذي يُعلَن فيه، حتى يعرف الرد عمّ يتحدث التعليق. يتضمن المنتج الاسم والصور والأسعار والمقاسات.",
+      "عندما يعلّق أحد تحت ذلك المنشور، يأخذ الرد أرقامه من ذلك المنتج ومن تعليماتك. ولا يخمّن.",
+      "في الخطة المجانية تحصل أحدث ٣ منشورات فقط على ردود تلقائية، فاربط المنتج بمنشور حديث."
+     ]
+    },
+    {
+     "h2": "ما الضوابط المطبقة على الردود التلقائية؟",
+     "paragraphs": [
+      "لا يخترع Gituas سعراً أبداً، ويحوّل الرسائل غير الواضحة أو الصعبة إليك. وهو لا يحلّ محل تقديرك."
+     ],
+     "bullets": [
+      "الأرقام: كل رقم يأتي من بيانات منتج المتجر أو من تعليماتك.",
+      "الأسلوب: أنت تكتب كيف يتحدث، بما في ذلك النبرة وطريقة الحديث عن السعر.",
+      "التحويل إليك: الشكاوى والإساءة والمساومة والرسائل التي لا يفهمها تذهب إلى قائمة «يحتاج إليك» أو «غير واضحة».",
+      "صفحة نظيفة: يخفي التعليقات المزعجة (السبام) والتعليقات المكررة."
+     ]
+    },
+    {
+     "h2": "ماذا تغيّر قواعد Meta؟",
+     "paragraphs": [
+      "تنطبق قواعد Meta على الردود التلقائية، مثل نافذة المراسلة البالغة ٢٤ ساعة للرسائل الخاصة. ويجب أيضاً ربط صفحة Facebook أو حساب Instagram.",
+      "قد تتغير قواعد Meta، فراجع وثائق Meta نفسها لمعرفة الشروط الحالية.",
+      "لا يرد Gituas تلقائياً على WhatsApp حالياً. يظهر WhatsApp كرابط طلب، يحمل رقم المتجر ورسالة طلب جاهزة، ويوضع في الردود والمنشورات."
+     ]
+    },
+    {
+     "h2": "كيف تُعدّ الردود التلقائية في Gituas؟",
+     "paragraphs": [
+      "الإعداد في أربع خطوات: اربط المتجر، وأضف المنتج بأسعاره، واربط المنتج بمنشور، وفعّل الردود التلقائية. جهّز أسعارك وصور المنتجات أولاً.",
+      "Gituas مساعد بالذكاء الاصطناعي للمتاجر والأعمال التي تبيع على Facebook و Instagram في كردستان والعراق. يرد على التعليقات والرسائل بالكردية والعربية، ويجمع الطلبات، وينشئ إعلانات فيديو وصوراً بالذكاء الاصطناعي. المتجر في Gituas هو صفحة Facebook واحدة أو حساب Instagram واحد مربوط، وتُشترى الخطة لكل متجر شهرياً."
+     ]
+    },
+    {
+     "h2": "ماذا تراجع كل يوم؟",
+     "paragraphs": [
+      "افتح أولاً قائمة الرسائل التي تحتاج إليك. الردود التلقائية تتولى الأمور الروتينية؛ وانتباهك للحالات الاستثنائية."
+     ],
+     "bullets": [
+      "قائمتا «يحتاج إليك» و«غير واضحة»: الشكاوى والمساومة وكل ما لم يفهمه Gituas.",
+      "قائمة الطلبات، مرتبة حسب المدينة والحالة. ويمكن نسخ نص التسليم إلى مندوب التوصيل.",
+      "الرسائل الصوتية المُعلَّمة، إذا كانت خطتك تقرؤها: فقد يخطئ التعرّف على الكلام.",
+      "الإحصاءات: رسائل وتعليقات وطلبات الأسابيع الأخيرة في مكان واحد."
+     ]
+    },
+    {
+     "h2": "ماذا تشمل الخطة المجانية؟",
+     "paragraphs": [
+      "تكلّف الخطة المجانية ٠ دينار، وليس لها حد زمني. تشمل ردوداً تلقائية على أحدث ٣ منشورات، وحتى ١٠٠ رد تلقائي في اليوم، و١٠ ردود يكتبها الذكاء الاصطناعي في الشهر، إضافة إلى تحليل ترويج (Boost) واحد في اليوم.",
+      "لا تشمل إعلانات فيديو بالذكاء الاصطناعي ولا صوراً بالذكاء الاصطناعي ولا قراءة الرسائل الصوتية.",
+      "خطة Merchant، بـ ١٥٬٠٠٠ دينار لكل متجر شهرياً، توسّع الردود إلى أحدث ٢٥ منشوراً وحتى ١٬٠٠٠ رد في اليوم. وخطة Pro، بـ ٢٥٬٠٠٠ دينار، تغطي كل المنشورات وحتى ٥٬٠٠٠ رد في اليوم. والخطة المدفوعة التي لا تُجدَّد تعود إلى المجانية. وتدفع بالدينار العراقي عبر Wayl بواسطة FIB أو ZainCash أو QiCard أو FastPay أو البطاقة."
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "name": "اربط المتجر",
+     "text": "اربط صفحة Facebook أو حساب Instagram الذي تبيع منه."
+    },
+    {
+     "name": "أضف المنتج مع أسعاره",
+     "text": "أدخل اسم المنتج وصوره وأسعاره ومقاساته. واكتب كيف يجب أن يتحدث Gituas، بما في ذلك كيفية الحديث عن السعر."
+    },
+    {
+     "name": "اربط المنتج بمنشور",
+     "text": "اختر المنشور الذي يعلن عن المنتج، ويفضّل أن يكون حديثاً. الردود تحت ذلك المنشور ستستخدم بيانات المنتج."
+    },
+    {
+     "name": "فعّل الردود التلقائية",
+     "text": "شغّل الردود التلقائية للمتجر. ويمكنك أيضاً أن تطلب ذلك من المساعد داخل التطبيق بالكردية؛ فهو لا ينفّذ إلا بعد أن تضغط «تأكيد»."
+    }
+   ],
+   "faq": [
+    {
+     "q": "هل يرد Gituas تلقائياً على WhatsApp؟",
+     "a": "لا. لا يرد Gituas حالياً تلقائياً على WhatsApp. يُستخدم WhatsApp كرابط طلب يوضع في الردود والمنشورات."
+    },
+    {
+     "q": "هل يمكن أن يعطي الرد التلقائي سعراً خاطئاً؟",
+     "a": "لا يخترع Gituas سعراً أبداً: كل رقم يأتي من بيانات منتج المتجر أو من تعليمات صاحب المتجر. وإذا كان السعر خاطئاً فيجب تحديث بيانات المنتج أو التعليمات، لذا أبقِها محدّثة."
+    },
+    {
+     "q": "ماذا يحدث عندما يساوم المشتري أو يشتكي؟",
+     "a": "يضع Gituas المحادثة في قائمة «يحتاج إليك» أو «غير واضحة» ليتولاها صاحب المتجر، بدلاً من التخمين."
+    }
+   ],
+   "related": [
+    "ai-replies-without-inventing-prices",
+    "sell-on-social-media-iraq-kurdistan"
+   ]
+  }
+ },
+ {
+  "slug": "sell-on-social-media-iraq-kurdistan",
+  "en": {
+   "slug": "sell-on-social-media-iraq-kurdistan",
+   "title": "How to Sell on Facebook and Instagram in Iraq and Kurdistan: From Comment to Cash on Delivery",
+   "metaTitle": "Sell on Facebook and Instagram in Iraq and Kurdistan",
+   "metaDescription": "How to sell on Facebook and Instagram in Iraq and Kurdistan: the comment, DM and cash-on-delivery flow, plus a seller checklist.",
+   "answer": "A sale on Facebook or Instagram in Iraq and Kurdistan usually follows one path: a buyer comments on a post, moves to a direct message, gives name, phone, city and address, and pays cash on delivery. Answering quickly and asking for the same details every time keeps that path simple. Gituas handles the repetitive steps with automatic replies to comments, answers to direct messages and order collection in the chat.",
+   "keyPoints": [
+    "The usual path is post, comment, direct message, order details, then cash on delivery.",
+    "Buyers keep asking the same four things: the price, delivery to their city, size or colour, and address details.",
+    "Estimates say most Iraqi e-commerce is social-led, and a 2020 survey in the Kurdistan Region found cash on delivery at about two thirds of online orders.",
+    "Paying for ads on Meta in Iraq needs an international card.",
+    "Gituas answers comments and direct messages in Kurdish and Arabic and collects orders, but it does not currently reply automatically on WhatsApp."
+   ],
+   "sections": [
+    {
+     "h2": "How does selling on Facebook and Instagram work in Iraq and Kurdistan?",
+     "paragraphs": [
+      "It usually follows five steps: post, comment, direct message, order details, cash on delivery. The seller posts a product. A buyer comments. The seller replies and moves the buyer to a direct message or WhatsApp. The buyer gives delivery details, a courier delivers the parcel, and the buyer pays at the door.",
+      "Estimates say most Iraqi e-commerce is social-led, and a 2020 survey in the Kurdistan Region found cash on delivery at about two thirds of online orders. Treat these as rough guides, not exact figures."
+     ]
+    },
+    {
+     "h2": "What do buyers ask before they order?",
+     "paragraphs": [
+      "Buyers ask the same four things again and again: the price, delivery to their city, the size or colour, and the address details. Under a post it is often just «نرخی چەندە؟», which means \"how much?\".",
+      "Answer all four in your first reply, so the buyer has less reason to ask again. Write the price, the delivery cities and cost, the sizes and colours, and what you need from the buyer to send the order."
+     ]
+    },
+    {
+     "h2": "What should a seller prepare before posting?",
+     "paragraphs": [
+      "Prepare your profile and posts so a stranger can order without asking basic questions. Use this checklist."
+     ],
+     "bullets": [
+      "Bio: put your WhatsApp number in the bio, and a line such as \"delivery only\" if that is how you work.",
+      "Delivery information: list the cities you deliver to, the delivery price and the delivery time.",
+      "Trilingual captions: write each caption in Sorani Kurdish, Arabic and English, so more buyers can read it.",
+      "Hashtags with city names in both scripts: pair #هەولێر with #Erbil, #سلێمانی with #Sulaymaniyah, #دهۆک with #Duhok and #کەرکوک with #Kirkuk.",
+      "Fast answers: reply to comments and messages within minutes, evenings included.",
+      "Four details for every order: name, phone, city and address, plus the product and its size or colour."
+     ]
+    },
+    {
+     "h2": "How do payment and delivery work?",
+     "paragraphs": [
+      "Cash on delivery is the common way to pay: the buyer pays when the parcel arrives. That makes correct order details essential, because a wrong phone number or address can waste a delivery.",
+      "Before dispatch, repeat the product, size, city, address and total price back to the buyer. Then give the courier the same details and the amount to collect. Choose the courier before you promise delivery times, and state the delivery price in the first reply, so nothing surprises the buyer at the door.",
+      "Paying for ads on Meta in Iraq needs an international card. Check that before you plan a paid campaign."
+     ]
+    },
+    {
+     "h2": "Where does Gituas fit in each step?",
+     "paragraphs": [
+      "Gituas fits the post, comment, direct message and order steps, and it lets you copy the courier handoff text. Gituas is an AI assistant for shops and businesses that sell on Facebook and Instagram in Kurdistan and Iraq. It answers comments and messages in Kurdish and Arabic, collects orders, and makes video ads and pictures with AI."
+     ],
+     "bullets": [
+      "Post: it publishes one post to Facebook, Instagram, TikTok and YouTube, or schedules it. TikTok and YouTube follow those platforms' own rules, so you approve each post there. Captions are written with AI, with city hashtags in both Kurdish and Latin script. Paid plans also make advertising pictures from a short idea and AI video ads from your product photos and logo.",
+      "Comment: automatic replies run 24/7 on Facebook Pages and Instagram. A comment such as «نرخی چەندە؟» gets a short public reply, and the price and details go to the buyer in a direct message within seconds. You link a product to a post with its name, photos, prices and sizes. The Free plan covers the newest 3 posts, Merchant 25 and Pro all posts.",
+      "Direct message: it answers in Sorani Kurdish and Arabic, in your own words: you write how it should talk, including tone and how to speak about price. It never invents a price, because every number comes from your product data or your instructions. Complaints, haggling, abuse and unclear messages go to you.",
+      "Voice notes: on paid plans it reads buyers' Kurdish voice notes on Instagram and Messenger by speech recognition, 4 a day on Merchant and 8 on Pro. It may mishear, and unclear ones are flagged.",
+      "Order: it collects name, phone, city, address and product or size in the chat, step by step, and keeps orders in a list by city and status. The courier handoff text can be copied.",
+      "WhatsApp: a link with your number and a ready order message goes into replies and posts. It is an order link, not an automatic reply.",
+      "Boost advice: it names the post worth paying to boost, the platform, the cities, ages and interests, and a daily budget in IQD. The audience is learned from your own buyers' messages and orders, at group level and never about individuals. The ad itself is bought in Meta's own tools.",
+      "Insights: messages, comments and orders of the last weeks, with followers and reach, are in one place."
+     ]
+    },
+    {
+     "h2": "What are the limits of Gituas, and what does it cost?",
+     "paragraphs": [
+      "Gituas has three main limits. It needs your Facebook Page or Instagram account connected, and Meta's rules apply, including the 24-hour messaging window for direct messages. It does not currently reply automatically on WhatsApp; there it is an order link. It does not replace your judgement: complaints, haggling, abuse and unclear messages go to you.",
+      "Plans are priced per shop per month, and a shop is one connected Facebook Page or Instagram account. Free is 0 IQD, Merchant 15,000 IQD and Pro 25,000 IQD, paid in dinar through Wayl. Max is 59,000 IQD and is offered when it is open. The Free plan has no time limit."
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "name": "Post with a clear caption",
+     "text": "Write the caption in Sorani, Arabic and English, add the price or say it comes by direct message, and add city hashtags in both scripts."
+    },
+    {
+     "name": "Reply to the comment",
+     "text": "Answer «نرخی چەندە؟» publicly in one line and send price, delivery and sizes in a direct message."
+    },
+    {
+     "name": "Confirm in the direct message",
+     "text": "Check the product, size or colour and delivery to the buyer's city."
+    },
+    {
+     "name": "Collect the order details",
+     "text": "Ask for name, phone, city and address, then repeat them back."
+    },
+    {
+     "name": "Hand over for cash on delivery",
+     "text": "Give the courier the details and the amount to collect."
+    }
+   ],
+   "faq": [
+    {
+     "q": "Is cash on delivery the normal way to pay in Iraq and Kurdistan?",
+     "a": "Yes, it is the common method. A 2020 survey in the Kurdistan Region found cash on delivery at about two thirds of online orders, and that survey covers the Kurdistan Region only. Treat it as a rough guide, not an exact figure."
+    },
+    {
+     "q": "Can I run Meta ads from Iraq?",
+     "a": "Paying for ads on Meta in Iraq needs an international card. Gituas gives Boost advice, but the ad is bought in Meta's own tools."
+    },
+    {
+     "q": "Does Gituas reply on WhatsApp automatically?",
+     "a": "No, not currently. WhatsApp is an order link with your number and a ready order message. Automatic replies work on Facebook Pages and Instagram."
+    }
+   ],
+   "related": [
+    "automatic-replies-facebook-instagram-comments",
+    "kurdish-voice-notes-and-orders"
+   ]
+  },
+  "ku": {
+   "slug": "sell-on-social-media-iraq-kurdistan",
+   "title": "چۆن لە فەیسبووک و ئینستاگرام لە کوردستان و عێراق بفرۆشین: لە کۆمێنتەوە تا پارەدان لە کاتی گەیاندن",
+   "metaTitle": "فرۆشتن لە فەیسبووک و ئینستاگرام لە کوردستان و عێراق",
+   "metaDescription": "چۆن لە فەیسبووک و ئینستاگرام لە کوردستان و عێراق بفرۆشیت: ڕێڕەوی کۆمێنت، نامەی تایبەت و پارەدان لە کاتی گەیاندن، لەگەڵ لیستی ئامادەکاری.",
+   "answer": "فرۆشتن لە فەیسبووک و ئینستاگرام لە کوردستان و عێراق زۆربەی کات یەک ڕێڕەو دەگرێتەبەر: کڕیار لەژێر پۆستێک کۆمێنت دەکات، دەچێتە نامەی تایبەت، ناو، ژمارەی مۆبایل، شار و ناونیشان دەدات، و لە کاتی گەیاندن پارەکە دەدات. وەڵامدانەوەی خێرا و داواکردنی هەمان زانیاری هەموو جارێک ئەم ڕێڕەوە ساکار دەهێڵێتەوە. گیتواس هەنگاوە دووبارەبووەکان بە وەڵامی خۆکار بۆ کۆمێنت، وەڵامدانەوەی نامەی تایبەت و کۆکردنەوەی داواکاری لە گفتوگۆکەدا ئەنجام دەدات.",
+   "keyPoints": [
+    "ڕێڕەوی باو ئەمەیە: پۆست، کۆمێنت، نامەی تایبەت، زانیارییەکانی داواکاری، پاشان پارەدان لە کاتی گەیاندن.",
+    "کڕیاران هەمان چوار شت دووبارە دەپرسن: نرخ، گەیاندن بۆ شارەکەیان، قەبارە یان ڕەنگ، و زانیارییەکانی ناونیشان.",
+    "خەمڵاندنەکان دەڵێن زۆربەی بازرگانیی ئەلیکترۆنیی عێراق بە سۆشیاڵ میدیاوە بەڕێوە دەچێت، و ڕاپرسییەکی ساڵی ٢٠٢٠ لە هەرێمی کوردستان دۆزییەوە کە نزیکەی دوو بەش لە سێ بەشی داواکارییە ئۆنلاینەکان بە پارەدان لە کاتی گەیاندن بوون.",
+    "پارەدان بۆ ڕیکلامی میتا لە عێراق پێویستی بە کارتی نێودەوڵەتی هەیە.",
+    "گیتواس وەڵامی کۆمێنت و نامەی تایبەت بە کوردی و عەرەبی دەداتەوە و داواکاری کۆدەکاتەوە، بەڵام لە ئێستادا بە شێوەی خۆکار لە واتساپ وەڵام ناداتەوە."
+   ],
+   "sections": [
+    {
+     "h2": "فرۆشتن لە فەیسبووک و ئینستاگرام لە کوردستان و عێراق چۆن کاردەکات؟",
+     "paragraphs": [
+      "زۆربەی کات لە پێنج هەنگاودا ڕوودەدات: پۆست، کۆمێنت، نامەی تایبەت، زانیارییەکانی داواکاری و پارەدان لە کاتی گەیاندن. فرۆشیار بەرهەمێک پۆست دەکات. کڕیار کۆمێنت دەکات. فرۆشیار وەڵام دەداتەوە و کڕیارەکە دەباتە نامەی تایبەت یان واتساپ. کڕیار زانیارییەکانی گەیاندن دەدات، کوریەرێک پاکەتەکە دەگەیەنێت، و کڕیار لە بەردەرگا پارەکە دەدات.",
+      "خەمڵاندنەکان دەڵێن زۆربەی بازرگانیی ئەلیکترۆنیی عێراق بە سۆشیاڵ میدیاوە بەڕێوە دەچێت، و ڕاپرسییەکی ساڵی ٢٠٢٠ لە هەرێمی کوردستان دۆزییەوە کە نزیکەی دوو بەش لە سێ بەشی داواکارییە ئۆنلاینەکان بە پارەدان لە کاتی گەیاندن بوون. ئەم ژمارانە وەک ئەندازەیەکی نزیکەیی وەربگرە، نەک ژمارەیەکی ورد."
+     ]
+    },
+    {
+     "h2": "کڕیاران پێش داواکردن چی دەپرسن؟",
+     "paragraphs": [
+      "کڕیاران هەمان چوار شت دووبارە و دووبارە دەپرسن: نرخ، گەیاندن بۆ شارەکەیان، قەبارە یان ڕەنگ، و زانیارییەکانی ناونیشان. زۆرجار لەژێر پۆستەکەدا تەنها «نرخی چەندە؟» دەنووسرێت.",
+      "لە یەکەم وەڵامدا هەر چوارەکە بخەرە ڕوو، بۆ ئەوەی کڕیار هۆکاری کەمتری هەبێت بۆ دووبارە پرسیارکردنەوە. نرخ، شارەکانی گەیاندن و کرێی گەیاندن، قەبارە و ڕەنگەکان، و ئەو زانیاریانە بنووسە کە بۆ ناردنی داواکارییەکە لە کڕیار پێویستن."
+     ]
+    },
+    {
+     "h2": "فرۆشیار پێش پۆستکردن دەبێت چی ئامادە بکات؟",
+     "paragraphs": [
+      "پرۆفایل و پۆستەکانت ئامادە بکە بەجۆرێک کە کەسێکی نەناسراو بتوانێت داواکاری بکات، بەبێ ئەوەی پرسیاری سەرەتایی بکات. ئەم لیستە بەکاربهێنە."
+     ],
+     "bullets": [
+      "بایۆ: ژمارەی واتساپەکەت لە بایۆدا بنووسە، لەگەڵ دێڕێک وەک «تەنها گەیاندن» ئەگەر کارەکەت بەو شێوەیەیە.",
+      "زانیاری گەیاندن: ئەو شارانە بنووسە کە گەیاندنیان بۆ دەکەیت، نرخی گەیاندن و ماوەکەی.",
+      "کەپشنی سێ زمانی: هەر کەپشنێک بە کوردیی سۆرانی، عەرەبی و ئینگلیزی بنووسە، بۆ ئەوەی کڕیاری زیاتر بتوانێت بیخوێنێتەوە.",
+      "هاشتاگی ناوی شارەکان بە هەردوو ئەلفوبێ: #هەولێر لەگەڵ #Erbil، #سلێمانی لەگەڵ #Sulaymaniyah، #دهۆک لەگەڵ #Duhok و #کەرکوک لەگەڵ #Kirkuk.",
+      "وەڵامی خێرا: لە ماوەی چەند خولەکێکدا وەڵامی کۆمێنت و نامەکان بدەرەوە، ئێوارانیش.",
+      "چوار زانیاری بۆ هەر داواکارییەک: ناو، ژمارەی مۆبایل، شار و ناونیشان، لەگەڵ بەرهەمەکە و قەبارە یان ڕەنگەکەی."
+     ]
+    },
+    {
+     "h2": "پارەدان و گەیاندن چۆن کاردەکەن؟",
+     "paragraphs": [
+      "پارەدان لە کاتی گەیاندن شێوازی باوی پارەدانە: کڕیار کاتێک پارەکە دەدات کە پاکەتەکە دەگات. ئەمەش وا دەکات زانیارییە دروستەکانی داواکاری زۆر گرنگ بن، چونکە هەڵەیەک لە ژمارەی مۆبایل یان ناونیشاندا دەتوانێت گەیاندنێک بەفیڕۆ بدات.",
+      "پێش ناردن، بەرهەمەکە، قەبارە، شار، ناونیشان و کۆی نرخ بۆ کڕیار دووبارە بکەرەوە. پاشان هەمان زانیاری و ئەو بڕە پارەیەی دەبێت لە کڕیار وەریبگرێت بدە بە کوریەر. پێش ئەوەی بەڵێنی کاتی گەیاندن بدەیت، کوریەرەکە هەڵبژێرە، و نرخی گەیاندن لە یەکەم وەڵامدا بنووسە، تاکو لە بەردەرگا هیچ شتێکی چاوەڕواننەکراو بۆ کڕیار ڕوو نەدات.",
+      "پارەدان بۆ ڕیکلامی میتا لە عێراق پێویستی بە کارتی نێودەوڵەتی هەیە. پێش پلاندانانی کەمپینێکی ڕیکلامیی بە پارە لەوە دڵنیا ببە."
+     ]
+    },
+    {
+     "h2": "گیتواس لە هەر هەنگاوێکدا چ ڕۆڵێکی هەیە؟",
+     "paragraphs": [
+      "گیتواس هەنگاوەکانی پۆست، کۆمێنت، نامەی تایبەت و داواکاری دەگرێتەوە، و دەتوانیت دەقی ڕادەستکردن بە کوریەر کۆپی بکەیت. گیتواس یاریدەدەرێکی ژیریی دەستکردە بۆ ئەو دوکان و کاروبارانەی لە فەیسبووک و ئینستاگرام لە کوردستان و عێراق دەفرۆشن. وەڵامی کۆمێنت و نامەکان بە کوردی و عەرەبی دەداتەوە، داواکاری کۆدەکاتەوە، و بە ژیریی دەستکرد ڤیدیۆی ڕیکلام و وێنە دروست دەکات."
+     ],
+     "bullets": [
+      "پۆست: یەک پۆست بۆ فەیسبووک، ئینستاگرام، تیکتۆک و یوتیوب بڵاودەکاتەوە، یان کاتی بۆ دیاری دەکات. تیکتۆک و یوتیوب ڕێساکانی خۆیان پەیڕەو دەکەن، بۆیە تۆ هەر پۆستێک لەوێ پەسەند دەکەیت. کەپشنەکان بە ژیریی دەستکرد دەنووسرێن، لەگەڵ هاشتاگی شارەکان بە نووسینی کوردی و لاتینی. هەروەها پلانە بە پارەکان وێنەی ڕیکلام لە بیرۆکەیەکی کورتەوە و ڤیدیۆی ڕیکلام بە ژیریی دەستکرد لە وێنەی بەرهەم و لۆگۆی تۆوە دروست دەکەن.",
+      "کۆمێنت: وەڵامی خۆکار شەو و ڕۆژ کاردەکات، لەسەر پەیجەکانی فەیسبووک و لە ئینستاگرام. کۆمێنتێکی وەک «نرخی چەندە؟» وەڵامێکی کورتی ئاشکرا لەژێر کۆمێنتەکەدا وەردەگرێت، و نرخ و وردەکارییەکان لە ماوەی چەند چرکەیەکدا بە نامەی تایبەت بۆ کڕیار دەنێردرێن. بەرهەمێک بە پۆستێکەوە دەبەستیتەوە بە ناو، وێنە، نرخ و قەبارەکانییەوە. پلانی بەخۆڕایی نوێترین ٣ پۆست دەگرێتەوە، پلانی بازرگان ٢٥ پۆست و پلانی پرۆ هەموو پۆستەکان.",
+      "نامەی تایبەت: بە کوردیی سۆرانی و عەرەبی وەڵام دەداتەوە، بە وشەکانی خۆت: تۆ دەنووسیت چۆن قسە بکات، لەوانە ئاوازی قسەکردن و چۆنیەتی باسکردنی نرخ. هەرگیز نرخێک لە خۆیەوە دروست ناکات، چونکە هەموو ژمارەیەک لە زانیاریی بەرهەمەکانت یان ڕێنماییەکانی تۆوە دێت. سکاڵا، چانەلێدان لەسەر نرخ، جنێو و نامە ناڕوونەکان بۆ تۆ دەگوازرێنەوە.",
+      "نامەی دەنگی: لە پلانە بە پارەکاندا نامە دەنگییە کوردییەکانی کڕیاران لە ئینستاگرام و مەسێنجەر بە ناسینەوەی دەنگ دەخوێنێتەوە، ڕۆژانە ٤ نامە لە پلانی بازرگان و ٨ لە پلانی پرۆ. لەوانەیە هەڵە ببیستێت، و ئەوانەی ناڕوون بن نیشانە دەکرێن.",
+      "داواکاری: ناو، ژمارەی مۆبایل، شار، ناونیشان و بەرهەم یان قەبارە لە گفتوگۆکەدا هەنگاو بە هەنگاو کۆدەکاتەوە، و داواکارییەکان بەپێی شار و دۆخ لە لیستێکدا دەپارێزێت. دەقی ڕادەستکردن بە کوریەر دەکرێت کۆپی بکرێت.",
+      "واتساپ: بەستەرێک کە ژمارەی تۆ و نامەیەکی ئامادەی داواکاریی تێدایە دەخرێتە ناو وەڵامەکان و پۆستەکان. ئەمە بەستەری داواکارییە، نەک وەڵامی خۆکار.",
+      "ڕاوێژی بووست: ئەو پۆستە دیاری دەکات کە شایەنی ئەوەیە پارەی بۆ بدەیت و بووست بکرێت، هەروەها پلاتفۆرمەکە، شارەکان، تەمەنەکان و حەزەکان، و بودجەی ڕۆژانە بە دیناری عێراقی. جەماوەرەکە لە نامە و داواکارییەکانی کڕیارەکانی خۆتەوە دەستنیشان دەکرێت، لە ئاستی گروپدا و هەرگیز دەربارەی تاکەکەس. خودی ڕیکلامەکە لە ئامرازەکانی خودی میتادا دەکڕدرێت.",
+      "ئامار: نامە، کۆمێنت و داواکارییەکانی چەند هەفتەی ڕابردوو، لەگەڵ شوێنکەوتوان و گەیشتن، لە یەک شوێندا دەبینرێن."
+     ]
+    },
+    {
+     "h2": "سنووری گیتواس چین، و نرخەکەی چەندە؟",
+     "paragraphs": [
+      "گیتواس سێ سنووری سەرەکی هەیە. پێویستی بە پەیجی فەیسبووک یان ئەکاونتی ئینستاگرامی بەستراوی تۆ هەیە، و ڕێساکانی میتا جێبەجێ دەکرێن، لەوانە پەنجەرەی ٢٤ کاتژمێریی نامەنێردن لە نامەی تایبەتدا. لە ئێستادا بە شێوەی خۆکار لە واتساپ وەڵام ناداتەوە؛ لەوێ تەنها بەستەری داواکارییە. جێگای بڕیاری تۆ ناگرێتەوە: سکاڵا، چانەلێدان، جنێو و نامە ناڕوونەکان بۆ تۆ دەگوازرێنەوە.",
+      "نرخی پلانەکان بۆ هەر دوکانێک و مانگانەیە، و دوکان بریتییە لە یەک پەیجی فەیسبووک یان یەک ئەکاونتی ئینستاگرامی بەستراو. پلانی بەخۆڕایی ٠ دینارە، پلانی بازرگان ١٥٬٠٠٠ دینار و پلانی پرۆ ٢٥٬٠٠٠ دینارە، و پارەکە بە دینار لە ڕێگای Wayl دەدرێت. پلانی ماکس ٥٩٬٠٠٠ دینارە و کاتێک کراوە بێت پێشکەش دەکرێت. پلانی بەخۆڕایی کاتی دیاریکراوی نییە."
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "name": "پۆستێک بە کەپشنێکی ڕوون",
+     "text": "کەپشنەکە بە سۆرانی، عەرەبی و ئینگلیزی بنووسە، نرخەکەی تێدا دابنێ یان ئاماژە بدە کە نرخەکە بە نامەی تایبەت دەنێردرێت، و هاشتاگی شارەکان بە هەردوو ئەلفوبێ زیاد بکە."
+    },
+    {
+     "name": "وەڵامدانەوەی کۆمێنت",
+     "text": "«نرخی چەندە؟» بە ئاشکرا و بە یەک دێڕ وەڵام بدەرەوە، و نرخ، گەیاندن و قەبارەکان بە نامەی تایبەت بنێرە."
+    },
+    {
+     "name": "دووپاتکردنەوە لە نامەی تایبەتدا",
+     "text": "لە بەرهەمەکە، قەبارە یان ڕەنگ، و گەیاندن بۆ شاری کڕیار دڵنیا ببەوە."
+    },
+    {
+     "name": "کۆکردنەوەی زانیارییەکانی داواکاری",
+     "text": "ناو، ژمارەی مۆبایل، شار و ناونیشان بپرسە، پاشان بۆ کڕیار دووبارە بکەرەوە."
+    },
+    {
+     "name": "ڕادەستکردن بۆ پارەدان لە کاتی گەیاندن",
+     "text": "زانیارییەکان و ئەو بڕە پارەیەی دەبێت وەریبگیرێت بدە بە کوریەر."
+    }
+   ],
+   "faq": [
+    {
+     "q": "ئایا پارەدان لە کاتی گەیاندن شێوازی ئاسایی پارەدانە لە عێراق و کوردستان؟",
+     "a": "بەڵێ، شێوازی باوە. ڕاپرسییەکی ساڵی ٢٠٢٠ لە هەرێمی کوردستان دۆزییەوە کە نزیکەی دوو بەش لە سێ بەشی داواکارییە ئۆنلاینەکان بە پارەدان لە کاتی گەیاندن بوون، و ئەو ڕاپرسییە تەنها هەرێمی کوردستان دەگرێتەوە. ئەمە وەک ئەندازەیەکی نزیکەیی وەربگرە."
+    },
+    {
+     "q": "دەتوانم لە عێراقەوە ڕیکلامی میتا بکەم؟",
+     "a": "پارەدان بۆ ڕیکلامی میتا لە عێراق پێویستی بە کارتی نێودەوڵەتی هەیە. گیتواس ڕاوێژی بووست دەدات، بەڵام ڕیکلامەکە لە ئامرازەکانی خودی میتادا دەکڕدرێت."
+    },
+    {
+     "q": "ئایا گیتواس بە شێوەی خۆکار لە واتساپ وەڵام دەداتەوە؟",
+     "a": "نەخێر، لە ئێستادا نا. واتساپ بەستەری داواکارییە، بە ژمارەی تۆ و نامەیەکی ئامادەی داواکارییەوە. وەڵامی خۆکار لەسەر پەیجەکانی فەیسبووک و لە ئینستاگرام کاردەکات."
+    }
+   ],
+   "related": [
+    "automatic-replies-facebook-instagram-comments",
+    "kurdish-voice-notes-and-orders"
+   ]
+  },
+  "ar": {
+   "slug": "sell-on-social-media-iraq-kurdistan",
+   "title": "كيف تبيع على فيسبوك وإنستغرام في كردستان والعراق: من التعليق إلى الدفع عند الاستلام",
+   "metaTitle": "البيع على فيسبوك وإنستغرام في كردستان والعراق",
+   "metaDescription": "كيف تبيع على فيسبوك وإنستغرام في كردستان والعراق: مسار التعليق والرسالة الخاصة والدفع عند الاستلام، مع قائمة تحقق للبائع.",
+   "answer": "يمرّ البيع على فيسبوك وإنستغرام في كردستان والعراق غالباً بمسار واحد: يعلّق المشتري على منشور، ثم ينتقل إلى رسالة خاصة، فيعطي الاسم والهاتف والمدينة والعنوان، ويدفع عند الاستلام. الرد السريع وطلب التفاصيل نفسها في كل مرة يُبقيان هذا المسار بسيطاً. ويتولّى Gituas الخطوات المتكررة عبر ردود تلقائية على التعليقات، وأجوبة على الرسائل الخاصة، وجمع الطلبات داخل المحادثة.",
+   "keyPoints": [
+    "المسار المعتاد: منشور، فتعليق، فرسالة خاصة، فتفاصيل الطلب، ثم الدفع عند الاستلام.",
+    "يكرر المشترون الأسئلة الأربعة نفسها: السعر، والتوصيل إلى مدينتهم، والمقاس أو اللون، وتفاصيل العنوان.",
+    "تشير التقديرات إلى أن معظم التجارة الإلكترونية في العراق تقودها وسائل التواصل الاجتماعي، وقد وجد استطلاع أُجري عام ٢٠٢٠ في إقليم كردستان أن الدفع عند الاستلام يمثل نحو ثلثي الطلبات عبر الإنترنت.",
+    "الدفع مقابل الإعلانات على ميتا في العراق يتطلب بطاقة دولية.",
+    "يرد Gituas على التعليقات والرسائل الخاصة بالكردية والعربية ويجمع الطلبات، لكنه لا يرد تلقائياً على واتساب حالياً."
+   ],
+   "sections": [
+    {
+     "h2": "كيف يعمل البيع على فيسبوك وإنستغرام في كردستان والعراق؟",
+     "paragraphs": [
+      "يسير غالباً وفق خمس خطوات: منشور، تعليق، رسالة خاصة، تفاصيل الطلب، دفع عند الاستلام. ينشر البائع منتجاً. يعلّق المشتري. يردّ البائع وينقل المشتري إلى رسالة خاصة أو إلى واتساب. يعطي المشتري تفاصيل التوصيل، ويوصل المندوب الطرد، ويدفع المشتري عند الباب.",
+      "تشير التقديرات إلى أن معظم التجارة الإلكترونية في العراق تقودها وسائل التواصل الاجتماعي، وقد وجد استطلاع أُجري عام ٢٠٢٠ في إقليم كردستان أن الدفع عند الاستلام يمثل نحو ثلثي الطلبات عبر الإنترنت. اعتبر هذه الأرقام مؤشرات تقريبية لا أرقاماً دقيقة."
+     ]
+    },
+    {
+     "h2": "ماذا يسأل المشترون قبل أن يطلبوا؟",
+     "paragraphs": [
+      "يسأل المشترون الأسئلة الأربعة نفسها مراراً: السعر، والتوصيل إلى مدينتهم، والمقاس أو اللون، وتفاصيل العنوان. وتحت المنشور يكتب كثيرون فقط «نرخی چەندە؟»، أي «كم السعر؟».",
+      "أجب عن الأربعة كلها في ردك الأول، حتى يقلّ ما يدعو المشتري إلى السؤال مرة أخرى. اكتب السعر، ومدن التوصيل وتكلفته، والمقاسات والألوان، وما تحتاجه من المشتري لإرسال الطلب."
+     ]
+    },
+    {
+     "h2": "ماذا يجب أن يجهّزه البائع قبل النشر؟",
+     "paragraphs": [
+      "جهّز صفحتك ومنشوراتك بحيث يستطيع من لا يعرفك أن يطلب دون أن يسألك عن الأساسيات. استخدم هذه القائمة."
+     ],
+     "bullets": [
+      "النبذة التعريفية: ضع رقم واتساب في النبذة التعريفية، وسطراً مثل «توصيل فقط» إن كان هذا أسلوب عملك.",
+      "معلومات التوصيل: اذكر المدن التي توصّل إليها وسعر التوصيل ومدته.",
+      "وصف بثلاث لغات: اكتب وصف كل منشور بالكردية السورانية والعربية والإنجليزية ليتمكن عدد أكبر من المشترين من قراءته.",
+      "هاشتاغات بأسماء المدن بالكتابتين: اجمع بين #هەولێر و#Erbil، و#سلێمانی و#Sulaymaniyah، و#دهۆک و#Duhok، و#کەرکوک و#Kirkuk.",
+      "ردود سريعة: ردّ على التعليقات والرسائل خلال دقائق، ومساءً أيضاً.",
+      "أربع تفاصيل لكل طلب: الاسم والهاتف والمدينة والعنوان، إضافة إلى المنتج ومقاسه أو لونه."
+     ]
+    },
+    {
+     "h2": "كيف يعمل الدفع والتوصيل؟",
+     "paragraphs": [
+      "الدفع عند الاستلام هو الطريقة الشائعة: يدفع المشتري عند وصول الطرد. وهذا يجعل تفاصيل الطلب الصحيحة ضرورية، لأن خطأً في رقم الهاتف أو العنوان قد يُهدر توصيلة.",
+      "قبل الإرسال، أعد على المشتري المنتج والمقاس والمدينة والعنوان والسعر الإجمالي. ثم أعطِ مندوب التوصيل التفاصيل نفسها والمبلغ المطلوب تحصيله. اختر مندوب التوصيل قبل أن تعد بمواعيد التسليم، واذكر سعر التوصيل في الرد الأول حتى لا يفاجأ المشتري عند الباب.",
+      "الدفع مقابل الإعلانات على ميتا في العراق يتطلب بطاقة دولية. تحقق من ذلك قبل أن تخطط لحملة مدفوعة."
+     ]
+    },
+    {
+     "h2": "أين يأتي دور Gituas في كل خطوة؟",
+     "paragraphs": [
+      "يأتي دور Gituas في خطوات المنشور والتعليق والرسالة الخاصة والطلب، ويتيح نسخ نص التسليم لمندوب التوصيل. Gituas مساعد بالذكاء الاصطناعي للمتاجر والأعمال التي تبيع على فيسبوك وإنستغرام في كردستان والعراق. يرد على التعليقات والرسائل بالكردية والعربية، ويجمع الطلبات، ويصنع إعلانات فيديو وصوراً بالذكاء الاصطناعي."
+     ],
+     "bullets": [
+      "المنشور: ينشر منشوراً واحداً على فيسبوك وإنستغرام وتيك توك ويوتيوب، أو يجدوله. يتبع تيك توك ويوتيوب قواعد المنصتين نفسيهما، لذلك توافق أنت على كل منشور هناك. تُكتب الأوصاف بالذكاء الاصطناعي مع هاشتاغات المدن بالكتابة الكردية واللاتينية. وتصنع الخطط المدفوعة أيضاً صوراً إعلانية من فكرة قصيرة وإعلانات فيديو بالذكاء الاصطناعي من صور منتجاتك وشعارك.",
+      "التعليق: الردود التلقائية تعمل على مدار الساعة على صفحات فيسبوك وفي إنستغرام. يحصل تعليق مثل «نرخی چەندە؟» على رد علني قصير، ويصل السعر والتفاصيل إلى المشتري في رسالة خاصة خلال ثوانٍ. تربط المنتج بالمنشور باسمه وصوره وأسعاره ومقاساته. الخطة المجانية تغطي أحدث ٣ منشورات، وخطة التاجر ٢٥، والخطة الاحترافية كل المنشورات.",
+      "الرسالة الخاصة: يجيب بالكردية السورانية والعربية وبكلماتك أنت: تكتب كيف يتحدث، بما في ذلك النبرة وطريقة الحديث عن السعر. لا يخترع سعراً أبداً، لأن كل رقم يأتي من بيانات منتجك أو من تعليماتك. الشكاوى والمساومة والإساءة والرسائل غير الواضحة تُحال إليك.",
+      "الرسائل الصوتية: في الخطط المدفوعة يفهم الرسائل الصوتية الكردية للمشترين على إنستغرام وماسنجر بالتعرف على الكلام، ٤ يومياً في خطة التاجر و٨ في الخطة الاحترافية. قد يخطئ في السماع، وتُعلَّم غير الواضحة.",
+      "الطلب: يجمع الاسم والهاتف والمدينة والعنوان والمنتج أو المقاس داخل المحادثة خطوة بخطوة، ويحفظ الطلبات في قائمة حسب المدينة والحالة. ويمكن نسخ نص التسليم لمندوب التوصيل.",
+      "واتساب: رابط يحمل رقمك ورسالة طلب جاهزة يوضع في الردود والمنشورات. إنه رابط طلب وليس رداً تلقائياً.",
+      "نصائح الترويج (Boost): يحدد المنشور الجدير بالترويج المدفوع، والمنصة، والمدن والأعمار والاهتمامات، وميزانية يومية بالدينار. ويُستنتج الجمهور من رسائل المشترين لديك وطلباتهم، على مستوى المجموعات ولا يخص أفراداً. أما الإعلان نفسه فيُشترى من أدوات ميتا.",
+      "الإحصاءات: الرسائل والتعليقات والطلبات خلال الأسابيع الماضية، مع المتابعين والوصول، في مكان واحد."
+     ]
+    },
+    {
+     "h2": "ما حدود Gituas وكم يكلّف؟",
+     "paragraphs": [
+      "لـ Gituas ثلاثة حدود رئيسية. يحتاج إلى ربط صفحة فيسبوك أو حساب إنستغرام الخاص بك، وتسري قواعد ميتا، ومنها نافذة الرسائل الخاصة البالغة ٢٤ ساعة. ولا يرد تلقائياً على واتساب حالياً؛ وفي واتساب يكون رابط طلب فقط. ولا يحلّ محل تقديرك: الشكاوى والمساومة والإساءة والرسائل غير الواضحة تُحال إليك.",
+      "تُحتسب الخطط لكل متجر شهرياً، والمتجر هو صفحة فيسبوك أو حساب إنستغرام مربوط واحد. الخطة المجانية ٠ دينار، وخطة التاجر ١٥٬٠٠٠ دينار، والخطة الاحترافية ٢٥٬٠٠٠ دينار، وتُدفع بالدينار عبر Wayl. وخطة ماكس ٥٩٬٠٠٠ دينار وتُعرض عندما تكون متاحة. والخطة المجانية بلا مدة محددة."
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "name": "انشر مع وصف واضح",
+     "text": "اكتب الوصف بالسورانية والعربية والإنجليزية، وأضف السعر أو اذكر أنه يصل برسالة خاصة، وأضف هاشتاغات المدن بالكتابتين."
+    },
+    {
+     "name": "ردّ على التعليق",
+     "text": "أجب عن «نرخی چەندە؟» علناً في سطر واحد، وأرسل السعر والتوصيل والمقاسات في رسالة خاصة."
+    },
+    {
+     "name": "أكّد في الرسالة الخاصة",
+     "text": "تحقق من المنتج والمقاس أو اللون والتوصيل إلى مدينة المشتري."
+    },
+    {
+     "name": "اجمع تفاصيل الطلب",
+     "text": "اطلب الاسم والهاتف والمدينة والعنوان، ثم أعدها على المشتري."
+    },
+    {
+     "name": "سلّم الطلب للدفع عند الاستلام",
+     "text": "أعطِ مندوب التوصيل التفاصيل والمبلغ المطلوب تحصيله."
+    }
+   ],
+   "faq": [
+    {
+     "q": "هل الدفع عند الاستلام هو الطريقة المعتادة في العراق وكردستان؟",
+     "a": "نعم، هي الطريقة الشائعة. وجد استطلاع أُجري عام ٢٠٢٠ في إقليم كردستان أن الدفع عند الاستلام يمثل نحو ثلثي الطلبات عبر الإنترنت، والاستطلاع يخص إقليم كردستان فقط. اعتبر ذلك مؤشراً تقريبياً."
+    },
+    {
+     "q": "هل يمكنني تشغيل إعلانات ميتا من العراق؟",
+     "a": "الدفع مقابل الإعلانات على ميتا في العراق يتطلب بطاقة دولية. يقدّم Gituas نصائح الترويج، لكن الإعلان نفسه يُشترى من أدوات ميتا."
+    },
+    {
+     "q": "هل يرد Gituas تلقائياً على واتساب؟",
+     "a": "لا، ليس حالياً. واتساب رابط طلب يحمل رقمك ورسالة طلب جاهزة. تعمل الردود التلقائية على صفحات فيسبوك وفي إنستغرام."
+    }
+   ],
+   "related": [
+    "automatic-replies-facebook-instagram-comments",
+    "kurdish-voice-notes-and-orders"
+   ]
+  }
+ },
+ {
+  "slug": "kurdish-ai-video-ads",
+  "en": {
+   "slug": "kurdish-ai-video-ads",
+   "title": "How AI Video Ads in Kurdish Work for a Small Shop",
+   "metaTitle": "Kurdish AI Video Ads for a Small Shop: How It Works",
+   "metaDescription": "How Gituas makes a 9:16 video ad in Kurdish for your shop: script, Kurdish voice, posting, the daily video, plan limits and honest limits.",
+   "answer": "Gituas makes a short vertical 9:16 video ad in four stages: an AI writes the script, a Kurdish voice reads it, the video is built from your product photos and logo, and it is posted. It can also make one video a day automatically. The voice is AI-generated, every video should be checked by you, and results are not guaranteed.",
+   "keyPoints": [
+    "An AI writes the script, a Kurdish voice reads it, and the 9:16 video is built from the shop's own product photos and logo.",
+    "Merchant allows up to 16 AI video ads a month, Pro 24, Max 30; Free has none.",
+    "One AI video ad can be made automatically each day, inside the monthly allowance.",
+    "The voice is AI-generated, every video should be checked by the owner, and results are not guaranteed."
+   ],
+   "sections": [
+    {
+     "h2": "What is an AI video ad in Kurdish?",
+     "paragraphs": [
+      "An AI video ad in Gituas is a short vertical 9:16 video ad: an AI writes the script, a Kurdish voice reads it, and the video is made from the shop's own product photos and logo.",
+      "Gituas is an AI assistant for shops and businesses that sell on Facebook and Instagram in Kurdistan and Iraq. It answers comments and messages in Kurdish and Arabic, collects orders, and makes video ads and pictures with AI."
+     ]
+    },
+    {
+     "h2": "How does an AI video ad get made and posted?",
+     "paragraphs": [
+      "It moves through four stages: script, voice, video and posting.",
+      "Posting works through Gituas, which publishes to Facebook, Instagram, TikTok and YouTube from one place. TikTok and YouTube follow those platforms' own rules, so the owner approves each post there."
+     ],
+     "bullets": [
+      "Script: an AI writes the script of a short vertical video ad.",
+      "Voice: a Kurdish voice reads the script aloud.",
+      "Video: the video is made in 9:16 from your product photos and logo.",
+      "Post: the video can be posted straight away."
+     ]
+    },
+    {
+     "h2": "What does the shop need to provide?",
+     "paragraphs": [
+      "The shop needs product photos, a logo, a connected Facebook Page or Instagram account and a paid plan.",
+      "The photos and the logo are the raw material of the video. Clear photos of the real product give the AI something true to show.",
+      "A shop in Gituas is one connected Facebook Page or Instagram account. The Free plan has no AI video ads, so a paid plan is needed.",
+      "If a price appears in the video, it must be the price you really charge. Check it yourself."
+     ]
+    },
+    {
+     "h2": "What is the daily automatic video?",
+     "paragraphs": [
+      "It is one AI video ad that Gituas makes automatically once a day, so you do not have to start each one by hand.",
+      "An automatic video is also an AI video ad, so the plan's monthly limit applies to it. On Merchant, if one is made every day, the 16 videos are used up in 16 days. Pro allows 24 and Max allows 30.",
+      "Check the daily videos the same way you check one you start yourself."
+     ]
+    },
+    {
+     "h2": "Which plans include AI video ads?",
+     "paragraphs": [
+      "Merchant, Pro and Max include AI video ads; Free does not. Allowances are per shop, per month (30 days).",
+      "Payment is in Iraqi dinar (IQD) through Wayl with FIB, ZainCash, QiCard, FastPay or card, and a paid plan that is not renewed falls back to Free. The plans:"
+     ],
+     "bullets": [
+      "Free, 0 IQD: no AI video ads.",
+      "Merchant, 15,000 IQD a month: up to 16 AI video ads a month, 1 a day at most.",
+      "Pro, 25,000 IQD a month: up to 24 a month.",
+      "Max, 59,000 IQD a month, offered when open: up to 30 a month, with Claude Opus, the strongest AI model, writing the video scripts."
+     ]
+    },
+    {
+     "h2": "What makes a good Kurdish video ad?",
+     "paragraphs": [
+      "A good video ad is short, spoken and about one product, and it has four parts: a hook, the product, the offer and a call to action.",
+      "Each part has one job. The hook gets the viewer to stay, the product shows what it is, the offer gives a reason to act, and the call to action says what to do next. Use these rules to choose the product and to judge the finished video."
+     ],
+     "bullets": [
+      "Hook first. Open with the problem, the occasion or the surprise your buyer cares about, not with the shop's name.",
+      "One product per video. Two products give the viewer two things to forget.",
+      "Say the offer plainly: the price, which cities you deliver to, and a deadline only if it is real.",
+      "End with one call to action: a comment or a message. Automatic replies can answer a comment within seconds.",
+      "Judge it by ear. A good Kurdish ad sounds like a person talking to a customer, not like a formal text.",
+      "Use city hashtags in both scripts. Gituas writes post captions with AI and adds city hashtags in Kurdish and Latin script, such as #هەولێر and #سلێمانی."
+     ]
+    },
+    {
+     "h2": "What happens when a viewer comments on the video?",
+     "paragraphs": [
+      "A comment such as «نرخی چەندە؟» (\"how much?\") can get a short public reply and the price sent privately in a direct message, within seconds.",
+      "This works on Facebook Pages and Instagram, when the shop has linked a product to the post. Orders can then be collected in the chat step by step: name, phone, city, address and product or size."
+     ]
+    },
+    {
+     "h2": "What are the honest limits?",
+     "paragraphs": [
+      "AI video ads help you make a video, but they do not replace the owner's judgement. Five limits apply."
+     ],
+     "bullets": [
+      "The voice is AI-generated. It is a computer-made Kurdish voice, not a person. Listen to the whole video for names, numbers and pronunciation.",
+      "Check every video yourself. The AI can write a line that is off in tone or detail. Watch every video, including the daily ones.",
+      "No guaranteed results. Gituas makes the video; views, messages and orders depend on the product, the price and the audience.",
+      "Platform rules apply. TikTok and YouTube need your approval of each post, and Meta's rules apply too, such as the 24-hour messaging window for direct messages. Paying for ads on Meta in Iraq needs an international card, and the ad is bought in Meta's own tools; Gituas gives Boost advice.",
+      "WhatsApp is an order link. Gituas does not reply automatically on WhatsApp."
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "name": "Connect the shop",
+     "text": "Connect the shop's Facebook Page or Instagram account and choose a paid plan."
+    },
+    {
+     "name": "Add photos and logo",
+     "text": "Provide clear photos of the real product and the shop's logo."
+    },
+    {
+     "name": "Let the AI make the video",
+     "text": "The AI writes the script, a Kurdish voice reads it, and the 9:16 video is made from your photos and logo."
+    },
+    {
+     "name": "Check the result",
+     "text": "Watch the finished video with sound and check the names, numbers, the price and the pronunciation."
+    },
+    {
+     "name": "Post it",
+     "text": "Post the video straight away, or let Gituas make one video a day automatically. On TikTok and YouTube, approve each post."
+    }
+   ],
+   "faq": [
+    {
+     "q": "Does Gituas make video ads in Kurdish?",
+     "a": "Yes. An AI writes the script and a Kurdish voice reads it over a 9:16 video."
+    },
+    {
+     "q": "Can I make AI video ads on the Free plan?",
+     "a": "No. AI video ads start at the Merchant plan, 15,000 IQD a month."
+    },
+    {
+     "q": "How many AI video ads can I make a month?",
+     "a": "Up to 16 on Merchant, 24 on Pro and 30 on Max (offered when open), per shop and per month."
+    },
+    {
+     "q": "Can Gituas make a video every day?",
+     "a": "Yes. It can make one AI video ad automatically once a day, inside the plan's monthly allowance."
+    },
+    {
+     "q": "Will a video ad bring sales?",
+     "a": "Gituas cannot promise that. Results depend on the product, price and audience."
+    }
+   ],
+   "related": [
+    "boost-which-post-and-audience",
+    "automatic-replies-facebook-instagram-comments"
+   ]
+  },
+  "ku": {
+   "slug": "kurdish-ai-video-ads",
+   "title": "ڤیدیۆی ڕیکلامی کوردی بە زیرەکی دەستکرد چۆن کار دەکات بۆ دوکانێکی بچووک",
+   "metaTitle": "ڤیدیۆی ڕیکلامی کوردی بە زیرەکی دەستکرد بۆ دوکانی بچووک",
+   "metaDescription": "گیتواس چۆن ڤیدیۆی ڕیکلامی ٩:١٦ بە کوردی بۆ دوکانەکەت دروست دەکات: سکریپت، دەنگی کوردی، بڵاوکردنەوە، ڤیدیۆی ڕۆژانە، سنووری پلان و سنوورەکان بە ڕاستگۆیی.",
+   "answer": "گیتواس ڤیدیۆیەکی ڕیکلامی کورتی ئەستوونی بە ڕێژەی ٩:١٦ لە چوار قۆناغدا دروست دەکات: زیرەکی دەستکرد سکریپتەکە دەنووسێت، دەنگێکی کوردی دەیخوێنێتەوە، ڤیدیۆکە لە وێنەی بەرهەم و لۆگۆی دوکانەکەتەوە دروست دەکرێت، دواتر بڵاو دەکرێتەوە. دەتوانێت ڕۆژانە یەک ڤیدیۆش بە خۆکاری دروست بکات. دەنگەکە بە زیرەکی دەستکرد دروستکراوە، پێویستە خۆت هەموو ڤیدیۆیەک بپشکنیت، و ئەنجامەکان گەرەنتی ناکرێن.",
+   "keyPoints": [
+    "زیرەکی دەستکرد سکریپتەکە دەنووسێت، دەنگێکی کوردی دەیخوێنێتەوە، و ڤیدیۆی ٩:١٦ لە وێنەی بەرهەم و لۆگۆی خودی دوکانەکەوە دروست دەکرێت.",
+    "پلانی Merchant تا ١٦ ڤیدیۆی ڕیکلامی زیرەکی دەستکرد لە مانگێکدا ڕێگە دەدات، Pro ٢٤، Max ٣٠؛ پلانی بەخۆڕایی هیچی نییە.",
+    "ڕۆژانە دەکرێت یەک ڤیدیۆ بە خۆکاری دروست بکرێت، لە چوارچێوەی بڕی مانگانەی پلانەکەدا.",
+    "دەنگەکە بە زیرەکی دەستکرد دروستکراوە، خاوەن دوکان دەبێت هەموو ڤیدیۆیەک بپشکنێت، و ئەنجامەکان گەرەنتی ناکرێن."
+   ],
+   "sections": [
+    {
+     "h2": "ڤیدیۆی ڕیکلامی زیرەکی دەستکرد بە کوردی چییە؟",
+     "paragraphs": [
+      "ڤیدیۆی ڕیکلامی زیرەکی دەستکرد لە گیتواس ڤیدیۆیەکی ڕیکلامی کورتی ئەستوونییە بە ڕێژەی ٩:١٦: زیرەکی دەستکرد سکریپتەکە دەنووسێت، دەنگێکی کوردی دەیخوێنێتەوە، و ڤیدیۆکە لە وێنەی بەرهەم و لۆگۆی خودی دوکانەکەتەوە دروست دەکرێت.",
+      "گیتواس یاریدەدەرێکی زیرەکی دەستکردە بۆ ئەو دوکان و بزنسانەی لە فەیسبووک و ئینستاگرام لە کوردستان و عێراقدا دەفرۆشن. وەڵامی کۆمێنت و نامەکان بە کوردی و عەرەبی دەداتەوە، داواکارییەکان کۆدەکاتەوە، و بە زیرەکی دەستکرد ڤیدیۆی ڕیکلام و وێنە دروست دەکات."
+     ]
+    },
+    {
+     "h2": "ڤیدیۆی ڕیکلامی زیرەکی دەستکرد چۆن دروست دەکرێت و بڵاو دەکرێتەوە؟",
+     "paragraphs": [
+      "لە چوار قۆناغدا تێدەپەڕێت: سکریپت، دەنگ، ڤیدیۆ و بڵاوکردنەوە.",
+      "بڵاوکردنەوە لە ڕێگەی گیتواسەوە دەبێت، کە پۆست لە یەک شوێنەوە بۆ فەیسبووک، ئینستاگرام، تیکتۆک و یوتیوب بڵاو دەکاتەوە. تیکتۆک و یوتیوب یاساکانی خۆیان هەیە، بۆیە خاوەن دوکان لەوێ هەر پۆستێک خۆی پەسەند دەکات."
+     ],
+     "bullets": [
+      "سکریپت: زیرەکی دەستکرد سکریپتی ڤیدیۆیەکی ڕیکلامی کورتی ئەستوونی دەنووسێت.",
+      "دەنگ: دەنگێکی کوردی سکریپتەکە بە دەنگی بەرز دەخوێنێتەوە.",
+      "ڤیدیۆ: ڤیدیۆکە بە ڕێژەی ٩:١٦ لە وێنەی بەرهەم و لۆگۆکەتەوە دروست دەکرێت.",
+      "بڵاوکردنەوە: ڤیدیۆکە دەکرێت دەستبەجێ بڵاو بکرێتەوە."
+     ]
+    },
+    {
+     "h2": "دوکان پێویستە چی دابین بکات؟",
+     "paragraphs": [
+      "دوکانەکە پێویستی بە وێنەی بەرهەم، لۆگۆ، پەیجی فەیسبووک یان ئەکاونتی ئینستاگرامی بەستراو و پلانێکی پارەدار هەیە.",
+      "وێنەکان و لۆگۆکە بنەمای ڤیدیۆکەن. وێنەی ڕوونی بەرهەمە ڕاستەقینەکە شتێکی ڕاست دەدات بە زیرەکی دەستکرد بۆ پیشاندان.",
+      "لە گیتواس «دوکان» واتە یەک پەیجی فەیسبووک یان یەک ئەکاونتی ئینستاگرامی بەستراو. پلانی بەخۆڕایی ڤیدیۆی ڕیکلامی زیرەکی دەستکردی تێدا نییە، بۆیە پلانێکی پارەدار پێویستە.",
+      "ئەگەر نرخ لە ڤیدیۆکەدا دەرکەوت، دەبێت ئەو نرخە بێت کە بە ڕاستی وەریدەگریت. خۆت بیپشکنە."
+     ]
+    },
+    {
+     "h2": "ڤیدیۆی ڕۆژانەی خۆکار چییە؟",
+     "paragraphs": [
+      "یەک ڤیدیۆی ڕیکلامی زیرەکی دەستکردە کە گیتواس بە خۆکاری ڕۆژانە جارێک دروستی دەکات، بۆ ئەوەی پێویست نەبێت هەر یەکێکیان خۆت دەستی پێ بکەیت.",
+      "ڤیدیۆی خۆکاریش ڤیدیۆی ڕیکلامی زیرەکی دەستکردە، بۆیە سنووری مانگانەی پلانەکە دەیگرێتەوە. لە Merchant، ئەگەر هەموو ڕۆژێک یەکێک دروست بکرێت، ١٦ ڤیدیۆکە لە ١٦ ڕۆژدا تەواو دەبن. Pro ٢٤ و Max ٣٠ ڕێگە دەدەن.",
+      "ڤیدیۆکانی ڕۆژانەش بە هەمان شێوەی ئەوانەی خۆت دروستیان دەکەیت بپشکنە."
+     ]
+    },
+    {
+     "h2": "کام پلانەکان ڤیدیۆی ڕیکلامی زیرەکی دەستکردیان تێدایە؟",
+     "paragraphs": [
+      "Merchant و Pro و Max ڤیدیۆی ڕیکلامی زیرەکی دەستکردیان تێدایە؛ پلانی بەخۆڕایی نایانگرێتەوە. بڕەکان بۆ هەر دوکانێک و بۆ هەر مانگێکن (٣٠ ڕۆژ).",
+      "پارە بە دیناری عێراقی (IQD) دەدرێت لە ڕێگەی Wayl بە FIB، ZainCash، QiCard، FastPay یان کارت، و پلانێکی پارەدار کە نوێ نەکرێتەوە دەگەڕێتەوە بۆ پلانی بەخۆڕایی. پلانەکان:"
+     ],
+     "bullets": [
+      "پلانی بەخۆڕایی (Free)، ٠ دینار: ڤیدیۆی ڕیکلامی زیرەکی دەستکرد نییە.",
+      "Merchant، ١٥٬٠٠٠ دینار مانگانە: تا ١٦ ڤیدیۆی ڕیکلامی زیرەکی دەستکرد لە مانگێکدا، و لە ڕۆژێکدا تا یەک ڤیدیۆ.",
+      "Pro، ٢٥٬٠٠٠ دینار مانگانە: تا ٢٤ لە مانگێکدا.",
+      "Max، ٥٩٬٠٠٠ دینار مانگانە، کاتێک بەردەست بێت: تا ٣٠ لە مانگێکدا، و Claude Opus، بەهێزترین مۆدێلی زیرەکی دەستکرد، سکریپتی ڤیدیۆکان دەنووسێت."
+     ]
+    },
+    {
+     "h2": "ڤیدیۆی ڕیکلامی باشی کوردی چۆنە؟",
+     "paragraphs": [
+      "ڤیدیۆی ڕیکلامی باش کورت و قسەکراو دەبێت و دەربارەی یەک بەرهەمە، و چوار بەشی هەیە: دەستپێکی سەرنجڕاکێش، بەرهەم، پێشنیار، و بانگەواز بۆ کردار.",
+      "هەر بەشێک یەک کاری هەیە. دەستپێکەکە وا لە بینەر دەکات بمێنێتەوە، بەرهەمەکە پیشان دەدات چییە، پێشنیارەکە هۆکارێک دەدات بۆ کردار، و بانگەوازەکە دەڵێت دواتر چی بکات. ئەم ڕێسایانە بەکاربهێنە بۆ هەڵبژاردنی بەرهەمەکە و هەڵسەنگاندنی ڤیدیۆ تەواوبووەکە."
+     ],
+     "bullets": [
+      "یەکەم دەستپێکی سەرنجڕاکێش. بە کێشەکە، بۆنەکە یان سەرسوڕهێنەرێک دەست پێ بکە کە بۆ کڕیارەکەت گرنگە، نەک بە ناوی دوکانەکەت.",
+      "یەک بەرهەم بۆ هەر ڤیدیۆیەک. دوو بەرهەم دوو شت دەدەن بە بینەر بۆ ئەوەی لەبیریان بکات.",
+      "پێشنیارەکە بە ڕوونی بڵێ: نرخ، بۆ کام شارەکان دەگەیەنیت، و کاتی کۆتایی تەنیا ئەگەر ڕاستەقینە بێت.",
+      "بە یەک بانگەواز کۆتایی پێ بهێنە: کۆمێنتێک یان نامەیەک. وەڵامی خۆکار دەتوانێت لە چرکەکاندا وەڵامی کۆمێنتێک بداتەوە.",
+      "بە گوێ هەڵیبسەنگێنە. ڕیکلامی کوردیی باش وا دەبیسترێت وەک کەسێک لەگەڵ کڕیارێک قسە بکات، نەک وەک دەقێکی فەرمی.",
+      "هاشتاگی شار بە هەردوو خەت بەکاربهێنە. گیتواس کەپشنی پۆست بە زیرەکی دەستکرد دەنووسێت و هاشتاگی شار بە کوردی و لاتینی تێدەخات، وەک #هەولێر و #سلێمانی."
+     ]
+    },
+    {
+     "h2": "کاتێک بینەرێک کۆمێنت لەسەر ڤیدیۆکە دەنووسێت چی ڕوو دەدات؟",
+     "paragraphs": [
+      "کۆمێنتێک وەک «نرخی چەندە؟» دەتوانێت وەڵامێکی گشتیی کورت وەربگرێت و نرخەکەش بە نامەی تایبەت بنێردرێت، لە چرکەکاندا.",
+      "ئەمە لە پەیجی فەیسبووک و ئینستاگرام کار دەکات، کاتێک دوکانەکە بەرهەمێکی بە پۆستەکەوە بەستبێت. دواتر داواکارییەکان لە چاتدا هەنگاو بە هەنگاو کۆدەکرێنەوە: ناو، ژمارەی تەلەفۆن، شار، ناونیشان و بەرهەم یان قیاس."
+     ]
+    },
+    {
+     "h2": "سنوورەکان بە ڕاستگۆیی چین؟",
+     "paragraphs": [
+      "ڤیدیۆی ڕیکلامی زیرەکی دەستکرد یارمەتیت دەدات ڤیدیۆ دروست بکەیت، بەڵام جێگەی بڕیاری خاوەن دوکان ناگرێتەوە. پێنج سنوور هەن."
+     ],
+     "bullets": [
+      "دەنگەکە بە زیرەکی دەستکرد دروستکراوە. دەنگێکی کوردیی کۆمپیوتەر دروستی کردووە، مرۆڤ نییە. هەموو ڤیدیۆکە گوێ لێ بگرە بۆ ناو، ژمارە و شێوەی خوێندنەوەی وشەکان.",
+      "هەموو ڤیدیۆیەک خۆت بپشکنە. زیرەکی دەستکرد دەکرێت دێڕێک بنووسێت کە لە شێواز یان وردەکارییەوە ڕێک نەبێت. هەموو ڤیدیۆکان ببینە، ڕۆژانەکانیش.",
+      "ئەنجام گەرەنتی نییە. گیتواس ڤیدیۆکە دروست دەکات؛ بینین، نامە و داواکاری بەندن بە بەرهەمەکە، نرخەکە و بینەرەکان.",
+      "یاساکانی پلاتفۆرمەکان جێبەجێ دەبن. تیکتۆک و یوتیوب پێویستیان بە پەسەندکردنی تۆیە بۆ هەر پۆستێک، هەروەها یاساکانی Meta جێبەجێ دەبن، وەک پەنجەرەی ٢٤ کاتژمێری نامەی تایبەت. پارەدان بۆ ڕیکلام لە Meta لە عێراق پێویستی بە کارتی نێودەوڵەتی هەیە و ڕیکلامەکە لە ئامرازەکانی خودی Meta دەکڕدرێت؛ گیتواس ئامۆژگاری بووست دەدات.",
+      "واتساپ لینکی داواکارییە. گیتواس لە واتساپ وەڵامی خۆکار نادات."
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "name": "دوکانەکە ببەستەرەوە",
+     "text": "پەیجی فەیسبووک یان ئەکاونتی ئینستاگرامی دوکانەکەت ببەستەرەوە و پلانێکی پارەدار هەڵبژێرە."
+    },
+    {
+     "name": "وێنە و لۆگۆ زیاد بکە",
+     "text": "وێنەی ڕوونی بەرهەمە ڕاستەقینەکە و لۆگۆی دوکانەکەت دابین بکە."
+    },
+    {
+     "name": "با زیرەکی دەستکرد ڤیدیۆکە دروست بکات",
+     "text": "زیرەکی دەستکرد سکریپتەکە دەنووسێت، دەنگێکی کوردی دەیخوێنێتەوە، و ڤیدیۆی ٩:١٦ لە وێنە و لۆگۆکەتەوە دروست دەکرێت."
+    },
+    {
+     "name": "ئەنجامەکە بپشکنە",
+     "text": "ڤیدیۆ تەواوبووەکە بە دەنگەوە ببینە و ناوەکان، ژمارەکان، نرخ و شێوەی خوێندنەوەی وشەکان بپشکنە."
+    },
+    {
+     "name": "بڵاوی بکەرەوە",
+     "text": "ڤیدیۆکە دەستبەجێ بڵاو بکەرەوە، یان با گیتواس ڕۆژانە یەک ڤیدیۆ بە خۆکاری دروست بکات. لە تیکتۆک و یوتیوب هەر پۆستێک پەسەند بکە."
+    }
+   ],
+   "faq": [
+    {
+     "q": "ئایا گیتواس ڤیدیۆی ڕیکلام بە کوردی دروست دەکات؟",
+     "a": "بەڵێ. زیرەکی دەستکرد سکریپتەکە دەنووسێت و دەنگێکی کوردی لەسەر ڤیدیۆیەکی ٩:١٦ دەیخوێنێتەوە."
+    },
+    {
+     "q": "ئایا لە پلانی بەخۆڕایی دەتوانم ڤیدیۆی ڕیکلامی زیرەکی دەستکرد دروست بکەم؟",
+     "a": "نەخێر. ڤیدیۆی ڕیکلامی زیرەکی دەستکرد لە پلانی Merchant دەست پێدەکات، ١٥٬٠٠٠ دینار مانگانە."
+    },
+    {
+     "q": "لە مانگێکدا چەند ڤیدیۆی ڕیکلامی زیرەکی دەستکرد دروست دەکرێت؟",
+     "a": "تا ١٦ لە Merchant، ٢٤ لە Pro و ٣٠ لە Max (کاتێک بەردەست بێت)، بۆ هەر دوکانێک لە هەر مانگێکدا."
+    },
+    {
+     "q": "ئایا گیتواس ڕۆژانە ڤیدیۆ دروست دەکات؟",
+     "a": "بەڵێ. دەتوانێت ڕۆژانە جارێک ڤیدیۆیەکی ڕیکلامی زیرەکی دەستکرد بە خۆکاری دروست بکات، لە چوارچێوەی بڕی مانگانەی پلانەکەدا."
+    },
+    {
+     "q": "ئایا ڤیدیۆی ڕیکلام فرۆشتن دەهێنێت؟",
+     "a": "گیتواس ناتوانێت ئەمە بەڵێن بدات. ئەنجامەکان بەندن بە بەرهەمەکە، نرخەکە و بینەرەکان."
+    }
+   ],
+   "related": [
+    "boost-which-post-and-audience",
+    "automatic-replies-facebook-instagram-comments"
+   ]
+  },
+  "ar": {
+   "slug": "kurdish-ai-video-ads",
+   "title": "كيف تعمل إعلانات الفيديو بالذكاء الاصطناعي بالكردية لمتجر صغير",
+   "metaTitle": "إعلانات فيديو كردية بالذكاء الاصطناعي لمتجر صغير: كيف تعمل",
+   "metaDescription": "كيف يصنع Gituas إعلان فيديو ٩:١٦ بالكردية لمتجرك: النص، الصوت الكردي، النشر، الفيديو اليومي، حدود الخطط وحدود الخدمة بصراحة.",
+   "answer": "يصنع Gituas إعلان فيديو عمودياً قصيراً بنسبة ٩:١٦ في أربع مراحل: يكتب الذكاء الاصطناعي النص، ويقرؤه صوت كردي، ويُبنى الفيديو من صور منتجاتك وشعارك، ثم يُنشر. ويمكنه أيضاً صنع فيديو واحد يومياً بشكل تلقائي. الصوت مولَّد بالذكاء الاصطناعي، ويجب أن تراجع كل فيديو بنفسك، والنتائج غير مضمونة.",
+   "keyPoints": [
+    "يكتب الذكاء الاصطناعي النص، ويقرؤه صوت كردي، ويُصنع الفيديو بنسبة ٩:١٦ من صور منتجات المتجر وشعاره.",
+    "تتيح خطة Merchant حتى ١٦ إعلان فيديو بالذكاء الاصطناعي شهرياً، وPro ٢٤، وMax ٣٠؛ والخطة المجانية لا تتضمن شيئاً منها.",
+    "يمكن صنع فيديو واحد تلقائياً كل يوم ضمن الحصة الشهرية.",
+    "الصوت مولَّد بالذكاء الاصطناعي، ويجب أن يراجع صاحب المتجر كل فيديو، والنتائج غير مضمونة."
+   ],
+   "sections": [
+    {
+     "h2": "ما إعلان الفيديو بالذكاء الاصطناعي بالكردية؟",
+     "paragraphs": [
+      "إعلان الفيديو بالذكاء الاصطناعي في Gituas هو إعلان فيديو عمودي قصير بنسبة ٩:١٦: يكتب الذكاء الاصطناعي النص، ويقرؤه صوت كردي، ويُصنع الفيديو من صور منتجات المتجر وشعاره.",
+      "Gituas مساعد بالذكاء الاصطناعي للمتاجر والأنشطة التجارية التي تبيع على Facebook وInstagram في كردستان والعراق. يرد على التعليقات والرسائل بالكردية والعربية، ويجمع الطلبات، ويصنع إعلانات فيديو وصوراً بالذكاء الاصطناعي."
+     ]
+    },
+    {
+     "h2": "كيف يُصنع إعلان الفيديو بالذكاء الاصطناعي ويُنشر؟",
+     "paragraphs": [
+      "يمر بأربع مراحل: النص والصوت والفيديو والنشر.",
+      "يجري النشر عبر Gituas، الذي ينشر على Facebook وInstagram وTikTok وYouTube من مكان واحد. لدى TikTok وYouTube قواعدهما الخاصة، لذلك يوافق صاحب المتجر على كل منشور هناك."
+     ],
+     "bullets": [
+      "النص: يكتب الذكاء الاصطناعي نص إعلان فيديو عمودي قصير.",
+      "الصوت: يقرأ صوت كردي النص بصوت عالٍ.",
+      "الفيديو: يُصنع الفيديو بنسبة ٩:١٦ من صور منتجاتك وشعارك.",
+      "النشر: يمكن نشر الفيديو فوراً."
+     ]
+    },
+    {
+     "h2": "ماذا يجب أن يقدم المتجر؟",
+     "paragraphs": [
+      "يحتاج المتجر إلى صور المنتجات وشعار وصفحة Facebook أو حساب Instagram مربوط وخطة مدفوعة.",
+      "الصور والشعار هما المادة الخام للفيديو. الصور الواضحة للمنتج الحقيقي تعطي الذكاء الاصطناعي شيئاً حقيقياً ليعرضه.",
+      "المتجر في Gituas هو صفحة Facebook واحدة أو حساب Instagram واحد مربوط. والخطة المجانية لا تتضمن إعلانات الفيديو بالذكاء الاصطناعي، لذلك تلزم خطة مدفوعة.",
+      "إذا ظهر سعر في الفيديو، فيجب أن يكون السعر الذي تطلبه فعلاً. راجعه بنفسك."
+     ]
+    },
+    {
+     "h2": "ما الفيديو اليومي التلقائي؟",
+     "paragraphs": [
+      "هو إعلان فيديو واحد بالذكاء الاصطناعي يصنعه Gituas تلقائياً مرة في اليوم، فلا تحتاج إلى بدء كل واحد يدوياً.",
+      "الفيديو التلقائي هو أيضاً إعلان فيديو بالذكاء الاصطناعي، لذلك تنطبق عليه الحصة الشهرية للخطة. في Merchant تنتهي الحصة (١٦ فيديو) خلال ١٦ يوماً إن صُنع فيديو كل يوم. وتتيح Pro ٢٤ وتتيح Max ٣٠.",
+      "راجع الفيديوهات اليومية بالطريقة نفسها التي تراجع بها فيديو بدأته بنفسك."
+     ]
+    },
+    {
+     "h2": "أي الخطط تتضمن إعلانات الفيديو بالذكاء الاصطناعي؟",
+     "paragraphs": [
+      "تتضمنها Merchant وPro وMax، ولا تتضمنها الخطة المجانية. الحصص لكل متجر ولكل شهر (٣٠ يوماً).",
+      "الدفع بالدينار العراقي (IQD) عبر Wayl بواسطة FIB أو ZainCash أو QiCard أو FastPay أو البطاقة، والخطة المدفوعة التي لا تُجدَّد تعود إلى الخطة المجانية. الخطط:"
+     ],
+     "bullets": [
+      "الخطة المجانية (Free)، ٠ دينار: لا توجد إعلانات فيديو بالذكاء الاصطناعي.",
+      "Merchant، ١٥٬٠٠٠ دينار شهرياً: حتى ١٦ إعلان فيديو بالذكاء الاصطناعي في الشهر، وواحد في اليوم كحد أقصى.",
+      "Pro، ٢٥٬٠٠٠ دينار شهرياً: حتى ٢٤ في الشهر.",
+      "Max، ٥٩٬٠٠٠ دينار شهرياً، تُعرض عند توفرها: حتى ٣٠ في الشهر، ويكتب Claude Opus، أقوى نموذج ذكاء اصطناعي، نصوص الفيديو."
+     ]
+    },
+    {
+     "h2": "ما مواصفات إعلان الفيديو الكردي الجيد؟",
+     "paragraphs": [
+      "إعلان الفيديو الجيد قصير ومنطوق ويدور حول منتج واحد، وله أربعة أجزاء: بداية جاذبة، والمنتج، والعرض، ودعوة لاتخاذ إجراء.",
+      "لكل جزء مهمة واحدة. البداية تجعل المشاهد يبقى، والمنتج يوضح ما هو، والعرض يعطي سبباً للتصرف، والدعوة تحدد الخطوة التالية. استخدم هذه القواعد لاختيار المنتج ولتقييم الفيديو الجاهز."
+     ],
+     "bullets": [
+      "البداية الجاذبة أولاً. افتح بالمشكلة أو المناسبة أو المفاجأة التي تهم المشتري، لا باسم متجرك.",
+      "منتج واحد لكل فيديو. منتجان يعطيان المشاهد شيئين لينساهما.",
+      "اذكر العرض بوضوح: السعر، والمدن التي توصل إليها، وموعداً نهائياً فقط إن كان حقيقياً.",
+      "اختم بدعوة واحدة: تعليق أو رسالة. يمكن للردود التلقائية أن تجيب عن تعليق خلال ثوانٍ.",
+      "احكم بأذنك. الإعلان الكردي الجيد يُسمع كإنسان يتحدث مع زبون، لا كنص رسمي.",
+      "استخدم هاشتاغات المدن بالحرفين. يكتب Gituas نص المنشور (الكابشن) بالذكاء الاصطناعي ويضيف هاشتاغات المدن بالكردية واللاتينية، مثل #هەولێر و#سلێمانی."
+     ]
+    },
+    {
+     "h2": "ماذا يحدث عندما يعلّق مشاهد على الفيديو؟",
+     "paragraphs": [
+      "التعليق مثل «نرخی چەندە؟» (أي «كم السعر؟») يمكن أن يتلقى رداً علنياً قصيراً، ويُرسل السعر في رسالة خاصة، خلال ثوانٍ.",
+      "يعمل هذا على صفحات Facebook وعلى Instagram، عندما يكون المتجر قد ربط منتجاً بالمنشور. ثم تُجمع الطلبات في المحادثة خطوة بخطوة: الاسم والهاتف والمدينة والعنوان والمنتج أو القياس."
+     ]
+    },
+    {
+     "h2": "ما الحدود بكل صراحة؟",
+     "paragraphs": [
+      "تساعدك إعلانات الفيديو بالذكاء الاصطناعي على صنع فيديو، لكنها لا تحل محل تقدير صاحب المتجر. هناك خمسة حدود."
+     ],
+     "bullets": [
+      "الصوت مولَّد بالذكاء الاصطناعي. هو صوت كردي صنعه الحاسوب، لا إنسان. استمع إلى الفيديو كله بحثاً عن الأسماء والأرقام والنطق.",
+      "راجع كل فيديو بنفسك. قد يكتب الذكاء الاصطناعي سطراً غير مناسب في الأسلوب أو التفاصيل. شاهد كل فيديو، بما في ذلك الفيديوهات اليومية.",
+      "لا نتائج مضمونة. Gituas يصنع الفيديو؛ أما المشاهدات والرسائل والطلبات فتعتمد على المنتج والسعر والجمهور.",
+      "قواعد المنصات تنطبق. يحتاج TikTok وYouTube إلى موافقتك على كل منشور، وتنطبق قواعد Meta أيضاً، مثل نافذة ٢٤ ساعة للرسائل الخاصة. والدفع للإعلانات على Meta في العراق يحتاج بطاقة دولية، ويُشترى الإعلان في أدوات Meta نفسها؛ ويقدم Gituas نصائح الترويج (Boost).",
+      "WhatsApp رابط طلب. لا يرد Gituas تلقائياً على WhatsApp."
+     ]
+    }
+   ],
+   "steps": [
+    {
+     "name": "اربط المتجر",
+     "text": "اربط صفحة Facebook أو حساب Instagram الخاص بالمتجر واختر خطة مدفوعة."
+    },
+    {
+     "name": "أضف الصور والشعار",
+     "text": "قدّم صوراً واضحة للمنتج الحقيقي وشعار المتجر."
+    },
+    {
+     "name": "دع الذكاء الاصطناعي يصنع الفيديو",
+     "text": "يكتب الذكاء الاصطناعي النص، ويقرؤه صوت كردي، ويُصنع الفيديو بنسبة ٩:١٦ من صورك وشعارك."
+    },
+    {
+     "name": "راجع النتيجة",
+     "text": "شاهد الفيديو الجاهز مع الصوت وراجع الأسماء والأرقام والسعر والنطق."
+    },
+    {
+     "name": "انشر",
+     "text": "انشر الفيديو فوراً، أو دع Gituas يصنع فيديو واحداً يومياً تلقائياً. وافق على كل منشور على TikTok وYouTube."
+    }
+   ],
+   "faq": [
+    {
+     "q": "هل يصنع Gituas إعلانات فيديو بالكردية؟",
+     "a": "نعم. يكتب الذكاء الاصطناعي النص ويقرؤه صوت كردي فوق فيديو بنسبة ٩:١٦."
+    },
+    {
+     "q": "هل أستطيع صنع إعلانات فيديو بالذكاء الاصطناعي في الخطة المجانية؟",
+     "a": "لا. تبدأ إعلانات الفيديو بالذكاء الاصطناعي من خطة Merchant، ١٥٬٠٠٠ دينار شهرياً."
+    },
+    {
+     "q": "كم إعلان فيديو بالذكاء الاصطناعي أستطيع صنعه في الشهر؟",
+     "a": "حتى ١٦ في Merchant، و٢٤ في Pro، و٣٠ في Max (عند توفرها)، لكل متجر في الشهر."
+    },
+    {
+     "q": "هل يستطيع Gituas صنع فيديو كل يوم؟",
+     "a": "نعم. يمكنه صنع إعلان فيديو واحد بالذكاء الاصطناعي تلقائياً مرة في اليوم، ضمن الحصة الشهرية للخطة."
+    },
+    {
+     "q": "هل سيجلب إعلان الفيديو مبيعات؟",
+     "a": "لا يستطيع Gituas أن يعد بذلك. تعتمد النتائج على المنتج والسعر والجمهور."
+    }
+   ],
+   "related": [
+    "boost-which-post-and-audience",
+    "automatic-replies-facebook-instagram-comments"
+   ]
+  }
+ },
+ {
+  "slug": "boost-which-post-and-audience",
+  "en": {
+   "slug": "boost-which-post-and-audience",
+   "title": "Which Post Should a Small Shop Boost, and Who Should See It?",
+   "metaTitle": "Which Post to Boost and Who Should See It | Gituas",
+   "metaDescription": "How a small shop picks the post to boost, the platform, the audience and a daily IQD budget, using its own comments, messages and orders.",
+   "answer": "Boost a post that already draws comments, messages and orders, and show it to people who match your own buyers: their cities, ages and interests. Gituas suggests which post is worth boosting, the platform, the audience and a daily budget in Iraqi dinar (IQD), and learns the audience from the shop's own messages and orders. The ad itself is bought in Meta's own tools.",
+   "keyPoints": [
+    "Boost a post that already draws comments, messages and orders.",
+    "The audience is learned from the shop's own messages and orders, at group level only.",
+    "Gituas suggests a platform and a daily budget in IQD.",
+    "Boost analyses per day: Free 1, Merchant 4, Pro 8, Max 20.",
+    "The ad is bought in Meta's own tools, and paying for Meta ads in Iraq needs an international card."
+   ],
+   "sections": [
+    {
+     "h2": "Which post should a small shop boost?",
+     "paragraphs": [
+      "Boost a post that buyers are already reacting to. A boost puts money behind interest that exists, so start from the posts people have commented on, messaged about or ordered from.",
+      "Three signals show whether a post has that interest:"
+     ],
+     "bullets": [
+      "Comments: how many people ask for the price or details under the post, for example «نرخی چەندە؟» (\"how much?\").",
+      "Messages: how many direct messages (DMs) arrive after the post.",
+      "Orders: how many orders for the post's product appear in the Orders list."
+     ]
+    },
+    {
+     "h2": "How should the shop rank those signals?",
+     "paragraphs": [
+      "Orders count most, because they are closest to money. Comments and messages show interest before it becomes an order.",
+      "If no post has orders yet, take the one with the most messages. If none has any, wait: publish, let the automatic replies run, and ask again later.",
+      "Insights shows the messages, comments and orders of the last weeks in one place, so the owner can check the advice against the numbers.",
+      "Link the product to the post before boosting. Replies use the product's name, photos, prices and sizes, so a post without a linked product gives the replies less to work with."
+     ]
+    },
+    {
+     "h2": "Who should see the boosted post?",
+     "paragraphs": [
+      "People who look like the shop's own buyers. Gituas learns this from the shop's own messages and orders, not from a general list.",
+      "From those messages and orders it builds a picture of the buyers: the cities they live in, their ages and the interests they show.",
+      "The picture is at group level. It shows patterns across buyers, such as which cities stand out, and never a profile of one person.",
+      "The audience advice then names the cities, ages and interests to choose when the ad is set up. A shop with few messages and orders gives the advice little to learn from."
+     ]
+    },
+    {
+     "h2": "Which platform should the shop boost on?",
+     "paragraphs": [
+      "The platform the post's comments and messages already come from. The advice names a platform, so the owner does not have to guess.",
+      "Keep automatic replies on while the post runs. A boosted post is shown to more people, so it can draw more comments, and each new comment can get a short public reply and the details by DM within seconds. Meta's rules still apply, including the 24-hour messaging window for DMs.",
+      "Check that the post is inside the plan's reply coverage: the newest 3 posts on Free, the newest 25 on Merchant, all posts on Pro and Max.",
+      "Orders arrive in the chat step by step (name, phone, city, address, product and size) and land in the Orders list by city and status. That list shows which cities the orders come from."
+     ]
+    },
+    {
+     "h2": "How much should the daily budget be?",
+     "paragraphs": [
+      "Use the daily budget in IQD that Gituas suggests. It is a suggestion, not a promise of results.",
+      "No single figure suits every shop, so this guide gives none. The right amount depends on the post, the audience and what the shop can afford to spend each day.",
+      "The owner sets the amount and decides whether to run the ad at all. Boost analyses are limited per day by plan: 1 on Free, 4 on Merchant, 8 on Pro and 20 on Max (offered when that plan is open). The Free plan costs 0 IQD and has no time limit."
+     ]
+    },
+    {
+     "h2": "Which hashtags help a boosted post?",
+     "paragraphs": [
+      "Use hashtags with city names, in both scripts. Sellers in Kurdistan often write the same city in Kurdish and in Latin script, for example #هەولێر and #Erbil.",
+      "Smart hashtags in Gituas add city names. Captions written with AI carry city hashtags in both scripts, such as #سلێمانی, #دهۆک and #کەرکوک. Keep the cities in the hashtags the same as the cities in the audience."
+     ]
+    },
+    {
+     "h2": "How should the shop check the result?",
+     "paragraphs": [
+      "Read Insights and the Orders list after a few days. Look at whether the orders came from the cities you chose, and whether comments turned into orders. Run the Boost analysis again before the next boost, within the plan's daily limit."
+     ]
+    },
+    {
+     "h2": "What are the limits of Boost advice?",
+     "paragraphs": [
+      "Boost advice is a suggestion, not a guarantee, and it has four limits.",
+      "Gituas is an AI assistant for shops and businesses that sell on Facebook and Instagram in Kurdistan and Iraq. It answers comments and messages in Kurdish and Arabic, collects orders, and makes video ads and pictures with AI."
+     ],
+     "bullets": [
+      "Own data only. The audience is learned from the shop's own messages and orders, so a shop with few of them gives the advice little to go on.",
+      "No ad payment. Paying for ads on Meta in Iraq needs an international card, and the ad is bought in Meta's own tools.",
+      "No promise of sales. The advice points to a post and an audience; it does not predict results or sales.",
+      "The owner decides. Gituas does not replace the owner's judgement about what to boost and how much to spend."
+     ]
+    }
+   ],
+   "faq": [
+    {
+     "q": "Does Gituas buy the ad?",
+     "a": "No. Gituas gives the boost advice. The ad is bought in Meta's own tools, and paying for Meta ads in Iraq needs an international card."
+    },
+    {
+     "q": "Does Gituas look at individual buyers?",
+     "a": "No. The audience is learned from the shop's own messages and orders at group level, never as a profile of one person."
+    },
+    {
+     "q": "Can a shop on the Free plan use Boost advice?",
+     "a": "Yes. The Free plan costs 0 IQD and includes 1 Boost analysis a day."
+    },
+    {
+     "q": "What daily budget does Gituas recommend?",
+     "a": "It suggests a daily budget in IQD. No fixed figure fits every shop, and the owner decides the amount."
+    }
+   ],
+   "related": [
+    "kurdish-ai-video-ads",
+    "sell-on-social-media-iraq-kurdistan"
+   ],
+   "steps": [
+    {
+     "name": "Run a Boost analysis",
+     "text": "Run a Boost analysis in Gituas to see which post is worth boosting."
+    },
+    {
+     "name": "Check the signals",
+     "text": "Look at the comments, messages and orders around that post in Insights and the Orders list."
+    },
+    {
+     "name": "Read the audience and budget",
+     "text": "Note the platform, the cities, ages and interests, and the daily budget in IQD."
+    },
+    {
+     "name": "Buy the ad in Meta's tools",
+     "text": "Create the ad in Meta's own tools with an international card, using that audience and budget."
+    }
+   ]
+  },
+  "ku": {
+   "slug": "boost-which-post-and-audience",
+   "title": "دوکانێکی بچووک کام پۆست بووست بکات، و پۆستەکە بۆ کێ نیشان بدرێت؟",
+   "metaTitle": "کام پۆست بووست بکرێت و بۆ کێ نیشان بدرێت | گیتواس",
+   "metaDescription": "چۆن دوکانێکی بچووک پۆستی بووست، پلاتفۆرم، بینەر و بودجەی ڕۆژانە بە دینار هەڵدەبژێرێت، بە پشتبەستن بە کۆمێنت و نامە و داواکارییەکانی خۆی.",
+   "answer": "پۆستێک بووست بکە کە پێشتر کۆمێنت و نامە و داواکاری بۆ هاتووە، و نیشانی ئەو کەسانە بدە کە لە کڕیارەکانی خۆت دەچن، لە ڕووی شار و تەمەن و حەز و خولیاوە. گیتواس پێشنیار دەکات کام پۆست شایانی بووستە، لەسەر کام پلاتفۆرم، بۆ کام بینەر، و بە چ بودجەیەکی ڕۆژانە بە دیناری عیراقی (IQD). گیتواس بینەرەکە لە نامە و داواکارییەکانی خودی دوکانەکەوە فێر دەبێت. ڕیکلامەکە خۆی لە ئامرازەکانی خودی مێتادا دەکڕدرێت.",
+   "keyPoints": [
+    "پۆستێک بووست بکە کە پێشتر کۆمێنت و نامە و داواکاری بۆ هاتووە.",
+    "گیتواس بینەر لە نامە و داواکارییەکانی خودی دوکانەکە فێر دەبێت، تەنها لەسەر ئاستی گرووپ، نەک کەسێک بە تەنها.",
+    "گیتواس پلاتفۆرمێک و بودجەیەکی ڕۆژانە بە دینار پێشنیار دەکات.",
+    "شیکاریی بووست لە ڕۆژێکدا: Free ١، Merchant ٤، Pro ٨، Max ٢٠.",
+    "ڕیکلامەکە لە ئامرازەکانی خودی مێتا دەکڕدرێت، و دانی پارەی ڕیکلامی مێتا لە عیراق کارتی نێودەوڵەتی دەوێت."
+   ],
+   "sections": [
+    {
+     "h2": "دوکانێکی بچووک کام پۆست بووست بکات؟",
+     "paragraphs": [
+      "ئەو پۆستە بووست بکە کە کڕیاران پێشتر کاردانەوەیان لەسەری نیشان داوە. بووست پارە دەخاتە پشت ئەو سەرنجەی کە پێشتر هەیە، بۆیە لەو پۆستانە دەست پێ بکە کە خەڵک کۆمێنتیان لەسەر کردووە، نامەیان بۆ ناردووە، یان داواکاریان لێ کردووە.",
+      "سێ نیشانە دیاری دەکەن ئایا پۆستێک ئەو سەرنجەی هەیە یان نا:"
+     ],
+     "bullets": [
+      "کۆمێنت: چەند کەس لە ژێر پۆستەکەدا نرخ یان وردەکاری دەپرسن، بۆ نموونە «نرخی چەندە؟».",
+      "نامە: چەند نامەی تایبەت (DM) دوای پۆستەکە دێن.",
+      "داواکاری: چەند داواکاری بۆ بەرهەمی ئەو پۆستە لە لیستی داواکارییەکاندا دەردەکەون."
+     ]
+    },
+    {
+     "h2": "دوکانەکە ئەم نیشانانە چۆن ڕیز بکات؟",
+     "paragraphs": [
+      "داواکاری لە هەموو نیشانەکان گرنگترە، چونکە لە پارەوە نزیکترە. کۆمێنت و نامە سەرنج نیشان دەدەن پێش ئەوەی ببێت بە داواکاری.",
+      "ئەگەر هێشتا هیچ پۆستێک داواکاری نەبووە، ئەو پۆستە هەڵبژێرە کە زۆرترین نامەی هەیە. ئەگەر هیچیان نامە و داواکاریان نییە، چاوەڕێ بکە: پۆست بکە، با وەڵامی خۆکار کار بکات، و دواتر دووبارە بپرسە.",
+      "بەشی Insights نامە و کۆمێنت و داواکارییەکانی چەند هەفتەی ڕابردوو لە یەک شوێندا نیشان دەدات، بۆ ئەوەی خاوەن دوکان پێشنیارەکە لەگەڵ ژمارەکان بپشکنێت.",
+      "پێش بووست کردن، بەرهەمەکە بە پۆستەکەوە ببەستەوە. وەڵامەکان ناو و وێنە و نرخ و قەبارەی بەرهەمەکە بەکار دەهێنن، بۆیە پۆستێک کە بەرهەمی پێوە نەبەستراوە، شتی کەمتر دەداتە دەست وەڵامەکان."
+     ]
+    },
+    {
+     "h2": "پۆستە بووستکراوەکە بۆ کێ نیشان بدرێت؟",
+     "paragraphs": [
+      "بۆ ئەو کەسانەی لە کڕیارەکانی خودی دوکانەکە دەچن. گیتواس ئەمە لە نامە و داواکارییەکانی خودی دوکانەکەوە فێر دەبێت، نەک لە لیستێکی گشتییەوە.",
+      "لەو نامە و داواکاریانەوە وێنەیەکی گشتی لە کڕیاران دروست دەکات: ئەو شارانەی تێیدا دەژین، تەمەنیان، و ئەو حەز و خولیایانەی نیشانیان دەدەن.",
+      "ئەم وێنەیە لەسەر ئاستی گرووپە. شێوازە هاوبەشەکانی نێوان کڕیاران نیشان دەدات، وەک ئەوەی کام شار دیارترن، و هەرگیز پرۆفایلی یەک کەس نییە.",
+      "پاشان پێشنیاری بینەر ئەو شار و تەمەن و حەز و خولیایانە دیاری دەکات کە لە کاتی دانانی ڕیکلامەکەدا هەڵیان بژێریت. دوکانێک کە نامە و داواکاری کەمی هەیە، شتێکی کەم دەداتە پێشنیارەکە بۆ ئەوەی لێی فێر بێت."
+     ]
+    },
+    {
+     "h2": "دوکانەکە لەسەر کام پلاتفۆرم بووست بکات؟",
+     "paragraphs": [
+      "لەسەر ئەو پلاتفۆرمەی کە کۆمێنت و نامەکانی پۆستەکە پێشتر لێیەوە دێن. پێشنیارەکە پلاتفۆرمێک دیاری دەکات، بۆیە خاوەن دوکان پێویست ناکات مەزەندە بکات.",
+      "وەڵامی خۆکار لە کاتی بووستکردنی پۆستەکەدا هەر چالاک بهێڵەوە. پۆستێکی بووستکراو بۆ خەڵکی زیاتر نیشان دەدرێت، بۆیە دەکرێت کۆمێنتی زیاتری بۆ بێت، و هەر کۆمێنتێکی نوێ دەتوانێت لە چەند چرکەیەکدا وەڵامێکی کورتی گشتی و وردەکارییەکان بە نامەی تایبەت وەربگرێت. یاساکانی مێتا هەر جێبەجێ دەکرێن، لەوانە پەنجەرەی ٢٤ کاتژمێرەی نامەی تایبەت.",
+      "دڵنیابە پۆستەکە لەناو ئەو پۆستانەدایە کە پلانەکەت وەڵامی خۆکاریان بۆ دەدات: نوێترین ٣ پۆست لە Free، نوێترین ٢٥ پۆست لە Merchant، و هەموو پۆستەکان لە Pro و Max.",
+      "داواکارییەکان لە چاتدا هەنگاو بە هەنگاو دێن (ناو، ژمارەی مۆبایل، شار، ناونیشان، بەرهەم و قەبارە) و بەپێی شار و دۆخ دەچنە لیستی داواکارییەکانەوە. ئەو لیستە نیشان دەدات داواکارییەکان لە کام شارەوە دێن."
+     ]
+    },
+    {
+     "h2": "بودجەی ڕۆژانە چەند بێت؟",
+     "paragraphs": [
+      "ئەو بودجە ڕۆژانەیە بەکار بێنە کە گیتواس بە دینار پێشنیاری دەکات. ئەمە پێشنیارە، نەک بەڵێنی ئەنجام.",
+      "یەک ژمارە بۆ هەموو دوکانێک ناگونجێت، بۆیە ئەم ڕێبەرە هیچ ژمارەیەک نادات. بڕی دروست بەندە بە پۆستەکە و بینەرەکە و ئەوەی دوکانەکە هەر ڕۆژێک دەتوانێت خەرجی بکات.",
+      "خاوەن دوکان بڕەکە دیاری دەکات و خۆی بڕیار دەدات ڕیکلامەکە بەڕێوە ببات یان نا. شیکاریی بووست لە ڕۆژێکدا بەپێی پلان سنووردارە: ١ لە Free، ٤ لە Merchant، ٨ لە Pro و ٢٠ لە Max (کاتێک ئەو پلانە بەردەستە). پلانی بەخۆڕایی ٠ دینارە و هیچ سنووری کاتی نییە."
+     ]
+    },
+    {
+     "h2": "کام هاشتاگ یارمەتیدەرن بۆ پۆستێکی بووستکراو؟",
+     "paragraphs": [
+      "هاشتاگی ناوی شار بەکار بێنە، بە هەردوو جۆری پیت. فرۆشیارانی کوردستان زۆرجار هەمان شار بە کوردی و بە پیتی لاتینی دەنووسن، بۆ نموونە #هەولێر و #Erbil.",
+      "هاشتاگە زیرەکەکانی گیتواس ناوی شارەکان زیاد دەکەن. ئەو کەپشنانەی بە زیرەکی دەستکرد دەنووسرێن، هاشتاگی شار بە هەردوو جۆری پیتەوە هەڵدەگرن، وەک #سلێمانی و #دهۆک و #کەرکوک. شارەکانی هاشتاگەکان وەک شارەکانی بینەرەکە بهێڵەوە."
+     ]
+    },
+    {
+     "h2": "دوکانەکە ئەنجامەکە چۆن بپشکنێت؟",
+     "paragraphs": [
+      "دوای چەند ڕۆژێک Insights و لیستی داواکارییەکان بخوێنەوە. سەیر بکە داواکارییەکان لەو شارانەوە هاتوون کە هەڵتبژاردبوون یان نا، و ئایا کۆمێنتەکان بوونە داواکاری. پێش بووستی دواتر شیکاریی بووست دووبارە ئەنجام بدە، لەناو سنووری ڕۆژانەی پلانەکەتدا."
+     ]
+    },
+    {
+     "h2": "سنووری پێشنیاری بووست چییە؟",
+     "paragraphs": [
+      "پێشنیاری بووست پێشنیارە نەک گەرەنتی، و چوار سنووری هەیە.",
+      "گیتواس یاریدەدەرێکی زیرەکی دەستکردە بۆ ئەو دوکان و کار و بارانەی لە کوردستان و عیراق لەسەر فەیسبووک و ئینستاگرام دەفرۆشن. وەڵامی کۆمێنت و نامەکان بە کوردی و عەرەبی دەداتەوە، داواکاری کۆ دەکاتەوە، و بە زیرەکی دەستکرد ڤیدیۆی ڕیکلام و وێنە دروست دەکات."
+     ],
+     "bullets": [
+      "تەنها داتای خودی دوکانەکە. گیتواس بینەر لە نامە و داواکارییەکانی خودی دوکانەکە فێر دەبێت، بۆیە دوکانێک کە نامە و داواکاری کەمی هەیە، شتێکی کەم دەداتە پێشنیارەکە.",
+      "پارەی ڕیکلام لە گیتواسدا نادرێت. دانی پارەی ڕیکلام لە مێتا لە عیراق کارتی نێودەوڵەتی دەوێت، و ڕیکلامەکە لە ئامرازەکانی خودی مێتا دەکڕدرێت.",
+      "بەڵێنی فرۆشتن نییە. پێشنیارەکە پۆستێک و بینەرێک نیشان دەدات؛ ئەنجام و فرۆشتن پێشبینی ناکات.",
+      "بڕیار لای خاوەن دوکانە. گیتواس شوێنی بڕیاری خاوەن دوکان ناگرێتەوە لەبارەی ئەوەی چی بووست بکرێت و چەند خەرج بکرێت."
+     ]
+    }
+   ],
+   "faq": [
+    {
+     "q": "ئایا گیتواس ڕیکلامەکە دەکڕێت؟",
+     "a": "نەخێر. گیتواس پێشنیاری بووست دەدات. ڕیکلامەکە لە ئامرازەکانی خودی مێتا دەکڕدرێت، و دانی پارەی ڕیکلامی مێتا لە عیراق کارتی نێودەوڵەتی دەوێت."
+    },
+    {
+     "q": "ئایا گیتواس تەماشای کڕیارە تاکەکان دەکات؟",
+     "a": "نەخێر. گیتواس بینەرەکە لە نامە و داواکارییەکانی خودی دوکانەکە لەسەر ئاستی گرووپ فێر دەبێت، و هەرگیز پرۆفایلی یەک کەس دروست ناکات."
+    },
+    {
+     "q": "ئایا دوکانێک لەسەر پلانی بەخۆڕایی دەتوانێت پێشنیاری بووست بەکار بێنێت؟",
+     "a": "بەڵێ. پلانی بەخۆڕایی ٠ دینارە و ١ شیکاریی بووست لە ڕۆژێکدا لەخۆ دەگرێت."
+    },
+    {
+     "q": "گیتواس چ بودجەیەکی ڕۆژانە پێشنیار دەکات؟",
+     "a": "بودجەیەکی ڕۆژانە بە دینار پێشنیار دەکات. هیچ ژمارەیەکی جێگیر بۆ هەموو دوکانێک ناگونجێت، و بڕەکە خاوەن دوکان دیاری دەکات."
+    }
+   ],
+   "related": [
+    "kurdish-ai-video-ads",
+    "sell-on-social-media-iraq-kurdistan"
+   ],
+   "steps": [
+    {
+     "name": "شیکاریی بووست ئەنجام بدە",
+     "text": "لە گیتواس شیکاریی بووست ئەنجام بدە بۆ ئەوەی بزانیت کام پۆست شایانی بووستە."
+    },
+    {
+     "name": "نیشانەکان بپشکنە",
+     "text": "کۆمێنت و نامە و داواکارییەکانی دەوروبەری ئەو پۆستە لە Insights و لیستی داواکارییەکاندا ببینە."
+    },
+    {
+     "name": "بینەر و بودجە بخوێنەوە",
+     "text": "پلاتفۆرم و شار و تەمەن و حەز و خولیاکان و بودجەی ڕۆژانە بە دینار تۆمار بکە."
+    },
+    {
+     "name": "ڕیکلامەکە لە ئامرازەکانی مێتا بکڕە",
+     "text": "ڕیکلامەکە لە ئامرازەکانی خودی مێتا دروست بکە و بە کارتی نێودەوڵەتی پارەکەی بدە، بە بەکارهێنانی ئەو بینەر و بودجەیە."
+    }
+   ]
+  },
+  "ar": {
+   "slug": "boost-which-post-and-audience",
+   "title": "أي منشور يجب أن يروّج له المتجر الصغير، ومن يجب أن يراه؟",
+   "metaTitle": "أي منشور تروّج له ولمن تعرضه؟ | Gituas",
+   "metaDescription": "كيف يختار المتجر الصغير المنشور الذي يروّج له، والمنصة والجمهور والميزانية اليومية بالدينار، اعتماداً على تعليقاته ورسائله وطلباته.",
+   "answer": "روّج لمنشور يجذب أصلاً تعليقات ورسائل وطلبات، واعرضه على أشخاص يشبهون زبائنك من حيث المدينة والعمر والاهتمامات. يقترح Gituas أي منشور يستحق الترويج، والمنصة، والجمهور، وميزانية يومية بالدينار العراقي (IQD)، ويتعرّف على الجمهور من رسائل المتجر وطلباته. أما الإعلان فيُشترى من أدوات Meta نفسها.",
+   "keyPoints": [
+    "روّج لمنشور يجذب أصلاً تعليقات ورسائل وطلبات.",
+    "يتعرّف Gituas على الجمهور من رسائل المتجر وطلباته، وعلى مستوى المجموعات فقط.",
+    "يقترح Gituas منصة وميزانية يومية بالدينار العراقي.",
+    "تحليلات الترويج في اليوم: المجانية ١، Merchant ٤، Pro ٨، Max ٢٠.",
+    "يُشترى الإعلان من أدوات Meta نفسها، ويحتاج دفع إعلانات Meta في العراق إلى بطاقة دولية."
+   ],
+   "sections": [
+    {
+     "h2": "أي منشور يروّج له المتجر الصغير؟",
+     "paragraphs": [
+      "روّج لمنشور يتفاعل معه الزبائن أصلاً. الترويج (Boost) يضع المال خلف اهتمام موجود، فابدأ من المنشورات التي علّق عليها الناس أو راسلوا المتجر بشأنها أو طلبوا منها.",
+      "هناك ثلاث إشارات تدل على أن المنشور يحظى بهذا الاهتمام:"
+     ],
+     "bullets": [
+      "التعليقات: كم شخصاً يسأل عن السعر أو التفاصيل تحت المنشور، مثل «كم السعر؟» (أو «نرخی چەندە؟» بالكردية).",
+      "الرسائل: كم رسالة خاصة (DM) تصل بعد المنشور.",
+      "الطلبات: كم طلباً لمنتج المنشور يظهر في قائمة الطلبات."
+     ]
+    },
+    {
+     "h2": "كيف يرتّب المتجر هذه الإشارات؟",
+     "paragraphs": [
+      "الطلبات هي الأهم لأنها الأقرب إلى المال. أما التعليقات والرسائل فتُظهر الاهتمام قبل أن يتحول إلى طلب.",
+      "إن لم يكن لأي منشور طلبات بعد، فاختر المنشور الأكثر رسائل. وإن لم يكن لأي منها رسائل أو طلبات، فانتظر: انشر، ودع الردود التلقائية تعمل، ثم اسأل مرة أخرى لاحقاً.",
+      "تعرض صفحة Insights رسائل الأسابيع الأخيرة وتعليقاتها وطلباتها في مكان واحد، ليتحقق صاحب المتجر من الاقتراح بالأرقام.",
+      "اربط المنتج بالمنشور قبل الترويج. تستخدم الردود اسم المنتج وصوره وأسعاره ومقاساته، لذا فالمنشور بلا منتج مرتبط يمنح الردود مادة أقل."
+     ]
+    },
+    {
+     "h2": "لمن يجب أن يظهر المنشور المروَّج؟",
+     "paragraphs": [
+      "لأشخاص يشبهون زبائن المتجر الفعليين. يتعلم Gituas ذلك من رسائل المتجر وطلباته، لا من قائمة عامة.",
+      "من تلك الرسائل والطلبات يبني صورة عن الزبائن: المدن التي يسكنون فيها، وأعمارهم، والاهتمامات التي يُظهرونها.",
+      "الصورة على مستوى المجموعات. تُظهر الأنماط بين الزبائن، مثل المدن التي تبرز، ولا تكوّن ملفاً عن شخص واحد أبداً.",
+      "ثم يحدد اقتراح الجمهور المدن والأعمار والاهتمامات التي تختارها عند إعداد الإعلان. والمتجر الذي لديه رسائل وطلبات قليلة يعطي الاقتراح مادة قليلة ليتعلم منها."
+     ]
+    },
+    {
+     "h2": "على أي منصة يروّج المتجر؟",
+     "paragraphs": [
+      "على المنصة التي تأتي منها تعليقات المنشور ورسائله أصلاً. يسمّي الاقتراح منصة، فلا يحتاج صاحب المتجر إلى التخمين.",
+      "أبقِ الردود التلقائية تعمل ما دام المنشور مروَّجاً. المنشور المروَّج يُعرض على أشخاص أكثر، فقد يجذب تعليقات أكثر، ويمكن أن يحصل كل تعليق جديد على رد عام قصير وعلى التفاصيل في رسالة خاصة خلال ثوانٍ. وتبقى قواعد Meta سارية، ومنها نافذة الـ٢٤ ساعة للرسائل الخاصة.",
+      "تأكد من أن المنشور ضمن تغطية الردود في الخطة: أحدث ٣ منشورات في الخطة المجانية، وأحدث ٢٥ في Merchant، وكل المنشورات في Pro وMax.",
+      "تصل الطلبات في المحادثة خطوة بخطوة (الاسم والهاتف والمدينة والعنوان والمنتج والمقاس) وتُحفظ في قائمة الطلبات حسب المدينة والحالة. وتُظهر هذه القائمة من أي المدن تأتي الطلبات."
+     ]
+    },
+    {
+     "h2": "كم يجب أن تكون الميزانية اليومية؟",
+     "paragraphs": [
+      "استخدم الميزانية اليومية بالدينار التي يقترحها Gituas. هي اقتراح وليست وعداً بنتائج.",
+      "لا يناسب رقم واحد كل المتاجر، لذلك لا يذكر هذا الدليل رقماً. يعتمد المبلغ المناسب على المنشور والجمهور وما يستطيع المتجر إنفاقه كل يوم.",
+      "صاحب المتجر هو من يحدد المبلغ ويقرر ما إذا كان سيشغّل الإعلان أصلاً. وتحليلات الترويج محدودة يومياً بحسب الخطة: ١ في المجانية، و٤ في Merchant، و٨ في Pro، و٢٠ في Max (عندما تكون الخطة متاحة). الخطة المجانية تكلفتها ٠ دينار وليس لها مدة محددة."
+     ]
+    },
+    {
+     "h2": "ما الوسوم التي تفيد المنشور المروَّج؟",
+     "paragraphs": [
+      "استخدم وسوماً (هاشتاغات) بأسماء المدن، بالحروف العربية واللاتينية معاً. كثيراً ما يكتب البائعون في كردستان المدينة نفسها بالكردية وبالحروف اللاتينية، مثل #هەولێر و#Erbil.",
+      "تضيف الوسوم الذكية في Gituas أسماء المدن. والنصوص المرافقة للمنشورات (الكابشن) المكتوبة بالذكاء الاصطناعي تحمل وسوم مدن بالحروف الكردية واللاتينية، مثل #سلێمانی و#دهۆک و#کەرکوک. اجعل مدن الوسوم هي نفسها مدن الجمهور."
+     ]
+    },
+    {
+     "h2": "كيف يتحقق المتجر من النتيجة؟",
+     "paragraphs": [
+      "اقرأ Insights وقائمة الطلبات بعد أيام قليلة. انظر إن كانت الطلبات قد جاءت من المدن التي اخترتها، وإن كانت التعليقات قد تحولت إلى طلبات. شغّل تحليل الترويج مرة أخرى قبل الترويج التالي، ضمن الحد اليومي للخطة."
+     ]
+    },
+    {
+     "h2": "ما حدود اقتراحات الترويج؟",
+     "paragraphs": [
+      "اقتراحات الترويج مجرد اقتراحات وليست ضماناً، ولها أربعة حدود.",
+      "Gituas مساعد يعمل بالذكاء الاصطناعي للمتاجر والأعمال التي تبيع على فيسبوك وإنستغرام في كردستان والعراق. يرد على التعليقات والرسائل بالكردية والعربية، ويجمع الطلبات، ويصنع إعلانات فيديو وصوراً بالذكاء الاصطناعي."
+     ],
+     "bullets": [
+      "بيانات المتجر وحدها. يتعرّف Gituas على الجمهور من رسائل المتجر وطلباته، فالمتجر الذي لديه القليل منها يعطي الاقتراح مادة قليلة.",
+      "لا يدفع Gituas ثمن الإعلان. دفع إعلانات Meta في العراق يحتاج إلى بطاقة دولية، ويُشترى الإعلان من أدوات Meta نفسها.",
+      "لا وعد بالمبيعات. يشير الاقتراح إلى منشور وجمهور، ولا يتنبأ بالنتائج أو المبيعات.",
+      "القرار لصاحب المتجر. لا يحل Gituas محل تقدير صاحب المتجر فيما يروّج له وكم ينفق."
+     ]
+    }
+   ],
+   "faq": [
+    {
+     "q": "هل يشتري Gituas الإعلان؟",
+     "a": "لا. يقدّم Gituas اقتراحات الترويج. ويُشترى الإعلان من أدوات Meta نفسها، ودفع إعلانات Meta في العراق يحتاج إلى بطاقة دولية."
+    },
+    {
+     "q": "هل ينظر Gituas إلى كل زبون على حدة؟",
+     "a": "لا. يتعرّف Gituas على الجمهور من رسائل المتجر وطلباته على مستوى المجموعات، ولا يبني أبداً ملفاً عن شخص واحد."
+    },
+    {
+     "q": "هل يمكن لمتجر في الخطة المجانية استخدام اقتراحات الترويج؟",
+     "a": "نعم. الخطة المجانية تكلفتها ٠ دينار وتشمل تحليل ترويج واحداً في اليوم."
+    },
+    {
+     "q": "ما الميزانية اليومية التي يوصي بها Gituas؟",
+     "a": "يقترح ميزانية يومية بالدينار. لا يناسب رقم ثابت كل المتاجر، وصاحب المتجر هو من يحدد المبلغ."
+    }
+   ],
+   "related": [
+    "kurdish-ai-video-ads",
+    "sell-on-social-media-iraq-kurdistan"
+   ],
+   "steps": [
+    {
+     "name": "شغّل تحليل الترويج",
+     "text": "شغّل تحليل الترويج في Gituas لتعرف أي منشور يستحق الترويج."
+    },
+    {
+     "name": "افحص الإشارات",
+     "text": "انظر إلى التعليقات والرسائل والطلبات حول ذلك المنشور في Insights وقائمة الطلبات."
+    },
+    {
+     "name": "اقرأ الجمهور والميزانية",
+     "text": "دوّن المنصة والمدن والأعمار والاهتمامات والميزانية اليومية بالدينار."
+    },
+    {
+     "name": "اشترِ الإعلان من أدوات Meta",
+     "text": "أنشئ الإعلان في أدوات Meta نفسها ببطاقة دولية، مستخدماً ذلك الجمهور وتلك الميزانية."
+    }
+   ]
+  }
+ },
+ {
+  "slug": "kurdish-voice-notes-and-orders",
+  "en": {
+   "slug": "kurdish-voice-notes-and-orders",
+   "title": "How Gituas handles Kurdish voice notes and collects orders in chat",
+   "metaTitle": "Kurdish Voice Notes and Orders in Chat | Gituas",
+   "metaDescription": "How Gituas reads Kurdish voice notes, collects orders step by step in chat, keeps them by city and status, and gives a copyable courier text.",
+   "answer": "On the paid plans, Gituas turns a buyer's Kurdish voice note, sent on Instagram or Messenger, into text with speech recognition and answers it like a typed message. It then collects the order step by step: name, phone, city, address, product or size. Orders sit in an Orders list by city and status, with a courier handoff text that can be copied.",
+   "keyPoints": [
+    "Gituas reads Kurdish voice notes on Instagram and Messenger with speech recognition, on the paid plans.",
+    "Voice notes read per day: Merchant 4, Pro 8, Max 12; Free none.",
+    "Order details collected in chat: name, phone, city, address, product or size.",
+    "Orders are kept by city and status; unclear voice notes are flagged for the owner."
+   ],
+   "sections": [
+    {
+     "h2": "What do buyers ask in a voice note?",
+     "paragraphs": [
+      "The same questions sellers get in typed messages: the price, delivery to my city, the size or colour, and the address.",
+      "Some buyers send a voice note instead of typing a message. Gituas treats it as one more message to answer."
+     ]
+    },
+    {
+     "h2": "How does Gituas read a Kurdish voice note?",
+     "paragraphs": [
+      "Gituas turns the voice note into text with speech recognition, then answers it the way it answers a typed message. It reads voice notes sent to the shop on Instagram and Messenger.",
+      "The answer follows the same rules as every other reply. The owner writes how Gituas should talk, and every number comes from the shop's own product data or the owner's instructions. Gituas never invents a price.",
+      "Typed direct messages (DMs) are answered the same way, in Sorani Kurdish and Arabic. WhatsApp is different: Gituas does not currently reply automatically there, and WhatsApp works as an order link with the shop's number and a ready order message."
+     ]
+    },
+    {
+     "h2": "How many voice notes does each plan read?",
+     "paragraphs": [
+      "Merchant reads 4 voice notes a day, Pro 8 and Max 12; the Free plan reads none. The limit is per day and depends on the plan.",
+      "A shop is one connected Facebook Page or Instagram account, and a plan is bought per shop per month. A paid plan that is not renewed falls back to Free."
+     ],
+     "bullets": [
+      "Free, 0 IQD: no voice-note reading, and no time limit on the plan.",
+      "Merchant, 15,000 IQD a month: 4 voice notes a day.",
+      "Pro, 25,000 IQD a month: 8 a day.",
+      "Max, 59,000 IQD a month, offered when open: 12 a day."
+     ]
+    },
+    {
+     "h2": "What happens when a voice note is unclear?",
+     "paragraphs": [
+      "Gituas flags it for the owner instead of guessing. Voice-note reading depends on speech recognition, and speech recognition may mishear.",
+      "A message Gituas cannot make out goes to the owner's \"needs you\" or \"unclear\" list, and the owner takes over. Complaints, abuse and haggling go there too, because those stay the owner's decision.",
+      "Check the phone number and address of any order that began as a voice note before it goes to a courier."
+     ]
+    },
+    {
+     "h2": "How does Gituas collect an order in chat?",
+     "paragraphs": [
+      "Gituas collects the order step by step inside the conversation. The product comes from the shop's own product data, which the owner links to a post with its name, photos, prices and sizes. A buyer who answers by voice note is read the same way, within the plan's daily limit.",
+      "Each answer moves the order one step forward until all five details are in. The five details:"
+     ],
+     "bullets": [
+      "Name of the buyer",
+      "Phone number",
+      "City",
+      "Address",
+      "Product or size"
+     ]
+    },
+    {
+     "h2": "What does one voice-note order look like?",
+     "paragraphs": [
+      "This is an example, not a real shop. A buyer sends a voice note in a direct message, asking the price of a product from a post. Gituas reads it, replies with the price from the product data, and then asks for the name, phone, city, address and size, one step at a time.",
+      "The order lands in the Orders list under the buyer's city. If the voice note was unclear, it is flagged for the owner, who can check the details with the buyer."
+     ]
+    },
+    {
+     "h2": "What does the Orders list show?",
+     "paragraphs": [
+      "The Orders list keeps every collected order by city and by status.",
+      "Orders in Kurdistan and Iraq go to many cities, such as Erbil, Sulaymaniyah, Duhok, Kirkuk, Baghdad and Basra. Grouped by city, the list shows what has to be sent where. Status shows how far each order has come.",
+      "Insights shows the messages, comments and orders of the last weeks in one place. Boost advice learns its audience from the shop's own buyers' messages and orders, at group level and never about individuals."
+     ]
+    },
+    {
+     "h2": "Why does cash on delivery fit this flow?",
+     "paragraphs": [
+      "Cash on delivery fits because the chat only needs the buyer's details, not a payment. The buyer pays when the parcel arrives, so the five steps above are enough. Payment for the Gituas plan is separate: it is paid in Iraqi dinar through Wayl, with FIB, ZainCash, QiCard, FastPay or card.",
+      "Selling here mostly runs from social posts to comments and DMs, then WhatsApp or DM, then cash on delivery. A 2020 survey in the Kurdistan Region found cash on delivery at about two thirds of online orders, and estimates say most Iraqi e-commerce is social-led."
+     ]
+    },
+    {
+     "h2": "How does the courier handoff work?",
+     "paragraphs": [
+      "The courier handoff text of an order can be copied, and the owner pastes it into the message to the courier.",
+      "Gituas collects the details. Choosing the courier and sending the text are the owner's steps."
+     ]
+    },
+    {
+     "h2": "What are the limits?",
+     "paragraphs": [
+      "Gituas supports the owner and does not replace the owner's judgement. Five limits matter here:"
+     ],
+     "bullets": [
+      "The shop's Facebook Page or Instagram account must be connected.",
+      "Meta's rules apply, including the 24-hour messaging window for direct messages.",
+      "Gituas does not currently reply automatically on WhatsApp.",
+      "Speech recognition may mishear, and unclear voice notes are flagged.",
+      "Complaints, haggling, abuse and unclear messages go to the owner."
+     ]
+    }
+   ],
+   "faq": [
+    {
+     "q": "Can Gituas understand Kurdish voice notes?",
+     "a": "Yes, on the paid plans, on Instagram and Messenger, with speech recognition. It may mishear, and unclear voice notes are flagged for the owner."
+    },
+    {
+     "q": "How many voice notes can Gituas read a day?",
+     "a": "Merchant reads 4 a day, Pro 8 and Max 12. The Free plan reads none."
+    },
+    {
+     "q": "Does Gituas collect orders for cash on delivery?",
+     "a": "Yes. Collecting the buyer's details in chat fits cash on delivery: Gituas collects name, phone, city, address and product or size, and gives a courier handoff text you can copy."
+    }
+   ],
+   "related": [
+    "sell-on-social-media-iraq-kurdistan",
+    "ai-replies-without-inventing-prices"
+   ],
+   "steps": [
+    {
+     "name": "Connect the shop",
+     "text": "Connect the shop's Facebook Page or Instagram account. Automatic replies need it."
+    },
+    {
+     "name": "Link the product to a post",
+     "text": "Add the name, photos, prices and sizes, so replies use your own numbers."
+    },
+    {
+     "name": "Write how Gituas should talk",
+     "text": "Describe your tone and how to speak about price, in your own words."
+    },
+    {
+     "name": "Choose a plan that reads voice notes",
+     "text": "Merchant reads 4 a day, Pro 8, Max 12. Free reads none."
+    },
+    {
+     "name": "Check orders and copy the courier text",
+     "text": "Open the Orders list by city and status, confirm phone and address, then copy the handoff text."
+    }
+   ]
+  },
+  "ku": {
+   "slug": "kurdish-voice-notes-and-orders",
+   "title": "گیتواس چۆن مامەڵە لەگەڵ نامەی دەنگیی کوردی دەکات و داواکاری لە چاتدا وەردەگرێت",
+   "metaTitle": "نامەی دەنگیی کوردی و داواکاری لە چاتدا | گیتواس",
+   "metaDescription": "گیتواس نامەی دەنگیی کوردی دەخوێنێتەوە، لە چاتدا هەنگاو بە هەنگاو داواکاری کۆدەکاتەوە، بەپێی شار و دۆخ دەیپارێزێت و دەقی گەیەنەر دەدات کە کۆپی دەکرێت.",
+   "answer": "لە پلانە بە پارەکاندا، گیتواس نامەی دەنگیی کوردیی کڕیار، کە لە ئینستاگرام یان مەسێنجەر دێت، بە ناسینەوەی دەنگ دەکات بە دەق و وەک نامەیەکی نووسراو وەڵامی دەداتەوە. دواتر داواکارییەکە هەنگاو بە هەنگاو کۆدەکاتەوە: ناو، ژمارەی تەلەفۆن، شار، ناونیشان، کاڵا یان قیاس. داواکارییەکان لە لیستی داواکارییەکان بەپێی شار و دۆخ دەمێننەوە، لەگەڵ دەقێکی ڕادەستکردن بە گەیەنەر کە دەکرێت کۆپی بکرێت.",
+   "keyPoints": [
+    "لە پلانە بە پارەکاندا گیتواس نامەی دەنگیی کوردی لە ئینستاگرام و مەسێنجەر بە ناسینەوەی دەنگ دەخوێنێتەوە.",
+    "ژمارەی نامەی دەنگی کە ڕۆژانە دەخوێنرێتەوە: Merchant ٤، Pro ٨، Max ١٢؛ پلانی بەخۆڕایی: هیچ.",
+    "زانیارییەکانی داواکاری کە لە چاتدا کۆدەکرێنەوە: ناو، ژمارەی تەلەفۆن، شار، ناونیشان، کاڵا یان قیاس.",
+    "داواکارییەکان بەپێی شار و دۆخ دەپارێزرێن؛ نامە دەنگییە نادیارەکان بۆ خاوەنی دوکان نیشانە دەکرێن."
+   ],
+   "sections": [
+    {
+     "h2": "کڕیار لە نامەی دەنگیدا چی دەپرسێت؟",
+     "paragraphs": [
+      "هەمان ئەو پرسیارانەی لە نامە نووسراوەکاندا لە فرۆشیار دەکرێن: نرخ، گەیاندن بۆ شارەکەم، قیاس یان ڕەنگ، و ناونیشان.",
+      "هەندێک کڕیار لەجیاتی نووسین نامەی دەنگی دەنێرن. گیتواس وەک نامەیەکی تر مامەڵەی لەگەڵ دەکات و وەڵامی دەداتەوە."
+     ]
+    },
+    {
+     "h2": "گیتواس چۆن نامەی دەنگیی کوردی دەخوێنێتەوە؟",
+     "paragraphs": [
+      "گیتواس بە ناسینەوەی دەنگ نامەی دەنگی دەکات بە دەق، پاشان وەک نامەیەکی نووسراو وەڵامی دەداتەوە. ئەو نامە دەنگییانە دەخوێنێتەوە کە لە ئینستاگرام و مەسێنجەر بۆ دوکانەکە دەنێردرێن.",
+      "هەمان یاساکانی هەموو وەڵامەکانی تر بۆ ئەم وەڵامەش جێبەجێ دەبن. خاوەنی دوکان خۆی دەنووسێت گیتواس چۆن قسە بکات، و هەموو ژمارەیەک لە زانیاری کاڵای خودی دوکانەکە یان ڕێنماییەکانی خاوەنەکەوە دێت. گیتواس هەرگیز نرخێک لە خۆیەوە دانانێت.",
+      "نامە تایبەتە نووسراوەکان (DM) بە هەمان شێوە وەڵام دەدرێنەوە، بە کوردیی سۆرانی و عەرەبی. واتساپ جیاوازە: گیتواس لە ئێستادا خۆکارانە لەوێ وەڵام ناداتەوە، و واتساپ وەک بەستەرێکی داواکاری کار دەکات کە ژمارەی دوکانەکە و نامەیەکی ئامادەی داواکاری تێدایە."
+     ]
+    },
+    {
+     "h2": "هەر پلانێک چەند نامەی دەنگی دەخوێنێتەوە؟",
+     "paragraphs": [
+      "Merchant ڕۆژانە ٤ نامەی دەنگی دەخوێنێتەوە، Pro ٨ و Max ١٢؛ پلانی بەخۆڕایی هیچ ناخوێنێتەوە. سنوورەکە ڕۆژانەیە و بەپێی پلان دەگۆڕێت.",
+      "دوکان بریتییە لە یەک پەڕەی فەیسبووکی بەستراو یان یەک ئەکاونتی ئینستاگرام، و پلان بۆ هەر دوکانێک مانگانە دەکڕدرێت. ئەگەر پلانێکی بە پارە نوێ نەکرێتەوە، دەگەڕێتەوە سەر پلانی بەخۆڕایی."
+     ],
+     "bullets": [
+      "بەخۆڕایی، ٠ دینار: نامەی دەنگی ناخوێنرێتەوە، و پلانەکە سنووری کاتی نییە.",
+      "Merchant، ١٥٬٠٠٠ دینار مانگانە: ٤ نامەی دەنگی لە ڕۆژێکدا.",
+      "Pro، ٢٥٬٠٠٠ دینار مانگانە: ٨ لە ڕۆژێکدا.",
+      "Max، ٥٩٬٠٠٠ دینار مانگانە، کاتێک بەردەست بێت: ١٢ لە ڕۆژێکدا."
+     ]
+    },
+    {
+     "h2": "ئەگەر نامەی دەنگی ڕوون نەبێت چی ڕوودەدات؟",
+     "paragraphs": [
+      "گیتواس لەجیاتی حەدسکردن بۆ خاوەنی دوکان نیشانەی دەکات. خوێندنەوەی نامەی دەنگی لەسەر ناسینەوەی دەنگ دەوەستێت، و ناسینەوەی دەنگ ڕەنگە هەڵە بیبیستێت.",
+      "نامەیەک کە گیتواس نەتوانێت تێی بگات دەچێتە لیستی «پێویستی بە تۆیە» یان «نادیار»ی خاوەنەکە، و خاوەنەکە خۆی دەیگرێتە ئەستۆ. سکاڵا، جنێودان و چەنەبازیش دەچنە ئەوێ، چونکە ئەوانە بڕیاری خاوەنەکە دەمێننەوە.",
+      "پێش ئەوەی هەر داواکارییەک کە لە نامەی دەنگییەوە دەستی پێکردووە بدرێتە گەیەنەر، ژمارەی تەلەفۆن و ناونیشانەکەی بپشکنە."
+     ]
+    },
+    {
+     "h2": "گیتواس چۆن داواکاری لە چاتدا کۆدەکاتەوە؟",
+     "paragraphs": [
+      "گیتواس داواکارییەکە هەنگاو بە هەنگاو لەناو گفتوگۆکەدا کۆدەکاتەوە. کاڵاکە لە زانیاری کاڵای خودی دوکانەکەوە دێت، کە خاوەنی دوکان بە پۆستێکەوە دەیبەستێتەوە لەگەڵ ناو، وێنە، نرخ و قیاسەکانی. ئەگەر کڕیار بە نامەی دەنگی وەڵام بداتەوە، نامەکەی بە هەمان شێوە دەخوێنرێتەوە، لە چوارچێوەی سنووری ڕۆژانەی پلانەکەدا.",
+      "هەر وەڵامێک داواکارییەکە هەنگاوێک بەرەو پێش دەبات، تا هەموو پێنج زانیارییەکە تەواو بن. پێنج زانیارییەکە:"
+     ],
+     "bullets": [
+      "ناوی کڕیار",
+      "ژمارەی تەلەفۆن",
+      "شار",
+      "ناونیشان",
+      "کاڵا یان قیاس"
+     ]
+    },
+    {
+     "h2": "داواکارییەک کە بە نامەی دەنگی دەست پێدەکات چۆن دەردەکەوێت؟",
+     "paragraphs": [
+      "ئەمە نموونەیەکە، نەک دوکانێکی ڕاستەقینە. کڕیارێک لە نامەیەکی تایبەتدا نامەیەکی دەنگی دەنێرێت و نرخی کاڵایەک دەپرسێت کە لە پۆستێکدا بینیویەتی. گیتواس دەیخوێنێتەوە، بە نرخی زانیاری کاڵاکە وەڵام دەداتەوە، پاشان ناو، ژمارەی تەلەفۆن، شار، ناونیشان و قیاس هەنگاو بە هەنگاو دەپرسێت.",
+      "داواکارییەکە لە لیستی داواکارییەکاندا لەژێر شاری کڕیار دادەنرێت. ئەگەر نامە دەنگییەکە ڕوون نەبووبێت، بۆ خاوەنەکە نیشانە دەکرێت، و دەتوانێت زانیارییەکان لەگەڵ کڕیارەکە پشتڕاست بکاتەوە."
+     ]
+    },
+    {
+     "h2": "لیستی داواکارییەکان چی نیشان دەدات؟",
+     "paragraphs": [
+      "لیستی داواکارییەکان هەموو داواکارییە کۆکراوەکان بەپێی شار و بەپێی دۆخ دەپارێزێت.",
+      "داواکارییەکانی کوردستان و عێراق بۆ چەندین شار دەچن، وەک هەولێر، سلێمانی، دهۆک، کەرکوک، بەغدا و بەسرە. کاتێک بە شار ڕیز دەکرێت، لیستەکە نیشان دەدات چی دەبێت بۆ کوێ بنێردرێت. دۆخیش نیشان دەدات هەر داواکارییەک تا کوێ گەیشتووە.",
+      "ئاماران (Insights) نامە، کۆمێنت و داواکارییەکانی هەفتە ڕابردووەکان لە یەک شوێندا نیشان دەدات. ڕاسپاردەی بووست کۆمەڵی ئامانج لە نامە و داواکارییەکانی کڕیارەکانی خودی دوکانەکەوە فێر دەبێت، لە ئاستی گروپدا و هەرگیز سەبارەت بە تاکەکەس."
+     ]
+    },
+    {
+     "h2": "بۆچی پارەدان لە کاتی وەرگرتن لەگەڵ ئەم شێوازە دەگونجێت؟",
+     "paragraphs": [
+      "پارەدان لە کاتی وەرگرتن دەگونجێت، چونکە چاتەکە تەنها پێویستی بە زانیارییەکانی کڕیار هەیە، نەک بە پارەدان. کڕیار کاتێک کاڵاکە دەگات پارە دەدات، بۆیە ئەو پێنج هەنگاوەی سەرەوە بەسن. پارەدانی پلانی گیتواس جیایە: بە دیناری عێراقی لە ڕێگەی Wayl دەدرێت، بە FIB، ZainCash، QiCard، FastPay یان کارت.",
+      "فرۆشتن لێرە زۆربەی جار لە پۆستی سۆشیاڵەوە دەچێتە کۆمێنت و نامەی تایبەت، پاشان واتساپ یان نامەی تایبەت، پاشان پارەدان لە کاتی وەرگرتن. ڕاپرسییەکی ساڵی ٢٠٢٠ لە هەرێمی کوردستان دۆزییەوە کە پارەدان لە کاتی وەرگرتن نزیکەی دوو لەسەر سێی داواکارییە ئۆنلاینەکان بووە، و خەمڵاندنەکان دەڵێن زۆربەی بازرگانیی ئەلیکترۆنیی عێراق پشت بە سۆشیاڵ میدیا دەبەستێت."
+     ]
+    },
+    {
+     "h2": "ڕادەستکردن بە گەیەنەر چۆن کار دەکات؟",
+     "paragraphs": [
+      "دەقی ڕادەستکردنی داواکارییەک دەکرێت کۆپی بکرێت، و خاوەنەکە دەیخاتە ناو نامەکەی بۆ گەیەنەر.",
+      "گیتواس زانیارییەکان کۆدەکاتەوە. هەڵبژاردنی گەیەنەر و ناردنی دەقەکە دەکەوێتە ئەستۆی خاوەنی دوکان."
+     ]
+    },
+    {
+     "h2": "سنوورەکان چین؟",
+     "paragraphs": [
+      "گیتواس پشتگیری خاوەنی دوکان دەکات و جێگەی بڕیاری ئەو ناگرێتەوە. پێنج سنوور لێرە گرنگن:"
+     ],
+     "bullets": [
+      "پەڕەی فەیسبووک یان ئەکاونتی ئینستاگرامی دوکانەکە دەبێت بەستراو بێت.",
+      "یاساکانی Meta جێبەجێ دەبن، لەوانە پەنجەرەی ٢٤ کاتژمێری نامەناردن بۆ نامە تایبەتەکان.",
+      "گیتواس لە ئێستادا خۆکارانە لە واتساپ وەڵام ناداتەوە.",
+      "ناسینەوەی دەنگ ڕەنگە هەڵە ببیستێت، و نامە دەنگییە نادیارەکان نیشانە دەکرێن.",
+      "سکاڵا، چەنەبازی، جنێودان و نامە نادیارەکان بۆ خاوەنی دوکان دەچن."
+     ]
+    }
+   ],
+   "faq": [
+    {
+     "q": "ئایا گیتواس نامەی دەنگیی کوردی تێدەگات؟",
+     "a": "بەڵێ، لە پلانە بە پارەکاندا و لە ئینستاگرام و مەسێنجەر، بە ناسینەوەی دەنگ. ڕەنگە هەڵە ببیستێت، و نامە دەنگییە نادیارەکان بۆ خاوەنی دوکان نیشانە دەکرێن."
+    },
+    {
+     "q": "گیتواس ڕۆژانە چەند نامەی دەنگی دەخوێنێتەوە؟",
+     "a": "Merchant ڕۆژانە ٤، Pro ٨ و Max ١٢. پلانی بەخۆڕایی هیچ ناخوێنێتەوە."
+    },
+    {
+     "q": "ئایا گیتواس داواکاری بۆ پارەدان لە کاتی وەرگرتن کۆدەکاتەوە؟",
+     "a": "بەڵێ. کۆکردنەوەی زانیارییەکانی کڕیار لە چاتدا لەگەڵ پارەدان لە کاتی وەرگرتن دەگونجێت: گیتواس ناو، ژمارەی تەلەفۆن، شار، ناونیشان و کاڵا یان قیاس کۆدەکاتەوە، و دەقێکی ڕادەستکردن بە گەیەنەر دەدات کە دەتوانیت کۆپی بکەیت."
+    }
+   ],
+   "related": [
+    "sell-on-social-media-iraq-kurdistan",
+    "ai-replies-without-inventing-prices"
+   ],
+   "steps": [
+    {
+     "name": "دوکانەکە ببەستەوە",
+     "text": "پەڕەی فەیسبووک یان ئەکاونتی ئینستاگرامی دوکانەکە ببەستەوە. وەڵامی خۆکار پێویستی پێیەتی."
+    },
+    {
+     "name": "کاڵا بە پۆستێکەوە ببەستەوە",
+     "text": "ناو، وێنە، نرخ و قیاسەکان زیاد بکە، تا وەڵامەکان ژمارەکانی خۆت بەکار بهێنن."
+    },
+    {
+     "name": "بنووسە گیتواس چۆن قسە بکات",
+     "text": "بە وشەی خۆت شێوازی قسەکردن و چۆنیەتی باسکردنی نرخ ڕوون بکەرەوە."
+    },
+    {
+     "name": "پلانێک هەڵبژێرە کە نامەی دەنگی دەخوێنێتەوە",
+     "text": "Merchant ڕۆژانە ٤ دەخوێنێتەوە، Pro ٨، Max ١٢. پلانی بەخۆڕایی هیچ ناخوێنێتەوە."
+    },
+    {
+     "name": "داواکارییەکان بپشکنە و دەقی گەیەنەر کۆپی بکە",
+     "text": "لیستی داواکارییەکان بەپێی شار و دۆخ بکەرەوە، ژمارەی تەلەفۆن و ناونیشان پشتڕاست بکەرەوە، پاشان دەقی ڕادەستکردن کۆپی بکە."
+    }
+   ]
+  },
+  "ar": {
+   "slug": "kurdish-voice-notes-and-orders",
+   "title": "كيف يتعامل Gituas مع الرسائل الصوتية الكردية ويجمع الطلبات داخل المحادثة",
+   "metaTitle": "الرسائل الصوتية الكردية والطلبات في المحادثة | Gituas",
+   "metaDescription": "كيف يقرأ Gituas الرسائل الصوتية الكردية، ويجمع الطلبات خطوة بخطوة، ويرتبها حسب المدينة والحالة، ويوفّر نص تسليم للمندوب قابلاً للنسخ.",
+   "answer": "في الخطط المدفوعة، يحوّل Gituas الرسالة الصوتية الكردية التي يرسلها المشتري على Instagram أو Messenger إلى نص بالتعرّف على الكلام، ثم يردّ عليها كما يردّ على الرسالة المكتوبة. بعد ذلك يجمع الطلب خطوة بخطوة: الاسم، رقم الهاتف، المدينة، العنوان، المنتج أو القياس. تُحفظ الطلبات في قائمة الطلبات حسب المدينة والحالة، مع نص تسليم لمندوب التوصيل يمكن نسخه.",
+   "keyPoints": [
+    "يقرأ Gituas الرسائل الصوتية الكردية على Instagram وMessenger بالتعرّف على الكلام، في الخطط المدفوعة.",
+    "عدد الرسائل الصوتية المقروءة يومياً: Merchant ٤، Pro ٨، Max ١٢؛ والخطة المجانية لا تقرأ أيّاً منها.",
+    "تفاصيل الطلب التي تُجمع في المحادثة: الاسم، رقم الهاتف، المدينة، العنوان، المنتج أو القياس.",
+    "تُحفظ الطلبات حسب المدينة والحالة، وتُعلَّم الرسائل الصوتية غير الواضحة لمراجعة صاحب المتجر."
+   ],
+   "sections": [
+    {
+     "h2": "ماذا يسأل المشترون في الرسالة الصوتية؟",
+     "paragraphs": [
+      "الأسئلة نفسها التي يتلقاها البائع في الرسائل المكتوبة: السعر، والتوصيل إلى مدينتي، والقياس أو اللون، والعنوان.",
+      "يرسل بعض المشترين رسالة صوتية بدلاً من الكتابة. ويتعامل Gituas معها على أنها رسالة أخرى تحتاج إلى ردّ."
+     ]
+    },
+    {
+     "h2": "كيف يقرأ Gituas الرسالة الصوتية الكردية؟",
+     "paragraphs": [
+      "يحوّل Gituas الرسالة الصوتية إلى نص بالتعرّف على الكلام، ثم يردّ عليها كما يردّ على الرسالة المكتوبة. ويقرأ الرسائل الصوتية المرسلة إلى المتجر على Instagram وMessenger.",
+      "يتبع الردّ القواعد نفسها المتّبعة في كل ردّ آخر. يكتب صاحب المتجر كيف يجب أن يتحدث Gituas، وكل رقم يأتي من بيانات منتجات المتجر نفسه أو من تعليمات صاحبه. ولا يختلق Gituas سعراً أبداً.",
+      "تُجاب الرسائل الخاصة المكتوبة بالطريقة نفسها، بالكردية السورانية والعربية. أما WhatsApp فالأمر مختلف: لا يردّ Gituas تلقائياً عليه حالياً، ويعمل WhatsApp كرابط طلب يحمل رقم المتجر ورسالة طلب جاهزة."
+     ]
+    },
+    {
+     "h2": "كم رسالة صوتية تقرأ كل خطة؟",
+     "paragraphs": [
+      "تقرأ خطة Merchant ٤ رسائل صوتية يومياً، وPro ٨، وMax ١٢؛ أما الخطة المجانية فلا تقرأ أيّاً منها. الحدّ يومي ويختلف بحسب الخطة.",
+      "المتجر هو صفحة Facebook واحدة متصلة أو حساب Instagram واحد، وتُشترى الخطة لكل متجر شهرياً. والخطة المدفوعة التي لا تُجدَّد تعود إلى الخطة المجانية."
+     ],
+     "bullets": [
+      "مجاني، ٠ دينار: لا قراءة للرسائل الصوتية، ولا مدّة زمنية تنتهي بها الخطة.",
+      "Merchant، ١٥٬٠٠٠ دينار شهرياً: ٤ رسائل صوتية يومياً.",
+      "Pro، ٢٥٬٠٠٠ دينار شهرياً: ٨ رسائل يومياً.",
+      "Max، ٥٩٬٠٠٠ دينار شهرياً، عند توفّرها: ١٢ رسالة يومياً."
+     ]
+    },
+    {
+     "h2": "ماذا يحدث عندما تكون الرسالة الصوتية غير واضحة؟",
+     "paragraphs": [
+      "يضع Gituas علامة عليها لمراجعة صاحب المتجر بدلاً من التخمين. فقراءة الرسالة الصوتية تعتمد على التعرّف على الكلام، وقد يخطئ التعرّف على الكلام في السماع.",
+      "الرسالة التي لا يستطيع Gituas فهمها تذهب إلى قائمة «تحتاج إليك» أو «غير واضحة» عند صاحب المتجر، ويتولّاها بنفسه. وتذهب إليها أيضاً الشكاوى والإساءة والمساومة، لأن القرار فيها يبقى لصاحب المتجر.",
+      "تحقّق من رقم الهاتف والعنوان في أي طلب بدأ برسالة صوتية قبل أن يُسلَّم إلى مندوب التوصيل."
+     ]
+    },
+    {
+     "h2": "كيف يجمع Gituas الطلب داخل المحادثة؟",
+     "paragraphs": [
+      "يجمع Gituas الطلب خطوة بخطوة داخل المحادثة. يأتي المنتج من بيانات منتجات المتجر نفسه، التي يربطها صاحب المتجر بمنشور مع اسمه وصوره وأسعاره وقياساته. وإذا أجاب المشتري برسالة صوتية فتُقرأ بالطريقة نفسها، ضمن الحدّ اليومي للخطة.",
+      "كل إجابة تنقل الطلب خطوة إلى الأمام حتى تكتمل التفاصيل الخمس. التفاصيل الخمس:"
+     ],
+     "bullets": [
+      "اسم المشتري",
+      "رقم الهاتف",
+      "المدينة",
+      "العنوان",
+      "المنتج أو القياس"
+     ]
+    },
+    {
+     "h2": "كيف يبدو طلب واحد يبدأ برسالة صوتية؟",
+     "paragraphs": [
+      "هذا مثال وليس متجراً حقيقياً. يرسل مشترٍ رسالة صوتية في رسالة خاصة يسأل فيها عن سعر منتج رآه في منشور. يقرؤها Gituas، ويردّ بالسعر من بيانات المنتج، ثم يسأل عن الاسم ورقم الهاتف والمدينة والعنوان والقياس، خطوة بعد خطوة.",
+      "يصل الطلب إلى قائمة الطلبات تحت مدينة المشتري. وإذا كانت الرسالة الصوتية غير واضحة فتُعلَّم لمراجعة صاحب المتجر، ويمكنه التحقق من التفاصيل مع المشتري."
+     ]
+    },
+    {
+     "h2": "ماذا تعرض قائمة الطلبات؟",
+     "paragraphs": [
+      "تحتفظ قائمة الطلبات بكل طلب جُمع حسب المدينة وحسب الحالة.",
+      "تذهب الطلبات في كردستان والعراق إلى مدن كثيرة، مثل أربيل والسليمانية ودهوك وكركوك وبغداد والبصرة. وعند الترتيب حسب المدينة تُظهر القائمة ما يجب إرساله إلى كل مدينة. وتُظهر الحالة إلى أين وصل كل طلب.",
+      "تعرض لوحة الإحصاءات (Insights) الرسائل والتعليقات والطلبات في الأسابيع الأخيرة في مكان واحد. وتتعرّف نصائح الترويج (Boost) على الجمهور المستهدف من رسائل مشتري المتجر نفسه وطلباتهم، على مستوى المجموعات ودون التطرّق إلى أفراد بعينهم."
+     ]
+    },
+    {
+     "h2": "لماذا يناسب الدفع عند الاستلام هذا المسار؟",
+     "paragraphs": [
+      "يناسب الدفع عند الاستلام هذا المسار لأن المحادثة تحتاج إلى بيانات المشتري فقط، لا إلى دفعة مالية. يدفع المشتري عند وصول الطلب، ولذلك تكفي الخطوات الخمس أعلاه. أما الدفع مقابل خطة Gituas فمنفصل: يُدفع بالدينار العراقي عبر Wayl بواسطة FIB أو ZainCash أو QiCard أو FastPay أو البطاقة.",
+      "يجري البيع هنا في الغالب من المنشورات على وسائل التواصل إلى التعليقات والرسائل الخاصة، ثم WhatsApp أو الرسائل الخاصة، ثم الدفع عند الاستلام. وجد استطلاع أُجري عام ٢٠٢٠ في إقليم كردستان أن الدفع عند الاستلام يمثّل نحو ثلثي الطلبات عبر الإنترنت، وتشير التقديرات إلى أن معظم التجارة الإلكترونية في العراق تقودها وسائل التواصل."
+     ]
+    },
+    {
+     "h2": "كيف يعمل تسليم الطلب لمندوب التوصيل؟",
+     "paragraphs": [
+      "يمكن نسخ نص تسليم الطلب لمندوب التوصيل، ويلصقه صاحب المتجر في رسالته إلى المندوب.",
+      "يجمع Gituas التفاصيل. أما اختيار مندوب التوصيل وإرسال النص فخطوتان يتولاهما صاحب المتجر."
+     ]
+    },
+    {
+     "h2": "ما حدود هذه الميزة؟",
+     "paragraphs": [
+      "يدعم Gituas صاحب المتجر ولا يحلّ محل حكمه. وهناك خمسة حدود مهمة هنا:"
+     ],
+     "bullets": [
+      "يجب ربط صفحة Facebook أو حساب Instagram الخاص بالمتجر.",
+      "تسري قواعد Meta، ومنها نافذة المراسلة البالغة ٢٤ ساعة للرسائل الخاصة.",
+      "لا يردّ Gituas تلقائياً على WhatsApp حالياً.",
+      "قد يخطئ التعرّف على الكلام في السماع، وتُعلَّم الرسائل الصوتية غير الواضحة.",
+      "الشكاوى والمساومة والإساءة والرسائل غير الواضحة تذهب إلى صاحب المتجر."
+     ]
+    }
+   ],
+   "faq": [
+    {
+     "q": "هل يفهم Gituas الرسائل الصوتية الكردية؟",
+     "a": "نعم، في الخطط المدفوعة وعلى Instagram وMessenger، بالتعرّف على الكلام. وقد يخطئ في السماع، وتُعلَّم الرسائل الصوتية غير الواضحة لمراجعة صاحب المتجر."
+    },
+    {
+     "q": "كم رسالة صوتية يقرأ Gituas في اليوم؟",
+     "a": "تقرأ Merchant ٤ يومياً، وPro ٨، وMax ١٢. أما الخطة المجانية فلا تقرأ أيّاً منها."
+    },
+    {
+     "q": "هل يجمع Gituas الطلبات للدفع عند الاستلام؟",
+     "a": "نعم. جمع بيانات المشتري في المحادثة يناسب الدفع عند الاستلام: يجمع Gituas الاسم ورقم الهاتف والمدينة والعنوان والمنتج أو القياس، ويوفّر نص تسليم لمندوب التوصيل يمكنك نسخه."
+    }
+   ],
+   "related": [
+    "sell-on-social-media-iraq-kurdistan",
+    "ai-replies-without-inventing-prices"
+   ],
+   "steps": [
+    {
+     "name": "اربط المتجر",
+     "text": "اربط صفحة Facebook أو حساب Instagram الخاص بالمتجر. فالردود التلقائية تحتاج إلى ذلك."
+    },
+    {
+     "name": "اربط المنتج بمنشور",
+     "text": "أضف الاسم والصور والأسعار والقياسات، لتعتمد الردود على أرقامك أنت."
+    },
+    {
+     "name": "اكتب كيف يجب أن يتحدث Gituas",
+     "text": "صِف أسلوبك وكيفية الحديث عن السعر، بكلماتك أنت."
+    },
+    {
+     "name": "اختر خطة تقرأ الرسائل الصوتية",
+     "text": "تقرأ Merchant ٤ يومياً، وPro ٨، وMax ١٢. والخطة المجانية لا تقرأ أيّاً منها."
+    },
+    {
+     "name": "راجع الطلبات وانسخ نص التسليم",
+     "text": "افتح قائمة الطلبات حسب المدينة والحالة، وتأكد من الهاتف والعنوان، ثم انسخ نص التسليم."
+    }
+   ]
+  }
+ },
+ {
+  "slug": "ai-replies-without-inventing-prices",
+  "en": {
+   "slug": "ai-replies-without-inventing-prices",
+   "title": "Can AI answer customers without making up prices?",
+   "metaTitle": "Can AI Answer Customers Without Making Up Prices? | Gituas",
+   "metaDescription": "How Gituas keeps AI replies honest: numbers only from your data or instructions, hard cases sent to you, daily caps, and Confirm for its assistant.",
+   "answer": "Gituas is built so that every number in a reply must come from the shop's own product data or the owner's instructions. When a message is a complaint, abuse, haggling or unclear, it goes to the owner instead of being guessed at. This lowers the risk of invented prices, but the owner still has to keep the product data correct.",
+   "keyPoints": [
+    "Every number in a Gituas reply must come from the shop's own product data or the owner's instructions.",
+    "The owner writes how the assistant talks, including how it speaks about price.",
+    "Complaints, abuse, haggling and unclear messages are handed to the owner instead of being answered.",
+    "Automatic replies are capped per day by plan: up to 100 on Free, 1,000 on Merchant and 5,000 on Pro.",
+    "The in-app assistant acts only after Confirm and cannot touch payments, plans, passwords or connected accounts."
+   ],
+   "sections": [
+    {
+     "h2": "Where do the prices in a reply come from?",
+     "paragraphs": [
+      "They come from two places only: the shop's own product data and the owner's instructions. Gituas is built so that a price is never invented: every number in a reply must trace back to one of those two sources.",
+      "A shop links a product to a post, with its name, photos, prices and sizes. When a customer comments «نرخی چەندە؟» (\"how much?\"), the reply uses that product record. A short public reply goes under the comment, and the price and details go to the customer privately in a direct message (DM).",
+      "This is a rule about where numbers come from. It is not a check that the numbers are right. If a product record holds an old price, the reply will repeat the old price, so keeping that data current stays the owner's job."
+     ]
+    },
+    {
+     "h2": "Who decides how the assistant talks?",
+     "paragraphs": [
+      "The owner does. The owner writes how it should talk, including the tone and how to speak about price. Replies to DMs come in Sorani Kurdish or Arabic, in the owner's own words.",
+      "A number the owner wants quoted, for example a delivery fee, belongs in those instructions. A number written there is the owner's own figure, so it is allowed. A number written nowhere is not.",
+      "Gituas follows the voice the owner writes down."
+     ]
+    },
+    {
+     "h2": "Which messages go to the owner instead of getting an answer?",
+     "paragraphs": [
+      "Four kinds: complaints, abuse, haggling, and messages Gituas cannot make out. These are handed to the owner on a \"needs you\" or \"unclear\" list instead of being answered by guesswork.",
+      "A complaint is about the relationship with a customer, and haggling is a decision about the owner's money. Both belong to the owner.",
+      "Voice notes are a related case. On paid plans, Gituas reads buyers' voice notes from Instagram and Messenger in Kurdish with speech recognition. Speech recognition can mishear, and unclear voice notes are flagged.",
+      "A message on that list is waiting for the owner, so someone has to read it. Gituas does not replace the owner's judgement. It only separates the routine questions from the ones that need it."
+     ]
+    },
+    {
+     "h2": "What limits how many replies it sends?",
+     "paragraphs": [
+      "The plan sets daily and monthly caps per shop. They put a ceiling on volume. The figures are listed below.",
+      "Meta's own rules apply in addition to the plan, including the 24-hour messaging window for DMs. Automatic replies need the shop's Facebook Page or Instagram account to be connected. Gituas does not currently reply automatically on WhatsApp, where the shop's number works as an order link."
+     ],
+     "bullets": [
+      "Automatic replies a day: Free up to 100, Merchant up to 1,000, Pro up to 5,000.",
+      "AI-written replies a month: Free 10, Merchant 400, Pro 800, and 1,500 on Max when it is offered.",
+      "Posts covered: Free the newest 3 posts, Merchant the newest 25, Pro all posts."
+     ]
+    },
+    {
+     "h2": "What can the in-app assistant do, and what can it not touch?",
+     "paragraphs": [
+      "The in-app assistant acts only after the owner presses Confirm. The owner writes in Kurdish what to do, for example \"make a picture\", \"post this tomorrow at 7\" or \"switch on automatic replies\".",
+      "It cannot touch payments, plans, passwords or connected accounts. Money and access to the shop's accounts stay outside what a chat message can change.",
+      "This is separate from customer replies. Once automatic replies are on, they go out without the owner approving each one. Confirm applies to what the owner asks the assistant to do, not to each message sent to a customer."
+     ]
+    },
+    {
+     "h2": "What should you check before switching automatic replies on?",
+     "paragraphs": [
+      "Check the data and the instructions first, because a reply can only be as accurate as they are. After switching on, read the first replies yourself before leaving it alone.",
+      "A wrong price in your own data will be repeated, and customers will see it."
+     ],
+     "bullets": [
+      "Each product has the right name, prices and sizes in its record.",
+      "Each product is linked to the right post.",
+      "The instructions say how to talk about price and include every number you want quoted, such as a delivery fee.",
+      "The connected Facebook Page or Instagram account is the one you mean.",
+      "You know where the \"needs you\" and \"unclear\" lists are, who will read them, and how often.",
+      "You know your plan's caps and how many posts it covers."
+     ]
+    },
+    {
+     "h2": "How do the parts fit together?",
+     "paragraphs": [
+      "The design rests on five choices. Numbers come only from the shop's data or the owner's instructions. The owner sets the voice. Hard cases go to the owner. Caps limit volume. The assistant acts only after Confirm and cannot touch payments or accounts.",
+      "None of them removes the need for the owner to look."
+     ]
+    },
+    {
+     "h2": "What is Gituas?",
+     "paragraphs": [
+      "Gituas is an AI assistant for shops and businesses that sell on Facebook and Instagram in Kurdistan and Iraq. It answers comments and messages in Kurdish and Arabic, collects orders, and makes video ads and pictures with AI.",
+      "The Free plan costs 0 IQD and has no time limit. More at https://gituas.com."
+     ]
+    }
+   ],
+   "faq": [
+    {
+     "q": "Can Gituas quote a price that is not in my product data?",
+     "a": "Only if the number is in the owner's written instructions. Every number in a reply must come from the shop's own product data or the owner's instructions."
+    },
+    {
+     "q": "What happens when a customer haggles or complains?",
+     "a": "The conversation is handed to the owner on a \"needs you\" or \"unclear\" list instead of being answered automatically. Abuse and messages Gituas cannot make out are handled the same way."
+    },
+    {
+     "q": "Can the assistant change my plan, payments or passwords?",
+     "a": "No. The in-app assistant acts only after the owner presses Confirm, and it cannot touch payments, plans, passwords or connected accounts."
+    },
+    {
+     "q": "Does Gituas answer automatically on WhatsApp?",
+     "a": "No, not currently. On WhatsApp the shop's number is an order link. Automatic replies work on Facebook and Instagram."
+    },
+    {
+     "q": "Does it replace the owner?",
+     "a": "No. Complaints, haggling, abuse and unclear messages still need the owner's judgement, and the owner has to keep the product data correct."
+    }
+   ],
+   "related": [
+    "automatic-replies-facebook-instagram-comments",
+    "kurdish-voice-notes-and-orders"
+   ]
+  },
+  "ku": {
+   "slug": "ai-replies-without-inventing-prices",
+   "title": "ئایا AI دەتوانێت وەڵامی کڕیاران بداتەوە بێ ئەوەی نرخ هەڵبەستێت؟",
+   "metaTitle": "ئایا AI بێ هەڵبەستنی نرخ وەڵامی کڕیاران دەداتەوە؟ | گیتواس",
+   "metaDescription": "گیتواس چۆن وەڵامەکانی AI ڕاستگۆ دەهێڵێتەوە: ژمارە تەنها لە زانیاری یان ڕێنماییەکانی تۆوە، حاڵەتە قورسەکان بۆ تۆ، سنووری ڕۆژانە و پەسەندکردن بۆ یاریدەدەر.",
+   "answer": "گیتواس بەو شێوەیە دروستکراوە کە هەموو ژمارەیەک لە وەڵامێکدا دەبێت لە زانیاری بەرهەمەکانی خودی دوکانەکە یان لە ڕێنماییەکانی خاوەنەکەوە بێت. کاتێک نامەیەک گلەیی، جنێو یان نرخ شکاندن بێت، یان ڕوون نەبێت، دەدرێتە دەست خاوەنەکە، نەک بە حەدس وەڵام بدرێتەوە. ئەمە مەترسی نرخی هەڵبەستراو کەم دەکاتەوە، بەڵام خاوەنەکە هێشتا دەبێت زانیاری بەرهەمەکانی ڕاست بهێڵێتەوە.",
+   "keyPoints": [
+    "هەموو ژمارەیەک لە وەڵامی گیتواسدا دەبێت لە زانیاری بەرهەمەکانی دوکانەکە یان لە ڕێنماییەکانی خاوەنەکەوە بێت.",
+    "خاوەنەکە خۆی دەنووسێت یاریدەدەرەکە چۆن قسە بکات، لەوانەش چۆن باسی نرخ بکات.",
+    "گلەیی، جنێو، نرخ شکاندن و نامە ڕوون نەبووەکان دەدرێنە دەست خاوەنەکە، نەک وەڵام بدرێنەوە.",
+    "وەڵامی خۆکار بەپێی پلان لە ڕۆژێکدا سنووردارە: تا ١٠٠ لە پلانی بەخۆڕایی، تا ١٬٠٠٠ لە پلانی بازرگان و تا ٥٬٠٠٠ لە پلانی پرۆ.",
+    "یاریدەدەری ناو ئەپەکە تەنها دوای «پەسەندکردن» کار دەکات و ناتوانێت دەستکاری پارەدان، پلان، وشەی نهێنی یان ئەکاونتە بەستراوەکان بکات."
+   ],
+   "sections": [
+    {
+     "h2": "نرخەکانی ناو وەڵامەکە لە کوێوە دێن؟",
+     "paragraphs": [
+      "تەنها لە دوو شوێنەوە دێن: زانیاری بەرهەمەکانی خودی دوکانەکە و ڕێنماییەکانی خاوەنەکە. گیتواس بەو شێوەیە دروستکراوە کە نرخ هەڵنەبەستێت: هەموو ژمارەیەک لە وەڵامێکدا دەبێت بگەڕێتەوە بۆ یەکێک لەو دوو سەرچاوانە.",
+      "دوکانێک بەرهەمێک دەبەستێتەوە بە پۆستێکەوە، لەگەڵ ناو، وێنە، نرخ و قیاسەکانی. کاتێک کڕیارێک لە کۆمێنتدا دەنووسێت «نرخی چەندە؟»، وەڵامەکە تۆماری ئەو بەرهەمە بەکاردەهێنێت. وەڵامێکی کورت و گشتی لە ژێر کۆمێنتەکەدا دادەنرێت، و نرخ و وردەکارییەکان بە نامەی تایبەت (DM) بۆ کڕیارەکە دەنێردرێن.",
+      "ئەمە یاسایەکە دەربارەی ئەوەی ژمارەکان لە کوێوە دێن، نەک پشکنینی ڕاستی ژمارەکان. ئەگەر تۆماری بەرهەمێک نرخێکی کۆنی تێدا بێت، وەڵامەکە هەمان نرخی کۆن دووبارە دەکاتەوە، بۆیە نوێکردنەوەی ئەو زانیارییە هەر کاری خاوەنەکەیە."
+     ]
+    },
+    {
+     "h2": "کێ دیاری دەکات یاریدەدەرەکە چۆن قسە بکات؟",
+     "paragraphs": [
+      "خاوەنەکە. خاوەنەکە دەنووسێت چۆن قسە بکات، لەوانەش شێواز و چۆنیەتی باسکردنی نرخ. وەڵامی نامە تایبەتەکان بە کوردی سۆرانی یان عەرەبی دەبن، بە وشەکانی خودی خاوەنەکە.",
+      "ئەو ژمارەیەی خاوەنەکە دەیەوێت بگوترێت، بۆ نموونە کرێی گەیاندن، دەبێت لە ڕێنماییەکاندا بنووسرێت. ئەو ژمارەیەی لەوێ نووسراوە ژمارەی خودی خاوەنەکەیە، بۆیە ڕێگەپێدراوە. ئەو ژمارەیەی لە هیچ شوێنێک نەنووسراوە ڕێگەپێدراو نییە.",
+      "گیتواس شوێن ئەو دەنگ و شێوازە دەکەوێت کە خاوەنەکە دەینووسێت."
+     ]
+    },
+    {
+     "h2": "کام جۆرە نامە دەدرێتە دەست خاوەنەکە و وەڵام نادرێتەوە؟",
+     "paragraphs": [
+      "چوار جۆر: گلەیی، جنێو، نرخ شکاندن، و ئەو نامانەی گیتواس لێیان تێناگات. ئەمانە بۆ خاوەنەکە دەخرێنە لیستی «چاوەڕێی تۆن» یان «ڕوون نییە»، نەک بە حەدس وەڵام بدرێنەوە.",
+      "گلەیی دەربارەی پەیوەندی لەگەڵ کڕیارە، و نرخ شکاندن بڕیارێکە دەربارەی پارەی خاوەنەکە. هەردووکیان دەکەونە ئەستۆی خاوەنەکە.",
+      "نامەی دەنگیش حاڵەتێکی نزیکە. لە پلانە بە پارەکاندا گیتواس بە ناسینەوەی دەنگ لە نامە دەنگییە کوردییەکانی کڕیاران لە ئینستاگرام و مەسێنجەر تێدەگات. ناسینەوەی دەنگ دەکرێت هەڵە بیبیستێت، و نامە دەنگییە ڕوون نەبووەکان نیشانە دەکرێن.",
+      "نامەیەک لەو لیستەدا چاوەڕێی خاوەنەکەیە، بۆیە دەبێت کەسێک بیخوێنێتەوە. گیتواس شوێنی بڕیاردانی خاوەنەکە ناگرێتەوە. تەنها پرسیارە ئاساییەکان جیا دەکاتەوە لەوانەی پێویستیان بە خاوەنەکەیە."
+     ]
+    },
+    {
+     "h2": "چی ژمارەی وەڵامەکان سنووردار دەکات؟",
+     "paragraphs": [
+      "پلانەکە سنووری ڕۆژانە و مانگانە بۆ هەر دوکانێک دیاری دەکات. ئەمانە بەرزترین ژمارەی ئەو وەڵامانە دیاری دەکەن کە دەنێردرێن. ژمارەکان لە خوارەوەن.",
+      "سەرەڕای پلانەکە، یاساکانی خودی Meta جێبەجێ دەکرێن، لەوانە پەنجەرەی ٢٤ کاتژمێری نامەناردن بۆ نامە تایبەتەکان. وەڵامی خۆکار پێویستی بە بەستنەوەی پەیجی فەیسبووک یان ئەکاونتی ئینستاگرامی دوکانەکەیە. گیتواس ئێستا وەڵامی خۆکار لە واتساپ نادات، کە لەوێ ژمارەی دوکانەکە وەک لینکی داواکاری کار دەکات."
+     ],
+     "bullets": [
+      "وەڵامی خۆکار لە ڕۆژێکدا: بەخۆڕایی تا ١٠٠، بازرگان تا ١٬٠٠٠، پرۆ تا ٥٬٠٠٠.",
+      "وەڵامی بە AI نووسراو لە مانگێکدا: بەخۆڕایی ١٠، بازرگان ٤٠٠، پرۆ ٨٠٠، و ماکس ١٬٥٠٠ کاتێک پێشکەش دەکرێت.",
+      "ئەو پۆستانەی وەڵامی خۆکار دەیانگرێتەوە: بەخۆڕایی نوێترین ٣ پۆست، بازرگان نوێترین ٢٥، پرۆ هەموو پۆستەکان."
+     ]
+    },
+    {
+     "h2": "یاریدەدەری ناو ئەپەکە چی دەتوانێت بکات، و ناتوانێت دەستکاری چی بکات؟",
+     "paragraphs": [
+      "یاریدەدەری ناو ئەپەکە تەنها دوای ئەوەی خاوەنەکە «پەسەندکردن» دەکات کار دەکات. خاوەنەکە بە کوردی دەنووسێت چی بکات، بۆ نموونە «وێنەیەک دروست بکە»، «ئەمە سبەی کاتژمێر ٧ بڵاو بکەرەوە» یان «وەڵامی خۆکار چالاک بکە».",
+      "ناتوانێت دەستکاری پارەدان، پلان، وشەی نهێنی یان ئەکاونتە بەستراوەکان بکات. پارە و دەستڕاگەیشتن بە ئەکاونتەکانی دوکانەکە لە دەرەوەی ئەو شتانەن کە نامەیەکی ناو چات دەتوانێت بیانگۆڕێت.",
+      "ئەمە لە وەڵامی کڕیاران جیایە. کاتێک وەڵامی خۆکار چالاک کرابێت، وەڵامەکان بێ ئەوەی خاوەنەکە هەر یەکێکیان پەسەند بکات دەنێردرێن. «پەسەندکردن» بۆ ئەو شتانەیە کە خاوەنەکە داوا لە یاریدەدەرەکە دەکات، نەک بۆ هەر نامەیەک کە بۆ کڕیار دەنێردرێت."
+     ]
+    },
+    {
+     "h2": "پێش چالاککردنی وەڵامی خۆکار دەبێت چی بپشکنیت؟",
+     "paragraphs": [
+      "سەرەتا زانیاری و ڕێنماییەکان بپشکنە، چونکە وەڵام ناتوانێت لەوان ڕاستتر بێت. دوای چالاککردن، یەکەم وەڵامەکان خۆت بخوێنەوە پێش ئەوەی بەجێی بهێڵیت.",
+      "نرخێکی هەڵە لە زانیارییەکانی خۆتدا دووبارە دەکرێتەوە، و کڕیاران دەیبینن."
+     ],
+     "bullets": [
+      "هەر بەرهەمێک ناو، نرخ و قیاسی ڕاستی لە تۆمارەکەیدا هەیە.",
+      "هەر بەرهەمێک بە پۆستی ڕاستەوە بەستراوەتەوە.",
+      "ڕێنماییەکان دەڵێن چۆن باسی نرخ بکات و هەموو ئەو ژمارانەیان تێدایە کە دەتەوێت بگوترێن، وەک کرێی گەیاندن.",
+      "پەیجی فەیسبووک یان ئەکاونتی ئینستاگرامی بەستراو ئەوەیە کە مەبەستتە.",
+      "دەزانیت لیستەکانی «چاوەڕێی تۆن» و «ڕوون نییە» لە کوێن، و کێ و هەر چەند جارێک دەیانخوێنێتەوە.",
+      "دەزانیت سنوورەکانی پلانەکەت چین و چەند پۆست دەگرێتەوە."
+     ]
+    },
+    {
+     "h2": "بەشەکان چۆن پێکەوە دەگونجێن؟",
+     "paragraphs": [
+      "ئەم سیستەمە لەسەر پێنج هەڵبژاردن بنیاد نراوە. ژمارەکان تەنها لە زانیاری دوکانەکە یان ڕێنماییەکانی خاوەنەکەوە دێن. خاوەنەکە شێوازی قسەکردن دیاری دەکات. حاڵەتە قورسەکان دەچنە لای خاوەنەکە. سنوورەکان بڕی وەڵامەکان سنووردار دەکەن. یاریدەدەرەکە تەنها دوای پەسەندکردن کار دەکات و دەستکاری پارەدان و ئەکاونتەکان ناکات.",
+      "هیچ یەکێکیان ئەوە ناگۆڕێت کە خاوەنەکە هێشتا دەبێت چاودێری بکات."
+     ]
+    },
+    {
+     "h2": "گیتواس چییە؟",
+     "paragraphs": [
+      "گیتواس بریتییە لە یاریدەدەرێکی AI بۆ ئەو دوکان و کاروبارانەی کە لە کوردستان و عێراق لە فەیسبووک و ئینستاگرام دەفرۆشن. وەڵامی کۆمێنت و نامەکان بە کوردی و عەرەبی دەداتەوە، داواکاری کۆدەکاتەوە، و ڤیدیۆی ڕیکلام و وێنە بە AI دروست دەکات.",
+      "پلانی بەخۆڕایی ٠ دینارە و سنووری کاتی نییە. زانیاری زیاتر لە https://gituas.com."
+     ]
+    }
+   ],
+   "faq": [
+    {
+     "q": "ئایا گیتواس دەتوانێت نرخێک بڵێت کە لە زانیاری بەرهەمەکانمدا نییە؟",
+     "a": "تەنها ئەگەر ژمارەکە لە ڕێنمایی نووسراوی خاوەنەکەدا بێت. هەموو ژمارەیەک لە وەڵامێکدا دەبێت لە زانیاری بەرهەمەکانی دوکانەکە یان لە ڕێنماییەکانی خاوەنەکەوە بێت."
+    },
+    {
+     "q": "کاتێک کڕیارێک نرخ دەشکێنێت یان گلەیی دەکات چی ڕوودەدات؟",
+     "a": "گفتوگۆکە دەخرێتە لیستی «چاوەڕێی تۆن» یان «ڕوون نییە» بۆ خاوەنەکە، نەک خۆکارانە وەڵام بدرێتەوە. جنێو و ئەو نامانەی گیتواس لێیان تێناگات بە هەمان شێوە مامەڵەیان لەگەڵ دەکرێت."
+    },
+    {
+     "q": "ئایا یاریدەدەرەکە دەتوانێت پلان، پارەدان یان وشەی نهێنیم بگۆڕێت؟",
+     "a": "نەخێر. یاریدەدەری ناو ئەپەکە تەنها دوای ئەوەی خاوەنەکە «پەسەندکردن» دەکات کار دەکات، و ناتوانێت دەستکاری پارەدان، پلان، وشەی نهێنی یان ئەکاونتە بەستراوەکان بکات."
+    },
+    {
+     "q": "ئایا گیتواس لە واتساپ خۆکارانە وەڵام دەداتەوە؟",
+     "a": "نەخێر، ئێستا نا. لە واتساپ ژمارەی دوکانەکە لینکی داواکارییە. وەڵامی خۆکار لە فەیسبووک و ئینستاگرام کار دەکات."
+    },
+    {
+     "q": "ئایا شوێنی خاوەنەکە دەگرێتەوە؟",
+     "a": "نەخێر. گلەیی، نرخ شکاندن، جنێو و نامە ڕوون نەبووەکان هێشتا پێویستیان بە بڕیاری خاوەنەکە هەیە، و خاوەنەکە دەبێت زانیاری بەرهەمەکان ڕاست بهێڵێتەوە."
+    }
+   ],
+   "related": [
+    "automatic-replies-facebook-instagram-comments",
+    "kurdish-voice-notes-and-orders"
+   ]
+  },
+  "ar": {
+   "slug": "ai-replies-without-inventing-prices",
+   "title": "هل يستطيع الذكاء الاصطناعي الرد على الزبائن دون اختلاق الأسعار؟",
+   "metaTitle": "هل يجيب الذكاء الاصطناعي الزبائن دون اختلاق أسعار؟ | Gituas",
+   "metaDescription": "كيف يُبقي Gituas ردود الذكاء الاصطناعي صادقة: الأرقام من بياناتك أو تعليماتك فقط، والحالات الصعبة تُحوَّل إليك، وحدود يومية، و«تأكيد» للمساعد.",
+   "answer": "صُمّم Gituas بحيث يجب أن يأتي كل رقم في الرد من بيانات منتجات المتجر نفسه أو من تعليمات صاحبه. وإذا كانت الرسالة شكوى أو إساءة أو مساومة على السعر أو غير واضحة، تُحوَّل إلى صاحب المتجر بدلاً من التخمين. هذا يقلّل خطر الأسعار المختلقة، لكن على صاحب المتجر أن يُبقي بيانات المنتجات صحيحة.",
+   "keyPoints": [
+    "كل رقم في رد Gituas يجب أن يأتي من بيانات منتجات المتجر أو من تعليمات صاحبه.",
+    "صاحب المتجر هو من يكتب كيف يتحدث المساعد، بما في ذلك طريقة الحديث عن السعر.",
+    "الشكاوى والإساءة والمساومة والرسائل غير الواضحة تُسلَّم إلى صاحب المتجر ولا يُردّ عليها.",
+    "الردود التلقائية محدودة يومياً حسب الخطة: حتى ١٠٠ في الخطة المجانية و١٬٠٠٠ في خطة التاجر و٥٬٠٠٠ في الخطة الاحترافية.",
+    "المساعد داخل التطبيق لا ينفّذ إلا بعد «تأكيد»، ولا يستطيع المساس بالمدفوعات أو الخطط أو كلمات المرور أو الحسابات المربوطة."
+   ],
+   "sections": [
+    {
+     "h2": "من أين تأتي الأسعار في الرد؟",
+     "paragraphs": [
+      "تأتي من مصدرين فقط: بيانات منتجات المتجر نفسه وتعليمات صاحب المتجر. صُمّم Gituas بحيث لا يُختلق سعر: كل رقم في الرد يجب أن يعود إلى أحد هذين المصدرين.",
+      "يربط المتجر المنتج بمنشور، مع اسمه وصوره وأسعاره وقياساته. وعندما يكتب زبون في التعليقات «بكم؟»، يستخدم الرد سجلّ ذلك المنتج. يظهر رد عام قصير تحت التعليق، ويصل السعر والتفاصيل إلى الزبون في رسالة خاصة (DM).",
+      "هذه قاعدة عن مصدر الأرقام، وليست فحصاً لصحتها. إذا كان سجل المنتج يحتوي على سعر قديم، سيكرر الرد السعر القديم، لذلك يبقى تحديث تلك البيانات من مسؤولية صاحب المتجر."
+     ]
+    },
+    {
+     "h2": "من يقرّر كيف يتحدث المساعد؟",
+     "paragraphs": [
+      "صاحب المتجر. هو الذي يكتب كيف يجب أن يتحدث، بما في ذلك الأسلوب وطريقة الحديث عن السعر. وتأتي الردود على الرسائل الخاصة بالكردية السورانية أو العربية، وبكلمات صاحب المتجر نفسه.",
+      "الرقم الذي يريد صاحب المتجر ذكره، مثل أجرة التوصيل، مكانه في هذه التعليمات. والرقم المكتوب هناك هو رقم صاحب المتجر نفسه، لذلك هو مسموح. أما الرقم غير المكتوب في أي مكان فغير مسموح.",
+      "يتبع Gituas الأسلوب الذي يكتبه صاحب المتجر."
+     ]
+    },
+    {
+     "h2": "ما الرسائل التي تذهب إلى صاحب المتجر بدل أن يُردّ عليها؟",
+     "paragraphs": [
+      "أربعة أنواع: الشكاوى، والإساءة، والمساومة على السعر، والرسائل التي لا يستطيع Gituas فهمها. تُسلَّم هذه إلى صاحب المتجر في قائمة «بانتظارك» أو «غير واضحة» بدل أن يُردّ عليها بالتخمين.",
+      "الشكوى تتعلق بالعلاقة مع الزبون، والمساومة قرار يخص مال صاحب المتجر. وكلاهما من شأن صاحب المتجر.",
+      "الرسائل الصوتية حالة قريبة. في الخطط المدفوعة يفهم Gituas الرسائل الصوتية للمشترين على إنستغرام وماسنجر بالكردية باستخدام التعرّف على الكلام. وقد يخطئ التعرّف على الكلام في السماع، وتُعلَّم الرسائل غير الواضحة.",
+      "الرسالة في تلك القائمة تنتظر صاحب المتجر، فلا بد أن يقرأها شخص. لا يحلّ Gituas محلّ حكم صاحب المتجر، بل يفصل الأسئلة الروتينية عن تلك التي تحتاجه."
+     ]
+    },
+    {
+     "h2": "ما الذي يحدّ من عدد الردود التي يرسلها؟",
+     "paragraphs": [
+      "الخطة تحدّد حدوداً يومية وشهرية لكل متجر. وهي تضع سقفاً لعدد الردود. الأرقام مذكورة أدناه.",
+      "وتسري قواعد Meta إضافة إلى الخطة، ومنها نافذة المراسلة البالغة ٢٤ ساعة للرسائل الخاصة. وتحتاج الردود التلقائية إلى ربط صفحة فيسبوك أو حساب إنستغرام الخاص بالمتجر. ولا يرد Gituas حالياً تلقائياً على واتساب، حيث يعمل رقم المتجر كرابط طلب."
+     ],
+     "bullets": [
+      "الردود التلقائية في اليوم: المجانية حتى ١٠٠، التاجر حتى ١٬٠٠٠، الاحترافية حتى ٥٬٠٠٠.",
+      "الردود المكتوبة بالذكاء الاصطناعي في الشهر: المجانية ١٠، التاجر ٤٠٠، الاحترافية ٨٠٠، وماكس ١٬٥٠٠ عندما تكون هذه الخطة متاحة.",
+      "المنشورات المشمولة: المجانية أحدث ٣ منشورات، التاجر أحدث ٢٥، الاحترافية كل المنشورات."
+     ]
+    },
+    {
+     "h2": "ماذا يستطيع المساعد داخل التطبيق أن يفعل، وما الذي لا يستطيع المساس به؟",
+     "paragraphs": [
+      "لا ينفّذ المساعد داخل التطبيق شيئاً إلا بعد أن يضغط صاحب المتجر «تأكيد». يكتب صاحب المتجر بالكردية ما يريد تنفيذه، مثل «اصنع صورة» أو «انشر هذا غداً الساعة ٧» أو «شغّل الردود التلقائية».",
+      "لا يستطيع المساس بالمدفوعات أو الخطط أو كلمات المرور أو الحسابات المربوطة. فالمال والوصول إلى حسابات المتجر يبقيان خارج ما يمكن أن تغيّره رسالة في المحادثة.",
+      "هذا منفصل عن الردود على الزبائن. فعند تشغيل الردود التلقائية تخرج الردود دون أن يوافق صاحب المتجر على كل واحد منها. و«تأكيد» ينطبق على ما يطلبه صاحب المتجر من المساعد، لا على كل رسالة تُرسل إلى زبون."
+     ]
+    },
+    {
+     "h2": "ما الذي يجب التحقق منه قبل تشغيل الردود التلقائية؟",
+     "paragraphs": [
+      "تحقّق من البيانات والتعليمات أولاً، لأن الرد لا يمكن أن يكون أدق منها. وبعد التشغيل، اقرأ الردود الأولى بنفسك قبل أن تتركه يعمل وحده.",
+      "السعر الخاطئ في بياناتك سيتكرر، وسيراه الزبائن."
+     ],
+     "bullets": [
+      "لكل منتج الاسم والأسعار والقياسات الصحيحة في سجله.",
+      "كل منتج مربوط بالمنشور الصحيح.",
+      "التعليمات تقول كيف يتحدث عن السعر وتتضمن كل رقم تريد ذكره، مثل أجرة التوصيل.",
+      "صفحة فيسبوك أو حساب إنستغرام المربوط هو الذي تقصده.",
+      "تعرف أين توجد قائمتا «بانتظارك» و«غير واضحة»، ومن سيقرأهما وكم مرة.",
+      "تعرف حدود خطتك وعدد المنشورات التي تشملها."
+     ]
+    },
+    {
+     "h2": "كيف تتكامل الأجزاء معاً؟",
+     "paragraphs": [
+      "يقوم التصميم على خمسة خيارات. الأرقام تأتي فقط من بيانات المتجر أو تعليمات صاحبه. وصاحب المتجر هو من يحدد الأسلوب. والحالات الصعبة تذهب إلى صاحب المتجر. والحدود تضبط عدد الردود. والمساعد لا ينفّذ إلا بعد «تأكيد» ولا يمس المدفوعات أو الحسابات.",
+      "ولا يلغي أي منها حاجة صاحب المتجر إلى المتابعة."
+     ]
+    },
+    {
+     "h2": "ما هو Gituas؟",
+     "paragraphs": [
+      "Gituas مساعد بالذكاء الاصطناعي للمتاجر والأعمال التجارية التي تبيع على فيسبوك وإنستغرام في كردستان والعراق. يرد على التعليقات والرسائل بالكردية والعربية، ويجمع الطلبات، ويصنع إعلانات فيديو وصوراً بالذكاء الاصطناعي.",
+      "تبلغ تكلفة الخطة المجانية ٠ دينار، ولا حدّ زمنياً لها. المزيد على https://gituas.com."
+     ]
+    }
+   ],
+   "faq": [
+    {
+     "q": "هل يستطيع Gituas ذكر سعر غير موجود في بيانات منتجاتي؟",
+     "a": "فقط إذا كان الرقم موجوداً في تعليمات صاحب المتجر المكتوبة. كل رقم في الرد يجب أن يأتي من بيانات منتجات المتجر أو من تعليمات صاحبه."
+    },
+    {
+     "q": "ماذا يحدث عندما يساوم الزبون أو يشتكي؟",
+     "a": "تُسلَّم المحادثة إلى صاحب المتجر في قائمة «بانتظارك» أو «غير واضحة» بدل أن يُردّ عليها تلقائياً. وتُعامل الإساءة والرسائل التي لا يفهمها Gituas بالطريقة نفسها."
+    },
+    {
+     "q": "هل يستطيع المساعد تغيير خطتي أو مدفوعاتي أو كلمات المرور؟",
+     "a": "لا. المساعد داخل التطبيق لا ينفّذ إلا بعد أن يضغط صاحب المتجر «تأكيد»، ولا يستطيع المساس بالمدفوعات أو الخطط أو كلمات المرور أو الحسابات المربوطة."
+    },
+    {
+     "q": "هل يرد Gituas تلقائياً على واتساب؟",
+     "a": "لا، ليس حالياً. على واتساب يكون رقم المتجر رابط طلب. أما الردود التلقائية فتعمل على فيسبوك وإنستغرام."
+    },
+    {
+     "q": "هل يحلّ محلّ صاحب المتجر؟",
+     "a": "لا. الشكاوى والمساومة والإساءة والرسائل غير الواضحة ما زالت تحتاج إلى حكم صاحب المتجر، وعليه أن يُبقي بيانات المنتجات صحيحة."
+    }
+   ],
+   "related": [
+    "automatic-replies-facebook-instagram-comments",
+    "kurdish-voice-notes-and-orders"
+   ]
+  }
+ }
+]

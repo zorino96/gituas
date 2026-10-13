@@ -59,7 +59,8 @@ export async function generateMetadata({
   searchParams: Promise<LoginParams>;
 }): Promise<Metadata> {
   const title = loginTitle(productFor(await resolveNext(await searchParams)), dict(await getLang()));
-  return title ? { title } : {};
+  // Sign-in pages are not for search results.
+  return { robots: { index: false, follow: false }, ...(title ? { title } : {}) };
 }
 
 export default async function LoginPage({
