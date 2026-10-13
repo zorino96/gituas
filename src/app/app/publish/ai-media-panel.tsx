@@ -10,15 +10,25 @@ import { upload } from "@vercel/blob/client";
 import { ImagePlus, Sparkles, X } from "lucide-react";
 
 import { useT } from "@/lib/i18n/client";
-import { createVideoAction, videoJobStatusAction } from "../video/actions";
+import { createVideoAction, removeRefAction, videoJobStatusAction } from "../video/actions";
 import { generateAiImageAction } from "./ai-image-action";
+
+/** One reference picture or clip of a shop, as the Video section lists it. */
+export interface AiRefView {
+  url: string;
+  pathname: string;
+  kind: "image" | "video";
+  name: string;
+  size: number;
+}
 
 export interface AiMediaConfig {
   storeId: string;
   /** The plan has no AI media at all: the panel only says so. */
   paid: boolean;
   image: { on: boolean; configured: boolean; month: number; day: number } | null;
-  video: { on: boolean; tier: "LITE" | "PRO"; month: number; day: number; refImages: number; refVideos: number } | null;
+  /** `refs`: the shop's saved reference files, by shop (a video uses the files of the shop of its product). */
+  video: { on: boolean; tier: "LITE" | "PRO"; month: number; day: number; refs: Record<string, AiRefView[]> } | null;
   /** Which shop each product belongs to: a video is made for the shop of the chosen product. */
   productStores: Record<string, string>;
 }
@@ -56,7 +66,13 @@ export function AiMediaPanel({
   const [idea, setIdea] = useState("");
   const [shape, setShape] = useState<"square" | "portrait">("square");
   const [refs, setRefs] = useState<{ url: string; src: string }[]>([]);
-  const [videoRefs, setVideoRefs] = useState({ images: config.video?.refImages ?? 0, videos: config.video?.refVideos ?? 0 });
+  const [refsByStore, setRefsByStore] = useState<Record<string, AiRefView[]>>(config.video?.refs ?? {});
+  const [removing, setRemoving] = useState<string | null>(null);
+  // The shop the video is made for: the one the chosen product belongs to, else the first.
+  const activeStore = (productId && config.productStores[productId]) || config.storeId;
+  const videoList = refsByStore[activeStore] ?? [];
+  const videoImages = videoList.filter((r) => r.kind === "image").length;
+  const videoClips = videoList.filter((r) => r.kind === "video").length;
   const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -127,8 +143,9 @@ export function AiMediaPanel({
     setUploading(true);
     // Counted as the files go up: a multi-file pick cannot pass the cap through stale numbers.
     let nImages = refs.length;
-    let nVideoImages = videoRefs.images;
-    let nVideoClips = videoRefs.videos;
+    let nVideoImages = videoImages;
+    let nVideoClips = videoClips;
+    const store = activeStore;
     try {
       for (const file of files) {
         if (mode === "image") {
@@ -143,7 +160,7 @@ export function AiMediaPanel({
           if (!ext || !config.video) continue;
           if (file.size > (isClip ? 40 : 12) * MB) continue;
           if (isClip ? nVideoClips >= REF_LIMITS.videos : nVideoImages >= REF_LIMITS.images) continue;
-          await upload(`merchant/${workspaceId}/advideo-ref/${config.storeId}/${Date.now()}.${ext}`, file, {
+          const blob = await upload(`merchant/${workspaceId}/advideo-ref/${store}/${Date.now()}.${ext}`, file, {
             access: "public",
             handleUploadUrl: "/api/app/upload",
             contentType: file.type,
@@ -151,7 +168,9 @@ export function AiMediaPanel({
           });
           if (isClip) nVideoClips++;
           else nVideoImages++;
-          setVideoRefs((c) => (isClip ? { ...c, videos: c.videos + 1 } : { ...c, images: c.images + 1 }));
+          // Listed at once, with its picture, so it can be seen and taken away again.
+          const added: AiRefView = { url: blob.url, pathname: blob.pathname, kind: isClip ? "video" : "image", name: file.name, size: file.size };
+          setRefsByStore((all) => ({ ...all, [store]: [added, ...(all[store] ?? [])] }));
         }
       }
     } catch {
@@ -195,6 +214,20 @@ export function AiMediaPanel({
         setErr(a.errors.failed);
       }
     });
+  }
+
+  async function removeVideoRef(pathname: string) {
+    setErr(null);
+    setRemoving(pathname);
+    try {
+      const r = await removeRefAction(activeStore, pathname);
+      if (r.ok) setRefsByStore((all) => ({ ...all, [activeStore]: (all[activeStore] ?? []).filter((x) => x.pathname !== pathname) }));
+      else setErr(r.error);
+    } catch {
+      setErr(a.errors.failed);
+    } finally {
+      setRemoving(null);
+    }
   }
 
   const busy = pending || uploading || !!job || disabled;
@@ -278,9 +311,29 @@ export function AiMediaPanel({
             ))}
           </div>
         )}
+        {mode === "video" && videoList.length > 0 && (
+          <div className="gm-stack">
+            {videoList.map((r) => (
+              <div key={r.pathname} className="gm-row">
+                {r.kind === "image" ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img className="gm-thumb" src={r.url} alt="" />
+                ) : (
+                  <video className="gm-thumb" src={r.url} muted playsInline preload="metadata" />
+                )}
+                <span className="gm-hint gm-ltr" style={{ margin: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {r.name} · {(r.size / MB).toFixed(1)} MB
+                </span>
+                <button type="button" className="gm-btn danger small" disabled={busy || removing !== null} onClick={() => void removeVideoRef(r.pathname)}>
+                  {removing === r.pathname ? "…" : t.video.refRemove}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         {mode === "video" && (
           <p className="gm-hint" style={{ marginTop: 0 }}>
-            {a.refCounts(videoRefs.images, REF_LIMITS.images, videoRefs.videos, REF_LIMITS.videos)}
+            {a.refCounts(videoImages, REF_LIMITS.images, videoClips, REF_LIMITS.videos)}
           </p>
         )}
         <div>

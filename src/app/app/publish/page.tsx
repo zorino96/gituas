@@ -13,7 +13,7 @@ import type { AutoDraft } from "@/lib/shop/autopilot";
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
 import { baseFor, currentWorkspace, loadAccountLists, loadConnections, requireWorkspace } from "../data";
-import type { AiMediaConfig } from "./ai-media-panel";
+import type { AiMediaConfig, AiRefView } from "./ai-media-panel";
 import { PublishClient } from "./publish-client";
 import { listScheduled } from "./schedule-actions";
 
@@ -83,11 +83,21 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
   // "Create it with AI": a picture or a video, for a shop. Offered by what the plans give.
   let ai: AiMediaConfig | null = null;
   if (ws.kind === "MERCHANT") {
-    const store = await db.store.findFirst({ where: { tenantId: ws.id }, orderBy: { createdAt: "asc" }, select: { id: true } });
+    const stores = await db.store.findMany({ where: { tenantId: ws.id }, orderBy: { createdAt: "asc" }, select: { id: true }, take: 5 });
+    const store = stores[0];
     if (store) {
       const [lim, imgLeft, vids] = await Promise.all([limitsOf(ws.id), imagesLeft(ws.id), workspaceVideos(ws.id)]);
       const tier = lim.videos.PRO > 0 ? ("PRO" as const) : ("LITE" as const);
-      const refs = adVideoEnabled() ? await listRefs(ws.id, store.id) : [];
+      // Each shop's saved reference files, to be seen (and taken away) in the composer: a video uses the files of its own shop.
+      const refs: Record<string, AiRefView[]> = {};
+      if (adVideoEnabled()) {
+        await Promise.all(
+          stores.map(async (s) => {
+            const list = await listRefs(ws.id, s.id).catch(() => []);
+            refs[s.id] = list.map((r) => ({ url: r.url, pathname: r.pathname, kind: r.kind, name: r.name, size: r.size }));
+          }),
+        );
+      }
       ai = {
         storeId: store.id,
         productStores: Object.fromEntries(products.map((p) => [p.id, p.storeId])),
@@ -100,8 +110,7 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
                 tier,
                 month: vids[tier].left,
                 day: Math.min(vids[tier].left, Math.max(0, vids.today.max - vids.today.used)),
-                refImages: refs.filter((r) => r.kind === "image").length,
-                refVideos: refs.filter((r) => r.kind === "video").length,
+                refs,
               }
             : null,
       };
