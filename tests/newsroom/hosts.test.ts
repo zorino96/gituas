@@ -20,8 +20,8 @@ describe("routeFor on the newsroom domain", () => {
     expect(routeFor("localhost:3012", "/newsroom/card-render/abc123", "?t=1800000300.ab")).toEqual({ kind: "next" });
   });
   it("sends the public website's language pages to the shop domain", () => {
-    expect(r("/en")).toEqual({ kind: "redirect", url: `${SHOP_ORIGIN}/en` });
-    expect(r("/ku/guides/kurdish-ai-video-ads")).toEqual({ kind: "redirect", url: `${SHOP_ORIGIN}/ku/guides/kurdish-ai-video-ads` });
+    expect(r("/en")).toEqual({ kind: "redirect", url: `${SHOP_ORIGIN}/en`, permanent: true });
+    expect(r("/ku/guides/kurdish-ai-video-ads")).toEqual({ kind: "redirect", url: `${SHOP_ORIGIN}/ku/guides/kurdish-ai-video-ads`, permanent: true });
     expect(r("/english")).toEqual({ kind: "next" });
   });
   it("sends shop and operator pages to the shop domain", () => {
@@ -39,7 +39,7 @@ describe("routeFor on the newsroom domain", () => {
     expect(r("/login", "?next=/app")).toEqual({ kind: "redirect", url: `${SHOP_ORIGIN}/login?next=/app` });
   });
   it("drops www", () => {
-    expect(routeFor("www.hawalnoos.com", "/newsroom/news", "?t=1")).toEqual({ kind: "redirect", url: `${NEWSROOM_ORIGIN}/newsroom/news?t=1` });
+    expect(routeFor("www.hawalnoos.com", "/newsroom/news", "?t=1")).toEqual({ kind: "redirect", url: `${NEWSROOM_ORIGIN}/newsroom/news?t=1`, permanent: true });
   });
 });
 
@@ -65,7 +65,7 @@ describe("routeFor on the shop domain", () => {
     expect(r("/login", "?error=OAuthAccountNotLinked")).toEqual({ kind: "next" });
   });
   it("drops www", () => {
-    expect(routeFor("www.gituas.com", "/app", "?x=1")).toEqual({ kind: "redirect", url: `${SHOP_ORIGIN}/app?x=1` });
+    expect(routeFor("www.gituas.com", "/app", "?x=1")).toEqual({ kind: "redirect", url: `${SHOP_ORIGIN}/app?x=1`, permanent: true });
   });
   it("leaves the shop and everything else alone", () => {
     for (const p of ["/app", "/app/publish", "/api/oauth/meta_facebook/callback", "/dashboard", "/newsroomx", "/privacy"]) {

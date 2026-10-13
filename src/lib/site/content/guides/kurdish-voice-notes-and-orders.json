@@ -1,0 +1,450 @@
+{
+ "slug": "kurdish-voice-notes-and-orders",
+ "en": {
+  "slug": "kurdish-voice-notes-and-orders",
+  "title": "How Gituas handles Kurdish voice notes and collects orders in chat",
+  "metaTitle": "Kurdish Voice Notes and Orders in Chat | Gituas",
+  "metaDescription": "How Gituas reads Kurdish voice notes, collects orders step by step in chat, keeps them by city and status, and gives a copyable courier text.",
+  "answer": "On the paid plans, Gituas (Kurdish: گیتواس) turns a buyer's Kurdish voice note, sent on Instagram or Messenger, into text with speech recognition and answers it like a typed message. It then collects the order step by step: name, phone, city, address, product or size. Orders sit in an Orders list by city and status, with a courier handoff text that can be copied.",
+  "keyPoints": [
+   "Gituas reads Kurdish voice notes on Instagram and Messenger with speech recognition, on the paid plans.",
+   "Voice notes read per day, up to: Merchant 4, Pro 8, Max 12; Free none.",
+   "Order details collected in chat: name, phone, city, address, product or size.",
+   "Orders are kept by city and status; unclear voice notes are flagged for the owner."
+  ],
+  "sections": [
+   {
+    "h2": "What do buyers ask in a voice note?",
+    "paragraphs": [
+     "The same questions sellers get in typed messages: the price, delivery to my city, the size or colour, and the address.",
+     "Some buyers send a voice note instead of typing a message. Gituas treats it as one more message to answer."
+    ]
+   },
+   {
+    "h2": "How does Gituas read a Kurdish voice note?",
+    "paragraphs": [
+     "Gituas turns the voice note into text with speech recognition, then answers it the way it answers a typed message. It reads voice notes sent to the shop on Instagram and Messenger.",
+     "The audio is sent to a speech-recognition service, and only the text is kept (see the privacy policy). Gituas reads each message to answer it, and messages are processed by the AI providers named there.",
+     "The answer follows the same rules as every other reply. The owner writes how Gituas should talk. Before a reply is sent, every number in it is checked against the shop's own product data and the owner's instructions. A reply with any other number is dropped and handed to the owner. If the product data holds a wrong price, the reply repeats it.",
+     "Typed direct messages (DMs) are answered the same way, in Sorani Kurdish and Arabic. WhatsApp is different: Gituas does not currently reply automatically there, and WhatsApp works as an order link with the shop's number and a ready order message."
+    ]
+   },
+   {
+    "h2": "How many voice notes does each plan read?",
+    "paragraphs": [
+     "Merchant reads up to 4 voice notes a day, Pro up to 8 and Max up to 12; the Free plan reads none. The limit is per day and depends on the plan.",
+     "Voice-note reading shares one monthly AI allowance with the other AI features of the workspace. When the allowance is used up, AI features pause until next month, while fixed replies and rules keep answering.",
+     "A shop is one connected Facebook Page or Instagram account, and a plan is bought per shop per month. A paid plan that is not renewed falls back to Free."
+    ],
+    "bullets": [
+     "Free, 0 IQD: no voice-note reading, and no time limit on the plan.",
+     "Merchant, 15,000 IQD a month: up to 4 voice notes a day.",
+     "Pro, 25,000 IQD a month: up to 8 a day.",
+     "Max, 59,000 IQD a month: up to 12 a day."
+    ]
+   },
+   {
+    "h2": "What happens when a voice note is unclear?",
+    "paragraphs": [
+     "Gituas flags it for the owner instead of guessing. Voice-note reading depends on speech recognition, and speech recognition may mishear.",
+     "A message Gituas cannot make out goes to the owner's \"needs you\" or \"unclear\" list, and the owner takes over. Complaints, abuse and haggling go there too, because those stay the owner's decision.",
+     "Check the phone number and address of any order that began as a voice note before it goes to a courier."
+    ]
+   },
+   {
+    "h2": "How does Gituas collect an order in chat?",
+    "paragraphs": [
+     "Gituas collects the order step by step inside the conversation. The product comes from the shop's own product data, which the owner links to a post with its name, photos, prices and sizes. A buyer who answers by voice note is read the same way, within the plan's daily limit.",
+     "Each answer moves the order one step forward until all five details are in. The five details:"
+    ],
+    "bullets": [
+     "Name of the buyer",
+     "Phone number",
+     "City",
+     "Address",
+     "Product or size"
+    ]
+   },
+   {
+    "h2": "What does one voice-note order look like?",
+    "paragraphs": [
+     "This is an example, not a real shop. A buyer sends a voice note in a direct message, asking the price of a product from a post. Gituas reads it, replies with the price from the product data, and then asks for the name, phone, city, address and size, one step at a time.",
+     "The order lands in the Orders list under the buyer's city. If the voice note was unclear, it is flagged for the owner, who can check the details with the buyer."
+    ]
+   },
+   {
+    "h2": "What does the Orders list show?",
+    "paragraphs": [
+     "The Orders list keeps every collected order by city and by status.",
+     "Orders in Kurdistan and Iraq go to many cities, such as Erbil, Sulaymaniyah, Duhok, Kirkuk, Baghdad and Basra. Grouped by city, the list shows what has to be sent where. Status shows how far each order has come.",
+     "Insights shows the messages, comments and orders of the last weeks in one place. Boost advice learns the cities, interests and common questions of the shop's audience from its own buyers' messages and orders. The picture it shows is about groups, never a profile of one person."
+    ]
+   },
+   {
+    "h2": "Why does cash on delivery fit this flow?",
+    "paragraphs": [
+     "Cash on delivery fits because the chat only needs the buyer's details, not a payment. The buyer pays when the parcel arrives, so the five steps above are enough. Payment for the Gituas plan is separate: it is paid in Iraqi dinar through Wayl, with FIB, ZainCash, QiCard, FastPay or card.",
+     "Selling here mostly runs from social posts to comments and DMs, then WhatsApp or DM, then cash on delivery. A 2020 survey of 150 online shoppers in Erbil (Polytechnic Journal) found that 67.3% paid cash on delivery; card and e-payment were far behind. Industry estimates put the social-led share of Iraqi e-commerce at roughly 80 to 90 percent; these are estimates, not measured figures."
+    ]
+   },
+   {
+    "h2": "How does the courier handoff work?",
+    "paragraphs": [
+     "The courier handoff text of an order can be copied, and the owner pastes it into the message to the courier.",
+     "Gituas collects the details. Choosing the courier and sending the text are the owner's steps."
+    ]
+   },
+   {
+    "h2": "What are the limits?",
+    "paragraphs": [
+     "Gituas supports the owner and does not replace the owner's judgement. Five limits matter here:"
+    ],
+    "bullets": [
+     "The shop's Facebook Page or Instagram account must be connected.",
+     "Meta's rules apply, including the 24-hour messaging window for direct messages.",
+     "Gituas does not currently reply automatically on WhatsApp.",
+     "Speech recognition may mishear, and unclear voice notes are flagged.",
+     "Complaints, haggling, abuse and unclear messages go to the owner."
+    ]
+   }
+  ],
+  "faq": [
+   {
+    "q": "Can Gituas understand Kurdish voice notes?",
+    "a": "Yes, on the paid plans, on Instagram and Messenger, with speech recognition. It may mishear, and unclear voice notes are flagged for the owner. The audio is sent to a speech-recognition service and only the text is kept."
+   },
+   {
+    "q": "How many voice notes can Gituas read a day?",
+    "a": "Merchant reads up to 4 a day, Pro up to 8 and Max up to 12. The Free plan reads none. These counts are ceilings: voice-note reading shares the workspace's monthly AI allowance with the other AI features, and when it is used up, AI features pause until next month."
+   },
+   {
+    "q": "Does Gituas collect orders for cash on delivery?",
+    "a": "Yes. Collecting the buyer's details in chat fits cash on delivery: Gituas collects name, phone, city, address and product or size, and gives a courier handoff text you can copy."
+   }
+  ],
+  "related": [
+   "sell-on-social-media-iraq-kurdistan",
+   "ai-replies-without-inventing-prices"
+  ],
+  "steps": [
+   {
+    "name": "Connect the shop",
+    "text": "Connect the shop's Facebook Page or Instagram account. Automatic replies need it."
+   },
+   {
+    "name": "Link the product to a post",
+    "text": "Add the name, photos, prices and sizes, so replies use your own numbers."
+   },
+   {
+    "name": "Write how Gituas should talk",
+    "text": "Describe your tone and how to speak about price, in your own words."
+   },
+   {
+    "name": "Choose a plan that reads voice notes",
+    "text": "Merchant reads up to 4 a day, Pro up to 8, Max up to 12. Free reads none."
+   },
+   {
+    "name": "Check orders and copy the courier text",
+    "text": "Open the Orders list by city and status, confirm phone and address, then copy the handoff text."
+   }
+  ]
+ },
+ "ku": {
+  "slug": "kurdish-voice-notes-and-orders",
+  "title": "گیتواس چۆن مامەڵە لەگەڵ نامەی دەنگیی کوردی دەکات و داواکاری لە چاتدا وەردەگرێت",
+  "metaTitle": "نامەی دەنگیی کوردی و داواکاری لە چاتدا | گیتواس",
+  "metaDescription": "گیتواس نامەی دەنگیی کوردی دەخوێنێتەوە، لە چاتدا هەنگاو بە هەنگاو داواکاری کۆدەکاتەوە، بەپێی شار و دۆخ دەیپارێزێت و دەقی گەیەنەر دەدات کە کۆپی دەکرێت.",
+  "answer": "لە پلانە بە پارەکاندا، گیتواس (Gituas) نامەی دەنگیی کوردیی کڕیار، کە لە ئینستاگرام یان مەسێنجەر دێت، بە ناسینەوەی دەنگ دەکات بە دەق و وەک نامەیەکی نووسراو وەڵامی دەداتەوە. دواتر داواکارییەکە هەنگاو بە هەنگاو کۆدەکاتەوە: ناو، ژمارەی تەلەفۆن، شار، ناونیشان، کاڵا یان قیاس. داواکارییەکان لە لیستی داواکارییەکان بەپێی شار و دۆخ دەمێننەوە، لەگەڵ دەقێکی ڕادەستکردن بە گەیەنەر کە دەکرێت کۆپی بکرێت.",
+  "keyPoints": [
+   "لە پلانە بە پارەکاندا گیتواس نامەی دەنگیی کوردی لە ئینستاگرام و مەسێنجەر بە ناسینەوەی دەنگ دەخوێنێتەوە.",
+   "ژمارەی نامەی دەنگی کە ڕۆژانە دەخوێنرێتەوە، تا: بازرگان ٤، پرۆ ٨، ماکس ١٢؛ پلانی بەخۆڕایی: هیچ.",
+   "زانیارییەکانی داواکاری کە لە چاتدا کۆدەکرێنەوە: ناو، ژمارەی تەلەفۆن، شار، ناونیشان، کاڵا یان قیاس.",
+   "داواکارییەکان بەپێی شار و دۆخ دەپارێزرێن؛ نامە دەنگییە نادیارەکان بۆ خاوەنی دوکان نیشانە دەکرێن."
+  ],
+  "sections": [
+   {
+    "h2": "کڕیار لە نامەی دەنگیدا چی دەپرسێت؟",
+    "paragraphs": [
+     "هەمان ئەو پرسیارانەی لە نامە نووسراوەکاندا لە فرۆشیار دەکرێن: نرخ، گەیاندن بۆ شارەکەم، قیاس یان ڕەنگ، و ناونیشان.",
+     "هەندێک کڕیار لەجیاتی نووسین نامەی دەنگی دەنێرن. گیتواس وەک نامەیەکی تر مامەڵەی لەگەڵ دەکات و وەڵامی دەداتەوە."
+    ]
+   },
+   {
+    "h2": "گیتواس چۆن نامەی دەنگیی کوردی دەخوێنێتەوە؟",
+    "paragraphs": [
+     "گیتواس بە ناسینەوەی دەنگ نامەی دەنگی دەکات بە دەق، پاشان وەک نامەیەکی نووسراو وەڵامی دەداتەوە. ئەو نامە دەنگییانە دەخوێنێتەوە کە لە ئینستاگرام و مەسێنجەر بۆ دوکانەکە دەنێردرێن.",
+     "دەنگەکە بۆ خزمەتگوزارییەکی ناسینەوەی دەنگ دەنێردرێت و تەنها دەقەکە دەپارێزرێت (سیاسەتی تایبەتمەندی ببینە). گیتواس هەر نامەیەک دەخوێنێتەوە تا وەڵامی بداتەوە، و نامەکان لەلایەن ئەو دابینکەرانەی AI پرۆسێس دەکرێن کە لە سیاسەتی تایبەتمەندیدا ناویان هاتووە.",
+     "هەمان یاساکانی هەموو وەڵامەکانی تر بۆ ئەم وەڵامەش جێبەجێ دەبن. خاوەنی دوکان خۆی دەنووسێت گیتواس چۆن قسە بکات. پێش ناردنی هەر وەڵامێک، هەموو ژمارەیەکی ناو وەڵامەکە لەگەڵ زانیاری کاڵای خودی دوکانەکە و ڕێنماییەکانی خاوەنەکەدا دەپشکنرێت؛ ئەگەر ژمارەیەکی دیکەی تێدابێت، وەڵامەکە دەسڕدرێتەوە و دەدرێتە دەست خاوەنەکە. ئەگەر نرخێکی هەڵە لە زانیاری کاڵاکەدا هەبێت، وەڵامەکە دووبارەی دەکاتەوە.",
+     "نامە تایبەتە نووسراوەکان (DM) بە هەمان شێوە وەڵام دەدرێنەوە، بە کوردیی سۆرانی و عەرەبی. واتساپ جیاوازە: گیتواس لە ئێستادا خۆکارانە لەوێ وەڵام ناداتەوە، و واتساپ وەک بەستەرێکی داواکاری کار دەکات کە ژمارەی دوکانەکە و نامەیەکی ئامادەی داواکاری تێدایە."
+    ]
+   },
+   {
+    "h2": "هەر پلانێک چەند نامەی دەنگی دەخوێنێتەوە؟",
+    "paragraphs": [
+     "بازرگان ڕۆژانە تا ٤ نامەی دەنگی دەخوێنێتەوە، پرۆ تا ٨ و ماکس تا ١٢؛ پلانی بەخۆڕایی هیچ ناخوێنێتەوە. سنوورەکە ڕۆژانەیە و بەپێی پلان دەگۆڕێت.",
+     "خوێندنەوەی نامەی دەنگی لەگەڵ تایبەتمەندییەکانی تری AIی شوێنی کار یەک بڕی مانگانەی AI بەکار دێنێت. کاتێک ئەو بڕە تەواو دەبێت، تایبەتمەندییەکانی AI تا مانگی داهاتوو دەوەستن، و وەڵامە جێگیرەکان و ڕێساکان بەردەوام دەبن لە وەڵامدانەوە.",
+     "دوکان بریتییە لە یەک پەڕەی فەیسبووکی بەستراو یان یەک ئەکاونتی ئینستاگرام، و پلان بۆ هەر دوکانێک مانگانە دەکڕدرێت. ئەگەر پلانێکی بە پارە نوێ نەکرێتەوە، دەگەڕێتەوە سەر پلانی بەخۆڕایی."
+    ],
+    "bullets": [
+     "بەخۆڕایی، ٠ دینار: نامەی دەنگی ناخوێنرێتەوە، و پلانەکە سنووری کاتی نییە.",
+     "بازرگان، ١٥٬٠٠٠ دینار مانگانە: تا ٤ نامەی دەنگی لە ڕۆژێکدا.",
+     "پرۆ، ٢٥٬٠٠٠ دینار مانگانە: تا ٨ لە ڕۆژێکدا.",
+     "ماکس، ٥٩٬٠٠٠ دینار مانگانە: تا ١٢ لە ڕۆژێکدا."
+    ]
+   },
+   {
+    "h2": "ئەگەر نامەی دەنگی ڕوون نەبێت چی ڕوودەدات؟",
+    "paragraphs": [
+     "گیتواس لەجیاتی حەدسکردن بۆ خاوەنی دوکان نیشانەی دەکات. خوێندنەوەی نامەی دەنگی لەسەر ناسینەوەی دەنگ دەوەستێت، و ناسینەوەی دەنگ ڕەنگە هەڵە بیبیستێت.",
+     "نامەیەک کە گیتواس نەتوانێت تێی بگات دەچێتە لیستی «پێویستی بە تۆیە» یان «نادیار»ی خاوەنەکە، و خاوەنەکە خۆی دەیگرێتە ئەستۆ. سکاڵا، جنێودان و چەنەبازیش دەچنە ئەوێ، چونکە ئەوانە بڕیاری خاوەنەکە دەمێننەوە.",
+     "پێش ئەوەی هەر داواکارییەک کە لە نامەی دەنگییەوە دەستی پێکردووە بدرێتە گەیەنەر، ژمارەی تەلەفۆن و ناونیشانەکەی بپشکنە."
+    ]
+   },
+   {
+    "h2": "گیتواس چۆن داواکاری لە چاتدا کۆدەکاتەوە؟",
+    "paragraphs": [
+     "گیتواس داواکارییەکە هەنگاو بە هەنگاو لەناو گفتوگۆکەدا کۆدەکاتەوە. کاڵاکە لە زانیاری کاڵای خودی دوکانەکەوە دێت، کە خاوەنی دوکان بە پۆستێکەوە دەیبەستێتەوە لەگەڵ ناو، وێنە، نرخ و قیاسەکانی. ئەگەر کڕیار بە نامەی دەنگی وەڵام بداتەوە، نامەکەی بە هەمان شێوە دەخوێنرێتەوە، لە چوارچێوەی سنووری ڕۆژانەی پلانەکەدا.",
+     "هەر وەڵامێک داواکارییەکە هەنگاوێک بەرەو پێش دەبات، تا هەموو پێنج زانیارییەکە تەواو بن. پێنج زانیارییەکە:"
+    ],
+    "bullets": [
+     "ناوی کڕیار",
+     "ژمارەی تەلەفۆن",
+     "شار",
+     "ناونیشان",
+     "کاڵا یان قیاس"
+    ]
+   },
+   {
+    "h2": "داواکارییەک کە بە نامەی دەنگی دەست پێدەکات چۆن دەردەکەوێت؟",
+    "paragraphs": [
+     "ئەمە نموونەیەکە، نەک دوکانێکی ڕاستەقینە. کڕیارێک لە نامەیەکی تایبەتدا نامەیەکی دەنگی دەنێرێت و نرخی کاڵایەک دەپرسێت کە لە پۆستێکدا بینیویەتی. گیتواس دەیخوێنێتەوە، بە نرخی زانیاری کاڵاکە وەڵام دەداتەوە، پاشان ناو، ژمارەی تەلەفۆن، شار، ناونیشان و قیاس هەنگاو بە هەنگاو دەپرسێت.",
+     "داواکارییەکە لە لیستی داواکارییەکاندا لەژێر شاری کڕیار دادەنرێت. ئەگەر نامە دەنگییەکە ڕوون نەبووبێت، بۆ خاوەنەکە نیشانە دەکرێت، و دەتوانێت زانیارییەکان لەگەڵ کڕیارەکە پشتڕاست بکاتەوە."
+    ]
+   },
+   {
+    "h2": "لیستی داواکارییەکان چی نیشان دەدات؟",
+    "paragraphs": [
+     "لیستی داواکارییەکان هەموو داواکارییە کۆکراوەکان بەپێی شار و بەپێی دۆخ دەپارێزێت.",
+     "داواکارییەکانی کوردستان و عێراق بۆ چەندین شار دەچن، وەک هەولێر، سلێمانی، دهۆک، کەرکوک، بەغدا و بەسرە. کاتێک بە شار ڕیز دەکرێت، لیستەکە نیشان دەدات چی دەبێت بۆ کوێ بنێردرێت. دۆخیش نیشان دەدات هەر داواکارییەک تا کوێ گەیشتووە.",
+     "ئاماران (Insights) نامە، کۆمێنت و داواکارییەکانی هەفتە ڕابردووەکان لە یەک شوێندا نیشان دەدات. ڕاسپاردەی بووست شار، ئارەزوو و پرسیارە باوەکانی کۆمەڵی ئامانجی دوکانەکە لە نامە و داواکارییەکانی کڕیارەکانی خودی دوکانەکەوە فێر دەبێت. ئەو وێنەیەی نیشانی دەدات لەسەر ئاستی گرووپە و هەرگیز پرۆفایلی یەک کەس دروست ناکات یان نیشان نادات."
+    ]
+   },
+   {
+    "h2": "بۆچی پارەدان لە کاتی گەیاندن لەگەڵ ئەم شێوازە دەگونجێت؟",
+    "paragraphs": [
+     "پارەدان لە کاتی گەیاندن دەگونجێت، چونکە چاتەکە تەنها پێویستی بە زانیارییەکانی کڕیار هەیە، نەک بە پارەدان. کڕیار کاتێک کاڵاکە دەگات پارە دەدات، بۆیە ئەو پێنج هەنگاوەی سەرەوە بەسن. پارەدانی پلانی گیتواس جیایە: بە دیناری عێراقی لە ڕێگەی Wayl دەدرێت، بە FIB، ZainCash، QiCard، FastPay یان کارت.",
+     "فرۆشتن لێرە زۆربەی جار لە پۆستی سۆشیاڵەوە دەچێتە کۆمێنت و نامەی تایبەت، پاشان واتساپ یان نامەی تایبەت، پاشان پارەدان لە کاتی گەیاندن. ڕاپرسییەکی ساڵی ٢٠٢٠ لەسەر ١٥٠ کڕیاری ئۆنلاین لە هەولێر (Polytechnic Journal) دۆزییەوە کە ٦٧٫٣٪یان پارەکەیان لە کاتی گەیاندندا داوە؛ کارت و پارەدانی ئەلیکترۆنی زۆر لە دواوە بوون. خەمڵاندنەکانی کەرتەکە بەشی سۆشیاڵ لە بازرگانیی ئەلیکترۆنیی عێراقدا بە نزیکەی ٨٠ بۆ ٩٠ لەسەد دەخەمڵێنن؛ ئەمانە خەمڵاندنن، نەک ژمارەی پێوراو."
+    ]
+   },
+   {
+    "h2": "ڕادەستکردن بە گەیەنەر چۆن کار دەکات؟",
+    "paragraphs": [
+     "دەقی ڕادەستکردنی داواکارییەک دەکرێت کۆپی بکرێت، و خاوەنەکە دەیخاتە ناو نامەکەی بۆ گەیەنەر.",
+     "گیتواس زانیارییەکان کۆدەکاتەوە. هەڵبژاردنی گەیەنەر و ناردنی دەقەکە دەکەوێتە ئەستۆی خاوەنی دوکان."
+    ]
+   },
+   {
+    "h2": "سنوورەکان چین؟",
+    "paragraphs": [
+     "گیتواس پشتگیری خاوەنی دوکان دەکات و جێگەی بڕیاری ئەو ناگرێتەوە. پێنج سنوور لێرە گرنگن:"
+    ],
+    "bullets": [
+     "پەڕەی فەیسبووک یان ئەکاونتی ئینستاگرامی دوکانەکە دەبێت بەستراو بێت.",
+     "یاساکانی میتا جێبەجێ دەبن، لەوانە پەنجەرەی ٢٤ کاتژمێری نامەناردن بۆ نامە تایبەتەکان.",
+     "گیتواس لە ئێستادا خۆکارانە لە واتساپ وەڵام ناداتەوە.",
+     "ناسینەوەی دەنگ ڕەنگە هەڵە ببیستێت، و نامە دەنگییە نادیارەکان نیشانە دەکرێن.",
+     "سکاڵا، چەنەبازی، جنێودان و نامە نادیارەکان بۆ خاوەنی دوکان دەچن."
+    ]
+   }
+  ],
+  "faq": [
+   {
+    "q": "ئایا گیتواس نامەی دەنگیی کوردی تێدەگات؟",
+    "a": "بەڵێ، لە پلانە بە پارەکاندا و لە ئینستاگرام و مەسێنجەر، بە ناسینەوەی دەنگ. ڕەنگە هەڵە ببیستێت، و نامە دەنگییە نادیارەکان بۆ خاوەنی دوکان نیشانە دەکرێن. دەنگەکە بۆ خزمەتگوزارییەکی ناسینەوەی دەنگ دەنێردرێت و تەنها دەقەکە دەپارێزرێت."
+   },
+   {
+    "q": "گیتواس ڕۆژانە چەند نامەی دەنگی دەخوێنێتەوە؟",
+    "a": "بازرگان ڕۆژانە تا ٤، پرۆ تا ٨ و ماکس تا ١٢. پلانی بەخۆڕایی هیچ ناخوێنێتەوە. ئەم ژمارانە سنوورن: خوێندنەوەی نامەی دەنگی لەگەڵ تایبەتمەندییەکانی تری AI یەک بڕی مانگانەی AI بەکار دێنێت، و کاتێک ئەو بڕە تەواو دەبێت، تایبەتمەندییەکانی AI تا مانگی داهاتوو دەوەستن."
+   },
+   {
+    "q": "ئایا گیتواس داواکاری بۆ پارەدان لە کاتی گەیاندن کۆدەکاتەوە؟",
+    "a": "بەڵێ. کۆکردنەوەی زانیارییەکانی کڕیار لە چاتدا لەگەڵ پارەدان لە کاتی گەیاندن دەگونجێت: گیتواس ناو، ژمارەی تەلەفۆن، شار، ناونیشان و کاڵا یان قیاس کۆدەکاتەوە، و دەقێکی ڕادەستکردن بە گەیەنەر دەدات کە دەتوانیت کۆپی بکەیت."
+   }
+  ],
+  "related": [
+   "sell-on-social-media-iraq-kurdistan",
+   "ai-replies-without-inventing-prices"
+  ],
+  "steps": [
+   {
+    "name": "دوکانەکە ببەستەوە",
+    "text": "پەڕەی فەیسبووک یان ئەکاونتی ئینستاگرامی دوکانەکە ببەستەوە. وەڵامی خۆکار پێویستی پێیەتی."
+   },
+   {
+    "name": "کاڵا بە پۆستێکەوە ببەستەوە",
+    "text": "ناو، وێنە، نرخ و قیاسەکان زیاد بکە، تا وەڵامەکان ژمارەکانی خۆت بەکار بهێنن."
+   },
+   {
+    "name": "بنووسە گیتواس چۆن قسە بکات",
+    "text": "بە وشەی خۆت شێوازی قسەکردن و چۆنیەتی باسکردنی نرخ ڕوون بکەرەوە."
+   },
+   {
+    "name": "پلانێک هەڵبژێرە کە نامەی دەنگی دەخوێنێتەوە",
+    "text": "بازرگان ڕۆژانە تا ٤ دەخوێنێتەوە، پرۆ تا ٨، ماکس تا ١٢. پلانی بەخۆڕایی هیچ ناخوێنێتەوە."
+   },
+   {
+    "name": "داواکارییەکان بپشکنە و دەقی گەیەنەر کۆپی بکە",
+    "text": "لیستی داواکارییەکان بەپێی شار و دۆخ بکەرەوە، ژمارەی تەلەفۆن و ناونیشان پشتڕاست بکەرەوە، پاشان دەقی ڕادەستکردن کۆپی بکە."
+   }
+  ]
+ },
+ "ar": {
+  "slug": "kurdish-voice-notes-and-orders",
+  "title": "كيف يتعامل Gituas مع الرسائل الصوتية الكردية ويجمع الطلبات داخل المحادثة",
+  "metaTitle": "الرسائل الصوتية الكردية والطلبات في المحادثة | Gituas",
+  "metaDescription": "كيف يقرأ Gituas الرسائل الصوتية الكردية، ويجمع الطلبات خطوة بخطوة، ويرتبها حسب المدينة والحالة، ويوفّر نص تسليم للمندوب قابلاً للنسخ.",
+  "answer": "في الخطط المدفوعة، يحوّل Gituas الرسالة الصوتية الكردية التي يرسلها المشتري على إنستغرام (Instagram) أو ماسنجر (Messenger) إلى نص بالتعرّف على الكلام، ثم يردّ عليها كما يردّ على الرسالة المكتوبة. بعد ذلك يجمع الطلب خطوة بخطوة: الاسم، رقم الهاتف، المدينة، العنوان، المنتج أو القياس. تُحفظ الطلبات في قائمة الطلبات حسب المدينة والحالة، مع نص تسليم لمندوب التوصيل يمكن نسخه.",
+  "keyPoints": [
+   "يقرأ Gituas الرسائل الصوتية الكردية على إنستغرام وماسنجر بالتعرّف على الكلام، في الخطط المدفوعة.",
+   "عدد الرسائل الصوتية المقروءة يومياً، حتى: التاجر ٤، الاحترافية ٨، ماكس ١٢؛ والخطة المجانية لا تقرأ أيّاً منها.",
+   "تفاصيل الطلب التي تُجمع في المحادثة: الاسم، رقم الهاتف، المدينة، العنوان، المنتج أو القياس.",
+   "تُحفظ الطلبات حسب المدينة والحالة، وتُعلَّم الرسائل الصوتية غير الواضحة لمراجعة صاحب المتجر."
+  ],
+  "sections": [
+   {
+    "h2": "ماذا يسأل المشترون في الرسالة الصوتية؟",
+    "paragraphs": [
+     "الأسئلة نفسها التي يتلقاها البائع في الرسائل المكتوبة: السعر، والتوصيل إلى مدينتي، والقياس أو اللون، والعنوان.",
+     "يرسل بعض المشترين رسالة صوتية بدلاً من الكتابة. ويتعامل Gituas معها على أنها رسالة أخرى تحتاج إلى ردّ."
+    ]
+   },
+   {
+    "h2": "كيف يقرأ Gituas الرسالة الصوتية الكردية؟",
+    "paragraphs": [
+     "يحوّل Gituas الرسالة الصوتية إلى نص بالتعرّف على الكلام، ثم يردّ عليها كما يردّ على الرسالة المكتوبة. ويقرأ الرسائل الصوتية المرسلة إلى المتجر على إنستغرام وماسنجر.",
+     "يُرسَل الصوت إلى خدمة للتعرّف على الكلام ولا يُحتفظ إلا بالنص (راجع سياسة الخصوصية). ويقرأ Gituas كل رسالة ليردّ عليها، وتُعالَج الرسائل لدى مزوّدي الذكاء الاصطناعي المذكورين فيها.",
+     "يتبع الردّ القواعد نفسها المتّبعة في كل ردّ آخر. يكتب صاحب المتجر كيف يجب أن يتحدث Gituas. وقبل إرسال أي ردّ يُفحص كل رقم فيه مقابل بيانات منتجات المتجر نفسه وتعليمات صاحبه؛ وإذا ورد رقم آخر يُسقَط الردّ ويُحوَّل إلى صاحب المتجر. وإذا كان في بيانات المنتج سعر خاطئ فسيكرره الردّ.",
+     "تُجاب الرسائل الخاصة المكتوبة بالطريقة نفسها، بالكردية السورانية والعربية. أما واتساب (WhatsApp) فالأمر مختلف: لا يردّ Gituas تلقائياً عليه حالياً، ويعمل واتساب كرابط طلب يحمل رقم المتجر ورسالة طلب جاهزة."
+    ]
+   },
+   {
+    "h2": "كم رسالة صوتية تقرأ كل خطة؟",
+    "paragraphs": [
+     "تقرأ خطة التاجر حتى ٤ رسائل صوتية يومياً، والخطة الاحترافية حتى ٨، وخطة ماكس حتى ١٢؛ أما الخطة المجانية فلا تقرأ أيّاً منها. الحدّ يومي ويختلف بحسب الخطة.",
+     "تتشارك قراءة الرسائل الصوتية مع ميزات الذكاء الاصطناعي الأخرى في مساحة العمل حصة شهرية واحدة من الذكاء الاصطناعي. وعند استهلاك هذه الحصة تتوقف ميزات الذكاء الاصطناعي حتى الشهر التالي، بينما تواصل الردود الثابتة والقواعد الإجابة.",
+     "المتجر هو صفحة فيسبوك (Facebook) واحدة متصلة أو حساب إنستغرام واحد، وتُشترى الخطة لكل متجر شهرياً. والخطة المدفوعة التي لا تُجدَّد تعود إلى الخطة المجانية."
+    ],
+    "bullets": [
+     "المجانية، ٠ دينار: لا قراءة للرسائل الصوتية، ولا مدّة زمنية تنتهي بها الخطة.",
+     "التاجر، ١٥٬٠٠٠ دينار شهرياً: حتى ٤ رسائل صوتية يومياً.",
+     "الاحترافية، ٢٥٬٠٠٠ دينار شهرياً: حتى ٨ رسائل يومياً.",
+     "ماكس، ٥٩٬٠٠٠ دينار شهرياً: حتى ١٢ رسالة يومياً."
+    ]
+   },
+   {
+    "h2": "ماذا يحدث عندما تكون الرسالة الصوتية غير واضحة؟",
+    "paragraphs": [
+     "يضع Gituas علامة عليها لمراجعة صاحب المتجر بدلاً من التخمين. فقراءة الرسالة الصوتية تعتمد على التعرّف على الكلام، وقد يخطئ التعرّف على الكلام في السماع.",
+     "الرسالة التي لا يستطيع Gituas فهمها تذهب إلى قائمة «تحتاج إليك» أو «غير واضحة» عند صاحب المتجر، ويتولّاها بنفسه. وتذهب إليها أيضاً الشكاوى والإساءة والمساومة، لأن القرار فيها يبقى لصاحب المتجر.",
+     "تحقّق من رقم الهاتف والعنوان في أي طلب بدأ برسالة صوتية قبل أن يُسلَّم إلى مندوب التوصيل."
+    ]
+   },
+   {
+    "h2": "كيف يجمع Gituas الطلب داخل المحادثة؟",
+    "paragraphs": [
+     "يجمع Gituas الطلب خطوة بخطوة داخل المحادثة. يأتي المنتج من بيانات منتجات المتجر نفسه، التي يربطها صاحب المتجر بمنشور مع اسمه وصوره وأسعاره وقياساته. وإذا أجاب المشتري برسالة صوتية فتُقرأ بالطريقة نفسها، ضمن الحدّ اليومي للخطة.",
+     "كل إجابة تنقل الطلب خطوة إلى الأمام حتى تكتمل التفاصيل الخمس. التفاصيل الخمس:"
+    ],
+    "bullets": [
+     "اسم المشتري",
+     "رقم الهاتف",
+     "المدينة",
+     "العنوان",
+     "المنتج أو القياس"
+    ]
+   },
+   {
+    "h2": "كيف يبدو طلب واحد يبدأ برسالة صوتية؟",
+    "paragraphs": [
+     "هذا مثال وليس متجراً حقيقياً. يرسل مشترٍ رسالة صوتية في رسالة خاصة يسأل فيها عن سعر منتج رآه في منشور. يقرؤها Gituas، ويردّ بالسعر من بيانات المنتج، ثم يسأل عن الاسم ورقم الهاتف والمدينة والعنوان والقياس، خطوة بعد خطوة.",
+     "يصل الطلب إلى قائمة الطلبات تحت مدينة المشتري. وإذا كانت الرسالة الصوتية غير واضحة فتُعلَّم لمراجعة صاحب المتجر، ويمكنه التحقق من التفاصيل مع المشتري."
+    ]
+   },
+   {
+    "h2": "ماذا تعرض قائمة الطلبات؟",
+    "paragraphs": [
+     "تحتفظ قائمة الطلبات بكل طلب جُمع حسب المدينة وحسب الحالة.",
+     "تذهب الطلبات في كردستان والعراق إلى مدن كثيرة، مثل أربيل والسليمانية ودهوك وكركوك وبغداد والبصرة. وعند الترتيب حسب المدينة تُظهر القائمة ما يجب إرساله إلى كل مدينة. وتُظهر الحالة إلى أين وصل كل طلب.",
+     "تعرض لوحة الإحصاءات (Insights) الرسائل والتعليقات والطلبات في الأسابيع الأخيرة في مكان واحد. وتتعرّف نصائح الترويج (Boost) على مدن جمهور المتجر واهتماماته وأسئلته الشائعة من رسائل مشتري المتجر نفسه وطلباتهم. والصورة التي تعرضها عن مجموعات، ولا تبني ملفاً عن شخص واحد."
+    ]
+   },
+   {
+    "h2": "لماذا يناسب الدفع عند الاستلام هذا المسار؟",
+    "paragraphs": [
+     "يناسب الدفع عند الاستلام هذا المسار لأن المحادثة تحتاج إلى بيانات المشتري فقط، لا إلى دفعة مالية. يدفع المشتري عند وصول الطلب، ولذلك تكفي الخطوات الخمس أعلاه. أما الدفع مقابل خطة Gituas فمنفصل: يُدفع بالدينار العراقي عبر Wayl بواسطة FIB أو ZainCash أو QiCard أو FastPay أو البطاقة.",
+     "يجري البيع هنا في الغالب من المنشورات على وسائل التواصل إلى التعليقات والرسائل الخاصة، ثم واتساب أو الرسائل الخاصة، ثم الدفع عند الاستلام. وجد استطلاع أُجري عام ٢٠٢٠ على ١٥٠ مشترياً عبر الإنترنت في أربيل (Polytechnic Journal) أن ٦٧٫٣٪ منهم دفعوا عند الاستلام، وأن البطاقة والدفع الإلكتروني جاءا بعيداً خلفه. وتضع تقديرات القطاع حصة التجارة الإلكترونية العراقية التي تقودها وسائل التواصل بنحو ٨٠ إلى ٩٠ بالمئة؛ وهذه تقديرات لا أرقام مُقاسة."
+    ]
+   },
+   {
+    "h2": "كيف يعمل تسليم الطلب لمندوب التوصيل؟",
+    "paragraphs": [
+     "يمكن نسخ نص تسليم الطلب لمندوب التوصيل، ويلصقه صاحب المتجر في رسالته إلى المندوب.",
+     "يجمع Gituas التفاصيل. أما اختيار مندوب التوصيل وإرسال النص فخطوتان يتولاهما صاحب المتجر."
+    ]
+   },
+   {
+    "h2": "ما حدود هذه الميزة؟",
+    "paragraphs": [
+     "يدعم Gituas صاحب المتجر ولا يحلّ محل حكمه. وهناك خمسة حدود مهمة هنا:"
+    ],
+    "bullets": [
+     "يجب ربط صفحة فيسبوك أو حساب إنستغرام الخاص بالمتجر.",
+     "تسري قواعد Meta، ومنها نافذة المراسلة البالغة ٢٤ ساعة للرسائل الخاصة.",
+     "لا يردّ Gituas تلقائياً على واتساب حالياً.",
+     "قد يخطئ التعرّف على الكلام في السماع، وتُعلَّم الرسائل الصوتية غير الواضحة.",
+     "الشكاوى والمساومة والإساءة والرسائل غير الواضحة تذهب إلى صاحب المتجر."
+    ]
+   }
+  ],
+  "faq": [
+   {
+    "q": "هل يفهم Gituas الرسائل الصوتية الكردية؟",
+    "a": "نعم، في الخطط المدفوعة وعلى إنستغرام وماسنجر، بالتعرّف على الكلام. وقد يخطئ في السماع، وتُعلَّم الرسائل الصوتية غير الواضحة لمراجعة صاحب المتجر. يُرسَل الصوت إلى خدمة للتعرّف على الكلام ولا يُحتفظ إلا بالنص."
+   },
+   {
+    "q": "كم رسالة صوتية يقرأ Gituas في اليوم؟",
+    "a": "تقرأ خطة التاجر حتى ٤ يومياً، والخطة الاحترافية حتى ٨، وخطة ماكس حتى ١٢. أما الخطة المجانية فلا تقرأ أيّاً منها. هذه الأعداد حدود قصوى: تتشارك قراءة الرسائل الصوتية مع ميزات الذكاء الاصطناعي الأخرى حصة شهرية واحدة، وعند استهلاكها تتوقف ميزات الذكاء الاصطناعي حتى الشهر التالي."
+   },
+   {
+    "q": "هل يجمع Gituas الطلبات للدفع عند الاستلام؟",
+    "a": "نعم. جمع بيانات المشتري في المحادثة يناسب الدفع عند الاستلام: يجمع Gituas الاسم ورقم الهاتف والمدينة والعنوان والمنتج أو القياس، ويوفّر نص تسليم لمندوب التوصيل يمكنك نسخه."
+   }
+  ],
+  "related": [
+   "sell-on-social-media-iraq-kurdistan",
+   "ai-replies-without-inventing-prices"
+  ],
+  "steps": [
+   {
+    "name": "اربط المتجر",
+    "text": "اربط صفحة فيسبوك أو حساب إنستغرام الخاص بالمتجر. فالردود التلقائية تحتاج إلى ذلك."
+   },
+   {
+    "name": "اربط المنتج بمنشور",
+    "text": "أضف الاسم والصور والأسعار والقياسات، لتعتمد الردود على أرقامك أنت."
+   },
+   {
+    "name": "اكتب كيف يجب أن يتحدث Gituas",
+    "text": "صِف أسلوبك وكيفية الحديث عن السعر، بكلماتك أنت."
+   },
+   {
+    "name": "اختر خطة تقرأ الرسائل الصوتية",
+    "text": "تقرأ خطة التاجر حتى ٤ يومياً، والخطة الاحترافية حتى ٨، وخطة ماكس حتى ١٢. والخطة المجانية لا تقرأ أيّاً منها."
+   },
+   {
+    "name": "راجع الطلبات وانسخ نص التسليم",
+    "text": "افتح قائمة الطلبات حسب المدينة والحالة، وتأكد من الهاتف والعنوان، ثم انسخ نص التسليم."
+   }
+  ]
+ }
+}

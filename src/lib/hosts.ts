@@ -9,7 +9,7 @@ export const NEWSROOM_ORIGIN = "https://hawalnoos.com";
 const SHOP_HOSTS = new Set(["gituas.com", "www.gituas.com"]);
 const NEWS_HOSTS = new Set(["hawalnoos.com", "www.hawalnoos.com"]);
 
-export type Route = { kind: "next" } | { kind: "rewrite"; path: string } | { kind: "redirect"; url: string };
+export type Route = { kind: "next" } | { kind: "rewrite"; path: string } | { kind: "redirect"; url: string; permanent?: boolean };
 
 const NEXT: Route = { kind: "next" };
 const AUTH_PAGES = new Set(["/login", "/signup", "/forgot"]);
@@ -30,9 +30,10 @@ export function routeFor(hostHeader: string, path: string, search: string): Rout
   const next = params.get("next") ?? "";
 
   if (NEWS_HOSTS.has(host)) {
-    if (host !== "hawalnoos.com") return { kind: "redirect", url: `${NEWSROOM_ORIGIN}${path}${search}` };
+    if (host !== "hawalnoos.com") return { kind: "redirect", url: `${NEWSROOM_ORIGIN}${path}${search}`, permanent: true };
     if (path === "/") return { kind: "rewrite", path: "/newsroom" };
-    if (SHOP_ONLY.test(path) || SITE_PAGES.test(path)) return { kind: "redirect", url: `${SHOP_ORIGIN}${path}${search}` };
+    if (SITE_PAGES.test(path)) return { kind: "redirect", url: `${SHOP_ORIGIN}${path}${search}`, permanent: true };
+    if (SHOP_ONLY.test(path)) return { kind: "redirect", url: `${SHOP_ORIGIN}${path}${search}` };
     if (AUTH_PAGES.has(path)) {
       if (next.startsWith("/app")) return { kind: "redirect", url: `${SHOP_ORIGIN}${path}${search}` };
       if (!next && !params.has("callbackUrl")) {
@@ -44,7 +45,7 @@ export function routeFor(hostHeader: string, path: string, search: string): Rout
   }
 
   // The shop domain: its root opens the shop (or the shop's sign-in).
-  if (host !== "gituas.com") return { kind: "redirect", url: `${SHOP_ORIGIN}${path}${search}` };
+  if (host !== "gituas.com") return { kind: "redirect", url: `${SHOP_ORIGIN}${path}${search}`, permanent: true };
   // Its root is the public welcome page; that page sends signed-in people on to /app.
   if (path === "/") return { kind: "rewrite", path: "/welcome" };
   if (NEWSROOM.test(path)) return { kind: "redirect", url: `${NEWSROOM_ORIGIN}${path}${search}` };

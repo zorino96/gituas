@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import guidesJson from "@/lib/site/content/guides.json";
+import { guideSlugs, guideFor } from "@/lib/site/content";
 import landingJson from "@/lib/site/content/landing.json";
 import { SITE_LANGS, type SiteLang } from "@/lib/site/langs";
 import type { Guide, Landing } from "@/lib/site/types";
 
 const landing = landingJson as unknown as Record<SiteLang, Landing>;
-const guides = guidesJson as unknown as { slug: string; en: Guide; ku: Guide; ar: Guide }[];
+const guides = guideSlugs().map((slug) => ({ slug, en: guideFor("en", slug)!, ku: guideFor("ku", slug)!, ar: guideFor("ar", slug)! }));
 
 /** All the visible text of a page's content, one string. */
 const textOf = (v: unknown): string => (typeof v === "string" ? v : Array.isArray(v) ? v.map(textOf).join("\n") : v && typeof v === "object" ? Object.values(v).map(textOf).join("\n") : "");

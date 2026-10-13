@@ -175,3 +175,8 @@
 .site-article ul, .site-keyfacts ul { list-style: disc; }
 .site-article ol, .site-ol { list-style: decimal; }
 .site-keyfacts ul { padding-inline-start: 1.3em; }
+
+.site-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.site-feature-link { margin: 10px 0 0 !important; }
+.site-notes { max-width: 46rem; color: var(--muted); font-size: 0.95rem; padding-inline-start: 1.2em; list-style: disc; }
+.site-notes li { margin-bottom: 0.6em; }

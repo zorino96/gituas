@@ -39,6 +39,14 @@ describe("detectLang", () => {
     expect(detectLang({ acceptLanguage: null, country: "iq" })).toBe("ckb");
   });
 
+  it("lets the public website, and only it, give Arabic browsers in Iraq Arabic", () => {
+    const h = { acceptLanguage: "ar-IQ,ar;q=0.9,en;q=0.5", country: "IQ" };
+    expect(detectLang({ ...h, arabicInIraq: true })).toBe("ar");
+    expect(detectLang(h)).toBe("ckb");
+    expect(detectLang({ acceptLanguage: "en-US,en;q=0.9,ar;q=0.5", country: "IQ", arabicInIraq: true })).toBe("ckb");
+    expect(detectLang({ acceptLanguage: "ku,ar;q=0.5", country: "IQ", arabicInIraq: true })).toBe("ckb");
+  });
+
   it("keeps the product default when there is no country at all (a local run)", () => {
     expect(detectLang({ acceptLanguage: null, country: null })).toBe("ckb");
     expect(detectLang({ acceptLanguage: "en-US,en", country: null })).toBe("en");

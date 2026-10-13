@@ -1,0 +1,390 @@
+{
+ "slug": "boost-which-post-and-audience",
+ "en": {
+  "slug": "boost-which-post-and-audience",
+  "title": "Which Post Should a Small Shop Boost, and Who Should See It?",
+  "metaTitle": "Which Post to Boost and Who Should See It | Gituas",
+  "metaDescription": "How a small shop picks the post to boost, the platform, the audience and a daily IQD budget, using its own comments, messages and orders.",
+  "answer": "Boost a post that already draws comments, messages and orders, and show it to people who match your own buyers: their cities and interests, within an age range that fits. Gituas (Kurdish: گیتواس) suggests which post is worth boosting, the platform, the audience and a daily budget in Iraqi dinar (IQD). It learns the cities and interests from the shop's own messages and orders; the age range comes from Instagram follower data when Instagram provides it, otherwise from a typical range for the platform. The ad itself is bought in Meta's own tools.",
+  "keyPoints": [
+   "Boost a post that already draws comments, messages and orders.",
+   "The cities and interests are learned from the shop's own messages and orders, at group level only; the age range comes from Instagram follower data or a platform default.",
+   "Gituas suggests a platform and a daily budget in IQD.",
+   "Boost analyses per day, up to: Free 1, Merchant 4, Pro 8, Max 20.",
+   "The ad is bought in Meta's own tools, and paying for Meta ads in Iraq needs an international card."
+  ],
+  "sections": [
+   {
+    "h2": "Which post should a small shop boost?",
+    "paragraphs": [
+     "Boost a post that buyers are already reacting to. A boost puts money behind interest that exists, so start from the posts people have commented on, messaged about or ordered from.",
+     "Three signals show whether a post has that interest:"
+    ],
+    "bullets": [
+     "Comments: how many people ask for the price or details under the post, for example «نرخی چەندە؟» (\"how much?\").",
+     "Messages: how many direct messages (DMs) arrive after the post.",
+     "Orders: how many orders for the post's product appear in the Orders list."
+    ]
+   },
+   {
+    "h2": "How should the shop rank those signals?",
+    "paragraphs": [
+     "Orders count most, because they are closest to money. Comments and messages show interest before it becomes an order.",
+     "If no post has orders yet, take the one with the most messages. If none has any, wait: publish, let the automatic replies run, and ask again later.",
+     "Insights shows the messages, comments and orders of the last weeks in one place, so the owner can check the advice against the numbers.",
+     "Link the product to the post before boosting. Replies use the product's name, photos, prices and sizes, so a post without a linked product gives the replies less to work with."
+    ]
+   },
+   {
+    "h2": "Who should see the boosted post?",
+    "paragraphs": [
+     "People who look like the shop's own buyers. Gituas learns the cities and interests from the shop's own messages and orders, not from a general list.",
+     "From those messages and orders it builds a picture of the buyers: the cities they order from and the interests they show. The age range comes from your own Instagram followers when Instagram shares that data, and from a typical range for the platform otherwise.",
+     "The picture is at group level. It shows patterns across buyers, such as which cities stand out, and never a profile of one person.",
+     "The audience advice then names the cities, ages and interests to choose when the ad is set up. A shop with few messages and orders gives the advice little to learn from."
+    ]
+   },
+   {
+    "h2": "Which platform should the shop boost on?",
+    "paragraphs": [
+     "The platform the post's comments and messages already come from. The advice names a platform, so the owner does not have to guess.",
+     "Keep automatic replies on while the post runs. A boosted post is shown to more people, so it can draw more comments, and each new comment can get a short public reply and the details by DM, usually within about half a minute. Meta's rules still apply, including the 24-hour messaging window for DMs.",
+     "Check that the post is inside the plan's reply coverage: the newest 3 posts on Free, the newest 25 on Merchant, all posts on Pro and Max.",
+     "Orders arrive in the chat step by step (name, phone, city, address, product and size) and land in the Orders list by city and status. That list shows which cities the orders come from."
+    ]
+   },
+   {
+    "h2": "How much should the daily budget be?",
+    "paragraphs": [
+     "Use the daily budget in IQD that Gituas suggests. It is a suggestion, not a promise of results.",
+     "No single figure suits every shop, so this guide gives none. The right amount depends on the post, the audience and what the shop can afford to spend each day.",
+     "The owner sets the amount and decides whether to run the ad at all. Boost analyses are limited per day by plan, up to 1 on Free, 4 on Merchant, 8 on Pro and 20 on Max (59,000 IQD a month). They are AI features, and the AI features of a workspace share one monthly AI allowance: when it is used up they pause until next month, while fixed replies and rules keep answering. The Free plan costs 0 IQD and has no time limit."
+    ]
+   },
+   {
+    "h2": "Which hashtags help a boosted post?",
+    "paragraphs": [
+     "Use hashtags with city names, in both scripts. Sellers in Kurdistan often write the same city in Kurdish and in Latin script, for example #هەولێر and #hawler.",
+     "Smart hashtags in Gituas add city names. Captions written with AI carry city hashtags in both scripts, such as #سلێمانی with #slemani, #دهۆک with #duhok and #کەرکوک with #kirkuk. Keep the cities in the hashtags the same as the cities in the audience."
+    ]
+   },
+   {
+    "h2": "How should the shop check the result?",
+    "paragraphs": [
+     "Read Insights and the Orders list after a few days. Look at whether the orders came from the cities you chose, and whether comments turned into orders. Run the Boost analysis again before the next boost, within the plan's daily limit."
+    ]
+   },
+   {
+    "h2": "What are the limits of Boost advice?",
+    "paragraphs": [
+     "Boost advice is a suggestion, not a guarantee, and it has four limits.",
+     "Gituas is an AI assistant for shops and businesses that sell on Facebook and Instagram in Kurdistan and Iraq. It answers comments and messages in Kurdish and Arabic, collects orders, and makes video ads and pictures with AI."
+    ],
+    "bullets": [
+     "Own data only. The cities and interests are learned from the shop's own messages and orders, so a shop with few of them gives the advice little to go on. The age range comes from Instagram follower data or a typical range for the platform.",
+     "No ad payment. Paying for ads on Meta in Iraq needs an international card, and the ad is bought in Meta's own tools.",
+     "No promise of sales. The advice points to a post and an audience; it does not predict results or sales.",
+     "The owner decides. Gituas does not replace the owner's judgement about what to boost and how much to spend."
+    ]
+   }
+  ],
+  "faq": [
+   {
+    "q": "Does Gituas buy the ad?",
+    "a": "No. Gituas gives the boost advice. The ad is bought in Meta's own tools, and paying for Meta ads in Iraq needs an international card."
+   },
+   {
+    "q": "Does Gituas look at individual buyers?",
+    "a": "It reads each message to answer it, and, to build the audience picture, a batch of recent messages with phone numbers, @handles, links and emails removed. The picture it shows you is about groups (cities, interests, common questions); it never builds or shows a profile of one person. Messages are processed by the AI providers named in the privacy policy."
+   },
+   {
+    "q": "Can a shop on the Free plan use Boost advice?",
+    "a": "Yes. The Free plan costs 0 IQD and includes up to 1 Boost analysis a day."
+   },
+   {
+    "q": "What daily budget does Gituas recommend?",
+    "a": "It suggests a daily budget in IQD. No fixed figure fits every shop, and the owner decides the amount."
+   }
+  ],
+  "related": [
+   "kurdish-ai-video-ads",
+   "sell-on-social-media-iraq-kurdistan"
+  ],
+  "steps": [
+   {
+    "name": "Run a Boost analysis",
+    "text": "Run a Boost analysis in Gituas to see which post is worth boosting."
+   },
+   {
+    "name": "Check the signals",
+    "text": "Look at the comments, messages and orders around that post in Insights and the Orders list."
+   },
+   {
+    "name": "Read the audience and budget",
+    "text": "Note the platform, the cities, ages and interests, and the daily budget in IQD."
+   },
+   {
+    "name": "Buy the ad in Meta's tools",
+    "text": "Create the ad in Meta's own tools with an international card, using that audience and budget."
+   }
+  ]
+ },
+ "ku": {
+  "slug": "boost-which-post-and-audience",
+  "title": "دوکانێکی بچووک کام پۆست بووست بکات، و پۆستەکە بۆ کێ نیشان بدرێت؟",
+  "metaTitle": "کام پۆست بووست بکرێت و بۆ کێ نیشان بدرێت | گیتواس",
+  "metaDescription": "چۆن دوکانێکی بچووک پۆستی بووست، پلاتفۆرم، بینەر و بودجەی ڕۆژانە بە دینار هەڵدەبژێرێت، بە پشتبەستن بە کۆمێنت و نامە و داواکارییەکانی خۆی.",
+  "answer": "پۆستێک بووست بکە کە پێشتر کۆمێنت و نامە و داواکاری بۆ هاتووە، و نیشانی ئەو کەسانە بدە کە لە کڕیارەکانی خۆت دەچن، لە ڕووی شار و حەز و خولیاوە، لەگەڵ ڕێژەیەکی تەمەنی گونجاو. گیتواس (Gituas) پێشنیار دەکات کام پۆست شایانی بووستە، لەسەر کام پلاتفۆرم، بۆ کام بینەر، و بە چ بودجەیەکی ڕۆژانە بە دیناری عێراقی (IQD). شار و حەز و خولیاکان لە نامە و داواکارییەکانی خودی دوکانەکەوە فێر دەبێت؛ ڕێژەی تەمەن لە شوێنکەوتووانی ئینستاگرامەوە دێت کاتێک ئینستاگرام زانیاری دەدات، ئەگەرنا ڕێژەیەکی باوی ئەو پلاتفۆرمەیە. ڕیکلامەکە خۆی لە ئامرازەکانی خودی میتادا دەکڕدرێت.",
+  "keyPoints": [
+   "پۆستێک بووست بکە کە پێشتر کۆمێنت و نامە و داواکاری بۆ هاتووە.",
+   "شار و حەز و خولیاکان لە نامە و داواکارییەکانی خودی دوکانەکە فێر دەبن، تەنها لەسەر ئاستی گرووپ، نەک کەسێک بە تەنها؛ ڕێژەی تەمەن لە داتای شوێنکەوتووانی ئینستاگرامەوە یان لە ڕێژەیەکی باوی پلاتفۆرمەکەوە دێت.",
+   "گیتواس پلاتفۆرمێک و بودجەیەکی ڕۆژانە بە دینار پێشنیار دەکات.",
+   "شیکاریی بووست لە ڕۆژێکدا، تا: بەخۆڕایی ١، بازرگان ٤، پرۆ ٨، ماکس ٢٠.",
+   "ڕیکلامەکە لە ئامرازەکانی خودی میتا دەکڕدرێت، و دانی پارەی ڕیکلامی میتا لە عێراق کارتی نێودەوڵەتی دەوێت."
+  ],
+  "sections": [
+   {
+    "h2": "دوکانێکی بچووک کام پۆست بووست بکات؟",
+    "paragraphs": [
+     "ئەو پۆستە بووست بکە کە کڕیاران پێشتر کاردانەوەیان لەسەری نیشان داوە. بووست پارە دەخاتە پشت ئەو سەرنجەی کە پێشتر هەیە، بۆیە لەو پۆستانە دەست پێ بکە کە خەڵک کۆمێنتیان لەسەر کردووە، نامەیان بۆ ناردووە، یان داواکاریان لێ کردووە.",
+     "سێ نیشانە دیاری دەکەن ئایا پۆستێک ئەو سەرنجەی هەیە یان نا:"
+    ],
+    "bullets": [
+     "کۆمێنت: چەند کەس لە ژێر پۆستەکەدا نرخ یان وردەکاری دەپرسن، بۆ نموونە «نرخی چەندە؟».",
+     "نامە: چەند نامەی تایبەت (DM) دوای پۆستەکە دێن.",
+     "داواکاری: چەند داواکاری بۆ بەرهەمی ئەو پۆستە لە لیستی داواکارییەکاندا دەردەکەون."
+    ]
+   },
+   {
+    "h2": "دوکانەکە ئەم نیشانانە چۆن ڕیز بکات؟",
+    "paragraphs": [
+     "داواکاری لە هەموو نیشانەکان گرنگترە، چونکە لە پارەوە نزیکترە. کۆمێنت و نامە سەرنج نیشان دەدەن پێش ئەوەی ببێت بە داواکاری.",
+     "ئەگەر هێشتا هیچ پۆستێک داواکاری نەبووە، ئەو پۆستە هەڵبژێرە کە زۆرترین نامەی هەیە. ئەگەر هیچیان نامە و داواکاریان نییە، چاوەڕێ بکە: پۆست بکە، با وەڵامی خۆکار کار بکات، و دواتر دووبارە بپرسە.",
+     "بەشی Insights نامە و کۆمێنت و داواکارییەکانی چەند هەفتەی ڕابردوو لە یەک شوێندا نیشان دەدات، بۆ ئەوەی خاوەن دوکان پێشنیارەکە لەگەڵ ژمارەکان بپشکنێت.",
+     "پێش بووست کردن، بەرهەمەکە بە پۆستەکەوە ببەستەوە. وەڵامەکان ناو و وێنە و نرخ و قەبارەی بەرهەمەکە بەکار دەهێنن، بۆیە پۆستێک کە بەرهەمی پێوە نەبەستراوە، شتی کەمتر دەداتە دەست وەڵامەکان."
+    ]
+   },
+   {
+    "h2": "پۆستە بووستکراوەکە بۆ کێ نیشان بدرێت؟",
+    "paragraphs": [
+     "بۆ ئەو کەسانەی لە کڕیارەکانی خودی دوکانەکە دەچن. گیتواس شار و حەز و خولیاکان لە نامە و داواکارییەکانی خودی دوکانەکەوە فێر دەبێت، نەک لە لیستێکی گشتییەوە.",
+     "لەو نامە و داواکاریانەوە وێنەیەکی گشتی لە کڕیاران دروست دەکات: ئەو شارانەی داواکارییان لێوە دێت و ئەو حەز و خولیایانەی نیشانیان دەدەن. ڕێژەی تەمەن لە شوێنکەوتووانی ئینستاگرامی خۆتەوە دێت کاتێک ئینستاگرام زانیاری دەدات، ئەگەرنا ڕێژەیەکی باوی ئەو پلاتفۆرمەیە.",
+     "ئەم وێنەیە لەسەر ئاستی گرووپە. شێوازە هاوبەشەکانی نێوان کڕیاران نیشان دەدات، وەک ئەوەی کام شار دیارترن، و هەرگیز پرۆفایلی یەک کەس نییە.",
+     "پاشان پێشنیاری بینەر ئەو شار و تەمەن و حەز و خولیایانە دیاری دەکات کە لە کاتی دانانی ڕیکلامەکەدا هەڵیان بژێریت. دوکانێک کە نامە و داواکاری کەمی هەیە، شتێکی کەم دەداتە پێشنیارەکە بۆ ئەوەی لێی فێر بێت."
+    ]
+   },
+   {
+    "h2": "دوکانەکە لەسەر کام پلاتفۆرم بووست بکات؟",
+    "paragraphs": [
+     "لەسەر ئەو پلاتفۆرمەی کە کۆمێنت و نامەکانی پۆستەکە پێشتر لێیەوە دێن. پێشنیارەکە پلاتفۆرمێک دیاری دەکات، بۆیە خاوەن دوکان پێویست ناکات مەزەندە بکات.",
+     "وەڵامی خۆکار لە کاتی بووستکردنی پۆستەکەدا هەر چالاک بهێڵەوە. پۆستێکی بووستکراو بۆ خەڵکی زیاتر نیشان دەدرێت، بۆیە دەکرێت کۆمێنتی زیاتری بۆ بێت، و هەر کۆمێنتێکی نوێ دەتوانێت بە زۆری لە ماوەی نیو خولەکێکدا وەڵامێکی کورتی گشتی و وردەکارییەکان بە نامەی تایبەت وەربگرێت. یاساکانی میتا هەر جێبەجێ دەکرێن، لەوانە پەنجەرەی ٢٤ کاتژمێرەی نامەی تایبەت.",
+     "دڵنیابە پۆستەکە لەناو ئەو پۆستانەدایە کە پلانەکەت وەڵامی خۆکاریان بۆ دەدات: نوێترین ٣ پۆست لە پلانی بەخۆڕایی، نوێترین ٢٥ پۆست لە پلانی بازرگان، و هەموو پۆستەکان لە پلانی پرۆ و ماکس.",
+     "داواکارییەکان لە چاتدا هەنگاو بە هەنگاو دێن (ناو، ژمارەی مۆبایل، شار، ناونیشان، بەرهەم و قەبارە) و بەپێی شار و دۆخ دەچنە لیستی داواکارییەکانەوە. ئەو لیستە نیشان دەدات داواکارییەکان لە کام شارەوە دێن."
+    ]
+   },
+   {
+    "h2": "بودجەی ڕۆژانە چەند بێت؟",
+    "paragraphs": [
+     "ئەو بودجە ڕۆژانەیە بەکار بێنە کە گیتواس بە دینار پێشنیاری دەکات. ئەمە پێشنیارە، نەک بەڵێنی ئەنجام.",
+     "یەک ژمارە بۆ هەموو دوکانێک ناگونجێت، بۆیە ئەم ڕێبەرە هیچ ژمارەیەک نادات. بڕی دروست بەندە بە پۆستەکە و بینەرەکە و ئەوەی دوکانەکە هەر ڕۆژێک دەتوانێت خەرجی بکات.",
+     "خاوەن دوکان بڕەکە دیاری دەکات و خۆی بڕیار دەدات ڕیکلامەکە بەڕێوە ببات یان نا. شیکاریی بووست لە ڕۆژێکدا بەپێی پلان سنووردارە، تا ١ لە پلانی بەخۆڕایی، ٤ لە بازرگان، ٨ لە پرۆ و ٢٠ لە ماکس (٥٩٬٠٠٠ دینار مانگانە). ئەم شیکاریانە بە زیرەکی دەستکرد ئەنجام دەدرێن. هەموو کارەکانی زیرەکی دەستکردی یەک شوێنی کار بڕێکی مانگانەی هاوبەش بەکار دەهێنن؛ کاتێک ئەو بڕە تەواو دەبێت، ئەو کارانە تا مانگی داهاتوو دەوەستن، لە کاتێکدا وەڵامە جێگیرەکان و ڕێساکان هەر وەڵام دەدەنەوە. پلانی بەخۆڕایی ٠ دینارە و هیچ سنووری کاتی نییە."
+    ]
+   },
+   {
+    "h2": "کام هاشتاگ یارمەتیدەرن بۆ پۆستێکی بووستکراو؟",
+    "paragraphs": [
+     "هاشتاگی ناوی شار بەکار بێنە، بە هەردوو جۆری پیت. فرۆشیارانی کوردستان زۆرجار هەمان شار بە کوردی و بە پیتی لاتینی دەنووسن، بۆ نموونە #هەولێر و #hawler.",
+     "هاشتاگە زیرەکەکانی گیتواس ناوی شارەکان زیاد دەکەن. ئەو کەپشنانەی بە زیرەکی دەستکرد دەنووسرێن، هاشتاگی شار بە هەردوو جۆری پیتەوە هەڵدەگرن، وەک #سلێمانی لەگەڵ #slemani، #دهۆک لەگەڵ #duhok و #کەرکوک لەگەڵ #kirkuk. شارەکانی هاشتاگەکان وەک شارەکانی بینەرەکە بهێڵەوە."
+    ]
+   },
+   {
+    "h2": "دوکانەکە ئەنجامەکە چۆن بپشکنێت؟",
+    "paragraphs": [
+     "دوای چەند ڕۆژێک Insights و لیستی داواکارییەکان بخوێنەوە. سەیر بکە داواکارییەکان لەو شارانەوە هاتوون کە هەڵتبژاردبوون یان نا، و ئایا کۆمێنتەکان بوونە داواکاری. پێش بووستی دواتر شیکاریی بووست دووبارە ئەنجام بدە، لەناو سنووری ڕۆژانەی پلانەکەتدا."
+    ]
+   },
+   {
+    "h2": "سنووری پێشنیاری بووست چییە؟",
+    "paragraphs": [
+     "پێشنیاری بووست پێشنیارە نەک گەرەنتی، و چوار سنووری هەیە.",
+     "گیتواس یاریدەدەرێکی زیرەکی دەستکردە بۆ ئەو دوکان و کار و بارانەی لە کوردستان و عێراق لەسەر فەیسبووک و ئینستاگرام دەفرۆشن. وەڵامی کۆمێنت و نامەکان بە کوردی و عەرەبی دەداتەوە، داواکاری کۆ دەکاتەوە، و بە زیرەکی دەستکرد ڤیدیۆی ڕیکلام و وێنە دروست دەکات."
+    ],
+    "bullets": [
+     "تەنها داتای خودی دوکانەکە. گیتواس شار و حەز و خولیاکان لە نامە و داواکارییەکانی خودی دوکانەکە فێر دەبێت، بۆیە دوکانێک کە نامە و داواکاری کەمی هەیە، شتێکی کەم دەداتە پێشنیارەکە. ڕێژەی تەمەن لە داتای شوێنکەوتووانی ئینستاگرامەوە یان لە ڕێژەیەکی باوی پلاتفۆرمەکەوە دێت.",
+     "پارەی ڕیکلام لە گیتواسدا نادرێت. دانی پارەی ڕیکلام لە میتا لە عێراق کارتی نێودەوڵەتی دەوێت، و ڕیکلامەکە لە ئامرازەکانی خودی میتا دەکڕدرێت.",
+     "بەڵێنی فرۆشتن نییە. پێشنیارەکە پۆستێک و بینەرێک نیشان دەدات؛ ئەنجام و فرۆشتن پێشبینی ناکات.",
+     "بڕیار لای خاوەن دوکانە. گیتواس شوێنی بڕیاری خاوەن دوکان ناگرێتەوە لەبارەی ئەوەی چی بووست بکرێت و چەند خەرج بکرێت."
+    ]
+   }
+  ],
+  "faq": [
+   {
+    "q": "ئایا گیتواس ڕیکلامەکە دەکڕێت؟",
+    "a": "نەخێر. گیتواس پێشنیاری بووست دەدات. ڕیکلامەکە لە ئامرازەکانی خودی میتا دەکڕدرێت، و دانی پارەی ڕیکلامی میتا لە عێراق کارتی نێودەوڵەتی دەوێت."
+   },
+   {
+    "q": "ئایا گیتواس تەماشای کڕیارە تاکەکان دەکات؟",
+    "a": "بۆ وەڵامدانەوە هەر نامەیەک دەخوێنێتەوە، و بۆ دروستکردنی وێنەی بینەر کۆمەڵێک نامەی نوێ دەخوێنێتەوە کە ژمارەی تەلەفۆن و ناوی @ و لینک و ئیمەیڵیان لێ لابراوە. ئەوەی نیشانی دەدات تەنها لەسەر ئاستی گرووپە (شار، حەز و خولیا، پرسیارە باوەکان) و هەرگیز پرۆفایلی یەک کەس دروست ناکات یان نیشان نادات. نامەکان لەلایەن دابینکەرانی زیرەکی دەستکرد کە لە سیاسەتی تایبەتمەندیدا ناوبراون پرۆسێس دەکرێن."
+   },
+   {
+    "q": "ئایا دوکانێک لەسەر پلانی بەخۆڕایی دەتوانێت پێشنیاری بووست بەکار بێنێت؟",
+    "a": "بەڵێ. پلانی بەخۆڕایی ٠ دینارە و تا ١ شیکاریی بووست لە ڕۆژێکدا لەخۆ دەگرێت."
+   },
+   {
+    "q": "گیتواس چ بودجەیەکی ڕۆژانە پێشنیار دەکات؟",
+    "a": "بودجەیەکی ڕۆژانە بە دینار پێشنیار دەکات. هیچ ژمارەیەکی جێگیر بۆ هەموو دوکانێک ناگونجێت، و بڕەکە خاوەن دوکان دیاری دەکات."
+   }
+  ],
+  "related": [
+   "kurdish-ai-video-ads",
+   "sell-on-social-media-iraq-kurdistan"
+  ],
+  "steps": [
+   {
+    "name": "شیکاریی بووست ئەنجام بدە",
+    "text": "لە گیتواس شیکاریی بووست ئەنجام بدە بۆ ئەوەی بزانیت کام پۆست شایانی بووستە."
+   },
+   {
+    "name": "نیشانەکان بپشکنە",
+    "text": "کۆمێنت و نامە و داواکارییەکانی دەوروبەری ئەو پۆستە لە Insights و لیستی داواکارییەکاندا ببینە."
+   },
+   {
+    "name": "بینەر و بودجە بخوێنەوە",
+    "text": "پلاتفۆرم و شار و تەمەن و حەز و خولیاکان و بودجەی ڕۆژانە بە دینار تۆمار بکە."
+   },
+   {
+    "name": "ڕیکلامەکە لە ئامرازەکانی میتا بکڕە",
+    "text": "ڕیکلامەکە لە ئامرازەکانی خودی میتا دروست بکە و بە کارتی نێودەوڵەتی پارەکەی بدە، بە بەکارهێنانی ئەو بینەر و بودجەیە."
+   }
+  ]
+ },
+ "ar": {
+  "slug": "boost-which-post-and-audience",
+  "title": "أي منشور يجب أن يروّج له المتجر الصغير، ومن يجب أن يراه؟",
+  "metaTitle": "أي منشور تروّج له ولمن تعرضه؟ | Gituas",
+  "metaDescription": "كيف يختار المتجر الصغير المنشور الذي يروّج له، والمنصة والجمهور والميزانية اليومية بالدينار، اعتماداً على تعليقاته ورسائله وطلباته.",
+  "answer": "روّج لمنشور يجذب أصلاً تعليقات ورسائل وطلبات، واعرضه على أشخاص يشبهون زبائنك من حيث المدينة والاهتمامات، ضمن فئة عمرية مناسبة. يقترح Gituas أي منشور يستحق الترويج، والمنصة، والجمهور، وميزانية يومية بالدينار العراقي (IQD). ويتعرّف على المدن والاهتمامات من رسائل المتجر وطلباته، أما الفئة العمرية فتأتي من متابعيك على إنستغرام عندما يوفّرها إنستغرام، وإلا فمن نطاق شائع للمنصة. أما الإعلان فيُشترى من أدوات Meta نفسها.",
+  "keyPoints": [
+   "روّج لمنشور يجذب أصلاً تعليقات ورسائل وطلبات.",
+   "يتعرّف Gituas على المدن والاهتمامات من رسائل المتجر وطلباته، وعلى مستوى المجموعات فقط؛ وتأتي الفئة العمرية من بيانات متابعي إنستغرام أو من نطاق شائع للمنصة.",
+   "يقترح Gituas منصة وميزانية يومية بالدينار العراقي.",
+   "تحليلات الترويج في اليوم، بحد أقصى: المجانية ١، التاجر ٤، الاحترافية ٨، ماكس ٢٠.",
+   "يُشترى الإعلان من أدوات Meta نفسها، ويحتاج دفع إعلانات Meta في العراق إلى بطاقة دولية."
+  ],
+  "sections": [
+   {
+    "h2": "أي منشور يروّج له المتجر الصغير؟",
+    "paragraphs": [
+     "روّج لمنشور يتفاعل معه الزبائن أصلاً. الترويج (Boost) يضع المال خلف اهتمام موجود، فابدأ من المنشورات التي علّق عليها الناس أو راسلوا المتجر بشأنها أو طلبوا منها.",
+     "هناك ثلاث إشارات تدل على أن المنشور يحظى بهذا الاهتمام:"
+    ],
+    "bullets": [
+     "التعليقات: كم شخصاً يسأل عن السعر أو التفاصيل تحت المنشور، مثل «كم السعر؟» (أو «نرخی چەندە؟» بالكردية).",
+     "الرسائل: كم رسالة خاصة (DM) تصل بعد المنشور.",
+     "الطلبات: كم طلباً لمنتج المنشور يظهر في قائمة الطلبات."
+    ]
+   },
+   {
+    "h2": "كيف يرتّب المتجر هذه الإشارات؟",
+    "paragraphs": [
+     "الطلبات هي الأهم لأنها الأقرب إلى المال. أما التعليقات والرسائل فتُظهر الاهتمام قبل أن يتحول إلى طلب.",
+     "إن لم يكن لأي منشور طلبات بعد، فاختر المنشور الأكثر رسائل. وإن لم يكن لأي منها رسائل أو طلبات، فانتظر: انشر، ودع الردود التلقائية تعمل، ثم اسأل مرة أخرى لاحقاً.",
+     "تعرض صفحة Insights رسائل الأسابيع الأخيرة وتعليقاتها وطلباتها في مكان واحد، ليتحقق صاحب المتجر من الاقتراح بالأرقام.",
+     "اربط المنتج بالمنشور قبل الترويج. تستخدم الردود اسم المنتج وصوره وأسعاره ومقاساته، لذا فالمنشور بلا منتج مرتبط يمنح الردود مادة أقل."
+    ]
+   },
+   {
+    "h2": "لمن يجب أن يظهر المنشور المروَّج؟",
+    "paragraphs": [
+     "لأشخاص يشبهون زبائن المتجر الفعليين. يتعلم Gituas المدن والاهتمامات من رسائل المتجر وطلباته، لا من قائمة عامة.",
+     "من تلك الرسائل والطلبات يبني صورة عن الزبائن: المدن التي يطلبون منها والاهتمامات التي يُظهرونها. أما الفئة العمرية فتأتي من متابعيك على إنستغرام عندما يوفّر إنستغرام هذه البيانات، وإلا فمن نطاق شائع للمنصة.",
+     "الصورة على مستوى المجموعات. تُظهر الأنماط بين الزبائن، مثل المدن التي تبرز، ولا تكوّن ملفاً عن شخص واحد أبداً.",
+     "ثم يحدد اقتراح الجمهور المدن والأعمار والاهتمامات التي تختارها عند إعداد الإعلان. والمتجر الذي لديه رسائل وطلبات قليلة يعطي الاقتراح مادة قليلة ليتعلم منها."
+    ]
+   },
+   {
+    "h2": "على أي منصة يروّج المتجر؟",
+    "paragraphs": [
+     "على المنصة التي تأتي منها تعليقات المنشور ورسائله أصلاً. يسمّي الاقتراح منصة، فلا يحتاج صاحب المتجر إلى التخمين.",
+     "أبقِ الردود التلقائية تعمل ما دام المنشور مروَّجاً. المنشور المروَّج يُعرض على أشخاص أكثر، فقد يجذب تعليقات أكثر، ويمكن أن يحصل كل تعليق جديد على رد عام قصير وعلى التفاصيل في رسالة خاصة عادةً خلال نحو نصف دقيقة. وتبقى قواعد Meta سارية، ومنها نافذة الـ٢٤ ساعة للرسائل الخاصة.",
+     "تأكد من أن المنشور ضمن تغطية الردود في الخطة: أحدث ٣ منشورات في الخطة المجانية، وأحدث ٢٥ منشوراً في خطة التاجر، وكل المنشورات في الخطة الاحترافية وخطة ماكس.",
+     "تصل الطلبات في المحادثة خطوة بخطوة (الاسم والهاتف والمدينة والعنوان والمنتج والمقاس) وتُحفظ في قائمة الطلبات حسب المدينة والحالة. وتُظهر هذه القائمة من أي المدن تأتي الطلبات."
+    ]
+   },
+   {
+    "h2": "كم يجب أن تكون الميزانية اليومية؟",
+    "paragraphs": [
+     "استخدم الميزانية اليومية بالدينار التي يقترحها Gituas. هي اقتراح وليست وعداً بنتائج.",
+     "لا يناسب رقم واحد كل المتاجر، لذلك لا يذكر هذا الدليل رقماً. يعتمد المبلغ المناسب على المنشور والجمهور وما يستطيع المتجر إنفاقه كل يوم.",
+     "صاحب المتجر هو من يحدد المبلغ ويقرر ما إذا كان سيشغّل الإعلان أصلاً. وتحليلات الترويج محدودة يومياً بحسب الخطة، بحد أقصى ١ في المجانية، و٤ في التاجر، و٨ في الاحترافية، و٢٠ في ماكس (٥٩٬٠٠٠ دينار شهرياً). وهذه التحليلات تعمل بالذكاء الاصطناعي، وتتشارك ميزات الذكاء الاصطناعي في مساحة العمل رصيداً شهرياً واحداً؛ وعند نفاده تتوقف حتى الشهر القادم، بينما تواصل الردود الثابتة والقواعد الإجابة. الخطة المجانية تكلفتها ٠ دينار وليس لها مدة محددة."
+    ]
+   },
+   {
+    "h2": "ما الوسوم التي تفيد المنشور المروَّج؟",
+    "paragraphs": [
+     "استخدم وسوماً (هاشتاغات) بأسماء المدن، بالحروف العربية واللاتينية معاً. كثيراً ما يكتب البائعون في كردستان المدينة نفسها بالكردية وبالحروف اللاتينية، مثل #هەولێر و#hawler.",
+     "تضيف الوسوم الذكية في Gituas أسماء المدن. والنصوص المرافقة للمنشورات (الكابشن) المكتوبة بالذكاء الاصطناعي تحمل وسوم مدن بالحروف الكردية واللاتينية، مثل #سلێمانی مع #slemani و#دهۆک مع #duhok و#کەرکوک مع #kirkuk. اجعل مدن الوسوم هي نفسها مدن الجمهور."
+    ]
+   },
+   {
+    "h2": "كيف يتحقق المتجر من النتيجة؟",
+    "paragraphs": [
+     "اقرأ Insights وقائمة الطلبات بعد أيام قليلة. انظر إن كانت الطلبات قد جاءت من المدن التي اخترتها، وإن كانت التعليقات قد تحولت إلى طلبات. شغّل تحليل الترويج مرة أخرى قبل الترويج التالي، ضمن الحد اليومي للخطة."
+    ]
+   },
+   {
+    "h2": "ما حدود اقتراحات الترويج؟",
+    "paragraphs": [
+     "اقتراحات الترويج مجرد اقتراحات وليست ضماناً، ولها أربعة حدود.",
+     "Gituas مساعد يعمل بالذكاء الاصطناعي للمتاجر والأعمال التي تبيع على فيسبوك وإنستغرام في كردستان والعراق. يرد على التعليقات والرسائل بالكردية والعربية، ويجمع الطلبات، ويصنع إعلانات فيديو وصوراً بالذكاء الاصطناعي."
+    ],
+    "bullets": [
+     "بيانات المتجر وحدها. يتعرّف Gituas على المدن والاهتمامات من رسائل المتجر وطلباته، فالمتجر الذي لديه القليل منها يعطي الاقتراح مادة قليلة. وتأتي الفئة العمرية من بيانات متابعي إنستغرام أو من نطاق شائع للمنصة.",
+     "لا يدفع Gituas ثمن الإعلان. دفع إعلانات Meta في العراق يحتاج إلى بطاقة دولية، ويُشترى الإعلان من أدوات Meta نفسها.",
+     "لا وعد بالمبيعات. يشير الاقتراح إلى منشور وجمهور، ولا يتنبأ بالنتائج أو المبيعات.",
+     "القرار لصاحب المتجر. لا يحل Gituas محل تقدير صاحب المتجر فيما يروّج له وكم ينفق."
+    ]
+   }
+  ],
+  "faq": [
+   {
+    "q": "هل يشتري Gituas الإعلان؟",
+    "a": "لا. يقدّم Gituas اقتراحات الترويج. ويُشترى الإعلان من أدوات Meta نفسها، ودفع إعلانات Meta في العراق يحتاج إلى بطاقة دولية."
+   },
+   {
+    "q": "هل ينظر Gituas إلى كل زبون على حدة؟",
+    "a": "يقرأ كل رسالة ليردّ عليها، ولبناء صورة الجمهور يقرأ دفعة من الرسائل الحديثة بعد إزالة أرقام الهاتف والمعرّفات (@) والروابط والبريد الإلكتروني. والصورة التي يعرضها عن مجموعات (مدن واهتمامات وأسئلة شائعة)، ولا يبني ملفاً عن شخص واحد. تُعالَج الرسائل لدى مزوّدي الذكاء الاصطناعي المذكورين في سياسة الخصوصية."
+   },
+   {
+    "q": "هل يمكن لمتجر في الخطة المجانية استخدام اقتراحات الترويج؟",
+    "a": "نعم. الخطة المجانية تكلفتها ٠ دينار وتشمل حتى تحليل ترويج واحد في اليوم."
+   },
+   {
+    "q": "ما الميزانية اليومية التي يوصي بها Gituas؟",
+    "a": "يقترح ميزانية يومية بالدينار. لا يناسب رقم ثابت كل المتاجر، وصاحب المتجر هو من يحدد المبلغ."
+   }
+  ],
+  "related": [
+   "kurdish-ai-video-ads",
+   "sell-on-social-media-iraq-kurdistan"
+  ],
+  "steps": [
+   {
+    "name": "شغّل تحليل الترويج",
+    "text": "شغّل تحليل الترويج في Gituas لتعرف أي منشور يستحق الترويج."
+   },
+   {
+    "name": "افحص الإشارات",
+    "text": "انظر إلى التعليقات والرسائل والطلبات حول ذلك المنشور في Insights وقائمة الطلبات."
+   },
+   {
+    "name": "اقرأ الجمهور والميزانية",
+    "text": "دوّن المنصة والمدن والأعمار والاهتمامات والميزانية اليومية بالدينار."
+   },
+   {
+    "name": "اشترِ الإعلان من أدوات Meta",
+    "text": "أنشئ الإعلان في أدوات Meta نفسها ببطاقة دولية، مستخدماً ذلك الجمهور وتلك الميزانية."
+   }
+  ]
+ }
+}

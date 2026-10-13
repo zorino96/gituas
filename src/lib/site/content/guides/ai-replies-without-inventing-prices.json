@@ -1,0 +1,354 @@
+{
+ "slug": "ai-replies-without-inventing-prices",
+ "en": {
+  "slug": "ai-replies-without-inventing-prices",
+  "title": "Can AI answer customers without making up prices?",
+  "metaTitle": "Can AI Answer Customers Without Making Up Prices? | Gituas",
+  "metaDescription": "How Gituas checks every number in an AI reply against your data and instructions, hands hard cases to you, caps replies and needs Confirm.",
+  "answer": "Before a reply is sent, Gituas checks every number in it against the shop's own product data and the owner's instructions. A reply with any other number is dropped and handed to the owner. Complaints, abuse, haggling and unclear messages also go to the owner instead of being guessed at. This lowers the risk of invented prices, but the check cannot tell whether the data itself is right: a wrong price in the product data would be repeated, so the owner still has to keep it correct.",
+  "keyPoints": [
+   "Every number in a reply is checked against the shop's product data and the owner's instructions; a reply with any other number is dropped and handed to the owner.",
+   "The owner writes how the assistant talks, including how it speaks about price.",
+   "Complaints, abuse, haggling and unclear messages are handed to the owner instead of being answered.",
+   "Automatic replies are capped per day by plan: up to 100 on Free, 1,000 on Merchant and 5,000 on Pro and Max. AI-written replies are counted separately, per month.",
+   "The in-app assistant acts only after Confirm and cannot touch payments, plans, passwords or connected accounts."
+  ],
+  "sections": [
+   {
+    "h2": "Where do the prices in a reply come from?",
+    "paragraphs": [
+     "They come from two places only: the shop's own product data and the owner's instructions. Before a reply is sent, every number in it is checked against those two sources. A reply that contains any other number is dropped and handed to the owner.",
+     "A shop links a product to a post, with its name, photos, prices and sizes. When a customer comments «نرخی چەندە؟» (\"how much?\"), the reply uses that product record. A short public reply goes under the comment, and the price and details go to the customer privately in a direct message (DM).",
+     "This is a check on where numbers come from. It is not a check that the numbers are right. It catches a number that is in neither source, but it cannot catch a wrong number that is in the data. If a product record holds an old price, the reply will repeat the old price, so keeping that data current stays the owner's job."
+    ]
+   },
+   {
+    "h2": "Who decides how the assistant talks?",
+    "paragraphs": [
+     "The owner does. The owner writes how it should talk, including the tone and how to speak about price. Replies to DMs come in Sorani Kurdish or Arabic, in the owner's own words.",
+     "A number the owner wants quoted, for example a delivery fee, belongs in those instructions. A number written there is the owner's own figure, so it passes the check. A number written nowhere does not, and the reply that carries it is dropped.",
+     "Gituas follows the voice the owner writes down."
+    ]
+   },
+   {
+    "h2": "Which messages go to the owner instead of getting an answer?",
+    "paragraphs": [
+     "Four kinds: complaints, abuse, haggling, and messages Gituas cannot make out. These are handed to the owner on a \"needs you\" or \"unclear\" list instead of being answered by guesswork.",
+     "A complaint is about the relationship with a customer, and haggling is a decision about the owner's money. Both belong to the owner.",
+     "Voice notes are a related case. On paid plans, Gituas reads buyers' voice notes from Instagram and Messenger in Kurdish with speech recognition. Speech recognition can mishear, and unclear voice notes are flagged. The audio is sent to a speech-recognition service and only the text is kept (see the privacy policy). Gituas reads each message in order to answer it, and messages are processed by the AI providers named in the privacy policy.",
+     "A message on that list is waiting for the owner, so someone has to read it. Gituas does not replace the owner's judgement. It only separates the routine questions from the ones that need it."
+    ]
+   },
+   {
+    "h2": "What limits how many replies it sends?",
+    "paragraphs": [
+     "The plan sets two separate limits. Automatic replies are the answers Gituas sends by itself from the shop's product data, templates and rules, and they have a daily cap. AI-written replies are the ones the AI composes in the owner's own words, and they are counted separately each month. Both are ceilings, not promised amounts. The figures are listed below.",
+     "The AI features in one Gituas account (workspace) share one monthly AI allowance. When it is used up, the AI features pause until next month, while fixed replies and rules keep answering.",
+     "Meta's own rules apply in addition to the plan, including the 24-hour messaging window for DMs. Automatic replies need the shop's Facebook Page or Instagram account to be connected. Gituas does not currently reply automatically on WhatsApp, where the shop's number works as an order link."
+    ],
+    "bullets": [
+     "Automatic replies a day: Free up to 100, Merchant up to 1,000, Pro and Max up to 5,000.",
+     "AI-written replies a month, up to: Free 10, Merchant 400, Pro 800, Max (59,000 IQD a month) 1,500.",
+     "Posts covered: Free the newest 3 posts, Merchant the newest 25, Pro all posts."
+    ]
+   },
+   {
+    "h2": "What can the in-app assistant do, and what can it not touch?",
+    "paragraphs": [
+     "The in-app assistant acts only after the owner presses Confirm. The owner writes in Kurdish what to do, for example \"make a picture\", \"post this tomorrow at 7\" or \"switch on automatic replies\".",
+     "It cannot touch payments, plans, passwords or connected accounts. Money and access to the shop's accounts stay outside what a chat message can change.",
+     "This is separate from customer replies. Once automatic replies are on, they go out without the owner approving each one. Confirm applies to what the owner asks the assistant to do, not to each message sent to a customer."
+    ]
+   },
+   {
+    "h2": "What should you check before switching automatic replies on?",
+    "paragraphs": [
+     "Check the data and the instructions first, because a reply can only be as accurate as they are. After switching on, read the first replies yourself before leaving it alone.",
+     "The number check cannot catch a wrong price that is in your own data. It will be repeated, and customers will see it."
+    ],
+    "bullets": [
+     "Each product has the right name, prices and sizes in its record.",
+     "Each product is linked to the right post.",
+     "The instructions say how to talk about price and include every number you want quoted, such as a delivery fee.",
+     "The connected Facebook Page or Instagram account is the one you mean.",
+     "You know where the \"needs you\" and \"unclear\" lists are, who will read them, and how often.",
+     "You know your plan's caps and how many posts it covers."
+    ]
+   },
+   {
+    "h2": "How do the parts fit together?",
+    "paragraphs": [
+     "The design rests on five choices. Every number is checked against the shop's data and the owner's instructions. The owner sets the voice. Hard cases go to the owner. Caps limit volume. The assistant acts only after Confirm and cannot touch payments or accounts.",
+     "None of them removes the need for the owner to look."
+    ]
+   },
+   {
+    "h2": "What is Gituas?",
+    "paragraphs": [
+     "Gituas (Kurdish: گیتواس) is an AI assistant for shops and businesses that sell on Facebook and Instagram in Kurdistan and Iraq. It answers comments and messages in Kurdish and Arabic, collects orders, and makes video ads and pictures with AI.",
+     "The Free plan costs 0 IQD and has no time limit. More at https://gituas.com."
+    ]
+   }
+  ],
+  "faq": [
+   {
+    "q": "Can Gituas quote a price that is not in my product data?",
+    "a": "Only if the number is in the owner's written instructions. Before a reply is sent, every number in it is checked against the product data and the owner's instructions, and a reply with any other number is dropped and handed to the owner. If the data holds a wrong price, the reply repeats it."
+   },
+   {
+    "q": "What happens when a customer haggles or complains?",
+    "a": "The conversation is handed to the owner on a \"needs you\" or \"unclear\" list instead of being answered automatically. Abuse and messages Gituas cannot make out are handled the same way."
+   },
+   {
+    "q": "Can the assistant change my plan, payments or passwords?",
+    "a": "No. The in-app assistant acts only after the owner presses Confirm, and it cannot touch payments, plans, passwords or connected accounts."
+   },
+   {
+    "q": "Does Gituas answer automatically on WhatsApp?",
+    "a": "No, not currently. On WhatsApp the shop's number is an order link. Automatic replies work on Facebook and Instagram."
+   },
+   {
+    "q": "Does it replace the owner?",
+    "a": "No. Complaints, haggling, abuse and unclear messages still need the owner's judgement, and the owner has to keep the product data correct."
+   }
+  ],
+  "related": [
+   "automatic-replies-facebook-instagram-comments",
+   "kurdish-voice-notes-and-orders"
+  ]
+ },
+ "ku": {
+  "slug": "ai-replies-without-inventing-prices",
+  "title": "ئایا AI دەتوانێت وەڵامی کڕیاران بداتەوە بێ ئەوەی نرخ هەڵبەستێت؟",
+  "metaTitle": "ئایا AI بێ هەڵبەستنی نرخ وەڵامی کڕیاران دەداتەوە؟ | گیتواس",
+  "metaDescription": "گیتواس هەموو ژمارەیەکی وەڵامی AI لەگەڵ زانیاری و ڕێنماییەکانی تۆ دەپشکنێت، حاڵەتە قورسەکان دەداتە تۆ، سنووری ڕۆژانە داناوە و پەسەندکردن دەخوازێت.",
+  "answer": "پێش ناردنی هەر وەڵامێک، گیتواس هەموو ژمارەیەکی ناو وەڵامەکە لەگەڵ زانیاری بەرهەمەکانی خودی دوکانەکە و ڕێنماییەکانی خاوەنەکەدا دەپشکنێت؛ ئەگەر وەڵامێک ژمارەیەکی دیکەی تێدابێت، دەسڕدرێتەوە و دەدرێتە دەست خاوەنەکە. گلەیی، جنێو، نرخ شکاندن و نامە ڕوون نەبووەکانیش دەدرێنە دەست خاوەنەکە، نەک بە حەدس وەڵام بدرێنەوە. ئەمە مەترسی نرخی هەڵبەستراو کەم دەکاتەوە، بەڵام پشکنینەکە نازانێت زانیارییەکە خۆی ڕاستە یان نا: نرخێکی هەڵە لە زانیاری بەرهەمەکاندا دووبارە دەکرێتەوە، بۆیە خاوەنەکە هێشتا دەبێت زانیارییەکان ڕاست بهێڵێتەوە.",
+  "keyPoints": [
+   "هەموو ژمارەیەکی ناو وەڵامێک لەگەڵ زانیاری بەرهەمەکانی دوکانەکە و ڕێنماییەکانی خاوەنەکەدا دەپشکنرێت؛ ئەو وەڵامەی ژمارەیەکی دیکەی تێدابێت دەسڕدرێتەوە و دەدرێتە دەست خاوەنەکە.",
+   "خاوەنەکە خۆی دەنووسێت یاریدەدەرەکە چۆن قسە بکات، لەوانەش چۆن باسی نرخ بکات.",
+   "گلەیی، جنێو، نرخ شکاندن و نامە ڕوون نەبووەکان دەدرێنە دەست خاوەنەکە، نەک وەڵام بدرێنەوە.",
+   "وەڵامی خۆکار بەپێی پلان لە ڕۆژێکدا سنووردارە: تا ١٠٠ لە پلانی بەخۆڕایی، تا ١٬٠٠٠ لە پلانی بازرگان و تا ٥٬٠٠٠ لە پلانی پرۆ و ماکس. وەڵامی بە AI نووسراو بە جیا و مانگانە هەژمار دەکرێت.",
+   "یاریدەدەری ناو ئەپەکە تەنها دوای «پەسەندکردن» کار دەکات و ناتوانێت دەستکاری پارەدان، پلان، وشەی نهێنی یان ئەکاونتە بەستراوەکان بکات."
+  ],
+  "sections": [
+   {
+    "h2": "نرخەکانی ناو وەڵامەکە لە کوێوە دێن؟",
+    "paragraphs": [
+     "تەنها لە دوو شوێنەوە دێن: زانیاری بەرهەمەکانی خودی دوکانەکە و ڕێنماییەکانی خاوەنەکە. پێش ناردنی هەر وەڵامێک، هەموو ژمارەیەکی ناو وەڵامەکە لەگەڵ ئەو دوو سەرچاوەیەدا دەپشکنرێت؛ ئەگەر ژمارەیەکی دیکەی تێدابێت، وەڵامەکە دەسڕدرێتەوە و دەدرێتە دەست خاوەنەکە.",
+     "دوکانێک بەرهەمێک دەبەستێتەوە بە پۆستێکەوە، لەگەڵ ناو، وێنە، نرخ و قیاسەکانی. کاتێک کڕیارێک لە کۆمێنتدا دەنووسێت «نرخی چەندە؟»، وەڵامەکە تۆماری ئەو بەرهەمە بەکاردەهێنێت. وەڵامێکی کورت و گشتی لە ژێر کۆمێنتەکەدا دادەنرێت، و نرخ و وردەکارییەکان بە نامەی تایبەت (DM) بۆ کڕیارەکە دەنێردرێن.",
+     "ئەمە پشکنینێکە دەربارەی ئەوەی ژمارەکان لە کوێوە دێن، نەک پشکنینی ڕاستی ژمارەکان. ژمارەیەک دەگرێت کە لە هیچ یەکێک لەو دوو سەرچاوەیە نییە، بەڵام ناتوانێت ژمارەیەکی هەڵە بگرێت کە لە زانیارییەکاندا هەیە. ئەگەر تۆماری بەرهەمێک نرخێکی کۆنی تێدا بێت، وەڵامەکە هەمان نرخی کۆن دووبارە دەکاتەوە، بۆیە نوێکردنەوەی ئەو زانیارییە هەر کاری خاوەنەکەیە."
+    ]
+   },
+   {
+    "h2": "کێ دیاری دەکات یاریدەدەرەکە چۆن قسە بکات؟",
+    "paragraphs": [
+     "خاوەنەکە. خاوەنەکە دەنووسێت چۆن قسە بکات، لەوانەش شێواز و چۆنیەتی باسکردنی نرخ. وەڵامی نامە تایبەتەکان بە کوردی سۆرانی یان عەرەبی دەبن، بە وشەکانی خودی خاوەنەکە.",
+     "ئەو ژمارەیەی خاوەنەکە دەیەوێت بگوترێت، بۆ نموونە کرێی گەیاندن، دەبێت لە ڕێنماییەکاندا بنووسرێت. ئەو ژمارەیەی لەوێ نووسراوە ژمارەی خودی خاوەنەکەیە، بۆیە لە پشکنینەکە دەردەچێت. ئەو ژمارەیەی لە هیچ شوێنێک نەنووسراوە دەرناچێت، و ئەو وەڵامەی هەڵیدەگرێت دەسڕدرێتەوە.",
+     "گیتواس شوێن ئەو دەنگ و شێوازە دەکەوێت کە خاوەنەکە دەینووسێت."
+    ]
+   },
+   {
+    "h2": "کام جۆرە نامە دەدرێتە دەست خاوەنەکە و وەڵام نادرێتەوە؟",
+    "paragraphs": [
+     "چوار جۆر: گلەیی، جنێو، نرخ شکاندن، و ئەو نامانەی گیتواس لێیان تێناگات. ئەمانە بۆ خاوەنەکە دەخرێنە لیستی «چاوەڕێی تۆن» یان «ڕوون نییە»، نەک بە حەدس وەڵام بدرێنەوە.",
+     "گلەیی دەربارەی پەیوەندی لەگەڵ کڕیارە، و نرخ شکاندن بڕیارێکە دەربارەی پارەی خاوەنەکە. هەردووکیان دەکەونە ئەستۆی خاوەنەکە.",
+     "نامەی دەنگیش حاڵەتێکی نزیکە. لە پلانە بە پارەکاندا گیتواس بە ناسینەوەی دەنگ لە نامە دەنگییە کوردییەکانی کڕیاران لە ئینستاگرام و مەسێنجەر تێدەگات. ناسینەوەی دەنگ دەکرێت هەڵە بیبیستێت، و نامە دەنگییە ڕوون نەبووەکان نیشانە دەکرێن. دەنگەکە بۆ خزمەتگوزارییەکی ناسینەوەی دەنگ دەنێردرێت و تەنها دەقەکەی هەڵدەگیرێت (سیاسەتی تایبەتمەندی ببینە). گیتواس هەر نامەیەک دەخوێنێتەوە بۆ ئەوەی وەڵامی بداتەوە، و نامەکان لەلایەن دابینکەرانی AI کە ناویان لە سیاسەتی تایبەتمەندیدا هاتووە پرۆسێس دەکرێن.",
+     "نامەیەک لەو لیستەدا چاوەڕێی خاوەنەکەیە، بۆیە دەبێت کەسێک بیخوێنێتەوە. گیتواس شوێنی بڕیاردانی خاوەنەکە ناگرێتەوە. تەنها پرسیارە ئاساییەکان جیا دەکاتەوە لەوانەی پێویستیان بە خاوەنەکەیە."
+    ]
+   },
+   {
+    "h2": "چی ژمارەی وەڵامەکان سنووردار دەکات؟",
+    "paragraphs": [
+     "پلانەکە دوو سنووری جیاواز دادەنێت. وەڵامی خۆکار ئەو وەڵامانەن کە گیتواس خۆی لە زانیاری بەرهەمەکان، قاڵب و یاساکانی دوکانەکەوە دەینێرێت، و سنوورێکی ڕۆژانەیان هەیە. وەڵامی بە AI نووسراو ئەوانەن کە AI بە وشەکانی خودی خاوەنەکە دایاندەڕێژێت، و بە جیا هەموو مانگێک هەژمار دەکرێن. هەردووکیان بەرزترین سنوورن، نەک بڕی بەڵێندراو. ژمارەکان لە خوارەوەن.",
+     "تایبەتمەندییەکانی AI لە یەک ئەکاونتی گیتواس (workspace) هاوبەشی یەک بڕی مانگانەی AI دەکەن. کاتێک ئەو بڕە تەواو دەبێت، تایبەتمەندییەکانی AI تا مانگی داهاتوو ڕادەوەستن، و وەڵامە جێگیرەکان و یاساکان هەر وەڵام دەدەنەوە.",
+     "سەرەڕای پلانەکە، یاساکانی خودی میتا جێبەجێ دەکرێن، لەوانە پەنجەرەی ٢٤ کاتژمێری نامەناردن بۆ نامە تایبەتەکان. وەڵامی خۆکار پێویستی بە بەستنەوەی پەیجی فەیسبووک یان ئەکاونتی ئینستاگرامی دوکانەکەیە. گیتواس ئێستا وەڵامی خۆکار لە واتساپ نادات، کە لەوێ ژمارەی دوکانەکە وەک لینکی داواکاری کار دەکات."
+    ],
+    "bullets": [
+     "وەڵامی خۆکار لە ڕۆژێکدا: بەخۆڕایی تا ١٠٠، بازرگان تا ١٬٠٠٠، پرۆ و ماکس تا ٥٬٠٠٠.",
+     "وەڵامی بە AI نووسراو لە مانگێکدا، تا: بەخۆڕایی ١٠، بازرگان ٤٠٠، پرۆ ٨٠٠، ماکس (٥٩٬٠٠٠ دینار مانگانە) ١٬٥٠٠.",
+     "ئەو پۆستانەی وەڵامی خۆکار دەیانگرێتەوە: بەخۆڕایی نوێترین ٣ پۆست، بازرگان نوێترین ٢٥، پرۆ هەموو پۆستەکان."
+    ]
+   },
+   {
+    "h2": "یاریدەدەری ناو ئەپەکە چی دەتوانێت بکات، و ناتوانێت دەستکاری چی بکات؟",
+    "paragraphs": [
+     "یاریدەدەری ناو ئەپەکە تەنها دوای ئەوەی خاوەنەکە «پەسەندکردن» دەکات کار دەکات. خاوەنەکە بە کوردی دەنووسێت چی بکات، بۆ نموونە «وێنەیەک دروست بکە»، «ئەمە سبەی کاتژمێر ٧ بڵاو بکەرەوە» یان «وەڵامی خۆکار چالاک بکە».",
+     "ناتوانێت دەستکاری پارەدان، پلان، وشەی نهێنی یان ئەکاونتە بەستراوەکان بکات. پارە و دەستڕاگەیشتن بە ئەکاونتەکانی دوکانەکە لە دەرەوەی ئەو شتانەن کە نامەیەکی ناو چات دەتوانێت بیانگۆڕێت.",
+     "ئەمە لە وەڵامی کڕیاران جیایە. کاتێک وەڵامی خۆکار چالاک کرابێت، وەڵامەکان بێ ئەوەی خاوەنەکە هەر یەکێکیان پەسەند بکات دەنێردرێن. «پەسەندکردن» بۆ ئەو شتانەیە کە خاوەنەکە داوا لە یاریدەدەرەکە دەکات، نەک بۆ هەر نامەیەک کە بۆ کڕیار دەنێردرێت."
+    ]
+   },
+   {
+    "h2": "پێش چالاککردنی وەڵامی خۆکار دەبێت چی بپشکنیت؟",
+    "paragraphs": [
+     "سەرەتا زانیاری و ڕێنماییەکان بپشکنە، چونکە وەڵام ناتوانێت لەوان ڕاستتر بێت. دوای چالاککردن، یەکەم وەڵامەکان خۆت بخوێنەوە پێش ئەوەی بەجێی بهێڵیت.",
+     "پشکنینی ژمارەکان ناتوانێت نرخێکی هەڵە بگرێت کە لە زانیارییەکانی خۆتدایە. دووبارە دەکرێتەوە، و کڕیاران دەیبینن."
+    ],
+    "bullets": [
+     "هەر بەرهەمێک ناو، نرخ و قیاسی ڕاستی لە تۆمارەکەیدا هەیە.",
+     "هەر بەرهەمێک بە پۆستی ڕاستەوە بەستراوەتەوە.",
+     "ڕێنماییەکان دەڵێن چۆن باسی نرخ بکات و هەموو ئەو ژمارانەیان تێدایە کە دەتەوێت بگوترێن، وەک کرێی گەیاندن.",
+     "پەیجی فەیسبووک یان ئەکاونتی ئینستاگرامی بەستراو ئەوەیە کە مەبەستتە.",
+     "دەزانیت لیستەکانی «چاوەڕێی تۆن» و «ڕوون نییە» لە کوێن، و کێ و هەر چەند جارێک دەیانخوێنێتەوە.",
+     "دەزانیت سنوورەکانی پلانەکەت چین و چەند پۆست دەگرێتەوە."
+    ]
+   },
+   {
+    "h2": "بەشەکان چۆن پێکەوە دەگونجێن؟",
+    "paragraphs": [
+     "ئەم سیستەمە لەسەر پێنج هەڵبژاردن بنیاد نراوە. هەموو ژمارەیەک لەگەڵ زانیاری دوکانەکە و ڕێنماییەکانی خاوەنەکەدا دەپشکنرێت. خاوەنەکە شێوازی قسەکردن دیاری دەکات. حاڵەتە قورسەکان دەچنە لای خاوەنەکە. سنوورەکان بڕی وەڵامەکان سنووردار دەکەن. یاریدەدەرەکە تەنها دوای پەسەندکردن کار دەکات و دەستکاری پارەدان و ئەکاونتەکان ناکات.",
+     "هیچ یەکێکیان ئەوە ناگۆڕێت کە خاوەنەکە هێشتا دەبێت چاودێری بکات."
+    ]
+   },
+   {
+    "h2": "گیتواس چییە؟",
+    "paragraphs": [
+     "گیتواس (Gituas) بریتییە لە یاریدەدەرێکی AI بۆ ئەو دوکان و کاروبارانەی کە لە کوردستان و عێراق لە فەیسبووک و ئینستاگرام دەفرۆشن. وەڵامی کۆمێنت و نامەکان بە کوردی و عەرەبی دەداتەوە، داواکاری کۆدەکاتەوە، و ڤیدیۆی ڕیکلام و وێنە بە AI دروست دەکات.",
+     "پلانی بەخۆڕایی ٠ دینارە و سنووری کاتی نییە. زانیاری زیاتر لە https://gituas.com."
+    ]
+   }
+  ],
+  "faq": [
+   {
+    "q": "ئایا گیتواس دەتوانێت نرخێک بڵێت کە لە زانیاری بەرهەمەکانمدا نییە؟",
+    "a": "تەنها ئەگەر ژمارەکە لە ڕێنمایی نووسراوی خاوەنەکەدا بێت. پێش ناردنی هەر وەڵامێک، هەموو ژمارەیەکی ناو وەڵامەکە لەگەڵ زانیاری بەرهەمەکان و ڕێنماییەکانی خاوەنەکەدا دەپشکنرێت، و ئەو وەڵامەی ژمارەیەکی دیکەی تێدابێت دەسڕدرێتەوە و دەدرێتە دەست خاوەنەکە. ئەگەر نرخێکی هەڵە لە زانیارییەکاندا هەبێت، وەڵامەکە دووبارەی دەکاتەوە."
+   },
+   {
+    "q": "کاتێک کڕیارێک نرخ دەشکێنێت یان گلەیی دەکات چی ڕوودەدات؟",
+    "a": "گفتوگۆکە دەخرێتە لیستی «چاوەڕێی تۆن» یان «ڕوون نییە» بۆ خاوەنەکە، نەک خۆکارانە وەڵام بدرێتەوە. جنێو و ئەو نامانەی گیتواس لێیان تێناگات بە هەمان شێوە مامەڵەیان لەگەڵ دەکرێت."
+   },
+   {
+    "q": "ئایا یاریدەدەرەکە دەتوانێت پلان، پارەدان یان وشەی نهێنیم بگۆڕێت؟",
+    "a": "نەخێر. یاریدەدەری ناو ئەپەکە تەنها دوای ئەوەی خاوەنەکە «پەسەندکردن» دەکات کار دەکات، و ناتوانێت دەستکاری پارەدان، پلان، وشەی نهێنی یان ئەکاونتە بەستراوەکان بکات."
+   },
+   {
+    "q": "ئایا گیتواس لە واتساپ خۆکارانە وەڵام دەداتەوە؟",
+    "a": "نەخێر، ئێستا نا. لە واتساپ ژمارەی دوکانەکە لینکی داواکارییە. وەڵامی خۆکار لە فەیسبووک و ئینستاگرام کار دەکات."
+   },
+   {
+    "q": "ئایا شوێنی خاوەنەکە دەگرێتەوە؟",
+    "a": "نەخێر. گلەیی، نرخ شکاندن، جنێو و نامە ڕوون نەبووەکان هێشتا پێویستیان بە بڕیاری خاوەنەکە هەیە، و خاوەنەکە دەبێت زانیاری بەرهەمەکان ڕاست بهێڵێتەوە."
+   }
+  ],
+  "related": [
+   "automatic-replies-facebook-instagram-comments",
+   "kurdish-voice-notes-and-orders"
+  ]
+ },
+ "ar": {
+  "slug": "ai-replies-without-inventing-prices",
+  "title": "هل يستطيع الذكاء الاصطناعي الرد على الزبائن دون اختلاق الأسعار؟",
+  "metaTitle": "هل يجيب الذكاء الاصطناعي الزبائن دون اختلاق أسعار؟ | Gituas",
+  "metaDescription": "كيف يفحص Gituas كل رقم في رد الذكاء الاصطناعي مقابل بياناتك وتعليماتك، ويحوّل الحالات الصعبة إليك، ويضع حدوداً للردود ويطلب «تأكيد».",
+  "answer": "قبل إرسال أي رد، يفحص Gituas كل رقم فيه مقابل بيانات منتجات المتجر نفسه وتعليمات صاحبه؛ وإذا ورد رقم آخر يُسقَط الرد ويُحوَّل إلى صاحب المتجر. وتُحوَّل أيضاً إلى صاحب المتجر الشكاوى والإساءة والمساومة على السعر والرسائل غير الواضحة بدلاً من التخمين. هذا يقلّل خطر الأسعار المختلقة، لكن الفحص لا يعرف إن كانت البيانات نفسها صحيحة: السعر الخاطئ في بيانات المنتجات سيكرره الرد، لذلك على صاحب المتجر أن يُبقي البيانات صحيحة.",
+  "keyPoints": [
+   "يُفحص كل رقم في الرد مقابل بيانات منتجات المتجر وتعليمات صاحبه؛ والرد الذي يحتوي على أي رقم آخر يُسقَط ويُحوَّل إلى صاحب المتجر.",
+   "صاحب المتجر هو من يكتب كيف يتحدث المساعد، بما في ذلك طريقة الحديث عن السعر.",
+   "الشكاوى والإساءة والمساومة والرسائل غير الواضحة تُسلَّم إلى صاحب المتجر ولا يُردّ عليها.",
+   "الردود التلقائية محدودة يومياً حسب الخطة: حتى ١٠٠ في الخطة المجانية و١٬٠٠٠ في خطة التاجر و٥٬٠٠٠ في الخطتين الاحترافية وماكس. أما الردود المكتوبة بالذكاء الاصطناعي فتُحسب منفصلة كل شهر.",
+   "المساعد داخل التطبيق لا ينفّذ إلا بعد «تأكيد»، ولا يستطيع المساس بالمدفوعات أو الخطط أو كلمات المرور أو الحسابات المربوطة."
+  ],
+  "sections": [
+   {
+    "h2": "من أين تأتي الأسعار في الرد؟",
+    "paragraphs": [
+     "تأتي من مصدرين فقط: بيانات منتجات المتجر نفسه وتعليمات صاحب المتجر. قبل إرسال أي رد يُفحص كل رقم فيه مقابل هذين المصدرين؛ وإذا ورد رقم آخر يُسقَط الرد ويُحوَّل إلى صاحب المتجر.",
+     "يربط المتجر المنتج بمنشور، مع اسمه وصوره وأسعاره وقياساته. وعندما يكتب زبون في التعليقات «بكم؟»، يستخدم الرد سجلّ ذلك المنتج. يظهر رد عام قصير تحت التعليق، ويصل السعر والتفاصيل إلى الزبون في رسالة خاصة (DM).",
+     "هذا فحص لمصدر الأرقام، وليس فحصاً لصحتها. فهو يلتقط رقماً ليس في أيٍّ من المصدرين، لكنه لا يستطيع التقاط رقم خاطئ موجود في البيانات. إذا كان سجل المنتج يحتوي على سعر قديم، سيكرر الرد السعر القديم، لذلك يبقى تحديث تلك البيانات من مسؤولية صاحب المتجر."
+    ]
+   },
+   {
+    "h2": "من يقرّر كيف يتحدث المساعد؟",
+    "paragraphs": [
+     "صاحب المتجر. هو الذي يكتب كيف يجب أن يتحدث، بما في ذلك الأسلوب وطريقة الحديث عن السعر. وتأتي الردود على الرسائل الخاصة بالكردية السورانية أو العربية، وبكلمات صاحب المتجر نفسه.",
+     "الرقم الذي يريد صاحب المتجر ذكره، مثل أجرة التوصيل، مكانه في هذه التعليمات. والرقم المكتوب هناك هو رقم صاحب المتجر نفسه، لذلك يجتاز الفحص. أما الرقم غير المكتوب في أي مكان فلا يجتازه، ويُسقَط الرد الذي يحمله.",
+     "يتبع Gituas الأسلوب الذي يكتبه صاحب المتجر."
+    ]
+   },
+   {
+    "h2": "ما الرسائل التي تذهب إلى صاحب المتجر بدل أن يُردّ عليها؟",
+    "paragraphs": [
+     "أربعة أنواع: الشكاوى، والإساءة، والمساومة على السعر، والرسائل التي لا يستطيع Gituas فهمها. تُسلَّم هذه إلى صاحب المتجر في قائمة «بانتظارك» أو «غير واضحة» بدل أن يُردّ عليها بالتخمين.",
+     "الشكوى تتعلق بالعلاقة مع الزبون، والمساومة قرار يخص مال صاحب المتجر. وكلاهما من شأن صاحب المتجر.",
+     "الرسائل الصوتية حالة قريبة. في الخطط المدفوعة يفهم Gituas الرسائل الصوتية للمشترين على إنستغرام وماسنجر بالكردية باستخدام التعرّف على الكلام. وقد يخطئ التعرّف على الكلام في السماع، وتُعلَّم الرسائل غير الواضحة. يُرسَل الصوت إلى خدمة للتعرّف على الكلام ولا يُحتفظ إلا بالنص (راجع سياسة الخصوصية). ويقرأ Gituas كل رسالة ليردّ عليها، وتُعالَج الرسائل لدى مزوّدي الذكاء الاصطناعي المذكورين في سياسة الخصوصية.",
+     "الرسالة في تلك القائمة تنتظر صاحب المتجر، فلا بد أن يقرأها شخص. لا يحلّ Gituas محلّ حكم صاحب المتجر، بل يفصل الأسئلة الروتينية عن تلك التي تحتاجه."
+    ]
+   },
+   {
+    "h2": "ما الذي يحدّ من عدد الردود التي يرسلها؟",
+    "paragraphs": [
+     "تضع الخطة حدّين منفصلين. الردود التلقائية هي الإجابات التي يرسلها Gituas بنفسه من بيانات منتجات المتجر وقوالبه وقواعده، ولها حدّ يومي. أما الردود المكتوبة بالذكاء الاصطناعي فهي التي يصوغها الذكاء الاصطناعي بكلمات صاحب المتجر نفسه، وتُحسب منفصلة كل شهر. وكلا الحدّين سقف وليس كمية مضمونة. الأرقام مذكورة أدناه.",
+     "تشترك ميزات الذكاء الاصطناعي في حساب Gituas الواحد (مساحة العمل) في حصة شهرية واحدة للذكاء الاصطناعي. وعند استنفادها تتوقف ميزات الذكاء الاصطناعي مؤقتاً حتى الشهر التالي، بينما تستمر الردود الثابتة والقواعد في الإجابة.",
+     "وتسري قواعد Meta إضافة إلى الخطة، ومنها نافذة المراسلة البالغة ٢٤ ساعة للرسائل الخاصة. وتحتاج الردود التلقائية إلى ربط صفحة فيسبوك أو حساب إنستغرام الخاص بالمتجر. ولا يرد Gituas حالياً تلقائياً على واتساب، حيث يعمل رقم المتجر كرابط طلب."
+    ],
+    "bullets": [
+     "الردود التلقائية في اليوم: المجانية حتى ١٠٠، التاجر حتى ١٬٠٠٠، الاحترافية وماكس حتى ٥٬٠٠٠.",
+     "الردود المكتوبة بالذكاء الاصطناعي في الشهر، حتى: المجانية ١٠، التاجر ٤٠٠، الاحترافية ٨٠٠، ماكس (٥٩٬٠٠٠ دينار شهرياً) ١٬٥٠٠.",
+     "المنشورات المشمولة: المجانية أحدث ٣ منشورات، التاجر أحدث ٢٥، الاحترافية كل المنشورات."
+    ]
+   },
+   {
+    "h2": "ماذا يستطيع المساعد داخل التطبيق أن يفعل، وما الذي لا يستطيع المساس به؟",
+    "paragraphs": [
+     "لا ينفّذ المساعد داخل التطبيق شيئاً إلا بعد أن يضغط صاحب المتجر «تأكيد». يكتب صاحب المتجر بالكردية ما يريد تنفيذه، مثل «اصنع صورة» أو «انشر هذا غداً الساعة ٧» أو «شغّل الردود التلقائية».",
+     "لا يستطيع المساس بالمدفوعات أو الخطط أو كلمات المرور أو الحسابات المربوطة. فالمال والوصول إلى حسابات المتجر يبقيان خارج ما يمكن أن تغيّره رسالة في المحادثة.",
+     "هذا منفصل عن الردود على الزبائن. فعند تشغيل الردود التلقائية تخرج الردود دون أن يوافق صاحب المتجر على كل واحد منها. و«تأكيد» ينطبق على ما يطلبه صاحب المتجر من المساعد، لا على كل رسالة تُرسل إلى زبون."
+    ]
+   },
+   {
+    "h2": "ما الذي يجب التحقق منه قبل تشغيل الردود التلقائية؟",
+    "paragraphs": [
+     "تحقّق من البيانات والتعليمات أولاً، لأن الرد لا يمكن أن يكون أدق منها. وبعد التشغيل، اقرأ الردود الأولى بنفسك قبل أن تتركه يعمل وحده.",
+     "فحص الأرقام لا يستطيع التقاط سعر خاطئ موجود في بياناتك نفسها. سيتكرر في الردود، وسيراه الزبائن."
+    ],
+    "bullets": [
+     "لكل منتج الاسم والأسعار والقياسات الصحيحة في سجله.",
+     "كل منتج مربوط بالمنشور الصحيح.",
+     "التعليمات تقول كيف يتحدث عن السعر وتتضمن كل رقم تريد ذكره، مثل أجرة التوصيل.",
+     "صفحة فيسبوك أو حساب إنستغرام المربوط هو الذي تقصده.",
+     "تعرف أين توجد قائمتا «بانتظارك» و«غير واضحة»، ومن سيقرأهما وكم مرة.",
+     "تعرف حدود خطتك وعدد المنشورات التي تشملها."
+    ]
+   },
+   {
+    "h2": "كيف تتكامل الأجزاء معاً؟",
+    "paragraphs": [
+     "يقوم التصميم على خمسة خيارات. يُفحص كل رقم مقابل بيانات المتجر وتعليمات صاحبه. وصاحب المتجر هو من يحدد الأسلوب. والحالات الصعبة تذهب إلى صاحب المتجر. والحدود تضبط عدد الردود. والمساعد لا ينفّذ إلا بعد «تأكيد» ولا يمس المدفوعات أو الحسابات.",
+     "ولا يلغي أي منها حاجة صاحب المتجر إلى المتابعة."
+    ]
+   },
+   {
+    "h2": "ما هو Gituas؟",
+    "paragraphs": [
+     "Gituas مساعد بالذكاء الاصطناعي للمتاجر والأعمال التجارية التي تبيع على فيسبوك وإنستغرام في كردستان والعراق. يرد على التعليقات والرسائل بالكردية والعربية، ويجمع الطلبات، ويصنع إعلانات فيديو وصوراً بالذكاء الاصطناعي.",
+     "تبلغ تكلفة الخطة المجانية ٠ دينار، ولا حدّ زمنياً لها. المزيد على https://gituas.com."
+    ]
+   }
+  ],
+  "faq": [
+   {
+    "q": "هل يستطيع Gituas ذكر سعر غير موجود في بيانات منتجاتي؟",
+    "a": "فقط إذا كان الرقم موجوداً في تعليمات صاحب المتجر المكتوبة. قبل إرسال أي رد يُفحص كل رقم فيه مقابل بيانات المنتجات وتعليمات صاحب المتجر، ويُسقَط الرد الذي يحتوي على رقم آخر ويُحوَّل إلى صاحب المتجر. وإذا كان في البيانات سعر خاطئ فسيكرره الرد."
+   },
+   {
+    "q": "ماذا يحدث عندما يساوم الزبون أو يشتكي؟",
+    "a": "تُسلَّم المحادثة إلى صاحب المتجر في قائمة «بانتظارك» أو «غير واضحة» بدل أن يُردّ عليها تلقائياً. وتُعامل الإساءة والرسائل التي لا يفهمها Gituas بالطريقة نفسها."
+   },
+   {
+    "q": "هل يستطيع المساعد تغيير خطتي أو مدفوعاتي أو كلمات المرور؟",
+    "a": "لا. المساعد داخل التطبيق لا ينفّذ إلا بعد أن يضغط صاحب المتجر «تأكيد»، ولا يستطيع المساس بالمدفوعات أو الخطط أو كلمات المرور أو الحسابات المربوطة."
+   },
+   {
+    "q": "هل يرد Gituas تلقائياً على واتساب؟",
+    "a": "لا، ليس حالياً. على واتساب يكون رقم المتجر رابط طلب. أما الردود التلقائية فتعمل على فيسبوك وإنستغرام."
+   },
+   {
+    "q": "هل يحلّ محلّ صاحب المتجر؟",
+    "a": "لا. الشكاوى والمساومة والإساءة والرسائل غير الواضحة ما زالت تحتاج إلى حكم صاحب المتجر، وعليه أن يُبقي بيانات المنتجات صحيحة."
+   }
+  ],
+  "related": [
+   "automatic-replies-facebook-instagram-comments",
+   "kurdish-voice-notes-and-orders"
+  ]
+ }
+}

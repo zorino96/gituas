@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 /** The language this request reads: the saved choice, else the browser's and the country's (English for the world). */
 async function siteLang() {
-  return LANG_TO_SITE[await getLang()];
+  return LANG_TO_SITE[await getLang({ publicSite: true })];
 }
 
 export async function generateMetadata(): Promise<Metadata> {

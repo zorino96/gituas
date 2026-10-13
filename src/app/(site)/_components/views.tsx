@@ -5,10 +5,20 @@ import Link from "next/link";
 
 import { CHROME } from "@/lib/site/chrome";
 import { CONTENT_UPDATED, guidesFor } from "@/lib/site/content";
+import { FEATURE_GUIDE } from "@/lib/site/feature-guides";
 import { sitePath, type SiteLang } from "@/lib/site/langs";
 import type { PlanRow } from "@/lib/site/pricing";
 import type { Guide, Landing, Qa } from "@/lib/site/types";
 import { ku as kuDigits } from "@/lib/site/digits";
+
+/** "14 October 2026" in the page's language: when the prices and limits on the page were last checked. */
+const checkedDate = (lang: SiteLang) =>
+  new Date(`${CONTENT_UPDATED}T00:00:00Z`).toLocaleDateString(lang === "en" ? "en-GB" : lang === "ku" ? "ckb-IQ" : "ar-IQ", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 
 const fmt = (lang: SiteLang, n: number) => (lang === "en" ? n.toLocaleString("en-US") : kuDigits(n.toLocaleString("en-US")).replace(/,/g, "٬"));
 
@@ -83,12 +93,22 @@ export function LandingView({ lang, landing, plans }: { lang: SiteLang; landing:
       <section className="site-section site-wrap" id="features" aria-labelledby="features-h">
         <h2 id="features-h">{c.sections.features}</h2>
         <div className="site-features">
-          {landing.features.map((f) => (
-            <article key={f.title} className="site-feature">
-              <h3>{f.title}</h3>
-              <p>{f.body}</p>
-            </article>
-          ))}
+          {landing.features.map((f, i) => {
+            const slug = FEATURE_GUIDE[i];
+            return (
+              <article key={f.title} className="site-feature">
+                <h3>{f.title}</h3>
+                <p>{f.body}</p>
+                {slug && (
+                  <p className="site-feature-link">
+                    <Link href={sitePath(lang, `/guides/${slug}`)} className="site-link">
+                      {c.sections.read} →
+                    </Link>
+                  </p>
+                )}
+              </article>
+            );
+          })}
         </div>
       </section>
 
@@ -121,6 +141,7 @@ export function LandingView({ lang, landing, plans }: { lang: SiteLang; landing:
         <p className="site-prose-lead">{landing.pricing.intro}</p>
         <PlanCards lang={lang} plans={plans} compact />
         <p className="site-note">{landing.pricing.note}</p>
+        <p className="site-note">{c.pricing.checked(checkedDate(lang))}</p>
         <p className="site-more">
           <Link href={sitePath(lang, "/pricing")}>{c.sections.more} →</Link>
         </p>
@@ -250,13 +271,14 @@ export function GuideView({ lang, guide }: { lang: SiteLang; guide: Guide }) {
 }
 
 export function PricingView({ lang, plans }: { lang: SiteLang; plans: PlanRow[] }) {
+  const maxOpen = plans.some((p) => p.plan === "MAX");
   const c = CHROME[lang].pricing;
   const u = c.units;
   const n = (v: number) => fmt(lang, v);
   const cell = (v: number, unit: string) => (v > 0 ? `${n(v)} ${unit}` : c.rows.none);
   const rows: { label: string; cells: string[] }[] = [
     { label: c.rows.price, cells: plans.map((p) => (p.price === 0 ? c.free : `${n(p.price)} ${lang === "en" ? "IQD" : lang === "ku" ? "دینار" : "دينار"}`)) },
-    { label: c.rows.posts, cells: plans.map((p) => (p.posts === null ? c.rows.allPosts : u.newest(p.posts))) },
+    { label: c.rows.posts, cells: plans.map((p) => (p.posts === null ? c.rows.allPosts : lang === "en" ? u.newest(p.posts) : kuDigits(u.newest(p.posts)))) },
     { label: c.rows.replies, cells: plans.map((p) => n(p.repliesPerDay)) },
     { label: c.rows.ai, cells: plans.map((p) => n(p.aiRepliesPerMonth)) },
     { label: c.rows.voice, cells: plans.map((p) => cell(p.voiceNotesPerDay, u.perDay)) },
@@ -271,7 +293,9 @@ export function PricingView({ lang, plans }: { lang: SiteLang; plans: PlanRow[] 
       <section className="site-section site-wrap">
         <h1>{c.title}</h1>
         <p className="site-lead">{c.intro}</p>
+        <h2 className="site-visually-hidden">{CHROME[lang].sections.plans}</h2>
         <PlanCards lang={lang} plans={plans} />
+        <p className="site-note">{c.checked(checkedDate(lang))}</p>
         <h2>{c.compare}</h2>
         <div className="site-table-wrap">
           <table className="site-table">
@@ -297,11 +321,16 @@ export function PricingView({ lang, plans }: { lang: SiteLang; plans: PlanRow[] 
             </tbody>
           </table>
         </div>
+        <ul className="site-notes">
+          {c.notes.map((n2) => (
+            <li key={n2}>{n2}</li>
+          ))}
+        </ul>
         <h2>{c.payTitle}</h2>
         <p className="site-prose-lead">{c.payBody}</p>
       </section>
       <div className="site-wrap">
-        <Faq title={CHROME[lang].sections.faq} items={c.faq} />
+        <Faq title={CHROME[lang].sections.faq} items={c.faq(maxOpen)} />
       </div>
       <section className="site-closing">
         <div className="site-wrap">

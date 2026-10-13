@@ -15,6 +15,11 @@ export interface LangHints {
   acceptLanguage?: string | null;
   /** ISO 3166-1 alpha-2, upper or lower case. */
   country?: string | null;
+  /**
+   * Public pages only: in Iraq a browser whose first language is Arabic gets Arabic (Baghdad, Basra, Mosul read
+   * the website in Arabic). The app keeps Sorani for everyone in Iraq so nobody's screen changes under them.
+   */
+  arabicInIraq?: boolean;
 }
 
 /** The base languages of an Accept-Language header, best first (q-weights respected, ties keep their order). */
@@ -33,8 +38,8 @@ export function acceptedLanguages(header: string | null | undefined): string[] {
 }
 
 /** The site language for a visitor with no saved choice. */
-export function detectLang({ acceptLanguage, country }: LangHints): Lang {
-  if (country?.toUpperCase() === "IQ") return "ckb";
+export function detectLang({ acceptLanguage, country, arabicInIraq }: LangHints): Lang {
+  if (country?.toUpperCase() === "IQ") return arabicInIraq && acceptedLanguages(acceptLanguage)[0] === "ar" ? "ar" : "ckb";
   const named = acceptedLanguages(acceptLanguage).find((l) => l === "ku" || l === "ckb" || l === "ar" || l === "en");
   if (named === "ku" || named === "ckb") return "ckb";
   if (named === "ar") return "ar";

@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
   const { lang } = await params;
   if (!isSiteLang(lang)) return {};
   const c = CHROME[lang];
-  return pageMetadata({ lang, path: "/guides", title: `${c.guides.title} — ${c.brand}`, description: c.guides.intro });
+  return pageMetadata({ lang, path: "/guides", title: c.guides.metaTitle, description: c.guides.intro });
 }
 
 export default async function GuidesPage({ params }: { params: Promise<{ lang: string }> }) {

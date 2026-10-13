@@ -13,6 +13,15 @@ const nextConfig: NextConfig = {
   // (src/lib/news/autopilot.ts) is the renderer's only caller. Pages and server actions
   // import src/lib/news/autopilot-settings.ts instead, which has no renderer in it. A new
   // route that imports the autopilot or the renderer must be added here.
+  // The website's pages say which language they are in with a header too (Bing reads it; the document element
+  // belongs to the one root layout). Files and API routes are not touched.
+  async headers() {
+    return [
+      { source: "/en/:path*", headers: [{ key: "Content-Language", value: "en" }] },
+      { source: "/ku/:path*", headers: [{ key: "Content-Language", value: "ckb" }] },
+      { source: "/ar/:path*", headers: [{ key: "Content-Language", value: "ar" }] },
+    ];
+  },
   outputFileTracingIncludes: {
     "/api/cron/news": ["./node_modules/@sparticuz/chromium/bin/**"],
     "/api/cron/card-check": ["./node_modules/@sparticuz/chromium/bin/**"],

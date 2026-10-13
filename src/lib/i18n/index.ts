@@ -51,12 +51,12 @@ export function dict(lang: Lang): Dict {
  * The language of this request, server only: the gm_lang cookie when the visitor chose one, else the browser's
  * Accept-Language and country (English for the world, Sorani at home in Iraq; rules in ./detect.ts).
  */
-export async function getLang(): Promise<Lang> {
+export async function getLang(opts: { publicSite?: boolean } = {}): Promise<Lang> {
   const v = (await cookies()).get(LANG_COOKIE)?.value;
   if (isLang(v)) return v;
   try {
     const h = await headers();
-    return detectLang({ acceptLanguage: h.get("accept-language"), country: h.get("x-vercel-ip-country") });
+    return detectLang({ acceptLanguage: h.get("accept-language"), country: h.get("x-vercel-ip-country"), arabicInIraq: opts.publicSite });
   } catch {
     return DEFAULT_LANG;
   }

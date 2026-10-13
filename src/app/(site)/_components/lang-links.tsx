@@ -20,7 +20,8 @@ function remember(lang: SiteLang, overwrite: boolean) {
 /** The same page in each language, as real links (search engines follow them); a click also saves the choice for the app. */
 export function LangLinks({ current }: { current: SiteLang }) {
   const path = usePathname() || `/${current}`;
-  const rest = path.replace(/^\/(en|ku|ar)(?=\/|$)/, "");
+  // /welcome is "/" in disguise (the visitor's own language): its links go to the home page of each language.
+  const rest = path.replace(/^\/(en|ku|ar|welcome)(?=\/|$)/, "");
   // A language the visitor reads a page in is the language the app should open in (unless they chose another).
   useEffect(() => remember(current, false), [current]);
   return (

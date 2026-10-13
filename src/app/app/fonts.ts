@@ -8,6 +8,6 @@ const sans = IBM_Plex_Sans_Arabic({
   variable: "--gm-sans",
   display: "swap",
 });
-const kufi = Noto_Kufi_Arabic({ subsets: ["arabic", "latin"], weight: ["500", "700"], variable: "--gm-kufi", display: "swap" });
+const kufi = Noto_Kufi_Arabic({ subsets: ["arabic", "latin"], weight: ["500", "700"], variable: "--gm-kufi", display: "swap", preload: false });
 
 export const gmFontVars = `${sans.variable} ${kufi.variable}`;

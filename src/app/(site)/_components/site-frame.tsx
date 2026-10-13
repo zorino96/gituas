@@ -22,7 +22,7 @@ export function SiteFrame({ lang, children }: { lang: SiteLang; children: React.
         <div className="site-wrap site-head-row">
           <Link href={home} className="site-brand">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/gituas-mark-512.png" alt="" width={34} height={34} />
+            <img src="/brand/gituas-mark-68.png" alt="" width={34} height={34} />
             <span>{c.brand}</span>
           </Link>
           <nav className="site-nav" aria-label="Main">
@@ -55,6 +55,7 @@ export function SiteFrame({ lang, children }: { lang: SiteLang; children: React.
             <Link href={`${home}#features`}>{c.nav.features}</Link>
             <Link href={sitePath(lang, "/guides")}>{c.nav.guides}</Link>
             <Link href={sitePath(lang, "/pricing")}>{c.nav.pricing}</Link>
+            <Link href={sitePath(lang, "/about")}>{c.nav.about}</Link>
             <a href={NEWSROOM_ORIGIN}>{c.footer.newsroom}</a>
           </nav>
           <nav aria-label={c.footer.legal}>

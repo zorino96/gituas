@@ -32,7 +32,7 @@ export default async function PricingPage({ params }: { params: Promise<{ lang: 
           __html: graph(
             organization(),
             softwareApplication(lang, landingFor(lang), plans),
-            faqPage(c.pricing.faq),
+            faqPage(c.pricing.faq(plans.some((p) => p.plan === "MAX"))),
             breadcrumbs([
               { name: c.home, url: siteUrl(lang) },
               { name: c.nav.pricing, url: siteUrl(lang, "/pricing") },

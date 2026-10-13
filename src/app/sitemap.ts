@@ -14,6 +14,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "", priority: 1, freq: "weekly" },
     { path: "/pricing", priority: 0.9, freq: "monthly" },
     { path: "/guides", priority: 0.8, freq: "weekly" },
+    { path: "/about", priority: 0.5, freq: "monthly" },
     ...guideSlugs().map((slug) => ({ path: `/guides/${slug}` as SitePath, priority: 0.7, freq: "monthly" as const })),
   ];
   return paths.flatMap(({ path, priority, freq }) =>
@@ -22,7 +23,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: CONTENT_UPDATED,
       changeFrequency: freq,
       priority,
-      alternates: { languages: Object.fromEntries(SITE_LANGS.map((l) => [HREFLANG[l], siteUrl(l, path)])) },
+      alternates: { languages: { ...Object.fromEntries(SITE_LANGS.map((l) => [HREFLANG[l], siteUrl(l, path)])), "x-default": siteUrl("en", path) } },
     })),
   );
 }

@@ -22,7 +22,7 @@ export const HREFLANG: Record<SiteLang, string> = { en: "en", ku: "ku", ar: "ar"
 export const DOC_LANG: Record<SiteLang, string> = { en: "en", ku: "ckb", ar: "ar" };
 export const OG_LOCALE: Record<SiteLang, string> = { en: "en_US", ku: "cb_IQ", ar: "ar_IQ" };
 
-export type SitePath = "" | "/pricing" | "/guides" | `/guides/${string}`;
+export type SitePath = "" | "/pricing" | "/guides" | "/about" | `/guides/${string}`;
 
 export const sitePath = (lang: SiteLang, path: SitePath = ""): string => `/${lang}${path}`;
 export const siteUrl = (lang: SiteLang, path: SitePath = ""): string => `${SITE_ORIGIN}${sitePath(lang, path)}`;

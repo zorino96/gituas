@@ -3,14 +3,20 @@
 
 import type { Metadata } from "next";
 
-import { CONTENT_UPDATED } from "./content";
+import { CHROME } from "./chrome";
+import { CONTENT_PUBLISHED, CONTENT_UPDATED } from "./content";
 import { DOC_LANG, HREFLANG, OG_LOCALE, SITE_LANGS, SITE_ORIGIN, siteUrl, type SitePath, type SiteLang } from "./langs";
 import type { PlanRow } from "./pricing";
 import type { Guide, Landing, Qa } from "./types";
 
 export const SITE_NAME = "Gituas";
 export const LOGO_URL = `${SITE_ORIGIN}/brand/gituas-mark-512.png`;
-export const OG_IMAGE = { url: `${SITE_ORIGIN}/og/gituas-1200x630.png`, width: 1200, height: 630, alt: "Gituas: AI replies, orders and video ads for shops in Kurdistan and Iraq" };
+const OG_ALT: Record<SiteLang, string> = {
+  en: "Gituas: AI replies, orders and video ads for shops in Kurdistan and Iraq",
+  ku: "گیتواس: وەڵامی خۆکار، داواکاری و ڤیدیۆی ڕیکلام بە AI بۆ دوکانەکانی کوردستان و عێراق",
+  ar: "Gituas: ردود تلقائية وطلبات وإعلانات فيديو بالذكاء الاصطناعي لمتاجر كردستان والعراق",
+};
+export const ogImage = (lang: SiteLang) => ({ url: `${SITE_ORIGIN}/og/gituas-1200x630.png`, width: 1200, height: 630, alt: OG_ALT[lang] });
 
 /** Canonical + hreflang alternates for one page in every language (x-default is English). */
 export function alternatesFor(lang: SiteLang, path: SitePath): { canonical: string; languages: Record<string, string> } {
@@ -37,9 +43,9 @@ export function pageMetadata(o: { lang: SiteLang; path: SitePath; title: string;
       description: o.description,
       locale: OG_LOCALE[o.lang],
       alternateLocale: SITE_LANGS.filter((l) => l !== o.lang).map((l) => OG_LOCALE[l]),
-      images: [OG_IMAGE],
+      images: [ogImage(o.lang)],
     },
-    twitter: { card: "summary_large_image", title: o.title, description: o.description, images: [OG_IMAGE.url] },
+    twitter: { card: "summary_large_image", title: o.title, description: o.description, images: [ogImage(o.lang).url] },
     robots: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
   };
 }
@@ -54,6 +60,15 @@ export const organization = (): Json => ({
   logo: LOGO_URL,
   alternateName: "گیتواس",
   description: "Gituas is an AI assistant for shops and businesses that sell on Facebook and Instagram in Kurdistan and Iraq.",
+  email: "hello@gituas.com",
+  contactPoint: {
+    "@type": "ContactPoint",
+    contactType: "customer support",
+    email: "hello@gituas.com",
+    telephone: "+964 771 010 6009",
+    availableLanguage: ["Kurdish", "Arabic", "English"],
+  },
+  subOrganization: { "@type": "Organization", name: "Hawalnoos", alternateName: "هەواڵنووس", url: "https://hawalnoos.com" },
   areaServed: [
     { "@type": "AdministrativeArea", name: "Kurdistan Region of Iraq" },
     { "@type": "Country", name: "Iraq" },
@@ -83,10 +98,12 @@ export function softwareApplication(lang: SiteLang, landing: Landing, plans: Pla
     publisher: { "@id": `${SITE_ORIGIN}/#organization` },
     offers: plans.map((p) => ({
       "@type": "Offer",
-      name: p.plan,
+      name: CHROME[lang].pricing.plans[p.plan].name,
+      description: CHROME[lang].pricing.plans[p.plan].blurb,
       price: String(p.price),
       priceCurrency: "IQD",
-      priceSpecification: { "@type": "UnitPriceSpecification", price: String(p.price), priceCurrency: "IQD", billingDuration: "P30D", unitText: "shop" },
+      // A paid plan lasts 30 days per shop; the Free plan has no time limit.
+      priceSpecification: { "@type": "UnitPriceSpecification", price: String(p.price), priceCurrency: "IQD", unitText: "shop", ...(p.price > 0 ? { billingDuration: "P30D" } : {}) },
       availability: "https://schema.org/InStock",
       url: siteUrl(lang, "/pricing"),
     })),
@@ -111,7 +128,7 @@ export function article(lang: SiteLang, g: Guide): Json {
     headline: g.title,
     description: g.metaDescription,
     inLanguage: DOC_LANG[lang],
-    datePublished: CONTENT_UPDATED,
+    datePublished: CONTENT_PUBLISHED,
     dateModified: CONTENT_UPDATED,
     mainEntityOfPage: url,
     author: { "@id": `${SITE_ORIGIN}/#organization` },

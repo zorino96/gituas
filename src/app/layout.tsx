@@ -10,6 +10,7 @@ const fraunces = Fraunces({
   style: ["normal", "italic"],
   variable: "--font-fraunces",
   display: "swap",
+  preload: false,
 });
 
 const instrument = Instrument_Sans({
@@ -22,6 +23,7 @@ const splineMono = Spline_Sans_Mono({
   subsets: ["latin"],
   variable: "--font-spline-mono",
   display: "swap",
+  preload: false,
 });
 
 // The defaults of every page that has none of its own (the website's pages set theirs: src/lib/site/seo.ts).
