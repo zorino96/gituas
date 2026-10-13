@@ -6,12 +6,13 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { upload } from "@vercel/blob/client";
-import { MessageCircle, Paperclip, Send, X } from "lucide-react";
+import { ArrowUp, MessageCircle, Plus, Sparkles, X } from "lucide-react";
 
 import { useT } from "@/lib/i18n/client";
 import { videoJobStatusAction } from "../video/actions";
 import { imageToJpeg } from "../publish/to-jpeg";
 import { askAssistantAction, runToolAction, type ChatAttachment } from "./actions";
+import "./assistant.css";
 
 type Proposal = { tool: string; args: Record<string, unknown>; title: string; lines: { label: string; value: string }[]; nonce: string };
 // "interrupted": the page went away while the card was running, so it may or may not have run: it is not offered again.
@@ -279,9 +280,19 @@ export function AssistantClient({
     </bdi>
   );
   const busy = pending || uploading;
+  const canSend = !busy && input.trim().length >= MIN_QUESTION;
+
+  /** The box grows with the text, up to a few lines. */
+  function grow(el: HTMLTextAreaElement | null) {
+    if (!el) return;
+    el.style.height = "auto";
+    // Empty: the one line the style gives it, whatever the page had not yet measured.
+    if (el.value) el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+  }
+  useEffect(() => grow(field.current), [input]);
 
   return (
-    <div className="gm-stack">
+    <div className="cg">
       {justConnected && <p className="gm-ok">{t.connect.connected}</p>}
       {missing.length > 0 && (
         <div className="gm-card gm-stack">
@@ -333,117 +344,126 @@ export function AssistantClient({
         </div>
       )}
 
-      <div className="gm-card gm-stack">
-        <p className="gm-hint" style={{ margin: 0 }}>
-          {t.intro}
-        </p>
+      <div role="log" aria-live="polite" className="cg-thread">
         {restored && turns.length === 0 && (
-          <div className="gm-row" style={{ flexWrap: "wrap" }}>
-            {t.quick.map((q) => (
-              <button key={q.label} type="button" className="gm-btn quiet small" disabled={busy} onClick={() => send(q.text, false)}>
-                {q.label}
-              </button>
-            ))}
-            {t.examples.map((q) => (
-              <button key={q} type="button" className="gm-btn quiet small" disabled={busy} onClick={() => send(q, false)}>
-                {q}
-              </button>
-            ))}
+          <div className="cg-empty">
+            <span className="cg-avatar big" aria-hidden="true">
+              <Sparkles size={24} />
+            </span>
+            <h3 className="cg-hello">{t.intro}</h3>
+            <div className="cg-starters">
+              {t.quick.map((q) => (
+                <button key={q.label} type="button" className="cg-starter" disabled={busy} onClick={() => send(q.text, false)}>
+                  <b>{q.label}</b>
+                  <span>{q.text}</span>
+                </button>
+              ))}
+              {t.examples.map((q) => (
+                <button key={q} type="button" className="cg-starter" disabled={busy} onClick={() => send(q, false)}>
+                  {q}
+                </button>
+              ))}
+            </div>
           </div>
         )}
-        <div role="log" aria-live="polite" className="gm-stack">
-          {turns.map((m, i) => (
-            <div key={i} className="gm-stack">
-              <div
-                dir="auto"
-                className={m.role === "user" ? "gm-note" : undefined}
-                style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", padding: "10px 12px", ...(m.role === "assistant" ? { border: "1px solid var(--line, rgba(0,0,0,.12))", borderRadius: 10 } : {}) }}
-              >
-                {withLinks(m.text).map((part, j) =>
-                  typeof part === "string" ? (
-                    <span key={j}>{part}</span>
-                  ) : (
-                    <a key={j} className="gm-link" dir="ltr" style={{ display: "inline-block" }} href={part.url} target="_blank" rel="noreferrer">
-                      {part.url}
-                    </a>
-                  ),
+
+        {turns.map((m, i) =>
+          m.role === "user" ? (
+            <div key={i} dir="auto" className="cg-user">
+              {m.text}
+            </div>
+          ) : (
+            <div key={i} className="cg-bot">
+              <span className="cg-avatar" aria-hidden="true">
+                <Sparkles size={15} />
+              </span>
+              <div className="cg-bot-body">
+                <div dir="auto" className="cg-text">
+                  {withLinks(m.text).map((part, j) =>
+                    typeof part === "string" ? (
+                      <span key={j}>{part}</span>
+                    ) : (
+                      <a key={j} className="gm-link" dir="ltr" style={{ display: "inline-block" }} href={part.url} target="_blank" rel="noreferrer">
+                        {part.url}
+                      </a>
+                    ),
+                  )}
+                </div>
+                {m.media && (
+                  <div className="cg-media">
+                    {m.media.kind === "image" ? (
+                      <a href={m.media.url} target="_blank" rel="noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={m.media.url} alt={m.media.name} />
+                      </a>
+                    ) : (
+                      <video src={m.media.url} controls playsInline preload="metadata" style={{ maxWidth: 360 }} />
+                    )}
+                  </div>
+                )}
+                {m.proposal && (
+                  <div className="cg-card">
+                    <p className="cg-card-title">{m.proposal.title}</p>
+                    <dl className="cg-lines">
+                      {m.proposal.lines.map((l) => (
+                        <div key={l.label}>
+                          <dt>{l.label}</dt>
+                          <dd dir="auto">{l.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    {m.state === "done" ? (
+                      <p className="gm-ok" style={{ margin: 0 }}>
+                        ✓
+                      </p>
+                    ) : m.state === "cancelled" ? (
+                      <p className="gm-hint" style={{ margin: 0 }}>
+                        ✕
+                      </p>
+                    ) : m.state === "interrupted" ? (
+                      <p className="gm-hint" style={{ margin: 0 }}>
+                        {t.interrupted}
+                      </p>
+                    ) : (
+                      <div className="cg-actions">
+                        <button type="button" className="gm-btn small" disabled={busy || m.state === "running"} onClick={() => confirm(i)}>
+                          {m.state === "running" ? t.working : t.confirm}
+                        </button>
+                        <button type="button" className="gm-btn quiet small" disabled={busy || m.state === "running"} onClick={() => setCard(i, "cancelled")}>
+                          {t.cancel}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
-              {m.media && (
-                <div>
-                  {m.media.kind === "image" ? (
-                    <a href={m.media.url} target="_blank" rel="noreferrer">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={m.media.url} alt={m.media.name} style={{ display: "block", width: "100%", maxWidth: 520, maxHeight: 560, objectFit: "contain", borderRadius: 10 }} />
-                    </a>
-                  ) : (
-                    <video src={m.media.url} controls playsInline preload="metadata" style={{ display: "block", width: "100%", maxWidth: 360, maxHeight: 560, borderRadius: 10 }} />
-                  )}
-                </div>
-              )}
-              {m.proposal && (
-                <div className="gm-card gm-stack" style={{ borderInlineStart: "3px solid var(--ink, #111)" }}>
-                  <p className="gm-sec" style={{ margin: 0 }}>
-                    {m.proposal.title}
-                  </p>
-                  <dl style={{ margin: 0 }}>
-                    {m.proposal.lines.map((l) => (
-                      <div key={l.label} className="gm-row" style={{ gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-                        <dt className="gm-hint" style={{ margin: 0 }}>
-                          {l.label}:
-                        </dt>
-                        <dd dir="auto" style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                          {l.value}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                  {m.state === "done" ? (
-                    <p className="gm-ok" style={{ margin: 0 }}>
-                      ✓
-                    </p>
-                  ) : m.state === "cancelled" ? (
-                    <p className="gm-hint" style={{ margin: 0 }}>
-                      ✕
-                    </p>
-                  ) : m.state === "interrupted" ? (
-                    <p className="gm-hint" style={{ margin: 0 }}>
-                      {t.interrupted}
-                    </p>
-                  ) : (
-                    <div className="gm-row" style={{ flexWrap: "wrap" }}>
-                      <button type="button" className="gm-btn small" disabled={busy || m.state === "running"} onClick={() => confirm(i)}>
-                        {m.state === "running" ? t.working : t.confirm}
-                      </button>
-                      <button type="button" className="gm-btn quiet small" disabled={busy || m.state === "running"} onClick={() => setCard(i, "cancelled")}>
-                        {t.cancel}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
-          ))}
-        </div>
-        {pending && (
-          <p className="gm-hint" role="status">
-            {t.thinking}
-          </p>
+          ),
         )}
-        {job && !pending && (
-          <p className="gm-hint" role="status">
-            {t.working}
-          </p>
+
+        {(pending || (job && !pending)) && (
+          <div className="cg-bot" role="status">
+            <span className="cg-avatar" aria-hidden="true">
+              <Sparkles size={15} />
+            </span>
+            <span className="cg-dots" aria-label={pending ? t.thinking : t.working}>
+              <i />
+              <i />
+              <i />
+            </span>
+          </div>
         )}
+
         {!pending && followups.length > 0 && (
-          <div className="gm-row" style={{ flexWrap: "wrap" }}>
+          <div className="cg-chips">
             {followups.map((q) => (
-              <button key={q} type="button" className="gm-btn quiet small" onClick={() => send(q, false)}>
+              <button key={q} type="button" className="cg-chip" onClick={() => send(q, false)}>
                 {q}
               </button>
             ))}
           </div>
         )}
+
         {error && (
           <div role="alert" className="gm-stack">
             <p className="gm-err" style={{ margin: 0 }}>
@@ -458,63 +478,41 @@ export function AssistantClient({
             )}
           </div>
         )}
-        <div ref={end} style={{ scrollMarginBottom: 96 }} />
+        <div ref={end} style={{ scrollMarginBottom: 160 }} />
       </div>
 
       <form
-        className="gm-field"
+        className="cg-composer"
         onSubmit={(e) => {
           e.preventDefault();
           send(input, true);
         }}
       >
         {files.length > 0 && (
-          <div className="gm-row" style={{ flexWrap: "wrap", marginBottom: 8 }}>
+          <div className="cg-files">
             {files.map((f) => (
-              <span key={f.id} style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <span key={f.id} className="cg-file">
                 {f.kind === "image" ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img className="gm-thumb" src={f.url} alt={f.name} />
                 ) : (
                   <video className="gm-thumb" src={f.url} muted playsInline preload="metadata" />
                 )}
-                <button type="button" className="gm-btn quiet small" aria-label={t.removeFile} disabled={busy} onClick={() => setFiles((x) => x.filter((y) => y.id !== f.id))}>
+                <button type="button" aria-label={t.removeFile} disabled={busy} onClick={() => setFiles((x) => x.filter((y) => y.id !== f.id))}>
                   <X size={12} aria-hidden="true" />
                 </button>
               </span>
             ))}
           </div>
         )}
-        {kind === "shop" && (
-        <label className="gm-row" style={{ alignItems: "flex-start", gap: 8, cursor: "pointer", marginBottom: 10 }}>
-          <input
-            type="checkbox"
-            checked={review}
-            disabled={busy}
-            style={{ marginTop: 4 }}
-            onChange={(e) => {
-              setReview(e.target.checked);
-              try {
-                window.localStorage.setItem("gm-ai-review", e.target.checked ? "1" : "0");
-              } catch {
-                /* not remembered */
-              }
-            }}
-          />
-          <span>
-            <b>{all.publish.ai.reviewLabel}</b>
-            <br />
-            <span className="gm-hint">{all.publish.ai.reviewHelp}</span>
-          </span>
-        </label>
-        )}
-        <label htmlFor="gm-assistant-input">{t.placeholder}</label>
         <textarea
           ref={field}
           id="gm-assistant-input"
-          className="gm-textarea"
+          className="cg-input"
           dir="auto"
-          style={{ minHeight: 76 }}
+          rows={1}
+          aria-label={t.placeholder}
+          placeholder={t.placeholder}
           maxLength={1_200}
           value={input}
           readOnly={pending}
@@ -529,12 +527,27 @@ export function AssistantClient({
             }
           }}
         />
-        <div className="gm-row" style={{ flexWrap: "wrap", marginTop: 10 }}>
-          <button type="submit" className="gm-btn" disabled={busy || input.trim().length < MIN_QUESTION}>
-            <Send size={14} aria-hidden="true" /> {t.send}
-          </button>
-          <button type="button" className="gm-btn quiet" disabled={busy || files.length >= MAX_FILES} onClick={() => picker.current?.click()}>
-            <Paperclip size={14} aria-hidden="true" /> {uploading ? t.upload.uploading : t.attach}
+        {kind === "shop" && (
+          <label className="cg-review" title={all.publish.ai.reviewHelp}>
+            <input
+              type="checkbox"
+              checked={review}
+              disabled={busy}
+              onChange={(e) => {
+                setReview(e.target.checked);
+                try {
+                  window.localStorage.setItem("gm-ai-review", e.target.checked ? "1" : "0");
+                } catch {
+                  /* not remembered */
+                }
+              }}
+            />
+            {all.publish.ai.reviewLabel}
+          </label>
+        )}
+        <div className="cg-bar">
+          <button type="button" className="cg-icon" aria-label={uploading ? t.upload.uploading : t.attach} title={t.attach} disabled={busy || files.length >= MAX_FILES} onClick={() => picker.current?.click()}>
+            <Plus size={20} aria-hidden="true" />
           </button>
           <input
             ref={picker}
@@ -547,10 +560,11 @@ export function AssistantClient({
               if (picked.length) void addFiles(picked);
             }}
           />
+          <span className="grow" />
           {(turns.length > 0 || files.length > 0) && (
             <button
               type="button"
-              className="gm-btn quiet"
+              className="cg-text-btn"
               disabled={busy}
               onClick={() => {
                 setTurns([]);
@@ -564,19 +578,22 @@ export function AssistantClient({
               {t.clear}
             </button>
           )}
+          <button type="submit" className="cg-send" aria-label={t.send} title={t.send} disabled={!canSend}>
+            <ArrowUp size={18} aria-hidden="true" />
+          </button>
         </div>
+        {uploading && <p className="gm-hint" style={{ margin: 0 }}>{t.upload.uploading}</p>}
         {uploadError && (
-          <p className="gm-err" role="alert">
+          <p className="gm-err" role="alert" style={{ margin: 0 }}>
             {uploadError}
           </p>
         )}
       </form>
 
-      <p className="gm-hint">{t.note}</p>
-      <p className="gm-hint">
-        {t.contactHelp}{" "}
-        <a className="gm-link" href={support.url} target="_blank" rel="noreferrer">
-          <MessageCircle size={14} aria-hidden="true" /> {t.contactLabel}: {phone}
+      <p className="cg-note">
+        {t.note} {t.contactHelp}{" "}
+        <a href={support.url} target="_blank" rel="noreferrer">
+          {t.contactLabel}: {phone}
         </a>
       </p>
     </div>
