@@ -8,6 +8,7 @@ import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
 import { commentState, countStates } from "@/lib/merchant/state";
 import { ago } from "./format";
+import { promoUntil } from "@/lib/billing/promo";
 
 export const maxDuration = 60;
 
@@ -19,11 +20,13 @@ export default async function TodayPage() {
   const conns = await loadConnections(ws.id);
   const anyConnected = conns.META_FACEBOOK.connected || conns.META_INSTAGRAM.connected;
 
-  const [{ posts }, { conversations }, insights] = await Promise.all([
+  const [{ posts }, { conversations }, insights, promo] = await Promise.all([
     loadPosts(ws.id, conns),
     loadConversations(ws.id, conns),
     loadInsights(ws.id, conns),
+    ws.kind === "MERCHANT" ? promoUntil(ws.id).catch(() => null) : null,
   ]);
+  const lang = await getLang();
 
   const counts = countStates(posts);
   const waitingConvs = conversations.filter(
@@ -40,6 +43,12 @@ export default async function TodayPage() {
     <div>
       <h2 className="gm-title kufi">{t.home.title}</h2>
       <p className="gm-sub">{t.home.sub}</p>
+
+      {promo && (
+        <p className="gm-note" style={{ marginBottom: 14 }}>
+          {t.home.promo(promo.toLocaleDateString(lang === "en" ? "en-GB" : "ar-IQ", { day: "numeric", month: "numeric", year: "numeric", timeZone: "Asia/Baghdad" }))}
+        </p>
+      )}
 
       {!anyConnected && (
         <div className="gm-card" style={{ marginBottom: 14 }}>

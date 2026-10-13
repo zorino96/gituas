@@ -407,6 +407,7 @@ export const en: Dict = {
   },
 
   home: {
+    promo: (until: string) => `🎉 You are one of our first three new shops: the Pro plan is yours free until ${until}.`,
     title: "Today",
     sub: "Everything waiting for you, in one place.",
     connectFirst: "Connect your pages first",

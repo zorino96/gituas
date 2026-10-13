@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { claimLaunchPromo } from "@/lib/billing/promo";
 import { accountFor, subscribeWebhooks, type MetaPlatform } from "./meta-client";
 
 type StoreSlots = { id: string; fbPageId: string | null; igUserId: string | null };
@@ -45,6 +46,8 @@ export async function connectStore(tenantId: string, platform: MetaPlatform, acc
     store = target
       ? await db.store.update({ where: { id: target }, data: { ...slot, ...extra }, select: { id: true, tenantId: true, fbPageId: true, igUserId: true } })
       : await db.store.create({ data: { tenantId, name: accountName, ...slot, ...extra }, select: { id: true, tenantId: true, fbPageId: true, igUserId: true } });
+    // A brand-new shop may get the launch offer (the first three new shops: Pro free for a week).
+    if (!target) await claimLaunchPromo(tenantId, store.id);
   }
   await db.store.update({ where: { id: store.id }, data: { pausedReason: null, ...extra } });
 

@@ -411,6 +411,7 @@ export const ar: Dict = {
   },
 
   home: {
+    promo: (until: string) => `🎉 مبروك! أنت من أول ثلاثة متاجر جديدة: خطة برو مجانية لك حتى ${until}.`,
     title: "اليوم",
     sub: "كل ما ينتظرك في مكان واحد.",
     connectFirst: "اربط صفحاتك أولاً",

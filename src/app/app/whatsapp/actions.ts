@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import type { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { claimLaunchPromo } from "@/lib/billing/promo";
 import { dict, getLang } from "@/lib/i18n";
 import { normalizePhone } from "@/lib/merchant/phone";
 import { can } from "@/lib/newsroom/roles";
@@ -72,7 +73,10 @@ async function attachNumber(
     where: { waPhoneNumberId: n.phoneNumberId, tenantId: { not: ws.id } },
     data: { waPhoneNumberId: null, waBusinessId: null, waDisplayPhone: null, waPinEncrypted: null },
   });
-  const store = (await waStore(ws.id)) ?? (await db.store.create({ data: { tenantId: ws.id, name: n.info.name || ws.name }, select: { id: true } }));
+  const existing = await waStore(ws.id);
+  const store = existing ?? (await db.store.create({ data: { tenantId: ws.id, name: n.info.name || ws.name }, select: { id: true } }));
+  // A brand-new shop may get the launch offer (the first three new shops: Pro free for a week).
+  if (!existing) await claimLaunchPromo(ws.id, store.id);
   await db.store.update({
     where: { id: store.id },
     data: { waPhoneNumberId: n.phoneNumberId, waBusinessId: n.wabaId, waDisplayPhone: n.info.display, waPinEncrypted: n.pin ? vaultEncrypt(n.pin) : null },
