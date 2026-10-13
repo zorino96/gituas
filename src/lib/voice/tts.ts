@@ -96,6 +96,31 @@ export function pcmToWav(pcm: Buffer, rate = 24_000): Buffer {
   return Buffer.concat([h, pcm]);
 }
 
+// The Pawan plan allows ONE request at a time. Calls of this instance wait for each other (a video has several
+// scenes), and an answer of "too many concurrent requests" (another instance is speaking) is waited out and the
+// call is made again, instead of failing the whole video.
+let pawanTail: Promise<unknown> = Promise.resolve();
+const PAWAN_BUSY_WAITS_MS = [1_500, 3_000, 5_000, 7_000];
+
+async function withBusyRetry<T>(call: () => Promise<T>): Promise<T> {
+  for (let i = 0; ; i++) {
+    try {
+      return await call();
+    } catch (e) {
+      // Only the "concurrent requests" kind of 429 passes by waiting; a quota or credit answer does not.
+      const busy = e instanceof Error && /^pawan(-clone)? 429\b[\s\S]*concurrent/i.test(e.message);
+      if (!busy || i >= PAWAN_BUSY_WAITS_MS.length) throw e;
+      await new Promise((r) => setTimeout(r, PAWAN_BUSY_WAITS_MS[i] + Math.floor(Math.random() * 500)));
+    }
+  }
+}
+
+export function pawanOneAtATime<T>(call: () => Promise<T>): Promise<T> {
+  const run = pawanTail.then(() => withBusyRetry(call), () => withBusyRetry(call));
+  pawanTail = run.catch(() => undefined);
+  return run;
+}
+
 async function pawan(text: string, gender: VoiceGender, voice?: string, speed: number = SPEECH_SPEED.fallback): Promise<Speech> {
   const res = await fetch(PAWAN_URL, {
     method: "POST",
@@ -193,7 +218,7 @@ export async function speak(input: { text: string; lang: VoiceLang; gender?: Voi
   // chosen ready-made voice reads instead, so a video is never lost to the clone.
   if (input.clone && input.lang === "ckb" && process.env.PAWAN_API_KEY) {
     try {
-      return await pawanClone(text, input.clone, input.speed);
+      return await pawanOneAtATime(() => pawanClone(text, input.clone!, input.speed));
     } catch (e) {
       const why = e instanceof Error ? e.message : String(e);
       reasons.push(why);
@@ -202,7 +227,7 @@ export async function speak(input: { text: string; lang: VoiceLang; gender?: Voi
   }
   for (const p of providersFor(input.lang, input.env)) {
     try {
-      return p === "pawan" ? await pawan(text, gender, input.voice, input.speed) : await gemini(text, input.lang, gender);
+      return p === "pawan" ? await pawanOneAtATime(() => pawan(text, gender, input.voice, input.speed)) : await gemini(text, input.lang, gender);
     } catch (e) {
       const why = e instanceof Error ? e.message : String(e);
       reasons.push(why);
@@ -217,5 +242,5 @@ export async function speakWithClone(text: string, clone: CloneVoice, speed?: nu
   if (!process.env.PAWAN_API_KEY) throw new SpeechUnavailable(["no Pawan key"]);
   const t = speechText(text);
   if (!t) throw new SpeechUnavailable(["empty text"]);
-  return pawanClone(t, clone, speed);
+  return pawanOneAtATime(() => pawanClone(t, clone, speed));
 }

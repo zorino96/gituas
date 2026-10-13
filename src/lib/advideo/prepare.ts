@@ -17,7 +17,7 @@ import { refImagesForModel, listRefs } from "./refs";
 import { PLAIN_VIDEO_NOTE } from "./job-error";
 import type { AdLook, AdPlan, AdScene, AdSpec } from "./spec";
 import { baghdadDate, getDailyBrief } from "./strategy";
-import { voiceScenes, type VoicedScene } from "./voice";
+import { voiceScenes, voiceWasPaid, type VoicedScene } from "./voice";
 import { writeAdSpec } from "./write";
 
 /** A job is tried this many times (script + voice, then render) before it is given up and its allowance returned. */
@@ -210,10 +210,26 @@ export async function prepareAdVideo(jobId: string): Promise<boolean> {
     const avoidLooks = recentSpecs.map((r) => r?.look).filter((l): l is AdLook => !!l);
     const recentHooks = recentSpecs.map((r) => r?.scenes?.find((x) => x.type === "hook")?.text).filter((t): t is string => !!t);
     const images = await refImagesForModel(refs);
-    const written = await writeAdSpec({
-      tier, brief, topic: found.topic, plan, avoidLooks, recentHooks, images, meter: ai?.meter,
-      seed: `${found.storeId}:${baghdadDate(now)}:${found.id}`,
-    });
+    // A script an earlier attempt wrote and then lost to a failing voice is kept: the director (Opus on the Opus
+    // tier) is paid for once, not once per attempt.
+    const earlier = found.spec as { scenes?: unknown } | null;
+    const reuse = !found.props && earlier && Array.isArray(earlier.scenes) && earlier.scenes.length > 0 ? earlier : null;
+    const written = reuse
+      ? { spec: reuse as unknown as AdSpec, model: (found.model ?? "reused").replace(/ \(plain storyboard\)$/, ""), fallback: /plain storyboard/.test(found.model ?? "") }
+      : await writeAdSpec({
+          tier, brief, topic: found.topic, plan, avoidLooks, recentHooks, images, meter: ai?.meter,
+          seed: `${found.storeId}:${baghdadDate(now)}:${found.id}`,
+        });
+    if (!reuse) {
+      await db.adVideo.updateMany({
+        where: { id: found.id, status: "QUEUED" },
+        data: {
+          spec: written.spec as unknown as Prisma.InputJsonValue,
+          caption: written.spec.caption,
+          model: `${written.model}${written.fallback ? " (plain storyboard)" : ""}`.slice(0, 120),
+        },
+      });
+    }
     const voiced = await voiceScenes({ tenantId: found.tenantId, jobId: found.id, voice: found.voice, scenes: written.spec.scenes, meter: ai?.meter });
     const props = buildRenderProps(brief, written.spec, voiced);
     const spec: AdSpec = { ...written.spec, scenes: voiced.map((v) => v.scene) };
@@ -239,7 +255,11 @@ export async function prepareAdVideo(jobId: string): Promise<boolean> {
     const error = (e instanceof Error ? e.message : String(e)).slice(0, 300);
     const last = tries >= AD_MAX_TRIES;
     const res = await db.adVideo.updateMany({ where: { id: found.id, status: "QUEUED" }, data: { error, claimedAt: null, status: last ? "FAILED" : "QUEUED" } });
-    if (last && res.count === 1 && isVideoTier(found.tier)) await refundVideo(found.tenantId, found.tier, found.createdAt, { keepDay: true });
+    // The month's place always goes back. The day's goes back too when no voice was paid for: a failure before
+    // any money was spent should not use up the day's one video.
+    if (last && res.count === 1 && isVideoTier(found.tier)) {
+      await refundVideo(found.tenantId, found.tier, found.createdAt, { keepDay: await voiceWasPaid(found.tenantId, found.id) });
+    }
     console.error("[advideo] prepare failed:", error);
     return false;
   }

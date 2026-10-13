@@ -3,7 +3,7 @@
 // Sorani" is said again in plainer Sorani once; a scene that still fails is dropped unless it is
 // the hook or the call to action.
 
-import { put } from "@vercel/blob";
+import { head, list, put } from "@vercel/blob";
 
 import { completeJson, type Meter } from "@/lib/ai/provider";
 import { isNotSoraniRefusal } from "@/lib/news/video";
@@ -52,6 +52,28 @@ Reply with JSON only: {"voice":"..."}`,
 
 export const resayAdLine: Resay = makeResay();
 
+/** The clip a cut-off earlier attempt already made at this path (said once, paid once), or null. */
+const defaultExisting = async (pathname: string): Promise<string | null> => {
+  try {
+    return (await head(pathname)).url;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Whether any voice clip of this video was made, and so paid for: what a failed video may give back depends on it.
+ * When that cannot be told, the safe answer is that it was.
+ */
+export async function voiceWasPaid(tenantId: string, jobId: string): Promise<boolean> {
+  try {
+    const r = await list({ prefix: `merchant/${tenantId}/advideo/${jobId}/vo-`, limit: 1 });
+    return r.blobs.length > 0;
+  } catch {
+    return true;
+  }
+}
+
 const ext = (mime: string) => (/wav/i.test(mime) ? "wav" : "mp3");
 
 /**
@@ -66,14 +88,20 @@ export async function voiceScenes(input: {
   say?: Say;
   resay?: Resay;
   store?: Store;
+  /** Looks for a clip made before (default: Blob). */
+  existing?: (pathname: string) => Promise<string | null>;
   /** The store whose allowance pays for the rewrite of a refused line. */
   meter?: Meter;
 }): Promise<VoicedScene[]> {
   const say = input.say ?? defaultSay;
   const resay = input.resay ?? makeResay(input.meter);
   const store = input.store ?? defaultStore;
+  const existing = input.existing ?? defaultExisting;
 
   async function one(scene: AdScene, i: number): Promise<VoicedScene | null> {
+    // An attempt that was cut off after saying this scene: its clip is used, not paid for again.
+    const made = await existing(`merchant/${input.tenantId}/advideo/${input.jobId}/vo-${i}.mp3`);
+    if (made) return { scene, url: made };
     let line = scene.voice;
     let spoken: Pick<Speech, "audio" | "mime"> | null = null;
     for (let attempt = 0; attempt < 2 && !spoken; attempt++) {

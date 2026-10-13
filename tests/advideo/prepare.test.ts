@@ -37,7 +37,7 @@ vi.mock("@/lib/db", () => ({
 vi.mock("@/lib/ai/meter", () => ({ chooseTier: vi.fn(async () => "haiku"), recordSpend: vi.fn() }));
 vi.mock("@/lib/advideo/brief", async (orig) => ({ ...(await orig<typeof import("@/lib/advideo/brief")>()), loadAdBrief: vi.fn() }));
 vi.mock("@/lib/advideo/write", () => ({ writeAdSpec: vi.fn() }));
-vi.mock("@/lib/advideo/voice", () => ({ voiceScenes: vi.fn() }));
+vi.mock("@/lib/advideo/voice", () => ({ voiceScenes: vi.fn(), voiceWasPaid: vi.fn(async () => false) }));
 vi.mock("@/lib/advideo/refs", () => ({ listRefs: vi.fn(), refImagesForModel: vi.fn() }));
 vi.mock("@/lib/advideo/strategy", () => ({ getDailyBrief: vi.fn(), baghdadDate: () => "2026-10-12" }));
 
@@ -51,7 +51,7 @@ import { AD_MAX_TRIES, AD_PREPARE_LEASE_MS, createAdVideo, prepareAdVideo } from
 import { listRefs, refImagesForModel } from "@/lib/advideo/refs";
 import { AD_ICONS, lookFromSeed, type AdLook } from "@/lib/advideo/spec";
 import { getDailyBrief } from "@/lib/advideo/strategy";
-import { voiceScenes } from "@/lib/advideo/voice";
+import { voiceScenes, voiceWasPaid } from "@/lib/advideo/voice";
 import { writeAdSpec } from "@/lib/advideo/write";
 
 const m = db as unknown as Record<string, Record<string, ReturnType<typeof vi.fn>>>;
@@ -282,9 +282,34 @@ describe("prepareAdVideo", () => {
     expect(await prepareAdVideo("v1")).toBe(false);
     const last = m.adVideo.updateMany.mock.calls.at(-1)![0] as { data: Record<string, unknown> };
     expect(last.data).toMatchObject({ status: "FAILED", claimedAt: null });
-    // The voice was paid for: the month's place goes back, the day's place stays spent.
+    // Nothing was paid for (no clip was made): the month's place and the day's place both go back.
+    expect(m.usage.updateMany).toHaveBeenCalledTimes(2);
+    expect(m.usage.updateMany.mock.calls[0][0]).toMatchObject({ where: { month: expect.stringMatching(/^\d{4}-\d{2}$/) } });
+  });
+
+  it("keeps the day's try spent when a voice clip was already paid for, and gives the month's place back", async () => {
+    m.adVideo.findUnique.mockResolvedValue(row({ tries: AD_MAX_TRIES - 1 }));
+    vi.mocked(voiceScenes).mockRejectedValue(new Error("later scene failed"));
+    vi.mocked(voiceWasPaid).mockResolvedValue(true);
+    expect(await prepareAdVideo("v1")).toBe(false);
     expect(m.usage.updateMany).toHaveBeenCalledTimes(1);
     expect(m.usage.updateMany.mock.calls[0][0]).toMatchObject({ where: { month: expect.stringMatching(/^\d{4}-\d{2}$/) } });
+  });
+
+  it("saves the script before the voice, so a failing voice does not make the director write it again", async () => {
+    m.adVideo.findUnique.mockResolvedValue(row({ tier: "PRO" }));
+    vi.mocked(voiceScenes).mockRejectedValue(new Error("pawan 429: busy"));
+    await prepareAdVideo("v1");
+    const saved = m.adVideo.updateMany.mock.calls.find((c) => (c[0] as { data: Record<string, unknown> }).data.spec)![0] as { data: Record<string, unknown> };
+    expect(saved.data).toMatchObject({ caption: "c", model: "m" });
+    expect(writeAdSpec).toHaveBeenCalledTimes(1);
+
+    // The next attempt finds the saved script (and no render props) and goes straight to the voice.
+    vi.mocked(writeAdSpec).mockClear();
+    vi.mocked(voiceScenes).mockImplementation(async ({ scenes }) => scenes.map((scene, i) => ({ scene, url: `https://blob/${i}.mp3` })));
+    m.adVideo.findUnique.mockResolvedValue(row({ tier: "PRO", tries: 1, spec: (saved.data.spec as object), props: null, model: "m" }));
+    expect(await prepareAdVideo("v1")).toBe(true);
+    expect(writeAdSpec).not.toHaveBeenCalled();
   });
 
   it("keeps the job QUEUED for another go when tries are left", async () => {

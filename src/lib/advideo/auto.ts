@@ -10,6 +10,7 @@ import { chooseTier } from "@/lib/ai/meter";
 import { limitsOf } from "@/lib/shop/tenant-plans";
 import { defaultTierFor, isVideoTier, refundVideo, videosToday, videosUsed, type VideoTier } from "./limits";
 import { publishAdVideo } from "./publish";
+import { voiceWasPaid } from "./voice";
 
 const HOUR = 3_600_000;
 /** A post that has sat in POSTING this long was cut off: it is not retried by itself, in case it already went out. */
@@ -140,7 +141,7 @@ export async function tickAdVideos(opts: { deadline: number }): Promise<Record<s
     });
     for (const d of stuck) {
       const c = await db.adVideo.updateMany({ where: { id: d.id, status: d.status, tries: { gte: AD_MAX_TRIES } }, data: { status: "FAILED", error: "the video could not be made", claimedAt: null } });
-      if (c.count === 1 && isVideoTier(d.tier)) await refundVideo(d.tenantId, d.tier, d.createdAt, { keepDay: true });
+      if (c.count === 1 && isVideoTier(d.tier)) await refundVideo(d.tenantId, d.tier, d.createdAt, { keepDay: await voiceWasPaid(d.tenantId, d.id) });
     }
   } catch (e) {
     console.error("[advideo] tick failed:", e instanceof Error ? e.message : "unknown error");
