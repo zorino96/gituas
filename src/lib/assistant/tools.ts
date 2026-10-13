@@ -7,6 +7,8 @@
 
 import { z } from "zod";
 
+import { FRAME_SECTIONS } from "@/lib/news/frames-shared";
+
 export const TOOL_NAMES = [
   "make_picture",
   "make_video",
@@ -19,14 +21,28 @@ export const TOOL_NAMES = [
   "add_product",
   "archive_product",
   "set_whatsapp_number",
+  // The newsroom's own: frames by section and how the desk's graphics look.
+  "design_section_frame",
+  "set_design_prompt",
+  "set_frame_text",
+  "remove_section_frame",
 ] as const;
 export type ToolName = (typeof TOOL_NAMES)[number];
+
+/** Which tools a kind of workspace may be offered: a shop never gets the newsroom's, and a desk never the shop's. */
+export const NEWS_TOOLS = ["design_section_frame", "set_design_prompt", "set_frame_text", "remove_section_frame"] as const satisfies readonly ToolName[];
+export const SHOP_TOOLS = TOOL_NAMES.filter((n) => !(NEWS_TOOLS as readonly string[]).includes(n)) as readonly ToolName[];
+export type WorkspaceKind = "shop" | "news";
+export const toolsOf = (kind: WorkspaceKind): readonly ToolName[] => (kind === "news" ? NEWS_TOOLS : SHOP_TOOLS);
 
 /** A file the owner attached in this chat: referred to by a short id ("a1"), never by address. */
 const attId = z.string().regex(/^a\d{1,2}$/);
 const product = z.string().trim().max(120).optional();
 const targets = z.array(z.enum(["FB", "IG"])).min(1).max(2);
 const caption = z.string().trim().max(2000).default("");
+/** A section of the news: "breaking" or an id of the source filter (checked again by the action that runs it). */
+const section = z.enum(FRAME_SECTIONS as unknown as [string, ...string[]]);
+const framePosition = z.enum(["top", "middle", "bottom"]);
 
 export const SCHEMAS = {
   make_picture: z.object({
@@ -71,6 +87,16 @@ export const SCHEMAS = {
   }),
   archive_product: z.object({ product: z.string().trim().min(1).max(120) }),
   set_whatsapp_number: z.object({ number: z.string().trim().min(6).max(20).regex(/^[0-9+٠-٩۰-۹ ()-]+$/) }),
+  design_section_frame: z.object({
+    section,
+    note: z.string().trim().max(400).default(""),
+    /** A graphic the desk attached in the chat, to follow. */
+    reference: attId.optional(),
+    position: framePosition.optional(),
+  }),
+  set_design_prompt: z.object({ text: z.string().trim().max(1200) }),
+  set_frame_text: z.object({ section, position: framePosition }),
+  remove_section_frame: z.object({ section }),
 } as const;
 
 export type ToolArgs<T extends ToolName> = z.infer<(typeof SCHEMAS)[T]>;
@@ -95,13 +121,21 @@ export const TOOL_HELP = `Tools (you may propose ONE per answer, in "action": {"
 - set_whatsapp_number {number}: the shop's WhatsApp number used in order links.
 "a1", "a2"... are the files the owner attached (see "attachments"). Use only those ids; never invent one.`;
 
+/** What the model is told about the newsroom's tools. */
+export const NEWS_TOOL_HELP = `Tools (you may propose ONE per answer, in "action": {"tool": "...", "args": {...}}; the desk must confirm it):
+- design_section_frame {section, note?, reference?: "a1", position?: "top"|"middle"|"bottom"}: the AI designs that section's card frame from the desk's main frame, the reference graphic the desk attached and the desk's own words about its graphics. section is "breaking" or one of: politics, economy, security, sports, health, tech, society, culture, other. Takes about a minute and uses one of the day's AI frames. Only the desk's own picture files may be a reference.
+- set_design_prompt {text}: save, in the desk's own words, how its graphics look (colours, shapes, mood); the AI follows it for every frame. Empty text clears it.
+- set_frame_text {section, position: "top"|"middle"|"bottom"}: where the headline goes on that section's own frame (the section must already have its own frame).
+- remove_section_frame {section}: that section goes back to the main frame (the frame file stays in storage but is no longer used).
+"a1", "a2"... are the files the owner attached (see "attachments"). Use only those ids; never invent one.`;
+
 /**
  * The proposal a model wrote, or null when it is not one of the tools, has arguments that do not fit, or names a file
  * that was not attached. Unknown extra keys are dropped.
  */
-export function parseProposal(raw: unknown, attachmentIds: ReadonlySet<string>): Proposal | null {
+export function parseProposal(raw: unknown, attachmentIds: ReadonlySet<string>, kind: WorkspaceKind = "shop"): Proposal | null {
   const o = raw as { tool?: unknown; args?: unknown } | null;
-  if (!o || typeof o.tool !== "string" || !(TOOL_NAMES as readonly string[]).includes(o.tool)) return null;
+  if (!o || typeof o.tool !== "string" || !(toolsOf(kind) as readonly string[]).includes(o.tool)) return null;
   const tool = o.tool as ToolName;
   const parsed = SCHEMAS[tool].safeParse(o.args ?? {});
   if (!parsed.success) return null;
@@ -110,6 +144,7 @@ export function parseProposal(raw: unknown, attachmentIds: ReadonlySet<string>):
     ...((args.references as string[] | undefined) ?? []),
     ...((args.photos as string[] | undefined) ?? []),
     ...(typeof args.media === "string" ? [args.media] : []),
+    ...(typeof args.reference === "string" ? [args.reference] : []),
   ];
   if (refs.some((id) => !attachmentIds.has(id))) return null;
   return { tool, args };
@@ -146,13 +181,23 @@ export interface FieldLabels {
   modePublish: string;
   attached: (n: number) => string;
   noMedia: string;
+  // The newsroom's tools (the shop's screens do not carry them).
+  section?: string;
+  note?: string;
+  reference?: string;
+  designPrompt?: string;
+  position?: string;
+  top?: string;
+  middle?: string;
+  bottom?: string;
+  breaking?: string;
 }
 
 export function proposalLines(
   p: Proposal,
   f: FieldLabels,
   /** The names of the attached files by id, and the name of the shop the action is for. */
-  ctx: { files?: Record<string, string>; shop?: string } = {},
+  ctx: { files?: Record<string, string>; shop?: string; /** The names of the news sections by id. */ sections?: Record<string, string> } = {},
 ): { label: string; value: string }[] {
   const fileName = (id: unknown) => (typeof id === "string" ? ctx.files?.[id] ?? id : "");
   const a = p.args as Record<string, unknown>;
@@ -215,6 +260,22 @@ export function proposalLines(
       add(f.mode, mode(a.mode));
       add(f.hour, a.hour !== undefined ? `${String(a.hour).padStart(2, "0")}:00` : undefined);
       add(f.shop, ctx.shop);
+      break;
+    case "design_section_frame":
+    case "set_frame_text":
+    case "remove_section_frame": {
+      const where = (id: unknown) => (typeof id === "string" ? ctx.sections?.[id] ?? (id === "breaking" ? f.breaking ?? id : id) : "");
+      const pos = (v: unknown) => (v === "top" ? f.top : v === "middle" ? f.middle : v === "bottom" ? f.bottom : "") ?? "";
+      add(f.section ?? "", where(a.section));
+      if (p.tool === "design_section_frame") {
+        add(f.reference ?? "", a.reference ? fileName(a.reference) : undefined);
+        add(f.note ?? "", a.note);
+      }
+      if (p.tool !== "remove_section_frame") add(f.position ?? "", pos(a.position));
+      break;
+    }
+    case "set_design_prompt":
+      add(f.designPrompt ?? "", a.text || "—");
       break;
   }
   return out;

@@ -9,7 +9,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { gmFontVars } from "@/app/app/fonts";
-import { brandFrom, mediaSrc } from "@/lib/cards/brand";
+import { mediaSrc } from "@/lib/cards/brand";
+import { brandForStory, categoryOfStory, loadFrames } from "@/lib/news/frames";
 import { verifyRenderToken } from "@/lib/cards/render-token";
 import { CARD_H, CARD_W } from "@/lib/cards/size";
 import { stampOf } from "@/lib/cards/stamp";
@@ -44,11 +45,13 @@ export default async function CardRenderPage({
       quote: true,
       speaker: true,
       photoPath: true,
-      item: { select: { publishedAt: true } },
+      category: true,
+      item: { select: { publishedAt: true, category: true } },
     },
   });
   if (!draft) notFound();
-  const [kit, tenant] = await Promise.all([
+  const [frames, kit, tenant] = await Promise.all([
+    loadFrames(draft.tenantId),
     db.brandKit.findUnique({
       where: { tenantId: draft.tenantId },
       select: { logoPath: true, primary: true, accent: true, text: true, headingFont: true, framePath: true, frameText: true },
@@ -63,7 +66,7 @@ export default async function CardRenderPage({
       <div id="card" dir="ltr" style={{ position: "fixed", top: 0, left: 0, width: CARD_W, height: CARD_H, margin: 0, overflow: "hidden" }}>
         <NewsCard
           kind={(CARD_KINDS.includes(draft.cardKind as CardKind) ? draft.cardKind : "STANDARD") as CardKind}
-          brand={brandFrom(kit, tenant.name)}
+          brand={brandForStory(kit, tenant.name, frames, draft.cardKind, categoryOfStory(draft.item.category, draft.category))}
           content={{
             headline: draft.headline,
             stat: draft.stat,

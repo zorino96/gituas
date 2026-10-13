@@ -41,6 +41,7 @@ export const nrShellEn: typeof nrShellCkb = {
       autopilot: "Automatic publishing",
       videoSetup: "Video settings",
       brand: "Brand & photos",
+      assistant: "Assistant",
       team: "Team",
       settings: "Settings",
       guide: "Guide",

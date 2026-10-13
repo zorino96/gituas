@@ -49,6 +49,9 @@ export const NEWS_ASSIST_CAPS = { month: 300, day: 40 };
 /** Hearing a voice before choosing it. */
 export const VOICE_PREVIEW_SLOTS: SlotMetric = { month: "news_voice_preview", day: "news_voice_preview_day" };
 export const VOICE_PREVIEW_CAPS = { month: 150, day: 15 };
+/** A frame designed with the AI image model (about 5 to 12 cents each). */
+export const FRAME_AI_SLOTS: SlotMetric = { month: "news_frame_ai", day: "news_frame_ai_day" };
+export const FRAME_AI_CAPS = { month: 20, day: 6 };
 /** Changing the news prompt, which has the recent stories judged again. */
 export const FOCUS_RESET_SLOTS: SlotMetric = { month: "news_focus_reset", day: "news_focus_reset_day" };
 export const FOCUS_RESET_CAPS = { month: 60, day: 6 };

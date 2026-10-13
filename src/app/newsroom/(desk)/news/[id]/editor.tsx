@@ -10,6 +10,7 @@ import { renderCardJpeg } from "@/lib/cards/render";
 import { mediaSrc, type Brand } from "@/lib/cards/brand";
 import { stampOf } from "@/lib/cards/stamp";
 import { checkDraft } from "@/lib/news/rules";
+import { brandWithFrame, categoryOfStory, type FrameRow } from "@/lib/news/frames-shared";
 import { CARD_KINDS } from "@/lib/news/types";
 import { attachCardAction, dismissNewsAction, draftNewsAction, saveNewsDraftAction, type DraftView } from "../actions";
 import { ago } from "@/app/app/format";
@@ -40,11 +41,30 @@ const blank = (): DraftView => ({
   model: "manual",
 });
 
-export function NewsEditor({ workspaceId, source, initial, brand }: { workspaceId: string; source: Source; initial: DraftView | null; brand: Brand }) {
+export function NewsEditor({
+  workspaceId,
+  source,
+  initial,
+  brand: mainBrand,
+  frames,
+  itemCategory,
+}: {
+  workspaceId: string;
+  source: Source;
+  initial: DraftView | null;
+  brand: Brand;
+  /** The desk's own frames by section: the card shows the one of its kind and section. */
+  frames: FrameRow[];
+  itemCategory: string | null;
+}) {
   const router = useRouter();
   const t = useT();
   const te = t.nr.news.editor;
   const [d, setD] = useState<DraftView | null>(initial);
+  const brand = useMemo(
+    () => brandWithFrame(mainBrand, frames, d?.cardKind ?? "STANDARD", categoryOfStory(itemCategory, d?.category)),
+    [mainBrand, frames, d?.cardKind, d?.category, itemCategory],
+  );
   const [error, setError] = useState<string | null>(null);
   const [stage, setStage] = useState<string | null>(null);
   const [busy, start] = useTransition();

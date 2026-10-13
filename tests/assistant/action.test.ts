@@ -22,6 +22,12 @@ vi.mock("@/app/app/automation/actions", () => ({ saveStoreSettingsAction: vi.fn(
 vi.mock("@/app/app/publish/ai-image-action", () => ({ generateAiImageAction: vi.fn() }));
 vi.mock("@/app/app/publish/schedule-actions", () => ({ schedulePublishAction: vi.fn() }));
 vi.mock("@/app/app/video/actions", () => ({ createVideoAction: vi.fn(), saveVideoAutoAction: vi.fn() }));
+vi.mock("@/app/newsroom/(desk)/news/actions", () => ({
+  designSectionFrameAction: vi.fn(),
+  saveDesignPromptAction: vi.fn(),
+  saveSectionFrameTextAction: vi.fn(),
+  removeSectionFrameAction: vi.fn(),
+}));
 vi.mock("@/lib/shop/tenant-plans", () => ({ limitsOf: vi.fn(async () => ({ aiUsd: plan.aiUsd })) }));
 vi.mock("@/lib/ai/slots", () => ({
   claimSlot: vi.fn(async () => ({ ok: true, month: "2026-10", day: "2026-10-13" })),
@@ -29,6 +35,7 @@ vi.mock("@/lib/ai/slots", () => ({
   takeDaily: vi.fn(async () => 1),
 }));
 vi.mock("@/lib/assistant/state", () => ({ loadAssistantState: vi.fn(async () => ({ shops: [{ plan: "MERCHANT" }] })) }));
+vi.mock("@/lib/assistant/state-news", () => ({ loadNewsAssistantState: vi.fn(async () => ({ desk: "Desk", frames: [] })) }));
 vi.mock("@/lib/assistant/ask", async (orig) => ({ ...(await orig<typeof import("@/lib/assistant/ask")>()), askAssistant: vi.fn() }));
 
 import { claimSlot, refundSlot, takeDaily } from "@/lib/ai/slots";
@@ -59,15 +66,36 @@ describe("askAssistantAction", () => {
     expect(vi.mocked(askAssistant).mock.calls[0][0]).toMatchObject({ uncounted: true });
   });
 
-  it("turns away a signed-out visitor, a news desk, and a member who cannot open billing", async () => {
+  it("turns away a signed-out visitor and a member who cannot open billing", async () => {
     ws.current = null;
     expect(await askAssistantAction(ask)).toMatchObject({ ok: false, contact: false });
-    ws.current = { id: "t1", role: "OWNER", kind: "NEWS" };
-    expect(await askAssistantAction(ask)).toMatchObject({ ok: false, contact: true });
     ws.current = { id: "t1", role: "MEMBER", kind: "MERCHANT" };
     expect(await askAssistantAction(ask)).toMatchObject({ ok: false, contact: false });
     expect(askAssistant).not.toHaveBeenCalled();
     expect(claimSlot).not.toHaveBeenCalled();
+  });
+
+  it("answers a news desk from its own knowledge and tools, with a fixed few questions a day", async () => {
+    ws.current = { id: "t1", role: "OWNER", kind: "NEWS", name: "Desk" } as typeof ws.current;
+    expect(await askAssistantAction(ask)).toMatchObject({ ok: true, reply: "وەڵام" });
+    expect(vi.mocked(claimSlot).mock.calls[0][2]).toEqual({ month: 120, day: 20 });
+    expect(vi.mocked(askAssistant).mock.calls[0][0]).toMatchObject({ tenantId: "t1", kind: "news", uncounted: true });
+  });
+
+  it("shows a desk's proposal as a card with the section's name and the attached reference", async () => {
+    ws.current = { id: "t1", role: "OWNER", kind: "NEWS", name: "Desk" } as typeof ws.current;
+    vi.mocked(askAssistant).mockResolvedValue({
+      reply: "ok",
+      followups: [],
+      action: { tool: "design_section_frame", args: { section: "sports", note: "green", reference: "a1" } },
+    });
+    const r = await askAssistantAction({
+      ...ask,
+      attachments: [{ id: "a1", url: "https://abc.public.blob.vercel-storage.com/merchant/t1/chat/1.png", pathname: "merchant/t1/chat/1.png", kind: "image", name: "ref.png" }],
+    });
+    expect(r).toMatchObject({ ok: true, proposal: { tool: "design_section_frame", title: "Design a section's frame" } });
+    const lines = (r as { proposal: { lines: { label: string; value: string }[] } }).proposal.lines;
+    expect(lines).toEqual(expect.arrayContaining([{ label: "Section", value: "Sports" }, { label: "Note", value: "green" }, { label: "Reference graphic", value: "ref.png" }]));
   });
 
   it("says which number ran out, the day's or the month's, and offers the support number", async () => {

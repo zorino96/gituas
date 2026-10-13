@@ -10,6 +10,7 @@ import { useT } from "@/lib/i18n/client";
 import { NewsCard, CARD_H, CARD_W } from "@/lib/cards/templates";
 import { brandFrom, FRAME_TEXT, mediaSrc, type FrameText } from "@/lib/cards/brand";
 import { ReferencePicker } from "./color-picker";
+import { SectionFrames, type SectionFrame } from "./section-frames";
 import { AUTO_DAILY_MAX, AUTO_MIN_GAP, AUTO_MODES, AUTO_TARGETS, MAX_AUTO_ACCOUNTS, type AutoMode, type AutoTarget } from "@/lib/news/autopilot-settings";
 import { GROUPS, type SourceGroup, type SourceLang } from "@/lib/news/catalog";
 import { subcategoryLabel, TAXONOMY } from "@/lib/news/taxonomy";
@@ -93,6 +94,12 @@ export interface NewsSettingsProps {
   kit: { logoPath: string | null; primary: string; accent: string; text: string; headingFont: "kufi" | "sans"; framePath: string | null; frameText: FrameText };
   /** The photo library of the desk: card backgrounds behind its frame. */
   photos: LibraryPhoto[];
+  /** Frames of their own by section (the main frame is `kit.framePath`). */
+  sectionFrames: SectionFrame[];
+  /** The desk's words about how its graphics look. */
+  designPrompt: string;
+  /** The AI image service is configured: frames can be designed. */
+  aiFrames: boolean;
 }
 
 const PREVIEW_W = 180;
@@ -828,6 +835,18 @@ export function NewsSettings(p: NewsSettingsProps) {
             </button>
           ))}
         </div>
+        <label className="gm-btn quiet small" style={{ alignSelf: "flex-start", opacity: uploadingLogo ? 0.6 : 1, pointerEvents: uploadingLogo ? "none" : "auto" }}>
+          {uploadingLogo ? tn.uploading : kit.logoPath ? tn.changeLogo : tn.logo}
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            hidden
+            disabled={uploadingLogo}
+            onChange={(e) => e.target.files?.[0] && pickLogo(e.target.files[0])}
+          />
+        </label>
+      </div>
+      <div className="gm-card gm-stack">
         <p className="gm-sec" style={{ margin: 0 }}>{tn.frameSec}</p>
         <p className="gm-hint" style={{ margin: 0 }}>{tn.frameHint}</p>
         <div className="gm-row" style={{ gap: 8, flexWrap: "wrap" }}>
@@ -853,16 +872,6 @@ export function NewsSettings(p: NewsSettingsProps) {
             </div>
           </>
         )}
-        <label className="gm-btn quiet small" style={{ alignSelf: "flex-start", opacity: uploadingLogo ? 0.6 : 1, pointerEvents: uploadingLogo ? "none" : "auto" }}>
-          {uploadingLogo ? tn.uploading : kit.logoPath ? tn.changeLogo : tn.logo}
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            hidden
-            disabled={uploadingLogo}
-            onChange={(e) => e.target.files?.[0] && pickLogo(e.target.files[0])}
-          />
-        </label>
         <div dir="ltr" style={{ width: PREVIEW_W, height: (CARD_H * PREVIEW_W) / CARD_W, overflow: "hidden", borderRadius: 10 }}>
           <div style={{ transform: `scale(${PREVIEW_W / CARD_W})`, transformOrigin: "top left", width: CARD_W, height: CARD_H }}>
             <NewsCard
@@ -874,6 +883,15 @@ export function NewsSettings(p: NewsSettingsProps) {
         </div>
         <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => saveBrandKitAction(kit), tn.brandSaved)}>{tn.saveBrand}</button>
       </div>
+      <SectionFrames
+        workspaceId={p.workspaceId}
+        pageName={p.pageName}
+        kit={kit}
+        samplePhoto={photos[0]?.pathname ?? null}
+        frames={p.sectionFrames}
+        designPrompt={p.designPrompt}
+        aiEnabled={p.aiFrames}
+      />
       <div className="gm-card gm-stack">
         <PhotoLibrary workspaceId={p.workspaceId} initial={p.photos} onChange={setPhotos} />
       </div>

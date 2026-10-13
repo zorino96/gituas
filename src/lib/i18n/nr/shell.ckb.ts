@@ -33,6 +33,7 @@ export const nrShellCkb = {
       autopilot: "بڵاوکردنەوەی خۆکار",
       videoSetup: "ڕێکخستنی ڤیدیۆ",
       brand: "براند و وێنەکان",
+      assistant: "یاریدەدەر",
       team: "تیم",
       settings: "ڕێکخستن",
       guide: "ڕێنمایی",

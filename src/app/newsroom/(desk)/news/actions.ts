@@ -6,8 +6,11 @@ import { after } from "next/server";
 import { isOwnPathname } from "@/lib/merchant/caption";
 import { db } from "@/lib/db";
 import { assertWithin, countUsage, LimitReached, limitMessage, newsroomFrozenError } from "@/lib/billing/limits";
-import { claimSlot } from "@/lib/ai/slots";
-import { FOCUS_RESET_CAPS, FOCUS_RESET_SLOTS, VOICE_PREVIEW_CAPS, VOICE_PREVIEW_SLOTS } from "@/lib/news/ai-budget";
+import { claimSlot, refundSlot } from "@/lib/ai/slots";
+import { FOCUS_RESET_CAPS, FOCUS_RESET_SLOTS, FRAME_AI_CAPS, FRAME_AI_SLOTS, VOICE_PREVIEW_CAPS, VOICE_PREVIEW_SLOTS } from "@/lib/news/ai-budget";
+import { designFrame, FrameDesignError, storeFrame } from "@/lib/news/frame-design";
+import { isFrameSection } from "@/lib/news/frames";
+import { TAXONOMY } from "@/lib/news/taxonomy";
 import { canAutoPublish, NEWS_LIMITS, promptFilterFor, videoQuotaFor } from "@/lib/billing/plans";
 import { del, head, put } from "@vercel/blob";
 import { cleanDailyMax, isVideoMode, ownClips, prepareVideo, VIDEO_STYLES } from "@/lib/news/video";
@@ -310,6 +313,123 @@ export async function saveBrandKitAction(kit: {
   };
   await db.brandKit.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, ...data }, update: data });
   return { ok: true };
+}
+
+/** A frame the desk made itself (a 1080x1350 PNG, checked on the screen) for one section. */
+export async function saveSectionFrameAction(input: { section: string; framePath: string; frameText?: string }): Promise<Result> {
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
+  if (!isFrameSection(input?.section)) return { ok: false, error: m.badLogo };
+  const framePath = typeof input.framePath === "string" ? input.framePath : "";
+  if (!framePath || !isOwnPath(framePath, ws.id) || !/\.png$/i.test(framePath)) return { ok: false, error: m.badLogo };
+  const frameText = isFrameText(input.frameText) ? input.frameText : "bottom";
+  await db.newsFrame.upsert({
+    where: { tenantId_section: { tenantId: ws.id, section: input.section } },
+    create: { tenantId: ws.id, section: input.section, framePath, frameText },
+    update: { framePath, frameText },
+  });
+  revalidatePath("/newsroom/brand");
+  return { ok: true };
+}
+
+/** Where the headline goes on a section's frame. */
+export async function saveSectionFrameTextAction(section: string, frameText: string): Promise<Result> {
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
+  if (!isFrameSection(section) || !isFrameText(frameText)) return { ok: false, error: m.badLogo };
+  await db.newsFrame.updateMany({ where: { tenantId: ws.id, section }, data: { frameText } });
+  revalidatePath("/newsroom/brand");
+  return { ok: true };
+}
+
+/** Takes a section's own frame away: its cards use the desk's main frame again. */
+export async function removeSectionFrameAction(section: string): Promise<Result> {
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
+  if (!isFrameSection(section)) return { ok: false, error: m.badLogo };
+  await db.newsFrame.deleteMany({ where: { tenantId: ws.id, section } });
+  revalidatePath("/newsroom/brand");
+  return { ok: true };
+}
+
+/** How the desk's graphics look, in its own words: given to the AI whenever it designs a frame. */
+export async function saveDesignPromptAction(raw: string): Promise<Result<{ designPrompt: string }>> {
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
+  const designPrompt = Array.from(String(raw ?? "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim()).slice(0, 1_200).join("");
+  await db.newsSettings.upsert({
+    where: { tenantId: ws.id },
+    create: { tenantId: ws.id, keywords: [], designPrompt: designPrompt || null },
+    update: { designPrompt: designPrompt || null },
+    select: { tenantId: true },
+  });
+  return { ok: true, designPrompt };
+}
+
+/**
+ * Has the AI design a section's frame from the desk's reference graphic, its main frame and its own words about its
+ * graphics, so the agency's look holds across the sections. A few a day (each costs real money); a failure that
+ * cannot have been billed gives the place back.
+ */
+export async function designSectionFrameAction(input: {
+  section: string;
+  referencePath?: string | null;
+  note?: string;
+  frameText?: string;
+}): Promise<Result<{ framePath: string }>> {
+  const { ws, m, t } = await desk();
+  const e = t.settings.news.frames.err;
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
+  if (!isFrameSection(input?.section)) return { ok: false, error: m.badLogo };
+  const frozen = await newsroomFrozenError(ws.id);
+  if (frozen) return { ok: false, error: frozen };
+  const referencePath = input.referencePath ? String(input.referencePath) : null;
+  if (referencePath && (!isOwnPath(referencePath, ws.id) || !/\.(png|jpe?g|webp)$/i.test(referencePath))) return { ok: false, error: m.badLogo };
+  const frameText = isFrameText(input.frameText) ? input.frameText : "bottom";
+  const note = Array.from(String(input.note ?? "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").trim()).slice(0, 400).join("");
+
+  const slot = await claimSlot(ws.id, FRAME_AI_SLOTS, FRAME_AI_CAPS);
+  if (!slot.ok) return { ok: false, error: e.limit };
+  const label = input.section === "breaking" ? "breaking news" : (TAXONOMY.find((c) => c.id === input.section)?.id ?? input.section);
+  let sent = false;
+  try {
+    // Read inside the try: a failure here is given back like any failure before the request left.
+    const [kit, settings] = await Promise.all([
+      db.brandKit.findUnique({ where: { tenantId: ws.id }, select: { logoPath: true, framePath: true } }),
+      db.newsSettings.findUnique({ where: { tenantId: ws.id }, select: { designPrompt: true } }),
+    ]);
+    const png = await designFrame({
+      section: label,
+      frameText,
+      designPrompt: settings?.designPrompt ?? "",
+      note,
+      mainFramePath: kit?.framePath && isOwnPath(kit.framePath, ws.id) ? kit.framePath : null,
+      referencePath,
+      logoPath: kit?.logoPath && isOwnPath(kit.logoPath, ws.id) ? kit.logoPath : null,
+      onSent: () => {
+        sent = true;
+      },
+    });
+    const framePath = await storeFrame(ws.id, input.section, png);
+    await db.newsFrame.upsert({
+      where: { tenantId_section: { tenantId: ws.id, section: input.section } },
+      create: { tenantId: ws.id, section: input.section, framePath, frameText, referencePath, note: note || null },
+      update: { framePath, frameText, referencePath, note: note || null },
+    });
+    revalidatePath("/newsroom/brand");
+    return { ok: true, framePath };
+  } catch (err) {
+    // Given back only when nothing can have been billed: it never left, or the service refused it outright.
+    const kind = err instanceof FrameDesignError ? err.kind : "failed";
+    if (!sent || kind === "busy" || kind === "refused" || kind === "config" || kind === "off" || kind === "refs") await refundSlot(ws.id, FRAME_AI_SLOTS, slot).catch(() => undefined);
+    const text: Record<string, string> = { off: e.off, config: e.off, refs: e.refs, noWindow: e.noWindow, busy: e.busy, refused: e.refused, timeout: e.timeout, failed: e.failed };
+    return { ok: false, error: text[kind] ?? e.failed };
+  }
 }
 
 /** The outlet's own writing style, added to every draft's instructions. Empty clears it. */

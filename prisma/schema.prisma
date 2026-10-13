@@ -692,6 +692,8 @@ enum TenantKind {
 /// A news page's desk settings.
 model NewsSettings {
   tenantId      String    @id
+  /// How the desk's graphics look, in its own words: given to the AI whenever it designs a frame for a section.
+  designPrompt  String?
   /// Words a story must contain to be shown (any of them); empty = everything.
   keywords      String[]
   lastFetchedAt DateTime?
@@ -757,6 +759,26 @@ model IgPending {
   updatedAt   DateTime @updatedAt
 
   @@index([status, createdAt])
+}
+
+/// A desk's own frame for one section of the news (a category of the taxonomy, or "breaking"): the card of a story of
+/// that section is the story photo behind this frame; a section without one uses the desk's main frame (BrandKit).
+model NewsFrame {
+  id            String   @id @default(cuid())
+  tenantId      String
+  /// A category id ("politics", "economy", "sports", ...) or "breaking".
+  section       String
+  framePath     String
+  /// Where the headline goes on it: top | middle | bottom
+  frameText     String   @default("bottom")
+  /// The graphic the desk gave the AI as its reference, and the note it added (kept so a frame can be designed again).
+  referencePath String?
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([tenantId, section])
+  @@index([tenantId])
 }
 
 /// A desk's own photos for card backgrounds. The AI only uses a photo whose label fits the story.

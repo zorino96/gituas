@@ -2,6 +2,7 @@
 import { loadVoiceClone } from "@/lib/voice/clone";
 import { isFrameText } from "@/lib/cards/brand";
 import { db } from "@/lib/db";
+import { imageEnabled } from "@/lib/ai/image";
 import { canAutoPublish, promptFilterFor, refreshSecFor, videoQuotaFor } from "@/lib/billing/plans";
 import { usageOf } from "@/lib/billing/limits";
 import { AUTO_DAILY_MAX, AUTO_MIN_GAP, autoTargetsFor, isAutoMode } from "@/lib/news/autopilot-settings";
@@ -14,11 +15,12 @@ export async function loadNewsProps(
   conns: Awaited<ReturnType<typeof loadConnections>>,
   lists: Awaited<ReturnType<typeof loadAccountLists>>,
 ): Promise<NewsSettingsProps> {
-    const [settings, sources, kit, tenant] = await Promise.all([
+  const [settings, sources, kit, tenant, frames] = await Promise.all([
     db.newsSettings.findUnique({ where: { tenantId: ws.id } }),
     db.newsSource.findMany({ where: { tenantId: ws.id }, orderBy: { createdAt: "asc" } }),
     db.brandKit.findUnique({ where: { tenantId: ws.id } }),
     db.tenant.findUnique({ where: { id: ws.id }, select: { plan: true } }),
+    db.newsFrame.findMany({ where: { tenantId: ws.id }, orderBy: { createdAt: "asc" } }),
   ]);
   const canPublish = canAutoPublish(tenant?.plan);
   const savedMode = isAutoMode(settings?.autoMode) ? settings.autoMode : "OFF";
@@ -90,6 +92,15 @@ export async function loadNewsProps(
       framePath: kit?.framePath ?? null,
       frameText: isFrameText(kit?.frameText) ? kit.frameText : "bottom",
     },
+    sectionFrames: frames.map((f) => ({
+      section: f.section,
+      framePath: f.framePath,
+      frameText: isFrameText(f.frameText) ? f.frameText : "bottom",
+      referencePath: f.referencePath,
+      note: f.note ?? "",
+    })),
+    designPrompt: settings?.designPrompt ?? "",
+    aiFrames: imageEnabled(),
     photos: await db.newsPhoto.findMany({ where: { tenantId: ws.id }, orderBy: { createdAt: "desc" }, select: { id: true, pathname: true, label: true, general: true } }),
   };
 }

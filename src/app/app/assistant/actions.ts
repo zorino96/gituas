@@ -6,7 +6,16 @@ import { claimSlot, refundSlot, takeDaily } from "@/lib/ai/slots";
 import { askAssistant, cleanTurns, plainName, type AttachmentInfo, type ChatTurn } from "@/lib/assistant/ask";
 import { assistantCaps, ASSISTANT_SLOTS, NO_SHOP_CAPS, REFUNDS_PER_DAY } from "@/lib/assistant/caps";
 import { loadAssistantState } from "@/lib/assistant/state";
-import { parseProposal, proposalLines, type ToolName } from "@/lib/assistant/tools";
+import { loadNewsAssistantState } from "@/lib/assistant/state-news";
+import { NEWS_TOOLS, parseProposal, proposalLines, type ToolName } from "@/lib/assistant/tools";
+import { isFrameSection } from "@/lib/news/frames-shared";
+import { isFrameText, type FrameText } from "@/lib/cards/brand";
+import {
+  designSectionFrameAction,
+  removeSectionFrameAction,
+  saveDesignPromptAction,
+  saveSectionFrameTextAction,
+} from "@/app/newsroom/(desk)/news/actions";
 import { maxPlanOpen } from "@/lib/billing/prices";
 import { db } from "@/lib/db";
 import { dict, getLang } from "@/lib/i18n";
@@ -94,6 +103,54 @@ async function resolveShop(tenantId: string, connectedIds: string[], productHint
 
 const baghdadNow = () => new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 16).replace("T", " ");
 
+/** A news desk asks about the same few things a day as a shop on a small plan. */
+const NEWS_ASSISTANT_CAPS = { month: 120, day: 20 } as const;
+
+/** The same, for a news desk: its own knowledge, its own state, its own tools. Nothing here reads a shop. */
+async function askForDesk(ws: { id: string; name: string }, lang: Parameters<typeof dict>[0], turns: ChatTurn[], attachments: ChatAttachment[]): Promise<AssistantResult> {
+  const t = dict(lang);
+  const a = t.assistant;
+  const slot = await claimSlot(ws.id, ASSISTANT_SLOTS, NEWS_ASSISTANT_CAPS);
+  if (!slot.ok) return { ok: false, error: slot.error === "daily" ? a.limit : a.limitMonth, contact: true };
+  try {
+    const topics: Record<string, string> = t.nr.news.topics;
+    const sections = { ...topics, breaking: a.news.fields.breaking };
+    const state = await loadNewsAssistantState(ws.id, { desk: ws.name, sections });
+    const answer = await askAssistant({
+      tenantId: ws.id,
+      lang,
+      turns,
+      uiNames: { ...t.nr.shell.nav.items },
+      state,
+      features: { max: false, video: false, pictures: imageEnabled() },
+      attachments: attachments.map((x) => ({ id: x.id, kind: x.kind, name: x.name })),
+      nowBaghdad: baghdadNow(),
+      // Counted by the slots above; the desk's own AI budget is not spent on questions.
+      uncounted: true,
+      kind: "news",
+    });
+    const p = answer.action;
+    let proposal: Extract<AssistantResult, { ok: true }>["proposal"] = null;
+    if (p) {
+      const files = Object.fromEntries(attachments.map((x) => [x.id, plainName(x.name) || x.kind]));
+      const names = a.news.tools as Record<string, string>;
+      proposal = {
+        tool: p.tool,
+        args: p.args,
+        title: names[p.tool] ?? p.tool,
+        lines: proposalLines(p, { ...a.fields, ...a.news.fields }, { files, sections }),
+        nonce: randomUUID().replace(/-/g, "").slice(0, 16),
+      };
+    }
+    return { ok: true, reply: answer.reply, followups: answer.followups, proposal };
+  } catch {
+    if ((await takeDaily(ws.id, "assistant_refund_day", 1, REFUNDS_PER_DAY).catch(() => 0)) > 0) {
+      await refundSlot(ws.id, ASSISTANT_SLOTS, slot).catch(() => undefined);
+    }
+    return { ok: false, error: a.failed, contact: true };
+  }
+}
+
 /** One question to the assistant. It explains, looks, and may propose one action; it changes nothing by itself. */
 export async function askAssistantAction(input: { workspaceId: string; messages: ChatTurn[]; attachments?: ChatAttachment[] }): Promise<AssistantResult> {
   const lang = await getLang();
@@ -101,7 +158,7 @@ export async function askAssistantAction(input: { workspaceId: string; messages:
   const a = t.assistant;
   const ws = await currentWorkspace();
   if (!ws) return { ok: false, error: a.signIn, contact: false };
-  if (ws.kind !== "MERCHANT") return { ok: false, error: a.notShop, contact: true };
+  if (ws.kind !== "MERCHANT" && ws.kind !== "NEWS") return { ok: false, error: a.notShop, contact: true };
   // The answers look at billing and automation settings: only people who can open those may ask.
   if (!can(ws.role, "configure")) return { ok: false, error: t.nr.team.roles.notAllowed, contact: false };
   // The screen was opened for another workspace than the one the session is in now (a tab left behind).
@@ -109,6 +166,7 @@ export async function askAssistantAction(input: { workspaceId: string; messages:
   const turns = cleanTurns(input?.messages);
   if (!turns.length) return { ok: false, error: a.failed, contact: true };
   const attachments = cleanAttachments(input?.attachments, ws.id);
+  if (ws.kind === "NEWS") return askForDesk(ws, lang, turns, attachments);
 
   const limits = await limitsOf(ws.id);
   const noShop = limits.aiUsd <= 0;
@@ -161,7 +219,7 @@ export async function askAssistantAction(input: { workspaceId: string; messages:
       proposal = {
         tool: p.tool,
         args: p.args,
-        title: a.tools[p.tool],
+        title: (a.tools as Record<string, string>)[p.tool] ?? p.tool,
         lines: proposalLines(p, a.fields, { files, shop: shop?.ok ? shop.shopName : undefined }),
         nonce: randomUUID().replace(/-/g, "").slice(0, 16),
       };
@@ -199,18 +257,20 @@ export async function runToolAction(input: {
   const a = t.assistant;
   const ws = await currentWorkspace();
   if (!ws) return { ok: false, error: a.signIn };
-  if (ws.kind !== "MERCHANT") return { ok: false, error: a.notShop };
+  if (ws.kind !== "MERCHANT" && ws.kind !== "NEWS") return { ok: false, error: a.notShop };
   if (!can(ws.role, "configure")) return { ok: false, error: t.nr.team.roles.notAllowed };
 
   if (input?.workspaceId !== ws.id) return { ok: false, error: a.errors.otherWorkspace };
   const atts = cleanAttachments(input?.attachments, ws.id);
-  const proposal = parseProposal({ tool: input?.tool, args: input?.args }, new Set(atts.map((x) => x.id)));
+  const proposal = parseProposal({ tool: input?.tool, args: input?.args }, new Set(atts.map((x) => x.id)), ws.kind === "NEWS" ? "news" : "shop");
   if (!proposal || typeof input?.nonce !== "string" || !/^[a-f0-9]{16}$/.test(input.nonce)) return { ok: false, error: a.errors.badAction };
   // One card runs once, whatever the screen does (a reload, a second tab, a double press that got through).
   if ((await takeDaily(ws.id, `chatrun_${input.nonce}`, 1, 1)) < 1) return { ok: false, error: a.errors.alreadyRun };
   if ((await takeDaily(ws.id, "chat_action_day", 1, ACTIONS_PER_DAY)) < 1) return { ok: false, error: a.errors.actionsLimit };
   // Publishing is the costly kind of mistake: its own, lower number.
   if ((proposal.tool === "post_now" || proposal.tool === "schedule_post") && (await takeDaily(ws.id, "chat_post_day", 1, POSTS_PER_DAY)) < 1) return { ok: false, error: a.errors.actionsLimit };
+
+  if (ws.kind === "NEWS") return runDeskTool(ws.id, proposal.tool, proposal.args as Record<string, unknown>, atts, t);
 
   // The shop the action is for (the same rule as the card used to show it).
   const conns = await loadConnections(ws.id);
@@ -314,5 +374,75 @@ export async function runToolAction(input: {
       const r = await saveVideoAutoAction(store.id, { mode: String(args.mode), tier: keepTier, hour: typeof args.hour === "number" ? args.hour : keepHour });
       return r.ok ? { ok: true, text: a.done.setting } : { ok: false, error: r.error };
     }
+    default:
+      // A tool of the newsroom, in a shop: not on its list.
+      return { ok: false, error: a.errors.badAction };
+  }
+}
+
+/**
+ * A news desk's confirmed tools. Each goes through the same server action the Brand & photos screen uses, with that
+ * action's own checks (role, allowance, the desk's own files only); the reference is one of the pictures attached here.
+ */
+async function runDeskTool(
+  tenantId: string,
+  tool: ToolName,
+  args: Record<string, unknown>,
+  atts: ChatAttachment[],
+  t: ReturnType<typeof dict>,
+): Promise<ToolResult> {
+  const a = t.assistant;
+  const n = a.news;
+  if (!(NEWS_TOOLS as readonly string[]).includes(tool)) return { ok: false, error: a.errors.badAction };
+  const section = String(args.section ?? "");
+  if (tool !== "set_design_prompt" && !isFrameSection(section)) return { ok: false, error: n.errors.badSection };
+
+  switch (tool) {
+    case "design_section_frame": {
+      if (!imageEnabled()) return { ok: false, error: n.errors.featureOff };
+      let referencePath: string | null = null;
+      if (typeof args.reference === "string") {
+        const f = atts.find((x) => x.id === args.reference);
+        if (!f || f.kind !== "image" || !/\.(png|jpe?g|webp)$/i.test(f.pathname)) return { ok: false, error: n.errors.badReference };
+        referencePath = f.pathname;
+      }
+      // Where the headline goes: what was asked for, else what this section has now, else the main frame's.
+      let position: FrameText | null = isFrameText(args.position) ? args.position : null;
+      if (!position) {
+        const cur = await db.newsFrame.findUnique({ where: { tenantId_section: { tenantId, section } }, select: { frameText: true } });
+        position = isFrameText(cur?.frameText) ? cur.frameText : null;
+      }
+      if (!position) {
+        const kit = await db.brandKit.findUnique({ where: { tenantId }, select: { frameText: true } });
+        position = isFrameText(kit?.frameText) ? kit.frameText : "bottom";
+      }
+      // A new design of a section keeps the reference and the note it already had unless new ones are given.
+      let note = String(args.note ?? "");
+      if (!referencePath || !note) {
+        const prev = await db.newsFrame.findUnique({ where: { tenantId_section: { tenantId, section } }, select: { referencePath: true, note: true } });
+        if (!referencePath && prev?.referencePath) referencePath = prev.referencePath;
+        if (!note && prev?.note) note = prev.note;
+      }
+      const r = await designSectionFrameAction({ section, referencePath, note, frameText: position });
+      return r.ok ? { ok: true, text: n.done.frame } : { ok: false, error: r.error };
+    }
+    case "set_design_prompt": {
+      const r = await saveDesignPromptAction(String(args.text ?? ""));
+      return r.ok ? { ok: true, text: r.designPrompt ? n.done.prompt : n.done.promptCleared } : { ok: false, error: r.error };
+    }
+    case "set_frame_text": {
+      const pos = args.position;
+      if (!isFrameText(pos)) return { ok: false, error: a.errors.badAction };
+      const own = await db.newsFrame.findUnique({ where: { tenantId_section: { tenantId, section } }, select: { id: true } });
+      if (!own) return { ok: false, error: n.errors.noFrame };
+      const r = await saveSectionFrameTextAction(section, pos);
+      return r.ok ? { ok: true, text: n.done.position } : { ok: false, error: r.error };
+    }
+    case "remove_section_frame": {
+      const r = await removeSectionFrameAction(section);
+      return r.ok ? { ok: true, text: n.done.removed } : { ok: false, error: r.error };
+    }
+    default:
+      return { ok: false, error: a.errors.badAction };
   }
 }

@@ -77,3 +77,45 @@ describe("proposalLines", () => {
     expect(proposalLines(parseProposal({ tool: "post_now", args: { caption: "x", targets: ["FB"] } }, ids)!, labels)).toContainEqual({ label: "Media", value: "Text only" });
   });
 });
+
+describe("a news desk's tools", () => {
+  it("are offered to a desk only, and the shop's only to a shop", () => {
+    expect(parseProposal({ tool: "design_section_frame", args: { section: "sports" } }, ids, "news")).toEqual({
+      tool: "design_section_frame",
+      args: { section: "sports", note: "" },
+    });
+    expect(parseProposal({ tool: "design_section_frame", args: { section: "sports" } }, ids, "shop")).toBeNull();
+    expect(parseProposal({ tool: "design_section_frame", args: { section: "sports" } }, ids)).toBeNull();
+    expect(parseProposal({ tool: "make_picture", args: { idea: "a ring on marble" } }, ids, "news")).toBeNull();
+    expect(parseProposal({ tool: "post_now", args: { caption: "x", targets: ["FB"] } }, ids, "news")).toBeNull();
+  });
+
+  it("know the sections of the news and the places of a headline, nothing else", () => {
+    for (const section of ["breaking", "politics", "economy", "sports", "culture", "other"]) {
+      expect(parseProposal({ tool: "remove_section_frame", args: { section } }, ids, "news")).not.toBeNull();
+    }
+    expect(parseProposal({ tool: "remove_section_frame", args: { section: "weather" } }, ids, "news")).toBeNull();
+    expect(parseProposal({ tool: "remove_section_frame", args: { section: "../x" } }, ids, "news")).toBeNull();
+    expect(parseProposal({ tool: "set_frame_text", args: { section: "sports", position: "left" } }, ids, "news")).toBeNull();
+    expect(parseProposal({ tool: "set_frame_text", args: { section: "sports", position: "top" } }, ids, "news")).not.toBeNull();
+  });
+
+  it("take a reference only from the attached files", () => {
+    expect(parseProposal({ tool: "design_section_frame", args: { section: "sports", reference: "a2" } }, ids, "news")?.args.reference).toBe("a2");
+    expect(parseProposal({ tool: "design_section_frame", args: { section: "sports", reference: "a9" } }, ids, "news")).toBeNull();
+    expect(parseProposal({ tool: "design_section_frame", args: { section: "sports", reference: "https://evil.example/x.png" } }, ids, "news")).toBeNull();
+  });
+
+  it("keep the desk's own words short, and show them on the card", () => {
+    expect(parseProposal({ tool: "set_design_prompt", args: { text: "x".repeat(1300) } }, ids, "news")).toBeNull();
+    const p = parseProposal({ tool: "set_design_prompt", args: { text: "deep blue" } }, ids, "news")!;
+    expect(proposalLines(p, { ...labels, designPrompt: "Your words" })).toEqual([{ label: "Your words", value: "deep blue" }]);
+    const f = parseProposal({ tool: "design_section_frame", args: { section: "breaking", note: "red", reference: "a1", position: "top" } }, ids, "news")!;
+    expect(proposalLines(f, { ...labels, section: "Section", breaking: "Breaking", reference: "Reference", note: "Note", position: "Place", top: "Top" }, { files: { a1: "ref.png" } })).toEqual([
+      { label: "Section", value: "Breaking" },
+      { label: "Reference", value: "ref.png" },
+      { label: "Note", value: "red" },
+      { label: "Place", value: "Top" },
+    ]);
+  });
+});

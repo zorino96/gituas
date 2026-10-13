@@ -47,14 +47,18 @@ export function AssistantClient({
   support,
   connections,
   justConnected,
+  kind = "shop",
 }: {
   workspaceId: string;
   support: { url: string; display: string };
   connections: { facebook: boolean; instagram: boolean };
   justConnected: boolean;
+  /** A news desk gets its own starters and none of the shop's switches. */
+  kind?: "shop" | "news";
 }) {
   const all = useT();
-  const t = all.assistant;
+  const base = all.assistant;
+  const t = kind === "news" ? { ...base, ...base.news, done: { ...base.done, ...base.news.done } } : base;
   const s = all.settings;
   const key = `gm-assistant:${workspaceId}`;
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -481,6 +485,7 @@ export function AssistantClient({
             ))}
           </div>
         )}
+        {kind === "shop" && (
         <label className="gm-row" style={{ alignItems: "flex-start", gap: 8, cursor: "pointer", marginBottom: 10 }}>
           <input
             type="checkbox"
@@ -502,6 +507,7 @@ export function AssistantClient({
             <span className="gm-hint">{all.publish.ai.reviewHelp}</span>
           </span>
         </label>
+        )}
         <label htmlFor="gm-assistant-input">{t.placeholder}</label>
         <textarea
           ref={field}

@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
 import { brandFrom } from "@/lib/cards/brand";
+import { loadFrames } from "@/lib/news/frames";
 import { currentWorkspace, requireWorkspace } from "@/app/app/data";
 import { NewsEditor } from "./editor";
 import { VideoPanel } from "./video-panel";
@@ -15,10 +16,11 @@ export default async function NewsItemPage({ params }: { params: Promise<{ id: s
   const ws = await requireWorkspace("/newsroom/news");
   if (ws.kindChosen && ws.kind !== "NEWS") redirect("/newsroom");
   const { id } = await params;
-  const [item, kit, tenant] = await Promise.all([
+  const [item, kit, tenant, frames] = await Promise.all([
     db.newsItem.findFirst({ where: { id, tenantId: ws.id }, include: { draft: true } }),
     db.brandKit.findUnique({ where: { tenantId: ws.id } }),
     db.tenant.findUnique({ where: { id: ws.id }, select: { plan: true } }),
+    loadFrames(ws.id),
   ]);
   if (!item) notFound();
   const d = item.draft;
@@ -55,6 +57,8 @@ export default async function NewsItemPage({ params }: { params: Promise<{ id: s
       }}
       initial={initial}
       brand={brandFrom(kit, ws.name)}
+      frames={frames}
+      itemCategory={item.category}
     />
     {d && video !== undefined && <VideoPanel workspaceId={ws.id} draftId={d.id} initial={video} />}
     </>
