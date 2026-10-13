@@ -4,7 +4,7 @@
 // A call made for a workspace carries a `meter`: its monthly AI allowance is checked before the call
 // and charged after it (./meter.ts). When the allowance is used up the call is refused with
 // AiUnavailable, and the feature's own fallback (fixed templates, plain rules) takes over.
-import { kurdggConfigured, kurdggJson, KurdggReplyError } from "./kurdgg";
+import { kurdggConfigured, kurdggJson, KurdggReplyError, MIN_MAX_TOKENS } from "./kurdgg";
 import { chooseTier, recordSpend, type Meter } from "./meter";
 import { estimateTokens, type AiTier } from "./models";
 
@@ -133,7 +133,7 @@ export async function completeJson<T = unknown>(
       // A call that timed out may still have been generated and billed: a cautious guess is counted, so a slow
       // Opus drains its own allowance instead of costing money nobody sees.
       else if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
-        await spend({ in: estimateTokens(`${call.system}${call.user}`), out: Math.ceil((call.maxTokens ?? 2000) / 2) }, tier);
+        await spend({ in: estimateTokens(`${call.system}${call.user}`), out: Math.ceil(Math.max(call.maxTokens ?? 2000, MIN_MAX_TOKENS) / 2) }, tier);
       }
       errors.push(message(e));
       const truncated = e instanceof KurdggReplyError && e.truncated;

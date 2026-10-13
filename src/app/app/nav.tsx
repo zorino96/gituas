@@ -10,6 +10,7 @@ import {
   Clapperboard,
   Ellipsis,
   Home,
+  LifeBuoy,
   MessageCircle,
   MessagesSquare,
   Newspaper,
@@ -54,6 +55,7 @@ function useSections(kind: Kind, studio: boolean, video: boolean): Section[] {
     kind === "MERCHANT"
       ? [
           s(base, t.nav.today, Home, "main", true),
+          s(`${base}/assistant`, t.nav.assistant, LifeBuoy, "main"),
           s(`${base}/comments`, t.nav.comments, MessagesSquare, "inbox", true),
           s(`${base}/messages`, t.nav.messages, MessageCircle, "inbox", true),
           s(`${base}/orders`, t.nav.orders, Package, "inbox", true),

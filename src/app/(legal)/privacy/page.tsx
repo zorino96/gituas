@@ -208,7 +208,9 @@ export default function PrivacyPage() {
           to Anthropic&rsquo;s Claude models (Haiku and Opus). We send them: the text of buyer
           comments, direct messages and WhatsApp messages, with your product names and prices, so
           they can tell what the buyer is asking and help word the reply; the content you are
-          drafting; the pictures of your own products when an ad or a post is being planned; and,
+          drafting; the pictures of your own products when an ad or a post is being planned; the
+          questions you ask the in-app assistant, with a summary of your own settings (plan, which
+          Pages are connected, what is switched on, counts) so it can answer about your shop; and,
           for news, the public headline and summary of a story. Sender phone numbers and account
           tokens are never sent to them; we send only what each task needs.
         </LI>

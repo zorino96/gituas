@@ -186,7 +186,7 @@ const DEFAULT_MAX_TOKENS = 2000;
  * review of an idea, and it would have hit every short call). So no call is sent with less than this. What is
  * billed is what the model actually writes, and the workspace's allowance counts that.
  */
-const MIN_MAX_TOKENS = 3000;
+export const MIN_MAX_TOKENS = 3000;
 
 /** "length" (OpenAI) and "max_tokens" (Anthropic) both mean the answer ran into the cap. */
 const ranIntoCap = (reason: string | null) => reason === "length" || reason === "max_tokens";
