@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { extractJson, sseContent } from "@/lib/ai/kurdgg";
+import { describeEmpty, extractJson, partsText, sseContent } from "@/lib/ai/kurdgg";
 
 describe("extractJson", () => {
   it("reads plain JSON, fenced JSON and JSON inside a sentence", () => {
@@ -63,5 +63,31 @@ describe("kurdggJson", () => {
     expect(seen[1]).toMatchObject({ model: "cc/claude-haiku-5-5", max_tokens: 2000 });
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
+  });
+});
+
+describe("replies that are not a plain string", () => {
+  it("reads a list of content parts as text", () => {
+    expect(partsText([{ type: "text", text: "{\"a\":" }, { type: "text", text: "1}" }])).toBe("{\"a\":1}");
+    expect(partsText("x")).toBe("x");
+    expect(partsText(null)).toBe("");
+    expect(partsText([{ type: "thinking", thinking: "..." }])).toBe("");
+  });
+
+  it("joins streamed parts whether the delta is a string or a list of parts", () => {
+    const raw = [
+      `data: ${JSON.stringify({ model: "m", choices: [{ delta: { content: [{ type: "text", text: "{\"ok\":" }] } }] })}`,
+      `data: ${JSON.stringify({ choices: [{ delta: { content: "true}" } }] })}`,
+      "data: [DONE]",
+    ].join("\n");
+    expect(sseContent(raw).content).toBe("{\"ok\":true}");
+  });
+
+  it("describes an empty answer by its shape only, never its words", () => {
+    const raw = [`data: ${JSON.stringify({ choices: [{ delta: { role: "assistant", content: null }, finish_reason: "content_filter" }], note: "quoted request text" })}`, "data: [DONE]"].join("\n");
+    const d = describeEmpty(raw);
+    expect(d).toContain("finish:content_filter");
+    expect(d).toContain("content:null");
+    expect(d).not.toContain("quoted request text");
   });
 });

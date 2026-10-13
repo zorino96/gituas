@@ -29,6 +29,59 @@ export function extractJson(content: string): unknown {
   }
 }
 
+/** A reply's text: a string, or a list of content parts (some gateways answer that way); anything else is no text. */
+export function partsText(piece: unknown): string {
+  if (typeof piece === "string") return piece;
+  if (!Array.isArray(piece)) return "";
+  return piece
+    .map((p) => (typeof p === "string" ? p : typeof (p as { text?: unknown })?.text === "string" ? (p as { text: string }).text : ""))
+    .join("");
+}
+
+/**
+ * What shape an empty answer had, for the log: keys and kinds only, never the provider's own words
+ * (they can quote the request back).
+ */
+export function describeEmpty(raw: string): string {
+  const kinds = new Set<string>();
+  const keys = new Set<string>();
+  let chunks = 0;
+  const look = (c: { choices?: { delta?: Record<string, unknown>; message?: Record<string, unknown>; finish_reason?: unknown }[]; error?: unknown }) => {
+    chunks++;
+    if (c.error !== undefined) keys.add("error");
+    const ch = c.choices?.[0];
+    if (!ch) return;
+    if (typeof ch.finish_reason === "string") keys.add(`finish:${ch.finish_reason}`);
+    for (const part of [ch.delta, ch.message]) {
+      if (!part) continue;
+      for (const [k, v] of Object.entries(part)) {
+        keys.add(k);
+        kinds.add(`${k}:${Array.isArray(v) ? "array" : v === null ? "null" : typeof v}`);
+      }
+    }
+  };
+  if (raw.trimStart().startsWith("data:")) {
+    for (const line of raw.split(/\r?\n/)) {
+      const t = line.trim();
+      if (!t.startsWith("data:")) continue;
+      const payload = t.slice(5).trim();
+      if (!payload || payload === "[DONE]") continue;
+      try {
+        look(JSON.parse(payload));
+      } catch {
+        /* not a chunk */
+      }
+    }
+  } else {
+    try {
+      look(JSON.parse(raw));
+    } catch {
+      /* not JSON */
+    }
+  }
+  return JSON.stringify({ bytes: raw.length, chunks, keys: [...keys].sort(), kinds: [...kinds].sort() });
+}
+
 interface Chunk {
   model?: string;
   usage?: { prompt_tokens?: unknown; completion_tokens?: unknown };
@@ -50,8 +103,7 @@ export function sseContent(raw: string): { content: string; model: string | null
     try {
       const chunk = JSON.parse(payload) as Chunk;
       model = chunk.model ?? model;
-      const piece = chunk.choices?.[0]?.delta?.content ?? chunk.choices?.[0]?.message?.content;
-      if (typeof piece === "string") content += piece;
+      content += partsText(chunk.choices?.[0]?.delta?.content ?? chunk.choices?.[0]?.message?.content);
     } catch {
       // a keep-alive or comment line
     }
@@ -172,11 +224,13 @@ export async function kurdggJson(call: JsonCall, timeoutMs: number, tier: AiTier
     ({ content, model: replyModel } = sseContent(raw));
   } else {
     const body = JSON.parse(raw) as { model?: string; choices?: { message?: { content?: unknown } }[] };
-    const c = body?.choices?.[0]?.message?.content;
-    content = typeof c === "string" ? c : "";
+    content = partsText(body?.choices?.[0]?.message?.content);
     replyModel = body?.model ?? null;
   }
-  if (!content.trim()) throw new Error("empty reply");
+  if (!content.trim()) {
+    console.error("[kurdgg] empty reply:", model, describeEmpty(raw));
+    throw new Error("empty reply");
+  }
   // The provider's own count when it gives one; else an estimate that leans high (a picture is about 800 tokens).
   const stated = replyUsage(raw);
   // Which figures the month's count rests on: stated by the provider, or estimated here (numbers only in the log).
