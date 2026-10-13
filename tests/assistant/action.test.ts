@@ -16,6 +16,12 @@ vi.mock("@/lib/i18n", async () => {
   const { en } = await import("@/lib/i18n/en");
   return { dict: () => en, getLang: async () => "en" };
 });
+vi.mock("@/lib/db", () => ({ db: { store: { findMany: vi.fn(async () => []) }, product: { findMany: vi.fn(async () => []) } } }));
+vi.mock("@/app/app/actions", () => ({ publishAction: vi.fn() }));
+vi.mock("@/app/app/automation/actions", () => ({ saveStoreSettingsAction: vi.fn() }));
+vi.mock("@/app/app/publish/ai-image-action", () => ({ generateAiImageAction: vi.fn() }));
+vi.mock("@/app/app/publish/schedule-actions", () => ({ schedulePublishAction: vi.fn() }));
+vi.mock("@/app/app/video/actions", () => ({ createVideoAction: vi.fn(), saveVideoAutoAction: vi.fn() }));
 vi.mock("@/lib/shop/tenant-plans", () => ({ limitsOf: vi.fn(async () => ({ aiUsd: plan.aiUsd })) }));
 vi.mock("@/lib/ai/slots", () => ({
   claimSlot: vi.fn(async () => ({ ok: true, month: "2026-10", day: "2026-10-13" })),
@@ -29,19 +35,19 @@ import { claimSlot, refundSlot, takeDaily } from "@/lib/ai/slots";
 import { askAssistant } from "@/lib/assistant/ask";
 import { askAssistantAction } from "@/app/app/assistant/actions";
 
-const ask = { messages: [{ role: "user" as const, text: "چۆن؟" }] };
+const ask = { workspaceId: "t1", messages: [{ role: "user" as const, text: "چۆن؟" }] };
 
 beforeEach(() => {
   vi.clearAllMocks();
   plan.aiUsd = 2;
   ws.current = { id: "t1", role: "OWNER", kind: "MERCHANT" };
-  vi.mocked(askAssistant).mockResolvedValue({ reply: "وەڵام", followups: ["دواتر؟"] });
+  vi.mocked(askAssistant).mockResolvedValue({ reply: "وەڵام", followups: ["دواتر؟"], action: null });
   vi.mocked(takeDaily).mockResolvedValue(1);
 });
 
 describe("askAssistantAction", () => {
   it("answers a shop's question, counting one place of the day and the month", async () => {
-    expect(await askAssistantAction(ask)).toEqual({ ok: true, reply: "وەڵام", followups: ["دواتر؟"] });
+    expect(await askAssistantAction(ask)).toEqual({ ok: true, reply: "وەڵام", followups: ["دواتر؟"], proposal: null });
     expect(vi.mocked(claimSlot).mock.calls[0][2]).toEqual({ month: 24, day: 4 });
     expect(vi.mocked(askAssistant).mock.calls[0][0]).toMatchObject({ tenantId: "t1", lang: "en", uncounted: false });
   });
@@ -85,7 +91,7 @@ describe("askAssistantAction", () => {
   });
 
   it("does not take a place for nothing to answer", async () => {
-    expect(await askAssistantAction({ messages: [{ role: "assistant", text: "x" }] })).toMatchObject({ ok: false });
+    expect(await askAssistantAction({ workspaceId: "t1", messages: [{ role: "assistant", text: "x" }] })).toMatchObject({ ok: false });
     expect(claimSlot).not.toHaveBeenCalled();
   });
 });

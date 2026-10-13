@@ -1,8 +1,11 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { MessageCircle, MessagesSquare, Phone, SquarePlus } from "lucide-react";
 
 import { currentWorkspace, loadConnections, loadConversations, loadInsights, loadPosts, requireWorkspace } from "./data";
 import { dict, getLang } from "@/lib/i18n";
+import { can } from "@/lib/newsroom/roles";
 import { commentState, countStates } from "@/lib/merchant/state";
 import { ago } from "./format";
 
@@ -11,6 +14,8 @@ export const maxDuration = 60;
 export default async function TodayPage() {
   const t = dict(await getLang());
   const ws = await requireWorkspace();
+  // The app opens on the face the person last used: the chat, when they switched to it.
+  if (ws.kind === "MERCHANT" && can(ws.role, "configure") && (await cookies()).get("gm_ui")?.value === "chat") redirect("/app/assistant");
   const conns = await loadConnections(ws.id);
   const anyConnected = conns.META_FACEBOOK.connected || conns.META_INSTAGRAM.connected;
 

@@ -7,6 +7,7 @@ import "./app.css";
 import { claimKind, currentWorkspace, listWorkspaces } from "./data";
 import { gmFontVars } from "./fonts";
 import { SideNav, Tabs } from "./nav";
+import { ModeSwitch } from "./mode-switch";
 import { adVideoEnabled } from "@/lib/advideo/enabled";
 import { studioReadyFor } from "@/lib/studio/ready";
 import { switchWorkspaceAction } from "@/app/newsroom/desk-actions";
@@ -92,10 +93,13 @@ async function Shell({ lang, children }: { lang: Lang; children: React.ReactNode
             <h1 className="kufi">{ws.name}</h1>
             <small>{t.brand}</small>
           </div>
-          <Link href="/app/settings" className="gm-btn quiet small">
-            <Settings size={15} aria-hidden="true" />
-            {t.layout.settings}
-          </Link>
+          <div className="gm-row" style={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <ModeSwitch />
+            <Link href="/app/settings" className="gm-btn quiet small">
+              <Settings size={15} aria-hidden="true" />
+              {t.layout.settings}
+            </Link>
+          </div>
         </header>
         <main className="gm-main">{children}</main>
       </div>

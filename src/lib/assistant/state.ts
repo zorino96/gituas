@@ -39,11 +39,13 @@ export async function loadAssistantState(tenantId: string, connections: Assistan
     },
   });
   const video = adVideoEnabled();
-  const [allowance, videos, images, waiting] = await Promise.all([
+  const [allowance, videos, images, waiting, products] = await Promise.all([
     allowanceOf({ scope: tenantId }).catch(() => null),
     video ? workspaceVideos(tenantId).catch(() => null) : null,
     imageEnabled() ? imagesLeft(tenantId).catch(() => null) : null,
     db.conversationMessage.count({ where: { store: { tenantId }, outcome: "FLAGGED", createdAt: { gt: new Date(now - 7 * DAY) } } }).catch(() => null),
+    // Names only: so the chat can say which product a post or a video is about.
+    db.product.findMany({ where: { active: true, store: { tenantId } }, orderBy: { updatedAt: "desc" }, take: 30, select: { name: true } }).catch(() => []),
   ]);
   return {
     today: new Date(now).toISOString().slice(0, 10),
@@ -70,5 +72,6 @@ export async function loadAssistantState(tenantId: string, connections: Assistan
     aiVideos: videos ? { leftThisMonthFastModel: videos.LITE.left, leftThisMonthStrongModel: videos.PRO.left, madeToday: videos.today.used, perDay: videos.today.max } : undefined,
     aiPicturesLeft: images ?? undefined,
     messagesWaitingForOwnerThisWeek: waiting,
+    productNames: products.map((p) => p.name.slice(0, 80)),
   };
 }
