@@ -185,7 +185,15 @@ const POSTS_PER_DAY = 15;
  * be on the list, the arguments must fit, every file must be the workspace's own upload, and each tool goes through
  * the same server action the app's own screens use, with that action's own checks and limits.
  */
-export async function runToolAction(input: { workspaceId: string; nonce: string; tool: string; args: unknown; attachments?: ChatAttachment[] }): Promise<ToolResult> {
+export async function runToolAction(input: {
+  workspaceId: string;
+  nonce: string;
+  tool: string;
+  args: unknown;
+  attachments?: ChatAttachment[];
+  /** "Let Gituas review my idea first" (default yes): the same switch as in Publish and in the Video section. */
+  review?: boolean;
+}): Promise<ToolResult> {
   const lang = await getLang();
   const t = dict(lang);
   const a = t.assistant;
@@ -219,15 +227,17 @@ export async function runToolAction(input: { workspaceId: string; nonce: string;
     case "make_picture": {
       if (!imageEnabled()) return { ok: false, error: a.errors.featureOff };
       const refUrls = ((args.references as string[]) ?? []).map((id) => att(id)).filter((x) => x?.kind === "image").map((x) => x!.url);
-      const r = await generateAiImageAction({ idea: String(args.idea), productId, refUrls, shape: args.shape === "portrait" ? "portrait" : "square", review: true });
+      const r = await generateAiImageAction({ idea: String(args.idea), productId, refUrls, shape: args.shape === "portrait" ? "portrait" : "square", review: input.review !== false });
       if (!r.ok) return { ok: false, error: r.error };
-      return { ok: true, text: a.done.picture, media: { url: r.media.url, pathname: r.media.pathname, kind: "image", name: a.done.pictureName } };
+      const how = r.reviewed ? t.publish.ai.reviewedNote(r.summary) : t.publish.ai.sentAsWritten;
+      return { ok: true, text: `${a.done.picture}\n${how}`, media: { url: r.media.url, pathname: r.media.pathname, kind: "image", name: a.done.pictureName } };
     }
     case "make_video": {
       if (!adVideoEnabled()) return { ok: false, error: a.errors.featureOff };
-      const r = await createVideoAction(store.id, { tier, topic: String(args.idea), productId, voice: "shilan", publish: false, targets: [], review: true });
+      const r = await createVideoAction(store.id, { tier, topic: String(args.idea), productId, voice: "shilan", publish: false, targets: [], review: input.review !== false });
       if (!r.ok) return { ok: false, error: r.error };
-      return { ok: true, text: a.done.videoStarted, jobId: r.id };
+      const how = r.reviewed ? `\n${t.publish.ai.reviewedNote(r.reviewed.summary)}` : "";
+      return { ok: true, text: `${a.done.videoStarted}${how}`, jobId: r.id };
     }
     case "post_now":
     case "schedule_post": {

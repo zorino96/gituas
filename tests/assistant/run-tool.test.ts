@@ -133,6 +133,9 @@ describe("runToolAction", () => {
     const r = await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_picture", args: { idea: "ring on marble", references: ["a1"], shape: "portrait" }, attachments: [att] });
     expect(r).toMatchObject({ ok: true, media: { url: OWN, kind: "image" } });
     expect(vi.mocked(generateAiImageAction).mock.calls[0][0]).toMatchObject({ idea: "ring on marble", refUrls: [OWN], shape: "portrait", review: true });
+    // The owner's switch is passed on: off means the words go through as typed.
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_picture", args: { idea: "ring on marble" }, review: false });
+    expect(vi.mocked(generateAiImageAction).mock.calls[1][0]).toMatchObject({ review: false });
     vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1" });
     expect(await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea: "a short ad" } })).toMatchObject({ ok: true, jobId: "job1" });
     expect(vi.mocked(createVideoAction).mock.calls[0][1]).toMatchObject({ topic: "a short ad", review: true, publish: false });

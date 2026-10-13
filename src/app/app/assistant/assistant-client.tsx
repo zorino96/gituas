@@ -68,6 +68,8 @@ export function AssistantClient({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [ack, setAck] = useState(false);
+  // "Let Gituas review my idea first": one switch for the chat, Publish and the Video section (remembered in the browser).
+  const [review, setReview] = useState(true);
   const [needAck, setNeedAck] = useState(false);
   const [job, setJob] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -98,6 +100,7 @@ export function AssistantClient({
     }
     try {
       setAck(window.localStorage.getItem("gm_authority_ack") === "1");
+      if (window.localStorage.getItem("gm-ai-review") === "0") setReview(false);
     } catch {
       /* the box starts empty */
     }
@@ -238,7 +241,7 @@ export function AssistantClient({
     setCard(index, "running");
     start(async () => {
       try {
-        const r = await runToolAction({ workspaceId, nonce: card.nonce, tool: card.tool, args: card.args, attachments: files });
+        const r = await runToolAction({ workspaceId, nonce: card.nonce, tool: card.tool, args: card.args, attachments: files, review });
         if (r.ok) {
           setCard(index, "done");
           if (r.media) {
@@ -478,6 +481,27 @@ export function AssistantClient({
             ))}
           </div>
         )}
+        <label className="gm-row" style={{ alignItems: "flex-start", gap: 8, cursor: "pointer", marginBottom: 10 }}>
+          <input
+            type="checkbox"
+            checked={review}
+            disabled={busy}
+            style={{ marginTop: 4 }}
+            onChange={(e) => {
+              setReview(e.target.checked);
+              try {
+                window.localStorage.setItem("gm-ai-review", e.target.checked ? "1" : "0");
+              } catch {
+                /* not remembered */
+              }
+            }}
+          />
+          <span>
+            <b>{all.publish.ai.reviewLabel}</b>
+            <br />
+            <span className="gm-hint">{all.publish.ai.reviewHelp}</span>
+          </span>
+        </label>
         <label htmlFor="gm-assistant-input">{t.placeholder}</label>
         <textarea
           ref={field}
