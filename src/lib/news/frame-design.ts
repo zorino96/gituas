@@ -69,6 +69,45 @@ export function framePrompt(o: {
   return parts.join("\n").slice(0, 3_000);
 }
 
+/** "#RRGGBB" as [r, g, b], or the default navy of a brand kit. */
+export function hexRgb(hex: string | null | undefined): [number, number, number] {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex ?? "");
+  return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [0x0b, 0x25, 0x45];
+}
+
+/**
+ * Where the headline goes must be solid: the model does not keep to the band it was given, and a headline over the
+ * photo cannot be read. Everything in the band that is not opaque becomes the desk's colour (a bottom band runs to the
+ * edge of the card, a top band from it). Returns how many pixels were filled.
+ */
+export function fillHeadlineBand(rgba: Buffer, width: number, height: number, position: FrameText, color: [number, number, number]): number {
+  const [from, to] = BAND[position];
+  const y0 = position === "top" ? 0 : Math.floor(from * height);
+  const y1 = position === "bottom" ? height : Math.ceil(to * height);
+  let filled = 0;
+  for (let y = y0; y < y1; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      const a = rgba[i + 3];
+      if (a === 255) continue;
+      const k = a / 255;
+      rgba[i] = Math.round(rgba[i] * k + color[0] * (1 - k));
+      rgba[i + 1] = Math.round(rgba[i + 1] * k + color[1] * (1 - k));
+      rgba[i + 2] = Math.round(rgba[i + 2] * k + color[2] * (1 - k));
+      rgba[i + 3] = 255;
+      filled++;
+    }
+  }
+  return filled;
+}
+
+/** The share of the image that is see-through. */
+export function transparentShare(rgba: Buffer): number {
+  let n = 0;
+  for (let i = 3; i < rgba.length; i += 4) if (rgba[i] < 128) n++;
+  return rgba.length ? n / (rgba.length / 4) : 0;
+}
+
 /**
  * Makes the magenta of an RGBA image transparent (pixels near #FF00FF fully, a soft edge partly). Returns the share of
  * the image that became transparent.
@@ -155,6 +194,8 @@ export async function designFrame(input: {
   mainFramePath: string | null;
   referencePath: string | null;
   logoPath: string | null;
+  /** The desk's main colour, "#RRGGBB": what a headline band the model left open is filled with. */
+  fill?: string | null;
   /** The request was sent: a failure after this point may still have been paid for. */
   onSent?: () => void;
 }): Promise<Buffer> {
@@ -203,17 +244,10 @@ export async function designFrame(input: {
   const share = keyOutMagenta(data);
   // A frame with no photo area would cover every photo, and one that is all window has no frame: neither is offered.
   if (share < WINDOW_MIN || share > WINDOW_MAX) throw new FrameDesignError("noWindow");
-  // The headline band must be the frame's own, not a hole through to the photo.
-  const [from, to] = BAND[input.frameText];
-  let opaque = 0;
-  let seen = 0;
-  for (let y = Math.floor(from * info.height); y < Math.floor(to * info.height); y += 4) {
-    for (let x = 0; x < info.width; x += 4) {
-      seen++;
-      if (data[(y * info.width + x) * 4 + 3] > 200) opaque++;
-    }
-  }
-  if (seen && opaque / seen < 0.6) throw new FrameDesignError("noWindow");
+  // The headline band is made solid in the desk's colour wherever the model left it open; what is left must still
+  // have room for a photo.
+  fillHeadlineBand(data, info.width, info.height, input.frameText, hexRgb(input.fill));
+  if (transparentShare(data) < WINDOW_MIN) throw new FrameDesignError("noWindow");
   let out = sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } }).png();
   if (input.logoPath) {
     const b = logoBytes;

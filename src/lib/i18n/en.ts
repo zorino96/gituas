@@ -959,7 +959,7 @@ export const en: Dict = {
       autoSec: "Autopilot",
       autoMode: { OFF: "Off", DRAFT: "Auto drafts", PUBLISH: "Auto publish" },
       autoPlanOnly: "Only on the Pro and Enterprise plans",
-      autoTopicsAbove: "Topics and sources are set above",
+      autoTopicsAbove: "Topics and sources are set in Sources & filter",
       autoWhichAccounts: (p: string) => `Post to which ${p} accounts? (none ticked = the first one)`,
       autoAccountsMax: (n: number) => `Up to ${n} accounts per platform.`,
       autoAccountsWarn: "The same story goes to every ticked account: the first at once, the others 5 minutes apart. Facebook and Instagram can treat identical posts on many accounts as spam, so tick only accounts you own that have different audiences.",

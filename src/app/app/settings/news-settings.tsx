@@ -815,6 +815,22 @@ export function NewsSettings(p: NewsSettingsProps) {
         <>
       <p className="gm-sec">{tn.brandSec}</p>
       <div className="gm-card gm-stack">
+        <div className="gm-row" style={{ gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+          {kit.logoPath && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={mediaSrc(kit.logoPath) ?? ""} alt="" width={44} height={44} style={{ objectFit: "contain", borderRadius: 10, background: "var(--raised)" }} />
+          )}
+          <label className="gm-btn quiet small" style={{ opacity: uploadingLogo ? 0.6 : 1, pointerEvents: uploadingLogo ? "none" : "auto" }}>
+            {uploadingLogo ? tn.uploading : kit.logoPath ? tn.changeLogo : tn.logo}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              hidden
+              disabled={uploadingLogo}
+              onChange={(e) => e.target.files?.[0] && pickLogo(e.target.files[0])}
+            />
+          </label>
+        </div>
         <div className="gm-row" style={{ gap: 12, flexWrap: "wrap" }}>
           {(["primary", "accent", "text"] as const).map((key) => (
             <label key={key} className="gm-row" style={{ gap: 6 }}>
@@ -835,16 +851,6 @@ export function NewsSettings(p: NewsSettingsProps) {
             </button>
           ))}
         </div>
-        <label className="gm-btn quiet small" style={{ alignSelf: "flex-start", opacity: uploadingLogo ? 0.6 : 1, pointerEvents: uploadingLogo ? "none" : "auto" }}>
-          {uploadingLogo ? tn.uploading : kit.logoPath ? tn.changeLogo : tn.logo}
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            hidden
-            disabled={uploadingLogo}
-            onChange={(e) => e.target.files?.[0] && pickLogo(e.target.files[0])}
-          />
-        </label>
       </div>
       <div className="gm-card gm-stack">
         <p className="gm-sec" style={{ margin: 0 }}>{tn.frameSec}</p>

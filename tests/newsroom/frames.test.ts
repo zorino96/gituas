@@ -44,7 +44,7 @@ vi.mock("@/lib/ai/image", async (orig) => {
 vi.mock("@vercel/blob", () => ({ head: vi.fn(), put: h.put, del: vi.fn() }));
 
 import { brandWithFrame, categoryOfStory, frameFor, FRAME_SECTIONS, isFrameSection } from "@/lib/news/frames-shared";
-import { designFrame as realDesignFrame, FrameDesignError, framePrompt, keyOutMagenta } from "@/lib/news/frame-design";
+import { designFrame as realDesignFrame, fillHeadlineBand, FrameDesignError, framePrompt, hexRgb, keyOutMagenta } from "@/lib/news/frame-design";
 import { brandFrom } from "@/lib/cards/brand";
 
 const frames = [
@@ -137,14 +137,40 @@ describe("designing a frame", () => {
     expect(p).toMatch(/no magenta, hot pink or purple/i);
   });
 
-  it("does not offer a frame that is all window, or whose headline band is a hole", async () => {
+  it("does not offer a frame that is all window", async () => {
     const all = await sharp({ create: { width: 1024, height: 1536, channels: 3, background: { r: 255, g: 0, b: 255 } } }).png().toBuffer();
     h.createImage.mockResolvedValueOnce(all);
     await expect(realDesignFrame({ section: "e", frameText: "bottom", designPrompt: "", note: "", mainFramePath: null, referencePath: null, logoPath: null })).rejects.toMatchObject({ kind: "noWindow" });
-    // a window with the band left open
-    const top = await sharp({ create: { width: 1024, height: 300, channels: 3, background: { r: 10, g: 30, b: 80 } } }).png().toBuffer();
-    h.createImage.mockResolvedValueOnce(await sharp(all).composite([{ input: top, top: 0, left: 0 }]).png().toBuffer());
-    await expect(realDesignFrame({ section: "e", frameText: "bottom", designPrompt: "", note: "", mainFramePath: null, referencePath: null, logoPath: null })).rejects.toMatchObject({ kind: "noWindow" });
+  });
+
+  it("makes the headline band solid in the desk's colour when the model left it open", async () => {
+    // a window with a small navy strip at the top only: the whole bottom band is open
+    const all = await sharp({ create: { width: 1024, height: 1536, channels: 3, background: { r: 255, g: 0, b: 255 } } }).png().toBuffer();
+    const strip = await sharp({ create: { width: 1024, height: 400, channels: 3, background: { r: 10, g: 30, b: 80 } } }).png().toBuffer();
+    h.createImage.mockResolvedValueOnce(await sharp(all).composite([{ input: strip, top: 0, left: 0 }]).png().toBuffer());
+    const png = await realDesignFrame({ section: "e", frameText: "bottom", designPrompt: "", note: "", mainFramePath: null, referencePath: null, logoPath: null, fill: "#102030" });
+    const { data } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    const at = (x: number, y: number) => Array.from(data.subarray((y * 1080 + x) * 4, (y * 1080 + x) * 4 + 4));
+    expect(at(540, 1000)).toEqual([0x10, 0x20, 0x30, 255]); // inside the band
+    expect(at(540, 1330)).toEqual([0x10, 0x20, 0x30, 255]); // down to the card's edge
+    expect(at(540, 600)[3]).toBe(0); // the photo area above it is still open
+  });
+
+  it("fills only the band of the chosen place, and only what is not opaque", () => {
+    const w = 10;
+    const h2 = 100;
+    const px = Buffer.alloc(w * h2 * 4, 0);
+    for (let i = 0; i < w * h2; i++) px[i * 4 + 3] = i < w * 90 ? 0 : 255;
+    px[(80 * w + 1) * 4 + 3] = 255; // an opaque pixel inside the band stays as it is
+    px[(80 * w + 1) * 4] = 7;
+    const filled = fillHeadlineBand(px, w, h2, "bottom", [1, 2, 3]);
+    expect(filled).toBe(26 * w - 1); // rows 64..89 of the band were open, less the one opaque pixel
+    expect(px[(80 * w + 1) * 4]).toBe(7);
+    expect(px[(80 * w + 2) * 4 + 3]).toBe(255);
+    expect(px[(80 * w + 2) * 4]).toBe(1);
+    expect(px[(10 * w + 2) * 4 + 3]).toBe(0); // above the band
+    expect(hexRgb("nope")).toEqual([0x0b, 0x25, 0x45]);
+    expect(hexRgb("#FFAA00")).toEqual([255, 170, 0]);
   });
 
   it("does not offer a frame that leaves no photo area", async () => {

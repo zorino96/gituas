@@ -400,7 +400,7 @@ export async function designSectionFrameAction(input: {
   try {
     // Read inside the try: a failure here is given back like any failure before the request left.
     const [kit, settings] = await Promise.all([
-      db.brandKit.findUnique({ where: { tenantId: ws.id }, select: { logoPath: true, framePath: true } }),
+      db.brandKit.findUnique({ where: { tenantId: ws.id }, select: { logoPath: true, framePath: true, primary: true } }),
       db.newsSettings.findUnique({ where: { tenantId: ws.id }, select: { designPrompt: true } }),
     ]);
     const png = await designFrame({
@@ -411,6 +411,7 @@ export async function designSectionFrameAction(input: {
       mainFramePath: kit?.framePath && isOwnPath(kit.framePath, ws.id) ? kit.framePath : null,
       referencePath,
       logoPath: kit?.logoPath && isOwnPath(kit.logoPath, ws.id) ? kit.logoPath : null,
+      fill: kit?.primary ?? null,
       onSent: () => {
         sent = true;
       },
