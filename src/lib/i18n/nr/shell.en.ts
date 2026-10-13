@@ -29,7 +29,7 @@ export const nrShellEn: typeof nrShellCkb = {
   },
 
   nav: {
-    groups: { desk: "News desk", audience: "Audience", account: "Channel" },
+    groups: { desk: "News desk", audience: "Audience", setup: "Desk setup", account: "Channel" },
     items: {
       news: "News",
       publish: "Publish",
@@ -37,6 +37,10 @@ export const nrShellEn: typeof nrShellCkb = {
       comments: "Comments",
       messages: "Messages",
       insights: "Insights",
+      sources: "Sources & filter",
+      autopilot: "Automatic publishing",
+      videoSetup: "Video settings",
+      brand: "Brand & photos",
       team: "Team",
       settings: "Settings",
       guide: "Guide",

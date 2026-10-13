@@ -4,8 +4,8 @@
 
 import type { GuideId } from "./guide";
 
-export type NavKey = "news" | "publish" | "videos" | "comments" | "messages" | "insights" | "team" | "settings" | "guide";
-export type NavGroup = "desk" | "audience" | "account";
+export type NavKey = "news" | "publish" | "videos" | "comments" | "messages" | "insights" | "sources" | "autopilot" | "videoSetup" | "brand" | "team" | "settings" | "guide";
+export type NavGroup = "desk" | "audience" | "setup" | "account";
 
 export interface NavItem {
   key: NavKey;
@@ -17,7 +17,7 @@ export interface NavItem {
   guide: GuideId;
 }
 
-export const NAV_GROUPS: readonly { key: NavGroup }[] = [{ key: "desk" }, { key: "audience" }, { key: "account" }];
+export const NAV_GROUPS: readonly { key: NavGroup }[] = [{ key: "desk" }, { key: "audience" }, { key: "setup" }, { key: "account" }];
 
 export const NAV: readonly NavItem[] = [
   { key: "news", href: "/newsroom/news", group: "desk", mobile: true, guide: "stories" },
@@ -26,6 +26,11 @@ export const NAV: readonly NavItem[] = [
   { key: "comments", href: "/newsroom/comments", group: "audience", mobile: true, guide: "comments" },
   { key: "messages", href: "/newsroom/messages", group: "audience", mobile: false, guide: "comments" },
   { key: "insights", href: "/newsroom/insights", group: "audience", mobile: true, guide: "insights" },
+  // The desk's own setup, each in its own screen (they used to be one long Settings page).
+  { key: "sources", href: "/newsroom/sources", group: "setup", mobile: false, guide: "sources" },
+  { key: "autopilot", href: "/newsroom/autopilot", group: "setup", mobile: false, guide: "publish" },
+  { key: "videoSetup", href: "/newsroom/video-setup", group: "setup", mobile: false, guide: "publish" },
+  { key: "brand", href: "/newsroom/brand", group: "setup", mobile: false, guide: "brand" },
   { key: "team", href: "/newsroom/team", group: "account", mobile: false, guide: "team" },
   { key: "settings", href: "/newsroom/settings", group: "account", mobile: false, guide: "connect" },
   { key: "guide", href: "/newsroom/guide", group: "account", mobile: false, guide: "start" },

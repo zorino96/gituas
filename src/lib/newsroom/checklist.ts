@@ -25,8 +25,8 @@ export function checklist(s: ChecklistState, t: Pick<NrNewsText, "checklist"> = 
   const label = t.checklist.steps;
   return [
     { key: "connect", label: label.connect, href: "/newsroom/settings", done: s.pagesConnected > 0 },
-    { key: "brand", label: label.brand, href: "/newsroom/settings", done: s.logoSet },
-    { key: "sources", label: label.sources, href: "/newsroom/settings", done: s.keywords > 0 || s.rssFeeds > 0 },
+    { key: "brand", label: label.brand, href: "/newsroom/brand", done: s.logoSet },
+    { key: "sources", label: label.sources, href: "/newsroom/sources", done: s.keywords > 0 || s.rssFeeds > 0 },
     { key: "card", label: label.card, href: "/newsroom/news", done: s.cardsMade > 0 },
     { key: "publish", label: label.publish, href: "/newsroom/news?tab=ready", done: s.postsPublished > 0 },
   ];

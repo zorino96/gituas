@@ -194,12 +194,12 @@ export default async function NewsPage({
 
       {!sources && (
         <p className="gm-note">
-          {tn.list.noSources} <Link href="/newsroom/settings" className="gm-link">{tn.list.noSourcesLink}</Link>.
+          {tn.list.noSources} <Link href="/newsroom/sources" className="gm-link">{tn.list.noSourcesLink}</Link>.
         </p>
       )}
       {!!sources && !settings?.keywords.length && (
         <p className="gm-note">
-          {tn.list.noKeywords} <Link href="/newsroom/settings" className="gm-link">{tn.list.noKeywordsLink}</Link>.
+          {tn.list.noKeywords} <Link href="/newsroom/sources" className="gm-link">{tn.list.noKeywordsLink}</Link>.
         </p>
       )}
       {ingestResult?.failed.length ? <p className="gm-hint">{tn.list.noAnswer(ingestResult.failed.join(t.fmt.listSep))}</p> : null}

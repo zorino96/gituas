@@ -41,7 +41,12 @@ import {
   toggleCatalogSourceAction,
 } from "@/app/newsroom/(desk)/news/actions";
 
+/** The parts of the desk's setup; each has its own screen. */
+export type SetupSection = "sources" | "autopilot" | "video" | "brand";
+
 export interface NewsSettingsProps {
+  /** Which part to show (all of them when left out). */
+  section?: SetupSection;
   workspaceId: string;
   pageName: string;
   keywords: string[];
@@ -113,6 +118,7 @@ export function NewsSettings(p: NewsSettingsProps) {
   const [video, setVideo] = useState({ ...p.video, dailyMax: String(p.video.dailyMax) });
   const [hearing, setHearing] = useState<string | null>(null);
   const [clone, setClone] = useState({ file: null as File | null, text: p.video.clone.text, consent: false, busy: false });
+  const show = (k: SetupSection) => !p.section || p.section === k;
 
   /** Read the chosen recording (length from the browser), send it with its words and the consent. */
   async function saveClone() {
@@ -255,6 +261,8 @@ export function NewsSettings(p: NewsSettingsProps) {
 
   return (
     <>
+      {show("sources") && (
+        <>
       <p className="gm-sec">{tn.filterSec}</p>
       <div className="gm-card gm-stack">
         <div className="gm-chips">
@@ -458,6 +466,10 @@ export function NewsSettings(p: NewsSettingsProps) {
         </button>
       </div>
 
+        </>
+      )}
+      {show("autopilot") && (
+        <>
       <p className="gm-sec">{tn.voiceSec}</p>
       <div className="gm-card gm-stack">
         <div className="gm-field">
@@ -607,6 +619,10 @@ export function NewsSettings(p: NewsSettingsProps) {
         </button>
       </div>
 
+        </>
+      )}
+      {show("video") && (
+        <>
       <p className="gm-sec">{tn.videoSec}</p>
       <div className="gm-card gm-stack">
         {video.quota < 1 ? (
@@ -786,6 +802,10 @@ export function NewsSettings(p: NewsSettingsProps) {
         )}
       </div>
 
+        </>
+      )}
+      {show("brand") && (
+        <>
       <p className="gm-sec">{tn.brandSec}</p>
       <div className="gm-card gm-stack">
         <div className="gm-row" style={{ gap: 12, flexWrap: "wrap" }}>
@@ -857,6 +877,8 @@ export function NewsSettings(p: NewsSettingsProps) {
       <div className="gm-card gm-stack">
         <PhotoLibrary workspaceId={p.workspaceId} initial={p.photos} onChange={setPhotos} />
       </div>
+        </>
+      )}
       {msg && <p className={msg.ok ? "gm-ok" : "gm-err"}>{msg.text}</p>}
     </>
   );

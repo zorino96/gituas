@@ -10,7 +10,7 @@ import { disconnectAccountAction, saveWhatsAppAction } from "../actions";
 import { useT } from "@/lib/i18n/client";
 import { LanguageCard } from "./language-card";
 import { PasswordCard } from "./password-card";
-import { NewsSettings, type NewsSettingsProps } from "./news-settings";
+import { SetupTabs } from "./setup-tabs";
 
 interface Conn {
   provider: "META_FACEBOOK" | "META_INSTAGRAM" | "TIKTOK" | "YOUTUBE";
@@ -38,7 +38,7 @@ export function SettingsClient({
   connected,
   connectError,
   account,
-  news,
+  desk = false,
 }: {
   account: { email: string | null; hasPassword: boolean };
   slug: string;
@@ -46,7 +46,8 @@ export function SettingsClient({
   connections: Conn[];
   connected?: string;
   connectError?: string;
-  news: NewsSettingsProps | null;
+  /** A newsroom: the desk's own setup lives on its own screens, linked from here. */
+  desk?: boolean;
 }) {
   const base = useBase();
   const t = useT();
@@ -104,7 +105,14 @@ export function SettingsClient({
 
       <LanguageCard />
 
-      {news && <NewsSettings {...news} />}
+      {desk && (
+        <>
+          <p className="gm-sec">{t.nr.shell.nav.groups.setup}</p>
+          <div className="gm-card">
+            <SetupTabs />
+          </div>
+        </>
+      )}
 
       <div className="gm-card">
         <div className="gm-target">

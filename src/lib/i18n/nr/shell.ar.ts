@@ -26,7 +26,7 @@ export const nrShellAr: typeof nrShellCkb = {
   },
 
   nav: {
-    groups: { desk: "مكتب الأخبار", audience: "الجمهور", account: "القناة" },
+    groups: { desk: "مكتب الأخبار", audience: "الجمهور", setup: "إعداد المكتب", account: "القناة" },
     items: {
       news: "الأخبار",
       publish: "النشر",
@@ -34,6 +34,10 @@ export const nrShellAr: typeof nrShellCkb = {
       comments: "التعليقات",
       messages: "الرسائل",
       insights: "الإحصائيات",
+      sources: "المصادر والفلتر",
+      autopilot: "النشر التلقائي",
+      videoSetup: "إعدادات الفيديو",
+      brand: "العلامة والصور",
       team: "الفريق",
       settings: "الإعدادات",
       guide: "الدليل",

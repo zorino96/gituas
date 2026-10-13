@@ -29,8 +29,8 @@ interface SectionText {
 
 const LINKS: Partial<Record<GuideId, string>> = {
   connect: "/newsroom/settings",
-  brand: "/newsroom/settings",
-  sources: "/newsroom/settings",
+  brand: "/newsroom/brand",
+  sources: "/newsroom/sources",
   stories: "/newsroom/news",
   publish: "/newsroom/publish",
   comments: "/newsroom/comments",

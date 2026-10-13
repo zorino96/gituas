@@ -21,7 +21,7 @@ export const nrShellCkb = {
 
   /** Sidebar, phone bar and the "?" link. Keys are NavKey / NavGroup from lib/newsroom/nav.ts. */
   nav: {
-    groups: { desk: "مێزی هەواڵ", audience: "بینەران", account: "کەناڵ" },
+    groups: { desk: "مێزی هەواڵ", audience: "بینەران", setup: "ڕێکخستنی مێز", account: "کەناڵ" },
     items: {
       news: "هەواڵەکان",
       publish: "بڵاوکردنەوە",
@@ -29,6 +29,10 @@ export const nrShellCkb = {
       comments: "کۆمێنت",
       messages: "نامە",
       insights: "ئامار",
+      sources: "سەرچاوە و فلتەر",
+      autopilot: "بڵاوکردنەوەی خۆکار",
+      videoSetup: "ڕێکخستنی ڤیدیۆ",
+      brand: "براند و وێنەکان",
       team: "تیم",
       settings: "ڕێکخستن",
       guide: "ڕێنمایی",
