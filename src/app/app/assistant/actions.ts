@@ -14,8 +14,8 @@ import { isJpegPath, isOwnBlobUrl } from "@/lib/merchant/caption";
 import { can } from "@/lib/newsroom/roles";
 import { limitsOf } from "@/lib/shop/tenant-plans";
 import { randomUUID } from "node:crypto";
-import { publishAction } from "../actions";
-import { saveStoreSettingsAction } from "../automation/actions";
+import { publishAction, saveWhatsAppAction } from "../actions";
+import { archiveProductAction, saveProductAction, saveStoreSettingsAction } from "../automation/actions";
 import { generateAiImageAction } from "../publish/ai-image-action";
 import { schedulePublishAction } from "../publish/schedule-actions";
 import { createVideoAction, saveVideoAutoAction } from "../video/actions";
@@ -272,6 +272,38 @@ export async function runToolAction(input: {
     case "set_autopilot": {
       const r = await saveStoreSettingsAction(store.id, { autoMode: String(args.mode), ...(typeof args.perDay === "number" ? { autoPerDay: args.perDay } : {}) });
       return r.ok ? { ok: true, text: a.done.setting } : { ok: false, error: r.error };
+    }
+    case "set_shop_options": {
+      const r = await saveStoreSettingsAction(store.id, {
+        ...(typeof args.likeComments === "boolean" ? { likeComments: args.likeComments } : {}),
+        ...(typeof args.autoHideSpam === "boolean" ? { autoHideSpam: args.autoHideSpam } : {}),
+        ...(typeof args.aiReplies === "boolean" ? { aiReplies: args.aiReplies } : {}),
+        ...(typeof args.expiryDays === "number" ? { expiryDays: args.expiryDays } : {}),
+        ...(typeof args.defaultDm === "string" ? { defaultDm: args.defaultDm } : {}),
+        ...(typeof args.deliveryFee === "string" ? { deliveryFee: args.deliveryFee } : {}),
+        ...(typeof args.deliveryTime === "string" ? { deliveryTime: args.deliveryTime } : {}),
+        ...(typeof args.aiBrief === "string" ? { aiBrief: args.aiBrief } : {}),
+      });
+      return r.ok ? { ok: true, text: a.done.setting } : { ok: false, error: r.error };
+    }
+    case "add_product": {
+      const photos = ((args.photos as string[]) ?? []).map((id) => att(id)).filter((x) => x?.kind === "image").map((x) => x!.url);
+      const r = await saveProductAction(store.id, null, {
+        name: String(args.name),
+        description: String(args.description ?? ""),
+        photos,
+        variants: [{ label: "", price: String(args.price), currency: "IQD", inStock: args.inStock !== false }],
+      });
+      return r.ok ? { ok: true, text: a.done.productAdded } : { ok: false, error: r.error };
+    }
+    case "archive_product": {
+      if (!productId) return { ok: false, error: a.errors.productNotFound };
+      const r = await archiveProductAction(store.id, productId);
+      return r.ok ? { ok: true, text: a.done.productHidden } : { ok: false, error: r.error };
+    }
+    case "set_whatsapp_number": {
+      const r = await saveWhatsAppAction(String(args.number));
+      return r.ok ? { ok: true, text: a.done.numberSaved } : { ok: false, error: r.error };
     }
     case "set_daily_video": {
       if (!adVideoEnabled()) return { ok: false, error: a.errors.featureOff };

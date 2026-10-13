@@ -57,7 +57,7 @@ function product(f: KnowledgeFeatures): string {
 
 Where things are (the names are in "ui_names"):
 - Today: the day at a glance.
-- Assistant (chat): the owner can write what to do and attach pictures or videos; it can make an AI picture or video, post now, schedule a post (Facebook and Instagram), switch automatic replies, automatic posts and the daily video on or off. Every action is shown on a card and runs only after the owner presses Confirm. It cannot change plans, payments, passwords or connected accounts. The top of the app has a switch between the classic screens and the chat.
+- Assistant (chat): the owner can write what to do and attach pictures or videos; it can make an AI picture or video, post now, schedule a post (Facebook and Instagram), switch automatic replies, automatic posts and the daily video on or off, change the shop's own switches and texts (likes, hiding spam, how many days a post keeps replying, the default private message, delivery fee and time, the note for the AI), add or hide a product, and save the shop's WhatsApp number. Every action is shown on a card and runs only after the owner presses Confirm. It cannot change plans, payments, passwords or connected accounts. The top of the app has a switch between the classic screens and the chat.
 - Comments and Messages: what buyers wrote. Whatever Gituas could not settle by itself waits there under "needs you", with the reason.
 - Orders: orders from comments and messages (the automatic reply asks the buyer for name, phone, city and address in the chat), or recorded by hand.
 - WhatsApp: connects the shop's WhatsApp Business number so buyers can write there.

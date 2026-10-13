@@ -7,7 +7,19 @@
 
 import { z } from "zod";
 
-export const TOOL_NAMES = ["make_picture", "make_video", "post_now", "schedule_post", "set_auto_replies", "set_autopilot", "set_daily_video"] as const;
+export const TOOL_NAMES = [
+  "make_picture",
+  "make_video",
+  "post_now",
+  "schedule_post",
+  "set_auto_replies",
+  "set_autopilot",
+  "set_daily_video",
+  "set_shop_options",
+  "add_product",
+  "archive_product",
+  "set_whatsapp_number",
+] as const;
 export type ToolName = (typeof TOOL_NAMES)[number];
 
 /** A file the owner attached in this chat: referred to by a short id ("a1"), never by address. */
@@ -36,6 +48,29 @@ export const SCHEMAS = {
   set_auto_replies: z.object({ on: z.boolean() }),
   set_autopilot: z.object({ mode: z.enum(["OFF", "DRAFT", "PUBLISH"]), perDay: z.number().int().min(1).max(3).optional() }),
   set_daily_video: z.object({ mode: z.enum(["OFF", "DRAFT", "PUBLISH"]), hour: z.number().int().min(0).max(23).optional() }),
+  /** The shop's own switches and texts: only the ones present change. */
+  set_shop_options: z
+    .object({
+      likeComments: z.boolean().optional(),
+      autoHideSpam: z.boolean().optional(),
+      aiReplies: z.boolean().optional(),
+      expiryDays: z.number().int().min(1).max(365).optional(),
+      defaultDm: z.string().trim().max(1000).optional(),
+      deliveryFee: z.string().trim().max(12).regex(/^[0-9٠-٩۰-۹,. ]*$/).optional(),
+      deliveryTime: z.string().trim().max(60).optional(),
+      aiBrief: z.string().trim().max(1500).optional(),
+    })
+    .refine((o) => Object.values(o).some((v) => v !== undefined), { message: "nothing to change" }),
+  add_product: z.object({
+    name: z.string().trim().min(1).max(80),
+    description: z.string().trim().max(500).default(""),
+    /** IQD, digits. */
+    price: z.string().trim().min(1).max(12).regex(/^[0-9٠-٩۰-۹,. ]+$/),
+    inStock: z.boolean().default(true),
+    photos: z.array(attId).max(5).default([]),
+  }),
+  archive_product: z.object({ product: z.string().trim().min(1).max(120) }),
+  set_whatsapp_number: z.object({ number: z.string().trim().min(6).max(20).regex(/^[0-9+٠-٩۰-۹ ()-]+$/) }),
 } as const;
 
 export type ToolArgs<T extends ToolName> = z.infer<(typeof SCHEMAS)[T]>;
@@ -54,6 +89,10 @@ export const TOOL_HELP = `Tools (you may propose ONE per answer, in "action": {"
 - set_auto_replies {on: true|false}: switch the automatic replies on or off.
 - set_autopilot {mode: "OFF"|"DRAFT"|"PUBLISH", perDay?: 1-3}: the automatic posts (DRAFT = prepare only).
 - set_daily_video {mode: "OFF"|"DRAFT"|"PUBLISH", hour?: 0-23}: a video made every day.
+- set_shop_options {likeComments?, autoHideSpam?, aiReplies?, expiryDays?: 1-365, defaultDm?, deliveryFee?: "IQD digits", deliveryTime?, aiBrief?}: change the shop's own switches and texts (only those given). aiBrief = what the AI should know about the shop.
+- add_product {name, description?, price: "IQD digits", inStock?, photos?: ["a1"]}: add a product with one price.
+- archive_product {product: "<exact name>"}: hide a product (it can be added again).
+- set_whatsapp_number {number}: the shop's WhatsApp number used in order links.
 "a1", "a2"... are the files the owner attached (see "attachments"). Use only those ids; never invent one.`;
 
 /**
@@ -67,7 +106,11 @@ export function parseProposal(raw: unknown, attachmentIds: ReadonlySet<string>):
   const parsed = SCHEMAS[tool].safeParse(o.args ?? {});
   if (!parsed.success) return null;
   const args = parsed.data as Record<string, unknown>;
-  const refs = [...((args.references as string[] | undefined) ?? []), ...(typeof args.media === "string" ? [args.media] : [])];
+  const refs = [
+    ...((args.references as string[] | undefined) ?? []),
+    ...((args.photos as string[] | undefined) ?? []),
+    ...(typeof args.media === "string" ? [args.media] : []),
+  ];
   if (refs.some((id) => !attachmentIds.has(id))) return null;
   return { tool, args };
 }
@@ -84,6 +127,13 @@ export interface FieldLabels {
   references: string;
   product: string;
   shop: string;
+  name: string;
+  description: string;
+  price: string;
+  inStock: string;
+  number: string;
+  photos: string;
+  opts: Record<string, string>;
   when: string;
   mode: string;
   perDay: string;
@@ -141,6 +191,25 @@ export function proposalLines(
       add(f.mode, mode(a.mode));
       add(f.perDay, a.perDay);
       add(f.shop, ctx.shop);
+      break;
+    case "set_shop_options":
+      for (const [k, v] of Object.entries(a)) add(f.opts[k] ?? k, typeof v === "boolean" ? (v ? f.yes : f.no) : v);
+      add(f.shop, ctx.shop);
+      break;
+    case "add_product":
+      add(f.name, a.name);
+      add(f.description, a.description);
+      add(f.price, a.price);
+      add(f.inStock, a.inStock === false ? f.no : f.yes);
+      if (Array.isArray(a.photos) && a.photos.length) add(f.photos, (a.photos as string[]).map(fileName).join(", "));
+      add(f.shop, ctx.shop);
+      break;
+    case "archive_product":
+      add(f.product, a.product);
+      add(f.shop, ctx.shop);
+      break;
+    case "set_whatsapp_number":
+      add(f.number, a.number);
       break;
     case "set_daily_video":
       add(f.mode, mode(a.mode));

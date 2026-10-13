@@ -6,7 +6,7 @@ const ids = new Set(["a1", "a2"]);
 
 const labels: FieldLabels = {
   idea: "Idea", shape: "Shape", square: "Square", portrait: "Tall", targets: "Where", caption: "Caption", media: "Media", references: "Refs",
-  product: "Product", shop: "Shop", when: "When", mode: "Mode", perDay: "Per day", hour: "Hour", on: "On", yes: "Yes", no: "No",
+  product: "Product", shop: "Shop", name: "Name", description: "Description", price: "Price", inStock: "In stock", number: "Number", photos: "Photos", opts: { likeComments: "Like comments", expiryDays: "Days" }, when: "When", mode: "Mode", perDay: "Per day", hour: "Hour", on: "On", yes: "Yes", no: "No",
   modeOff: "Off", modeDraft: "Prepare", modePublish: "Post", attached: (n) => `${n} file(s)`, noMedia: "Text only",
 };
 
@@ -43,6 +43,18 @@ describe("parseProposal", () => {
     expect(parseProposal({ tool: "make_picture", args: { idea: "ok idea", references: ["a1", "a7"] } }, ids)).toBeNull();
     expect(parseProposal(null, ids)).toBeNull();
     expect(parseProposal({ tool: 5, args: {} }, ids)).toBeNull();
+  });
+
+  it("accepts the shop options, a product and the WhatsApp number, and refuses empty or wrong ones", () => {
+    expect(parseProposal({ tool: "set_shop_options", args: { likeComments: true, expiryDays: 14 } }, ids)?.args).toEqual({ likeComments: true, expiryDays: 14 });
+    expect(parseProposal({ tool: "set_shop_options", args: {} }, ids)).toBeNull();
+    expect(parseProposal({ tool: "set_shop_options", args: { expiryDays: 9999 } }, ids)).toBeNull();
+    expect(parseProposal({ tool: "add_product", args: { name: "Ring", price: "25000", photos: ["a1"] } }, ids)?.args).toMatchObject({ name: "Ring", price: "25000", inStock: true, photos: ["a1"] });
+    expect(parseProposal({ tool: "add_product", args: { name: "Ring", price: "free!" } }, ids)).toBeNull();
+    expect(parseProposal({ tool: "add_product", args: { name: "Ring", price: "5", photos: ["a5"] } }, ids)).toBeNull();
+    expect(parseProposal({ tool: "archive_product", args: { product: "Ring" } }, ids)?.tool).toBe("archive_product");
+    expect(parseProposal({ tool: "set_whatsapp_number", args: { number: "07701234567" } }, ids)?.tool).toBe("set_whatsapp_number");
+    expect(parseProposal({ tool: "set_whatsapp_number", args: { number: "drop table" } }, ids)).toBeNull();
   });
 
   it("drops keys the tool does not have", () => {

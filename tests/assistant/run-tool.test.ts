@@ -25,15 +25,15 @@ vi.mock("@/lib/shop/tenant-plans", () => ({ limitsOf: vi.fn(async () => ({ aiUsd
 vi.mock("@/lib/ai/slots", () => ({ claimSlot: vi.fn(), refundSlot: vi.fn(), takeDaily: vi.fn(async () => 1) }));
 vi.mock("@/lib/ai/image", () => ({ imageEnabled: vi.fn(() => true) }));
 vi.mock("@/lib/advideo/enabled", () => ({ adVideoEnabled: vi.fn(() => true) }));
-vi.mock("@/app/app/actions", () => ({ publishAction: vi.fn() }));
-vi.mock("@/app/app/automation/actions", () => ({ saveStoreSettingsAction: vi.fn() }));
+vi.mock("@/app/app/actions", () => ({ publishAction: vi.fn(), saveWhatsAppAction: vi.fn() }));
+vi.mock("@/app/app/automation/actions", () => ({ saveStoreSettingsAction: vi.fn(), saveProductAction: vi.fn(), archiveProductAction: vi.fn() }));
 vi.mock("@/app/app/publish/ai-image-action", () => ({ generateAiImageAction: vi.fn() }));
 vi.mock("@/app/app/publish/schedule-actions", () => ({ schedulePublishAction: vi.fn() }));
 vi.mock("@/app/app/video/actions", () => ({ createVideoAction: vi.fn(), saveVideoAutoAction: vi.fn() }));
 
 import { takeDaily } from "@/lib/ai/slots";
-import { publishAction } from "@/app/app/actions";
-import { saveStoreSettingsAction } from "@/app/app/automation/actions";
+import { publishAction, saveWhatsAppAction } from "@/app/app/actions";
+import { archiveProductAction, saveProductAction, saveStoreSettingsAction } from "@/app/app/automation/actions";
 import { generateAiImageAction } from "@/app/app/publish/ai-image-action";
 import { schedulePublishAction } from "@/app/app/publish/schedule-actions";
 import { createVideoAction, saveVideoAutoAction } from "@/app/app/video/actions";
@@ -139,6 +139,26 @@ describe("runToolAction", () => {
     vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1" });
     expect(await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea: "a short ad" } })).toMatchObject({ ok: true, jobId: "job1" });
     expect(vi.mocked(createVideoAction).mock.calls[0][1]).toMatchObject({ topic: "a short ad", review: true, publish: false });
+  });
+
+  it("changes only the shop options that were given, adds a product with the attached photo, hides one by its exact name, and saves the number", async () => {
+    vi.mocked(saveStoreSettingsAction).mockResolvedValue({ ok: true });
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "set_shop_options", args: { likeComments: true, expiryDays: 14 } });
+    expect(saveStoreSettingsAction).toHaveBeenLastCalledWith("s2", { likeComments: true, expiryDays: 14 });
+    vi.mocked(saveProductAction).mockResolvedValue({ ok: true, id: "p9" });
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "add_product", args: { name: "Ring", price: "25000", photos: ["a1"] }, attachments: [att] });
+    expect(vi.mocked(saveProductAction).mock.calls[0]).toEqual([
+      "s2",
+      null,
+      { name: "Ring", description: "", photos: [OWN], variants: [{ label: "", price: "25000", currency: "IQD", inStock: true }] },
+    ]);
+    vi.mocked(archiveProductAction).mockResolvedValue({ ok: true });
+    expect(await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "archive_product", args: { product: "silver ring" } })).toMatchObject({ ok: true });
+    expect(archiveProductAction).toHaveBeenCalledWith("s2", "p2");
+    expect(await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "archive_product", args: { product: "ring" } })).toMatchObject({ ok: false });
+    vi.mocked(saveWhatsAppAction).mockResolvedValue({ ok: true, digits: "9647701234567" });
+    expect(await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "set_whatsapp_number", args: { number: "07701234567" } })).toMatchObject({ ok: true });
+    expect(saveWhatsAppAction).toHaveBeenCalledWith("07701234567");
   });
 
   it("schedules through the schedule action with the Baghdad time as given", async () => {
