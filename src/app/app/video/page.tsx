@@ -33,7 +33,13 @@ export default async function VideoPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const conns = await loadConnections(ws.id);
   const connectedIds = [conns.META_FACEBOOK.accountId, conns.META_INSTAGRAM.accountId].filter((id): id is string => !!id);
-  const state = await loadShopState(ws.id, sp.store, connectedIds);
+  // With no shop chosen the page opens on the shop of the newest video: that is where the owner is looking for it.
+  let wanted = sp.store;
+  if (!wanted) {
+    const latest = await db.adVideo.findFirst({ where: { tenantId: ws.id, storeId: { not: null } }, orderBy: { createdAt: "desc" }, select: { storeId: true } });
+    wanted = latest?.storeId ?? undefined;
+  }
+  const state = await loadShopState(ws.id, wanted, connectedIds);
   if (!state.store) {
     return (
       <div className="gm-empty">

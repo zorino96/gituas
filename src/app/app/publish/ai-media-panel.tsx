@@ -36,6 +36,15 @@ export interface AiMediaConfig {
 type Media = { url: string; pathname: string; type: "IMAGE" | "VIDEO" };
 
 const MB = 1024 * 1024;
+/** The video being made, kept for this tab so a reload of the page does not lose it. */
+const JOB_KEY = "gm-ai-job";
+const forgetJob = () => {
+  try {
+    sessionStorage.removeItem(JOB_KEY);
+  } catch {
+    /* private window */
+  }
+};
 const IMAGE_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 const CLIP_TYPES: Record<string, string> = { "video/mp4": "mp4", "video/quicktime": "mov" };
 const MAX_REF_IMAGES = 3;
@@ -69,6 +78,8 @@ export function AiMediaPanel({
   const [refs, setRefs] = useState<{ url: string; src: string }[]>([]);
   const [refsByStore, setRefsByStore] = useState<Record<string, AiRefView[]>>(config.video?.refs ?? {});
   const [removing, setRemoving] = useState<string | null>(null);
+  /** The shop the video being made (or just made) belongs to: where to find it in the Video section. */
+  const [videoStore, setVideoStore] = useState<string | null>(null);
   // The shop the video is made for: the one the chosen product belongs to, else the first.
   const activeStore = (productId && config.productStores[productId]) || config.storeId;
   const videoList = refsByStore[activeStore] ?? [];
@@ -109,6 +120,20 @@ export function AiMediaPanel({
   useEffect(() => {
     if (!hasMedia) setNote(null);
   }, [hasMedia]);
+  // A video still being made when the page was reloaded: ask after it again.
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(JOB_KEY) ?? "null") as { id?: unknown; store?: unknown } | null;
+      if (saved && typeof saved.id === "string") {
+        setJob({ id: saved.id, status: "QUEUED" });
+        if (typeof saved.store === "string") setVideoStore(saved.store);
+        setMode("video");
+      }
+    } catch {
+      /* nothing kept */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => () => refsRef.current.forEach((r) => URL.revokeObjectURL(r.src)), []);
 
   // The video is made on the render machine: ask how it is going until it is ready or has failed.
@@ -120,13 +145,16 @@ export function AiMediaPanel({
       if (stopped.current) return;
       if (!r.ok) {
         setErr(r.error);
+        forgetJob();
         setJob(null);
         return;
       }
       if (r.status === "FAILED") {
         setErr(r.error || a.errors.video);
+        forgetJob();
         setJob(null);
       } else if (r.url && r.pathname) {
+        forgetJob();
         setJob({ id: job.id, status: "RENDERED" });
         setNote(a.doneVideo);
         onMediaRef.current({ url: r.url, pathname: r.pathname, type: "VIDEO" }, r.caption);
@@ -232,7 +260,15 @@ export function AiMediaPanel({
         const r = await createVideoAction(storeId, { tier: config.video!.tier, topic: idea, productId: productId || null, voice: "shilan", publish: false, targets: [], review });
         if (r.ok && r.reviewed) setUsed({ text: r.reviewed.text, summary: r.reviewed.summary, reviewed: true });
         else if (r.ok) setUsed({ text: idea, summary: "", reviewed: false });
-        if (r.ok && r.id) setJob({ id: r.id, status: "QUEUED" });
+        if (r.ok && r.id) {
+          setJob({ id: r.id, status: "QUEUED" });
+          setVideoStore(storeId);
+          try {
+            sessionStorage.setItem(JOB_KEY, JSON.stringify({ id: r.id, store: storeId }));
+          } catch {
+            /* not kept */
+          }
+        }
         else if (!r.ok) setErr(r.error);
       } catch {
         setErr(a.errors.failed);
@@ -410,6 +446,13 @@ export function AiMediaPanel({
           </p>
         )}
         {note && <p className="gm-ok">{note}</p>}
+        {(job || note === a.doneVideo) && (videoStore ?? activeStore) && (
+          <p className="gm-hint">
+            <Link href={`/app/video?store=${videoStore ?? activeStore}`} className="gm-link">
+              {t.video.title}
+            </Link>
+          </p>
+        )}
         {used && (
           <div className="gm-hint">
             <p style={{ margin: 0 }}>{used.reviewed ? a.reviewedNote(used.summary) : a.sentAsWritten}</p>

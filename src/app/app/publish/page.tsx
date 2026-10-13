@@ -83,8 +83,11 @@ export default async function PublishPage({ searchParams }: { searchParams: Prom
   // "Create it with AI": a picture or a video, for a shop. Offered by what the plans give.
   let ai: AiMediaConfig | null = null;
   if (ws.kind === "MERCHANT") {
-    const stores = await db.store.findMany({ where: { tenantId: ws.id }, orderBy: { createdAt: "asc" }, select: { id: true }, take: 5 });
-    const store = stores[0];
+    const stores = await db.store.findMany({ where: { tenantId: ws.id }, orderBy: { createdAt: "asc" }, select: { id: true, fbPageId: true, igUserId: true }, take: 15 });
+    // The same shop the Video page opens on: the one whose Page or Instagram account is the connected one, else the oldest.
+    const connectedIds = [conns.META_FACEBOOK.accountId, conns.META_INSTAGRAM.accountId].filter((id): id is string => !!id);
+    const store =
+      stores.find((s) => (!!s.fbPageId && connectedIds.includes(s.fbPageId)) || (!!s.igUserId && connectedIds.includes(s.igUserId))) ?? stores[0];
     if (store) {
       const [lim, imgLeft, vids] = await Promise.all([limitsOf(ws.id), imagesLeft(ws.id), workspaceVideos(ws.id)]);
       const tier = lim.videos.PRO > 0 ? ("PRO" as const) : ("LITE" as const);
