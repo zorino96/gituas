@@ -15,7 +15,8 @@ import { askAssistantAction, runToolAction, type ChatAttachment } from "./action
 
 type Proposal = { tool: string; args: Record<string, unknown>; title: string; lines: { label: string; value: string }[]; nonce: string };
 // "interrupted": the page went away while the card was running, so it may or may not have run: it is not offered again.
-type Turn = { role: "user" | "assistant"; text: string; proposal?: Proposal; state?: "open" | "running" | "interrupted" | "done" | "cancelled" };
+type Shown = { url: string; kind: "image" | "video"; name: string };
+type Turn = { role: "user" | "assistant"; text: string; proposal?: Proposal; state?: "open" | "running" | "interrupted" | "done" | "cancelled"; media?: Shown };
 type Piece = string | { url: string };
 
 const MB = 1024 * 1024;
@@ -132,7 +133,7 @@ export function AssistantClient({
           setJob(null);
           const id = takeId();
           if (id) setFiles((f) => [...f, { id, url: r.url!, pathname: r.pathname!, kind: "video", name: "AI video" }]);
-          setTurns((x) => [...x, { role: "assistant", text: t.done.videoReady }]);
+          setTurns((x) => [...x, { role: "assistant", text: t.done.videoReady, media: { url: r.url!, kind: "video", name: "AI video" } }]);
         }
       } catch {
         /* the next tick asks again */
@@ -245,7 +246,7 @@ export function AssistantClient({
             if (id) setFiles((f) => [...f, { id, url: r.media!.url, pathname: r.media!.pathname, kind: r.media!.kind, name: r.media!.name }]);
           }
           if (r.jobId) setJob(r.jobId);
-          setTurns((x) => [...x, { role: "assistant", text: r.text }]);
+          setTurns((x) => [...x, { role: "assistant", text: r.text, ...(r.media ? { media: { url: r.media.url, kind: r.media.kind, name: r.media.name } } : {}) }]);
         } else {
           // A refusal ran nothing: the card is closed, and a new request makes a new card.
           setCard(index, "cancelled");
@@ -361,6 +362,18 @@ export function AssistantClient({
                   ),
                 )}
               </div>
+              {m.media && (
+                <div>
+                  {m.media.kind === "image" ? (
+                    <a href={m.media.url} target="_blank" rel="noreferrer">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={m.media.url} alt={m.media.name} style={{ display: "block", width: "100%", maxWidth: 520, maxHeight: 560, objectFit: "contain", borderRadius: 10 }} />
+                    </a>
+                  ) : (
+                    <video src={m.media.url} controls playsInline preload="metadata" style={{ display: "block", width: "100%", maxWidth: 360, maxHeight: 560, borderRadius: 10 }} />
+                  )}
+                </div>
+              )}
               {m.proposal && (
                 <div className="gm-card gm-stack" style={{ borderInlineStart: "3px solid var(--ink, #111)" }}>
                   <p className="gm-sec" style={{ margin: 0 }}>
