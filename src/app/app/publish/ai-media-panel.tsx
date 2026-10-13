@@ -60,6 +60,7 @@ export function AiMediaPanel({
 }) {
   const t = useT();
   const a = t.publish.ai;
+  const ai = a;
   const imageOn = !!config.image?.on;
   const videoOn = !!config.video?.on;
   const [mode, setMode] = useState<"image" | "video">(imageOn || !videoOn ? "image" : "video");
@@ -76,6 +77,24 @@ export function AiMediaPanel({
   const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  // Gituas reviews the idea against the brand first. Remembered in this browser; on unless the owner turned it off.
+  const [review, setReview] = useState(true);
+  const [used, setUsed] = useState<{ text: string; summary: string; reviewed: boolean } | null>(null);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("gm-ai-review") === "0") setReview(false);
+    } catch {
+      /* private window: the default stands */
+    }
+  }, []);
+  function chooseReview(on: boolean) {
+    setReview(on);
+    try {
+      localStorage.setItem("gm-ai-review", on ? "1" : "0");
+    } catch {
+      /* not remembered */
+    }
+  }
   const [uploading, setUploading] = useState(false);
   const [job, setJob] = useState<{ id: string; status: string } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -184,11 +203,13 @@ export function AiMediaPanel({
   function makeImage() {
     setErr(null);
     setNote(null);
+    setUsed(null);
     start(async () => {
       try {
-        const r = await generateAiImageAction({ idea, productId: productId || null, refUrls: refs.map((x) => x.url), shape });
+        const r = await generateAiImageAction({ idea, productId: productId || null, refUrls: refs.map((x) => x.url), shape, review });
         if (r.ok) {
           setNote(a.doneImage);
+          setUsed({ text: r.prompt, summary: r.summary, reviewed: r.reviewed });
           onMediaRef.current(r.media);
         } else {
           setErr(r.error);
@@ -204,10 +225,13 @@ export function AiMediaPanel({
     if (!config.video) return;
     setErr(null);
     setNote(null);
+    setUsed(null);
     start(async () => {
       try {
         const storeId = (productId && config.productStores[productId]) || config.storeId;
-        const r = await createVideoAction(storeId, { tier: config.video!.tier, topic: idea, productId: productId || null, voice: "shilan", publish: false, targets: [] });
+        const r = await createVideoAction(storeId, { tier: config.video!.tier, topic: idea, productId: productId || null, voice: "shilan", publish: false, targets: [], review });
+        if (r.ok && r.reviewed) setUsed({ text: r.reviewed.text, summary: r.reviewed.summary, reviewed: true });
+        else if (r.ok) setUsed({ text: idea, summary: "", reviewed: false });
         if (r.ok && r.id) setJob({ id: r.id, status: "QUEUED" });
         else if (!r.ok) setErr(r.error);
       } catch {
@@ -236,6 +260,7 @@ export function AiMediaPanel({
     setMode(next);
     setErr(null);
     setNote(null);
+    setUsed(null);
   }
   const left = mode === "image" ? config.image : config.video;
   const statusLabel = job ? (t.video.status as Record<string, string>)[job.status] ?? job.status : null;
@@ -271,6 +296,14 @@ export function AiMediaPanel({
           disabled={busy}
           onChange={(e) => setIdea(e.target.value)}
         />
+        <label className="gm-row" style={{ alignItems: "flex-start", gap: 8, cursor: "pointer" }}>
+          <input type="checkbox" checked={review} disabled={busy} onChange={(e) => chooseReview(e.target.checked)} style={{ marginTop: 4 }} />
+          <span>
+            <b>{ai.reviewLabel}</b>
+            <br />
+            <span className="gm-hint">{ai.reviewHelp}</span>
+          </span>
+        </label>
       </div>
 
       {mode === "image" && (
@@ -377,6 +410,17 @@ export function AiMediaPanel({
           </p>
         )}
         {note && <p className="gm-ok">{note}</p>}
+        {used && (
+          <div className="gm-hint">
+            <p style={{ margin: 0 }}>{used.reviewed ? a.reviewedNote(used.summary) : a.sentAsWritten}</p>
+            <details>
+              <summary>{a.promptUsed}</summary>
+              <p className="gm-ltr" style={{ whiteSpace: "pre-wrap", margin: "6px 0 0" }}>
+                {used.text}
+              </p>
+            </details>
+          </div>
+        )}
         {err && <p className="gm-err">{err}</p>}
       </div>
     </div>

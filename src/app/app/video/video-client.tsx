@@ -81,6 +81,7 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
   const router = useRouter();
   const t = useT();
   const v = t.video;
+  const ai = t.publish.ai;
   const lang = useLang();
   const uid = useId();
   // Start on a tier the plan has and that still has videos in it (a plan with Opus has no Haiku videos).
@@ -89,6 +90,8 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
   );
   const [productId, setProductId] = useState("");
   const [topic, setTopic] = useState("");
+  // Gituas reviews the idea against the brand first (the same switch as in the composer).
+  const [review, setReview] = useState(true);
   const [voice, setVoice] = useState("shilan");
   const [publish, setPublish] = useState(false);
   const [fb, setFb] = useState(canFb);
@@ -110,9 +113,9 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
   function create() {
     setNote(null);
     start(async () => {
-      const r = await createVideoAction(storeId, { tier, topic, productId: productId || null, voice, publish, targets });
+      const r = await createVideoAction(storeId, { tier, topic, productId: productId || null, voice, publish, targets, review });
       if (r.ok) {
-        setNote({ ok: true, text: v.created });
+        setNote({ ok: true, text: r.reviewed ? `${v.created} ${ai.reviewedNote(r.reviewed.summary)}` : v.created });
         setTopic("");
         router.refresh();
       } else {
@@ -194,6 +197,14 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
         <div className="gm-field">
           <label htmlFor={`${uid}-topic`}>{v.topicLabel}</label>
           <textarea id={`${uid}-topic`} className="gm-textarea" style={{ minHeight: 84 }} value={topic} maxLength={300} placeholder={v.topicPlaceholder} onChange={(e) => setTopic(e.target.value)} />
+        <label className="gm-row" style={{ alignItems: "flex-start", gap: 8, cursor: "pointer" }}>
+          <input type="checkbox" checked={review} disabled={pending} onChange={(e) => setReview(e.target.checked)} style={{ marginTop: 4 }} />
+          <span>
+            <b>{ai.reviewLabel}</b>
+            <br />
+            <span className="gm-hint">{ai.reviewHelp}</span>
+          </span>
+        </label>
         </div>
 
         <div className="gm-field">

@@ -13,11 +13,12 @@ import { isRefPath, removeRef } from "@/lib/advideo/refs";
 import { getDailyBrief, loadMarketNotes, readTodaysBrief, saveMarketNotes } from "@/lib/advideo/strategy";
 import { dict, getLang } from "@/lib/i18n";
 import { ownerJobError } from "@/lib/advideo/job-error";
+import { reviewIdea, ReviewFailed } from "@/lib/ai/review-idea";
 import { can } from "@/lib/newsroom/roles";
 import { isPawanVoice } from "@/lib/voice/voices";
 import { currentWorkspace } from "@/app/app/data";
 
-export type VideoResult = { ok: true; id?: string } | { ok: false; error: string };
+export type VideoResult = { ok: true; id?: string; reviewed?: { text: string; summary: string } } | { ok: false; error: string };
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
@@ -37,18 +38,35 @@ const targetsOf = (raw: unknown, store: { fbPageId: string | null; igUserId: str
 /** Queues one video; its script and voice are written right after the answer is sent, the render follows on its own. */
 export async function createVideoAction(
   storeId: string,
-  input: { tier: string; topic: string; productId: string | null; voice: string; publish: boolean; targets: string[] },
+  input: { tier: string; topic: string; productId: string | null; voice: string; publish: boolean; targets: string[]; review?: boolean },
 ): Promise<VideoResult> {
   const r = await ownedStore(storeId, "publish");
   if (!r.ok) return r;
   if (!isVideoTier(input.tier)) return { ok: false, error: r.e.tier };
   const targets = targetsOf(input.targets, r.store);
   if (input.publish && !targets.length) return { ok: false, error: r.e.targets };
+  // Gituas reviews the owner's idea against the brand first (when asked, and when there is an idea): a review that
+  // cannot be done stops here, before anything is counted, and the owner chooses.
+  let topic = input.topic.trim();
+  let reviewed: { text: string; summary: string } | undefined;
+  if (input.review === true && topic.length >= 3) {
+    try {
+      const lang = await getLang();
+      const rev = await reviewIdea({ tenantId: r.ws.id, storeId: r.store.id, productId: input.productId || null, idea: topic, kind: "video", lang });
+      if (!rev.kept) {
+        topic = rev.text;
+        reviewed = { text: rev.text, summary: rev.summary };
+      }
+    } catch (err) {
+      if (err instanceof ReviewFailed) return { ok: false, error: r.e.reviewFailed };
+      throw err;
+    }
+  }
   const made = await createAdVideo({
     tenantId: r.ws.id,
     storeId: r.store.id,
     tier: input.tier,
-    topic: input.topic.trim() || null,
+    topic: topic || null,
     productId: input.productId || null,
     voice: isPawanVoice(input.voice) ? input.voice : "shilan",
     targets,
@@ -60,7 +78,7 @@ export async function createVideoAction(
   // The script and voice take 15 to 40 seconds: start them now, the clock picks them up if this is cut short.
   after(() => prepareAdVideo(made.id).then(() => undefined));
   revalidatePath("/app/video");
-  return { ok: true, id: made.id };
+  return { ok: true, id: made.id, ...(reviewed ? { reviewed } : {}) };
 }
 
 /** Posts a rendered video to the chosen platforms. */

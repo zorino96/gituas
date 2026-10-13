@@ -8,6 +8,7 @@ const limits = vi.hoisted(() => ({ images: 8, imagesPerDay: 5 }));
 vi.mock("@/lib/db", () => ({
   db: {
     product: { findFirst: vi.fn() },
+    store: { findFirst: vi.fn(async () => ({ id: "s1" })) },
     usage: {
       findUnique: vi.fn(async ({ where }: { where: { tenantId_month_metric: { tenantId: string; month: string; metric: string } } }) => {
         const k = `${where.tenantId_month_metric.tenantId}|${where.tenantId_month_metric.month}|${where.tenantId_month_metric.metric}`;
@@ -57,7 +58,7 @@ beforeEach(async () => {
   vi.mocked(imageEnabled).mockReturnValue(true);
   png ??= await sharp({ create: { width: 64, height: 64, channels: 3, background: "#c33" } }).png().toBuffer();
   vi.mocked(createImage).mockResolvedValue(png);
-  vi.mocked(completeJson).mockResolvedValue({ data: { prompt: "A bag on a marble table, soft morning light, product exactly as in the reference." }, model: "m" });
+  vi.mocked(completeJson).mockResolvedValue({ data: { text: "A bag on a marble table, soft morning light, product exactly as in the reference.", summary: "Made the light and the setting clear." }, model: "m" });
 });
 
 describe("generateAiImageAction", () => {
@@ -72,17 +73,28 @@ describe("generateAiImageAction", () => {
     expect((await sharp(bytes).metadata()).format).toBe("jpeg");
   });
 
-  it("asks Haiku to write the prompt for the image model, counted against the workspace", async () => {
-    await generateAiImageAction(input);
-    expect(vi.mocked(completeJson).mock.calls[0][0]).toMatchObject({ tier: "haiku", meter: { scope: "t1" }, maxTokens: 400 });
+  it("has Haiku review the idea against the brand first, counted against the workspace, and shows what was asked", async () => {
+    const r = await generateAiImageAction(input);
+    expect(vi.mocked(completeJson).mock.calls[0][0]).toMatchObject({ tier: "haiku", meter: { scope: "t1" }, maxTokens: 500 });
     expect(vi.mocked(createImage).mock.calls[0][0].prompt).toContain("marble table");
+    expect(r).toMatchObject({ ok: true, reviewed: true, summary: "Made the light and the setting clear." });
+    if (r.ok) expect(r.prompt).toContain("marble table");
   });
 
-  it("uses the owner's own words when the AI cannot write the prompt", async () => {
-    vi.mocked(completeJson).mockRejectedValue(new Error("this month's AI allowance is used up"));
-    const r = await generateAiImageAction(input);
-    expect(r.ok).toBe(true);
+  it("sends the idea exactly as typed, with no review call, when the owner switched the review off", async () => {
+    const r = await generateAiImageAction({ ...input, review: false });
+    expect(completeJson).not.toHaveBeenCalled();
     expect(vi.mocked(createImage).mock.calls[0][0].prompt).toBe("the bag on a marble table");
+    expect(r).toMatchObject({ ok: true, reviewed: false, prompt: "the bag on a marble table" });
+  });
+
+  it("stops without taking a place or spending anything when a review was asked for and cannot be done", async () => {
+    vi.mocked(completeJson).mockRejectedValue(new Error("this month's AI allowance is used up"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const r = await generateAiImageAction(input);
+    expect(r).toMatchObject({ ok: false });
+    expect(createImage).not.toHaveBeenCalled();
+    expect([...usage.values()].every((v) => v === 0)).toBe(true);
   });
 
   it("sends the product's photo and the owner's references, own storage only", async () => {
