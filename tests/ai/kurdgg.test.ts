@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { describeEmpty, extractJson, partsText, sseContent } from "@/lib/ai/kurdgg";
+import { describeEmpty, extractJson, kurdggJson, KurdggReplyError, partsText, sseContent } from "@/lib/ai/kurdgg";
 
 describe("extractJson", () => {
   it("reads plain JSON, fenced JSON and JSON inside a sentence", () => {
@@ -55,12 +55,13 @@ describe("kurdggJson", () => {
     );
     vi.stubEnv("KURDGG_API_KEY", "k");
     const r = await kurdggJson({ system: "sys", user: "hello", strength: "fast", maxTokens: 150 }, 5_000, "opus");
-    expect(seen[0]).toMatchObject({ model: "cc/claude-opus-5-5", max_tokens: 150 });
+    // A small cap is raised to the floor: thinking counts against it, and a reply with no room is empty.
+    expect(seen[0]).toMatchObject({ model: "cc/claude-opus-5-5", max_tokens: 3000 });
     expect(r.data).toEqual({ ok: true });
     expect(r.usage!.in).toBeGreaterThan(0);
     expect(r.usage!.out).toBeGreaterThan(0);
     await kurdggJson({ system: "sys", user: "hello", strength: "fast" }, 5_000);
-    expect(seen[1]).toMatchObject({ model: "cc/claude-haiku-5-5", max_tokens: 2000 });
+    expect(seen[1]).toMatchObject({ model: "cc/claude-haiku-5-5", max_tokens: 3000 });
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
@@ -89,5 +90,18 @@ describe("replies that are not a plain string", () => {
     expect(d).toContain("finish:content_filter");
     expect(d).toContain("content:null");
     expect(d).not.toContain("quoted request text");
+  });
+});
+
+describe("an answer that ran into the cap", () => {
+  it("is reported with its usage and as truncated, for both spellings of the reason", async () => {
+    const chunk = { model: "m", choices: [{ delta: { role: "assistant", content: "" }, finish_reason: "max_tokens" }], usage: { prompt_tokens: 700, completion_tokens: 3000 } };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(`data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n`, { status: 200 })));
+    vi.stubEnv("KURDGG_API_KEY", "k");
+    const err = await kurdggJson({ system: "s", user: "u", strength: "fast" }, 5_000).catch((e) => e);
+    expect(err).toBeInstanceOf(KurdggReplyError);
+    expect(err).toMatchObject({ message: "empty reply", truncated: true, usage: { in: 700, out: 3000 } });
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 });

@@ -178,8 +178,18 @@ export function finishReason(raw: string): string | null {
   return found;
 }
 
-/** A model's answer is never longer than this many tokens unless the caller asks for more: a runaway reply costs money. */
+/** The answer cap when the caller sets none. */
 const DEFAULT_MAX_TOKENS = 2000;
+/**
+ * The models on this gateway think before they answer, and the thinking counts against max_tokens: with a cap of
+ * 160 to 500 the whole cap went on thinking and the reply was EMPTY (finish "max_tokens"; seen on 2026-10-13 in the
+ * review of an idea, and it would have hit every short call). So no call is sent with less than this. What is
+ * billed is what the model actually writes, and the workspace's allowance counts that.
+ */
+const MIN_MAX_TOKENS = 3000;
+
+/** "length" (OpenAI) and "max_tokens" (Anthropic) both mean the answer ran into the cap. */
+const ranIntoCap = (reason: string | null) => reason === "length" || reason === "max_tokens";
 
 /** timeoutMs is the caller's to choose: completeJson budgets it against the overall deadline. */
 export async function kurdggJson(call: JsonCall, timeoutMs: number, tier: AiTier = "haiku"): Promise<JsonResult> {
@@ -194,7 +204,7 @@ export async function kurdggJson(call: JsonCall, timeoutMs: number, tier: AiTier
       model,
       stream: false,
       temperature: 0.3,
-      max_tokens: maxTokens ?? DEFAULT_MAX_TOKENS,
+      max_tokens: Math.max(maxTokens ?? DEFAULT_MAX_TOKENS, MIN_MAX_TOKENS),
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemText },
@@ -227,12 +237,14 @@ export async function kurdggJson(call: JsonCall, timeoutMs: number, tier: AiTier
     content = partsText(body?.choices?.[0]?.message?.content);
     replyModel = body?.model ?? null;
   }
-  if (!content.trim()) {
-    console.error("[kurdgg] empty reply:", model, describeEmpty(raw));
-    throw new Error("empty reply");
-  }
   // The provider's own count when it gives one; else an estimate that leans high (a picture is about 800 tokens).
   const stated = replyUsage(raw);
+  if (!content.trim()) {
+    console.error("[kurdgg] empty reply:", model, describeEmpty(raw));
+    // Paid for all the same: the usage goes with the error, so the allowance counts it.
+    const spent = stated ?? { in: estimateTokens(systemText + user) + (images?.length ?? 0) * 800, out: 0 };
+    throw new KurdggReplyError("empty reply", spent, ranIntoCap(finishReason(raw)));
+  }
   // Which figures the month's count rests on: stated by the provider, or estimated here (numbers only in the log).
   if (!stated) console.info("[kurdgg] usage not stated, estimated:", model);
   const usage = stated ?? {
@@ -243,7 +255,7 @@ export async function kurdggJson(call: JsonCall, timeoutMs: number, tier: AiTier
   try {
     data = extractJson(content);
   } catch (e) {
-    throw new KurdggReplyError(e instanceof Error ? e.message : "the reply was not JSON", usage, finishReason(raw) === "length");
+    throw new KurdggReplyError(e instanceof Error ? e.message : "the reply was not JSON", usage, ranIntoCap(finishReason(raw)));
   }
   return { data, model: `kurdgg/${replyModel ?? model}`, usage };
 }
