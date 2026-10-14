@@ -40,6 +40,7 @@ import {
   saveVoiceNoteAction,
   setKeywordFilterAction,
   setSourceImagesAction,
+  setAiPicturesAction,
   toggleCatalogSourceAction,
 } from "@/app/newsroom/(desk)/news/actions";
 
@@ -56,6 +57,7 @@ export interface NewsSettingsProps {
   categories: string[];
   keywordFilter: boolean;
   sourceImages: boolean;
+  aiPictures: boolean;
   /** Keywords or a prompt; `level` is what the plan includes (none on LITE and MANUAL). */
   filter: { level: PromptFilter; mode: FilterMode; focus: string; exclude: string; broad: boolean };
   /** Auto-video: `quota` 0 means the plan has none; `full` is ENTERPRISE (the prompt). */
@@ -388,6 +390,21 @@ export function NewsSettings(p: NewsSettingsProps) {
           </button>
         </div>
         <p className="gm-hint" style={{ margin: 0 }}>{tn.sourceImagesHint}</p>
+        <div className="gm-between">
+          <small className="gm-sub" style={{ margin: 0 }}>{tn.aiPicturesLabel}</small>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={p.aiPictures}
+            aria-label={tn.aiPicturesLabel}
+            className="gm-knob"
+            disabled={pending}
+            onClick={() => run(() => setAiPicturesAction(!p.aiPictures), tn.changed)}
+          >
+            <i />
+          </button>
+        </div>
+        <p className="gm-hint" style={{ margin: 0 }}>{tn.aiPicturesHint}</p>
       </div>
 
       <p className="gm-sec">{tn.sourcesSec}</p>

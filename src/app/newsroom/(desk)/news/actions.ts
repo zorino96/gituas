@@ -543,6 +543,19 @@ export async function setSourceImagesAction(on: boolean): Promise<Result> {
   return { ok: true };
 }
 
+/** Make a symbolic AI illustration for a story that has no photo (the card says "illustration (AI)"). */
+export async function setAiPicturesAction(on: boolean): Promise<Result> {
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
+  await db.newsSettings.upsert({
+    where: { tenantId: ws.id },
+    create: { tenantId: ws.id, keywords: [], aiPictures: !!on },
+    update: { aiPictures: !!on },
+  });
+  return { ok: true };
+}
+
 /** Which autopilot stories become videos, how many, and in which voice. Only plans with a video quota. */
 export async function saveVideoSettingsAction(input: {
   mode: string;

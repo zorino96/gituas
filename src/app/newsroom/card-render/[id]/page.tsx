@@ -16,6 +16,7 @@ import { CARD_H, CARD_W } from "@/lib/cards/size";
 import { stampOf } from "@/lib/cards/stamp";
 import { NewsCard } from "@/lib/cards/templates";
 import { db } from "@/lib/db";
+import { isAiImage } from "@/lib/news/ai-picture";
 import { isSourceImage } from "@/lib/news/source-image";
 import { CARD_KINDS, type CardKind } from "@/lib/news/types";
 
@@ -74,7 +75,7 @@ export default async function CardRenderPage({
             quote: draft.quote,
             speaker: draft.speaker,
             stamp: stampOf(draft.item.publishedAt),
-            credit: isSourceImage(draft.photoPath) ? `وێنە: ${draft.item.sourceName}` : null,
+            credit: isSourceImage(draft.photoPath) ? `وێنە: ${draft.item.sourceName}` : isAiImage(draft.photoPath) ? "وێنەی ڕوونکەرەوە (AI)" : null,
             photoSrc: mediaSrc(draft.photoPath),
           }}
         />

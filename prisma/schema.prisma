@@ -696,6 +696,8 @@ model NewsSettings {
   designPrompt  String?
   /// Use the story's own picture (from its feed) as the card background when no library photo fits; credited on the card.
   sourceImages  Boolean   @default(false)
+  /// Make a symbolic AI illustration for a story that has no photo (marked "illustration (AI)" on the card).
+  aiPictures    Boolean   @default(false)
   /// Words a story must contain to be shown (any of them); empty = everything.
   keywords      String[]
   lastFetchedAt DateTime?

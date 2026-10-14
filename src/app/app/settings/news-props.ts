@@ -43,6 +43,7 @@ export async function loadNewsProps(
     categories: settings?.categories ?? [],
     keywordFilter: settings?.keywordFilter ?? false,
     sourceImages: settings?.sourceImages ?? false,
+    aiPictures: settings?.aiPictures ?? false,
     video: {
       quota: videoQuotaFor(tenant?.plan),
       used: await usageOf(ws.id, "video"),

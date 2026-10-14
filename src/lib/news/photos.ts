@@ -4,6 +4,7 @@
 import { db } from "@/lib/db";
 import { isOwnPathname } from "@/lib/merchant/caption";
 import { pickFromLibrary, shuffled } from "./clips";
+import { aiPictureForStory } from "./ai-picture";
 import { storeSourceImage } from "./source-image";
 
 /** Most photos one desk keeps in its library. */
@@ -31,12 +32,14 @@ export async function photoForStory(
       const fit = library.find((p) => p.id === picked);
       if (fit && isOwnPhoto(tenantId, fit.pathname)) return fit.pathname;
     }
-    if (story.imageUrl) {
-      const s = await db.newsSettings.findUnique({ where: { tenantId }, select: { sourceImages: true } });
-      if (s?.sourceImages) {
-        const own = await storeSourceImage(tenantId, story.imageUrl);
-        if (own) return own;
-      }
+    const s = await db.newsSettings.findUnique({ where: { tenantId }, select: { sourceImages: true, aiPictures: true } });
+    if (story.imageUrl && s?.sourceImages) {
+      const own = await storeSourceImage(tenantId, story.imageUrl);
+      if (own) return own;
+    }
+    if (s?.aiPictures) {
+      const made = await aiPictureForStory(tenantId, story, budgetMs === undefined ? 40_000 : Math.min(40_000, budgetMs));
+      if (made) return made;
     }
     const general = shuffled(library.filter((p) => p.general))[0];
     return general && isOwnPhoto(tenantId, general.pathname) ? general.pathname : null;

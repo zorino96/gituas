@@ -838,6 +838,8 @@ export const en: Dict = {
       keywordFilterAria: "Keyword filter for RSS",
       sourceImagesSec: "Story pictures",
       sourceImagesLabel: "Use the source's own picture when none of my photos fits",
+      aiPicturesLabel: "Make an AI illustration when there is no photo",
+      aiPicturesHint: "A calm, symbolic picture (a skyline, a courtroom, documents) is made for a story that has no photo; it never shows real people or events, and the card says \"Illustration (AI)\". Off by default.",
       sourceImagesHint: "The card shows the picture the source published with the story, with \"Photo: source name\" on it. These pictures belong to the source: use this only for sources that allow it or that you have permission from, as a source can ask for removal. Off by default.",
       filterSec: "Which news to bring",
       filterMode: { KEYWORDS: "By keywords", PROMPT: "By prompt (AI)" },
