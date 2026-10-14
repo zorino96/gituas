@@ -7,7 +7,8 @@ import { upload } from "@vercel/blob/client";
 
 import { useT } from "@/lib/i18n/client";
 
-import { NewsCard, CARD_H, CARD_W } from "@/lib/cards/templates";
+import { OutputPreview } from "./output-preview";
+import { CARD_H, CARD_W } from "@/lib/cards/templates";
 import { brandFrom, FRAME_TEXT, mediaSrc, type FrameText } from "@/lib/cards/brand";
 import { ReferencePicker } from "./color-picker";
 import { SectionFrames, type SectionFrame } from "./section-frames";
@@ -877,11 +878,16 @@ export function NewsSettings(p: NewsSettingsProps) {
             </label>
           ))}
         </div>
-        <ReferencePicker
-          logoSrc={mediaSrc(kit.logoPath)}
-          values={kit}
-          onPick={(slot, hex) => setKit((k) => ({ ...k, [slot]: hex }))}
-        />
+        <details>
+          <summary className="gm-hint" style={{ cursor: "pointer" }}>{tn.moreColors}</summary>
+          <div style={{ marginTop: 8 }}>
+            <ReferencePicker
+              logoSrc={mediaSrc(kit.logoPath)}
+              values={kit}
+              onPick={(slot, hex) => setKit((k) => ({ ...k, [slot]: hex }))}
+            />
+          </div>
+        </details>
         <div className="gm-chips">
           {(["kufi", "sans"] as const).map((f) => (
             <button key={f} type="button" className="gm-chip" aria-pressed={kit.headingFont === f} onClick={() => setKit((k) => ({ ...k, headingFont: f }))}>
@@ -916,29 +922,29 @@ export function NewsSettings(p: NewsSettingsProps) {
             </div>
           </>
         )}
-        <div dir="ltr" style={{ width: PREVIEW_W, height: (CARD_H * PREVIEW_W) / CARD_W, overflow: "hidden", borderRadius: 10 }}>
-          <div style={{ transform: `scale(${PREVIEW_W / CARD_W})`, transformOrigin: "top left", width: CARD_W, height: CARD_H }}>
-            <NewsCard
-              kind={kit.framePath ? "STANDARD" : "BREAKING"}
-              brand={brandFrom(kit, p.pageName)}
-              content={{ headline: tn.cardSample, stat: null, quote: null, speaker: null, stamp: "١٠:٤٢", photoSrc: kit.framePath ? mediaSrc(photos[0]?.pathname) : null }}
-            />
-          </div>
+      </div>
+      <details className="gm-stack" style={{ gap: 10 }}>
+        <summary className="gm-sec" style={{ cursor: "pointer" }}>{tn.sectionFramesOptional}</summary>
+        <div className="gm-stack" style={{ marginTop: 10 }}>
+          <SectionFrames
+            workspaceId={p.workspaceId}
+            pageName={p.pageName}
+            kit={kit}
+            samplePhoto={photos[0]?.pathname ?? null}
+            frames={p.sectionFrames}
+            designPrompt={p.designPrompt}
+            aiEnabled={p.aiFrames}
+          />
         </div>
-        <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => saveBrandKitAction(kit), tn.brandSaved)}>{tn.saveBrand}</button>
-      </div>
-      <SectionFrames
-        workspaceId={p.workspaceId}
-        pageName={p.pageName}
-        kit={kit}
-        samplePhoto={photos[0]?.pathname ?? null}
-        frames={p.sectionFrames}
-        designPrompt={p.designPrompt}
-        aiEnabled={p.aiFrames}
-      />
-      <div className="gm-card gm-stack">
-        <PhotoLibrary workspaceId={p.workspaceId} initial={p.photos} onChange={setPhotos} />
-      </div>
+      </details>
+      <details className="gm-stack" style={{ gap: 10 }}>
+        <summary className="gm-sec" style={{ cursor: "pointer" }}>{tn.photosOptional}</summary>
+        <div className="gm-card gm-stack" style={{ marginTop: 10 }}>
+          <PhotoLibrary workspaceId={p.workspaceId} initial={p.photos} onChange={setPhotos} />
+        </div>
+      </details>
+      <OutputPreview kit={kit} photo={photos[0]?.pathname ?? null} />
+      <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => saveBrandKitAction(kit), tn.brandSaved)}>{tn.saveBrand}</button>
         </>
       )}
       {msg && <p className={msg.ok ? "gm-ok" : "gm-err"}>{msg.text}</p>}

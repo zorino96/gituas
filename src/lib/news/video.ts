@@ -312,7 +312,7 @@ export async function prepareVideo(jobId: string): Promise<boolean> {
       style: job.style,
       // HIGHLIGHT: the desk's own footage, muted under our voice. No "sample" label: it is theirs.
       clips: job.style === "HIGHLIGHT" ? job.clips : [],
-      brand: { name: tenant.name, primary: kit?.primary ?? "#1f4fd6", accent: kit?.accent ?? "#e0262f", logoUrl: kit?.logoPath ? `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://gituas.com"}/m/${kit.logoPath}` : null },
+      brand: { name: ig?.providerAccountName ? ig.providerAccountName.replace(/^@/, "") : "", primary: kit?.primary ?? "#1f4fd6", accent: kit?.accent ?? "#e0262f", logoUrl: kit?.logoPath ? `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://gituas.com"}/m/${kit.logoPath}` : null },
       category: categoryLabel(item.category, item.subcategory) ?? "",
       place: script.place,
       date: soraniDate(new Date()),
