@@ -56,17 +56,13 @@ const abs = (s: CSSProperties): CSSProperties => ({ position: "absolute", ...s }
 
 function Header({ brand, dark }: { brand: Brand; dark: boolean }) {
   const color = dark ? brand.primary : brand.text;
+  // Without a saved logo nothing is drawn: the workspace name is often the owner's own name, and a card must never
+  // carry a person's name nobody chose to put there.
+  if (!brand.logoSrc) return null;
   return (
     <div style={abs({ top: 48, right: 56, left: 56, display: "flex", alignItems: "center", gap: 18, color })}>
-      {brand.logoSrc ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={brand.logoSrc} alt="" style={{ height: 72, width: "auto", maxWidth: 260, objectFit: "contain" }} />
-      ) : (
-        <span style={{ width: 64, height: 64, borderRadius: 32, background: dark ? brand.primary : brand.accent, color: dark ? brand.accent : brand.primary, display: "grid", placeItems: "center", font: `700 34px ${HEADING_FONT[brand.headingFont]}` }}>
-          {[...brand.pageName][0] ?? "ه"}
-        </span>
-      )}
-      <span style={{ font: `700 34px ${HEADING_FONT[brand.headingFont]}` }}>{brand.pageName}</span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={brand.logoSrc} alt="" style={{ height: 72, width: "auto", maxWidth: 260, objectFit: "contain" }} />
     </div>
   );
 }
