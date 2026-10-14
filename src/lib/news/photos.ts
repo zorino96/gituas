@@ -4,6 +4,7 @@
 import { db } from "@/lib/db";
 import { isOwnPathname } from "@/lib/merchant/caption";
 import { pickFromLibrary, shuffled } from "./clips";
+import { storeSourceImage } from "./source-image";
 
 /** Most photos one desk keeps in its library. */
 export const PHOTO_LIBRARY_MAX = 200;
@@ -13,14 +14,32 @@ export function isOwnPhoto(tenantId: string, pathname: unknown): pathname is str
   return isOwnPathname(pathname, tenantId) && /\.(jpe?g|png|webp)$/i.test(pathname);
 }
 
-/** The library photo for one story's card, or null for none. Never throws. */
-export async function photoForStory(tenantId: string, story: { title: string; snippet: string }, budgetMs?: number): Promise<string | null> {
+/**
+ * The photo for one story's card, or null for none. In order: a library photo whose label fits the story; the story's
+ * own picture from its feed (only when the desk turned that on); a general library photo. Never throws.
+ */
+export async function photoForStory(
+  tenantId: string,
+  story: { title: string; snippet: string; imageUrl?: string | null },
+  budgetMs?: number,
+): Promise<string | null> {
   try {
     const library = await db.newsPhoto.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" }, select: { id: true, pathname: true, label: true, general: true } });
-    if (!library.length) return null;
-    const [picked] = await pickFromLibrary(story, library.filter((p) => !p.general), 1, budgetMs);
-    const chosen = library.find((p) => p.id === picked) ?? shuffled(library.filter((p) => p.general))[0];
-    return chosen && isOwnPhoto(tenantId, chosen.pathname) ? chosen.pathname : null;
+    const labelled = library.filter((p) => !p.general);
+    if (labelled.length) {
+      const [picked] = await pickFromLibrary(story, labelled, 1, budgetMs);
+      const fit = library.find((p) => p.id === picked);
+      if (fit && isOwnPhoto(tenantId, fit.pathname)) return fit.pathname;
+    }
+    if (story.imageUrl) {
+      const s = await db.newsSettings.findUnique({ where: { tenantId }, select: { sourceImages: true } });
+      if (s?.sourceImages) {
+        const own = await storeSourceImage(tenantId, story.imageUrl);
+        if (own) return own;
+      }
+    }
+    const general = shuffled(library.filter((p) => p.general))[0];
+    return general && isOwnPhoto(tenantId, general.pathname) ? general.pathname : null;
   } catch (e) {
     console.error("[cards] photo pick failed:", e instanceof Error ? e.message : "unknown error");
     return null;

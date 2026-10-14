@@ -33,6 +33,25 @@ function parseDate(s: string, now: Date): Date {
 }
 
 /** RSS 2.0, RSS 1.0 (RDF) and Atom. Anything else, or broken XML, gives no items. */
+/** The picture a feed item carries: enclosure, media:content, media:thumbnail, or the first <img> of its HTML. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function imageOf(it: any, html: string): string | null {
+  const list = (v: unknown): Record<string, unknown>[] => (Array.isArray(v) ? v : v && typeof v === "object" ? [v as Record<string, unknown>] : []);
+  const ok = (u: unknown): string | null => (typeof u === "string" && /^https?:\/\//i.test(u.trim()) && u.length <= 1000 ? u.trim() : null);
+  for (const e of list(it.enclosure)) {
+    const u = ok(e["@url"]);
+    if (u && (!e["@type"] || String(e["@type"]).startsWith("image/"))) return u;
+  }
+  for (const key of ["media:content", "media:thumbnail"]) {
+    for (const e of list(it[key])) {
+      const u = ok(e["@url"]);
+      if (u && (!e["@medium"] || e["@medium"] === "image") && !String(e["@type"] ?? "").startsWith("video/")) return u;
+    }
+  }
+  const m = /<img[^>]+src=["']([^"']+)["']/i.exec(html);
+  return ok(m?.[1]);
+}
+
 export function parseFeed(xml: string, sourceName: string, now = new Date()): RawItem[] {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let doc: any;
@@ -42,21 +61,22 @@ export function parseFeed(xml: string, sourceName: string, now = new Date()): Ra
     return [];
   }
   const out: RawItem[] = [];
-  const push = (url: string, title: string, snippet: string, date: string) => {
+  const push = (url: string, title: string, snippet: string, date: string, imageUrl: string | null = null) => {
     const u = url.trim();
     const t = stripHtml(title);
     if (!/^https?:\/\//i.test(u) || !t) return;
     const s = stripHtml(snippet).slice(0, SNIPPET_MAX);
-    out.push({ url: u, title: t, snippet: s, publishedAt: parseDate(date, now), lang: guessLang(`${t} ${s}`), sourceName });
+    out.push({ url: u, title: t, snippet: s, publishedAt: parseDate(date, now), lang: guessLang(`${t} ${s}`), sourceName, ...(imageUrl ? { imageUrl } : {}) });
   };
 
   for (const it of doc?.rss?.channel?.item ?? doc?.["rdf:RDF"]?.item ?? []) {
-    push(text(first(it.link)) || text(it.guid), text(it.title), text(it.description), text(it.pubDate) || text(it["dc:date"]));
+    push(text(first(it.link)) || text(it.guid), text(it.title), text(it.description), text(it.pubDate) || text(it["dc:date"]), imageOf(it, text(it["content:encoded"]) || text(it.description)));
   }
   for (const e of doc?.feed?.entry ?? []) {
     const links: Record<string, unknown>[] = Array.isArray(e.link) ? e.link : [];
     const alt = links.find((l) => !l["@rel"] || l["@rel"] === "alternate") ?? links[0];
-    push(text(alt?.["@href"]), text(e.title), text(e.summary) || text(e.content), text(e.published) || text(e.updated));
+    const enclosure = links.find((l) => l["@rel"] === "enclosure" && String(l["@type"] ?? "").startsWith("image/"));
+    push(text(alt?.["@href"]), text(e.title), text(e.summary) || text(e.content), text(e.published) || text(e.updated), imageOf({ ...e, enclosure: enclosure ? { "@url": enclosure["@href"], "@type": enclosure["@type"] } : undefined }, text(e.content) || text(e.summary)));
   }
   return out;
 }
@@ -117,7 +137,7 @@ export function isPrivateAddress(ip: string): boolean {
 }
 
 /** Refuses `localhost` outright, and any host that resolves to a private address. */
-async function assertPublicHost(hostname: string): Promise<void> {
+export async function assertPublicHost(hostname: string): Promise<void> {
   if (hostname.toLowerCase() === "localhost") throw new Error("Refused: private address");
   const records = await lookup(hostname, { all: true });
   if (records.some((r) => isPrivateAddress(r.address))) throw new Error("Refused: private address");

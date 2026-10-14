@@ -694,6 +694,8 @@ model NewsSettings {
   tenantId      String    @id
   /// How the desk's graphics look, in its own words: given to the AI whenever it designs a frame for a section.
   designPrompt  String?
+  /// Use the story's own picture (from its feed) as the card background when no library photo fits; credited on the card.
+  sourceImages  Boolean   @default(false)
   /// Words a story must contain to be shown (any of them); empty = everything.
   keywords      String[]
   lastFetchedAt DateTime?
@@ -859,6 +861,8 @@ model NewsSource {
 model NewsItem {
   id            String     @id @default(cuid())
   tenantId      String
+  /// The picture the source's feed gave with the story (never fetched unless the desk turned source images on).
+  imageUrl      String?
   sourceName    String
   url           String
   title         String

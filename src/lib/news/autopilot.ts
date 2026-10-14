@@ -303,6 +303,7 @@ async function pickStories(tenantId: string, chosen: readonly string[], now: num
       sourceName: true,
       title: true,
       snippet: true,
+      imageUrl: true,
     },
   });
   if (!fresh.length) return [];

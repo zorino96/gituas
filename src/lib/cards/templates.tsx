@@ -15,6 +15,8 @@ export interface CardContent {
   speaker: string | null;
   stamp: string;
   photoSrc: string | null;
+  /** "Photo: Source name", drawn small on a picture that came from a source. */
+  credit?: string | null;
 }
 
 /**
@@ -75,6 +77,16 @@ function Footer({ brand, content, dark }: { brand: Brand; content: CardContent; 
   );
 }
 
+function Credit({ text, top }: { text: string; top: number }) {
+  return (
+    <span
+      style={abs({ top, left: 20, maxWidth: 520, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", padding: "6px 14px", borderRadius: 8, background: "rgba(0,0,0,.55)", color: "#fff", font: `500 24px ${BODY_FONT}` })}
+    >
+      {text}
+    </span>
+  );
+}
+
 function Standard({ brand, content }: { brand: Brand; content: CardContent }) {
   const font = `700 64px/1.55 ${HEADING_FONT[brand.headingFont]}`;
   const head = useFit(content.headline, 64, 36, font);
@@ -88,6 +100,7 @@ function Standard({ brand, content }: { brand: Brand; content: CardContent }) {
       </div>
       <div style={abs({ top: 0, right: 0, left: 0, height: 180, background: "linear-gradient(rgba(0,0,0,.55), transparent)" })} />
       <Header brand={brand} dark={false} />
+      {content.credit && <Credit text={content.credit} top={712} />}
       <div style={abs({ top: 780, right: 0, left: 0, bottom: 0, background: brand.primary, borderTop: `12px solid ${brand.accent}` })} />
       <div ref={head} style={abs({ top: 840, right: 56, left: 56, height: 360, overflow: "hidden", overflowWrap: "anywhere", color: brand.text, font })}>
         {content.headline}
@@ -180,6 +193,7 @@ function Framed({ kind, brand, content }: { kind: CardKind; brand: Brand; conten
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={brand.frameSrc!} alt="" style={abs({ inset: 0, width: "100%", height: "100%", objectFit: "fill" })} />
+      {content.credit && <Credit text={content.credit} top={120} />}
       {stat && (
         <div style={abs({ top: box.top, right: 64, left: 64, height: STAT_H, color: brand.accent, font: `700 120px/1.2 ${HEADING_FONT[brand.headingFont]}`, whiteSpace: "nowrap", overflow: "hidden", textShadow: shadow })}>
           {stat}

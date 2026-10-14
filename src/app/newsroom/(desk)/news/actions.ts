@@ -530,6 +530,19 @@ export async function setKeywordFilterAction(on: boolean): Promise<Result> {
   return { ok: true };
 }
 
+/** Use the story's own picture from its feed as the card background when no library photo fits (credited on the card). */
+export async function setSourceImagesAction(on: boolean): Promise<Result> {
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
+  await db.newsSettings.upsert({
+    where: { tenantId: ws.id },
+    create: { tenantId: ws.id, keywords: [], sourceImages: !!on },
+    update: { sourceImages: !!on },
+  });
+  return { ok: true };
+}
+
 /** Which autopilot stories become videos, how many, and in which voice. Only plans with a video quota. */
 export async function saveVideoSettingsAction(input: {
   mode: string;

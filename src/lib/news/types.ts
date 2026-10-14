@@ -6,6 +6,8 @@ export interface RawItem {
   publishedAt: Date;
   lang: string | null;
   sourceName: string;
+  /** The picture the feed gave with the story, if any. */
+  imageUrl?: string | null;
 }
 
 export type CardKind = "STANDARD" | "BREAKING" | "STAT" | "QUOTE";

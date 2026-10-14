@@ -39,6 +39,7 @@ import {
   deleteVoiceCloneAction,
   saveVoiceNoteAction,
   setKeywordFilterAction,
+  setSourceImagesAction,
   toggleCatalogSourceAction,
 } from "@/app/newsroom/(desk)/news/actions";
 
@@ -54,6 +55,7 @@ export interface NewsSettingsProps {
   catalog: Array<{ id: string; name: string; group: SourceGroup; lang: SourceLang | null; description: string | null; enabled: boolean; lastError: string | null }>;
   categories: string[];
   keywordFilter: boolean;
+  sourceImages: boolean;
   /** Keywords or a prompt; `level` is what the plan includes (none on LITE and MANUAL). */
   filter: { level: PromptFilter; mode: FilterMode; focus: string; exclude: string; broad: boolean };
   /** Auto-video: `quota` 0 means the plan has none; `full` is ENTERPRISE (the prompt). */
@@ -367,6 +369,25 @@ export function NewsSettings(p: NewsSettingsProps) {
             <i />
           </button>
         </div>
+      </div>
+
+      <p className="gm-sec">{tn.sourceImagesSec}</p>
+      <div className="gm-card gm-stack">
+        <div className="gm-between">
+          <small className="gm-sub" style={{ margin: 0 }}>{tn.sourceImagesLabel}</small>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={p.sourceImages}
+            aria-label={tn.sourceImagesLabel}
+            className="gm-knob"
+            disabled={pending}
+            onClick={() => run(() => setSourceImagesAction(!p.sourceImages), tn.changed)}
+          >
+            <i />
+          </button>
+        </div>
+        <p className="gm-hint" style={{ margin: 0 }}>{tn.sourceImagesHint}</p>
       </div>
 
       <p className="gm-sec">{tn.sourcesSec}</p>

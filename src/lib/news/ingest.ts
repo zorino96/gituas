@@ -213,6 +213,7 @@ export async function ingest(tenantId: string, { force = false, graceMs = 0 }: {
           title: it.title.slice(0, 500),
           snippet: it.snippet,
           lang: it.lang,
+          imageUrl: it.imageUrl ? it.imageUrl.slice(0, 1000) : null,
           publishedAt: it.publishedAt,
           clusterKey,
         },

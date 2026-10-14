@@ -16,6 +16,7 @@ import { CARD_H, CARD_W } from "@/lib/cards/size";
 import { stampOf } from "@/lib/cards/stamp";
 import { NewsCard } from "@/lib/cards/templates";
 import { db } from "@/lib/db";
+import { isSourceImage } from "@/lib/news/source-image";
 import { CARD_KINDS, type CardKind } from "@/lib/news/types";
 
 export const dynamic = "force-dynamic";
@@ -46,7 +47,7 @@ export default async function CardRenderPage({
       speaker: true,
       photoPath: true,
       category: true,
-      item: { select: { publishedAt: true, category: true } },
+      item: { select: { publishedAt: true, category: true, sourceName: true } },
     },
   });
   if (!draft) notFound();
@@ -73,6 +74,7 @@ export default async function CardRenderPage({
             quote: draft.quote,
             speaker: draft.speaker,
             stamp: stampOf(draft.item.publishedAt),
+            credit: isSourceImage(draft.photoPath) ? `وێنە: ${draft.item.sourceName}` : null,
             photoSrc: mediaSrc(draft.photoPath),
           }}
         />
