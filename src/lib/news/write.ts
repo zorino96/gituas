@@ -85,5 +85,13 @@ export async function writeDraft(
   } catch {
     // Keep the first draft.
   }
-  return { draft: result.draft, model: result.model, part };
+  // A desk that wants one look for every card gets the photo card, whatever kind the AI chose.
+  let draft = result.draft;
+  try {
+    const s = await db.newsSettings.findUnique({ where: { tenantId }, select: { photoCardsOnly: true } });
+    if (s?.photoCardsOnly && draft.cardKind !== "STANDARD") draft = { ...draft, cardKind: "STANDARD", stat: null, quote: null, speaker: null };
+  } catch {
+    // The kind the AI chose stands.
+  }
+  return { draft, model: result.model, part };
 }

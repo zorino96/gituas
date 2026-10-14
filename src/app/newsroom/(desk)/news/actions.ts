@@ -543,6 +543,19 @@ export async function setSourceImagesAction(on: boolean): Promise<Result> {
   return { ok: true };
 }
 
+/** Every card the desk makes is the photo card (no plain breaking, number or quote cards). */
+export async function setPhotoCardsOnlyAction(on: boolean): Promise<Result> {
+  const { ws, m } = await desk();
+  if (!ws) return { ok: false, error: m.notNews };
+  if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
+  await db.newsSettings.upsert({
+    where: { tenantId: ws.id },
+    create: { tenantId: ws.id, keywords: [], photoCardsOnly: !!on },
+    update: { photoCardsOnly: !!on },
+  });
+  return { ok: true };
+}
+
 /** Make a symbolic AI illustration for a story that has no photo (the card says "illustration (AI)"). */
 export async function setAiPicturesAction(on: boolean): Promise<Result> {
   const { ws, m } = await desk();

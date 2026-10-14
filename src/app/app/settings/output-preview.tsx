@@ -4,6 +4,9 @@
 // on the screen right now (colours, logo, frames, photo). The cards are the real card renderer; the video is a still of
 // the reel's layout (reel/src/Reel.tsx), so it is an approximation of one frame, not the render itself.
 
+import { useState, useTransition } from "react";
+
+import { setPhotoCardsOnlyAction } from "@/app/newsroom/(desk)/news/actions";
 import { useT } from "@/lib/i18n/client";
 import { brandFrom, mediaSrc, type FrameText } from "@/lib/cards/brand";
 import { CARD_H, CARD_W, NewsCard } from "@/lib/cards/templates";
@@ -95,8 +98,23 @@ function ReelSample({ kit, headline, category, place }: { kit: PreviewKit; headl
   );
 }
 
-export function OutputPreview({ kit, photo }: { kit: PreviewKit; photo: string | null }) {
+export function OutputPreview({ kit, photo, photoCardsOnly }: { kit: PreviewKit; photo: string | null; photoCardsOnly: boolean }) {
   const t = useT();
+  const [only, setOnly] = useState(photoCardsOnly);
+  const [pending, start] = useTransition();
+  const [err, setErr] = useState<string | null>(null);
+  function toggle() {
+    const next = !only;
+    setOnly(next);
+    setErr(null);
+    start(async () => {
+      const r = await setPhotoCardsOnlyAction(next);
+      if (!r.ok) {
+        setOnly(!next);
+        setErr(r.error);
+      }
+    });
+  }
   const tn = t.settings.news;
   const topics: Record<string, string> = t.nr.news.topics;
   return (
@@ -106,9 +124,21 @@ export function OutputPreview({ kit, photo }: { kit: PreviewKit; photo: string |
       <small className="gm-sub">{tn.previewCards}</small>
       <div className="gm-row" style={{ gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
         <CardSample kind="STANDARD" kit={kit} photo={photo} headline={tn.cardSample} stat={null} />
-        <CardSample kind="BREAKING" kit={kit} photo={null} headline={tn.cardSample} stat={null} />
-        <CardSample kind="STAT" kit={kit} photo={photo} headline={tn.cardSample} stat="٥٣٪" />
+        {!only && (
+          <>
+            <CardSample kind="BREAKING" kit={kit} photo={null} headline={tn.cardSample} stat={null} />
+            <CardSample kind="STAT" kit={kit} photo={photo} headline={tn.cardSample} stat="٥٣٪" />
+          </>
+        )}
       </div>
+      <div className="gm-between">
+        <small className="gm-sub" style={{ margin: 0 }}>{tn.photoOnlyLabel}</small>
+        <button type="button" role="switch" aria-checked={only} aria-label={tn.photoOnlyLabel} className="gm-knob" disabled={pending} onClick={toggle}>
+          <i />
+        </button>
+      </div>
+      <p className="gm-hint" style={{ margin: 0 }}>{tn.photoOnlyHint}</p>
+      {err && <p className="gm-err">{err}</p>}
       <small className="gm-sub">{tn.previewVideo}</small>
       <div className="gm-row" style={{ gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
         <ReelSample kit={kit} headline={tn.cardSample} category={topics.politics ?? "سیاسەت"} place={tn.previewPlace} />

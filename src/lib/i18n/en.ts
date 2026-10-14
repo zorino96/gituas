@@ -849,6 +849,8 @@ export const en: Dict = {
       moreColors: "Pick the colours from my logo",
       sectionFramesOptional: "Frames for each section (optional)",
       photosOptional: "My photos (optional)",
+      photoOnlyLabel: "Use the photo card for every story",
+      photoOnlyHint: "On: every post is the first card (photo with the headline band). Off: the AI may also use a plain red-label breaking card, a big-number card and a quote card. Takes effect for new drafts.",
       sourceImagesHint: "The card shows the picture the source published with the story, with \"Photo: source name\" on it. These pictures belong to the source: use this only for sources that allow it or that you have permission from, as a source can ask for removal. Off by default.",
       filterSec: "Which news to bring",
       filterMode: { KEYWORDS: "By keywords", PROMPT: "By prompt (AI)" },

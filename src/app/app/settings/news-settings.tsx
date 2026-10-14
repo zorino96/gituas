@@ -59,6 +59,7 @@ export interface NewsSettingsProps {
   keywordFilter: boolean;
   sourceImages: boolean;
   aiPictures: boolean;
+  photoCardsOnly: boolean;
   /** Keywords or a prompt; `level` is what the plan includes (none on LITE and MANUAL). */
   filter: { level: PromptFilter; mode: FilterMode; focus: string; exclude: string; broad: boolean };
   /** Auto-video: `quota` 0 means the plan has none; `full` is ENTERPRISE (the prompt). */
@@ -943,7 +944,7 @@ export function NewsSettings(p: NewsSettingsProps) {
           <PhotoLibrary workspaceId={p.workspaceId} initial={p.photos} onChange={setPhotos} />
         </div>
       </details>
-      <OutputPreview kit={kit} photo={photos[0]?.pathname ?? null} />
+      <OutputPreview kit={kit} photo={photos[0]?.pathname ?? null} photoCardsOnly={p.photoCardsOnly} />
       <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => saveBrandKitAction(kit), tn.brandSaved)}>{tn.saveBrand}</button>
         </>
       )}
