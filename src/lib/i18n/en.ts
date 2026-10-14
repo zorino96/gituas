@@ -864,6 +864,13 @@ export const en: Dict = {
       frameText: { top: "Top", middle: "Middle", bottom: "Bottom" },
       frames: {
         addSection: "Add a section",
+        allTitle: "Design all sections at once",
+        allHelp: "Pick one reference graphic you like. The AI designs a frame for each section that has none yet, keeping your main frame and your words about your graphics. It takes about a minute per section and uses AI pictures: up to 6 a day and 20 a month.",
+        allPick: "Pick the reference graphic",
+        allStart: "Design the missing sections",
+        allProgress: (name: string, i: number, total: number) => `Designing ${name} (${i} of ${total})…`,
+        allDone: (n: number) => `${n} frames designed.`,
+        allStopped: (n: number, why: string) => `${n} frames designed. Stopped: ${why}`,
         sec: "Frames by section",
         hint: "Give each section of the news its own frame, so a breaking card, a sports card and an economy card are told apart at a glance while all of them still look like your agency. A section without its own frame uses the main frame above.",
         promptLabel: "How your graphics look, in your own words",

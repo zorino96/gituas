@@ -68,6 +68,9 @@ export function SectionFrames(p: SectionFramesProps) {
   const [prompt, setPrompt] = useState(p.designPrompt);
   const [promptMsg, setPromptMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [promptBusy, setPromptBusy] = useState(false);
+  const [allRef, setAllRef] = useState<string | null>(null);
+  const [allBusy, setAllBusy] = useState<null | "upload" | "run">(null);
+  const [allMsg, setAllMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const nameOf = (s: string) => (s === "breaking" ? fr.breaking : (topics[s] ?? s));
   const free = FRAME_SECTIONS.filter((s) => !opened.includes(s));
@@ -77,6 +80,48 @@ export function SectionFrames(p: SectionFramesProps) {
   }
   function drop(section: string) {
     setFrames((all) => all.filter((f) => f.section !== section));
+  }
+
+  async function pickAllReference(file: File) {
+    setAllMsg(null);
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) return setAllMsg({ ok: false, text: tn.onlyImages });
+    setAllBusy("upload");
+    try {
+      const blob = await upload(`merchant/${p.workspaceId}/frameref-all-${Date.now()}.${file.type.split("/")[1]}`, file, {
+        access: "public",
+        handleUploadUrl: "/api/app/upload",
+        contentType: file.type,
+      });
+      setAllRef(blob.pathname);
+    } catch (e) {
+      setAllMsg({ ok: false, text: tn.logoFailed(e instanceof Error ? e.message : t.common.error) });
+    } finally {
+      setAllBusy(null);
+    }
+  }
+
+  // One section after another (each is a minute of AI work and its own paid slot); the daily cap ends the run.
+  async function designMissing() {
+    const todo = FRAME_SECTIONS.filter((s) => !frames.some((f) => f.section === s)).slice(0, 6);
+    if (!todo.length) return;
+    setAllBusy("run");
+    setAllMsg(null);
+    let done = 0;
+    try {
+      for (const section of todo) {
+        setAllMsg({ ok: true, text: fr.allProgress(nameOf(section), done + 1, todo.length) });
+        const r = await designSectionFrameAction({ section, referencePath: allRef, note: "", frameText: p.kit.frameText });
+        if (!r.ok) return setAllMsg({ ok: false, text: fr.allStopped(done, r.error) });
+        done++;
+        put({ section, framePath: r.framePath, frameText: p.kit.frameText, referencePath: allRef, note: "" });
+        setOpened((o) => (o.includes(section) ? o : [...o, section]));
+      }
+      setAllMsg({ ok: true, text: fr.allDone(done) });
+    } catch (e) {
+      setAllMsg({ ok: false, text: fr.allStopped(done, e instanceof Error ? e.message : t.common.error) });
+    } finally {
+      setAllBusy(null);
+    }
   }
 
   async function savePrompt() {
@@ -116,6 +161,27 @@ export function SectionFrames(p: SectionFramesProps) {
         </button>
         {promptMsg && <p className={promptMsg.ok ? "gm-ok" : "gm-err"}>{promptMsg.text}</p>}
       </div>
+
+      {p.aiEnabled && (
+        <div className="gm-card gm-stack">
+          <p className="gm-sec" style={{ margin: 0 }}>{fr.allTitle}</p>
+          <p className="gm-hint" style={{ margin: 0 }}>{fr.allHelp}</p>
+          <div className="gm-row" style={{ gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <label className="gm-btn quiet small" style={{ opacity: allBusy ? 0.6 : 1, pointerEvents: allBusy ? "none" : "auto" }}>
+              {allBusy === "upload" ? tn.uploading : fr.allPick}
+              <input type="file" accept="image/png,image/jpeg,image/webp" hidden disabled={!!allBusy} onChange={(e) => { if (e.target.files?.[0]) void pickAllReference(e.target.files[0]); e.target.value = ""; }} />
+            </label>
+            {allRef && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={mediaSrc(allRef) ?? ""} alt="" width={56} height={56} style={{ objectFit: "cover", borderRadius: 8 }} />
+            )}
+          </div>
+          <button type="button" className="gm-btn" style={{ alignSelf: "flex-start" }} disabled={!!allBusy || !FRAME_SECTIONS.some((s) => !frames.some((f) => f.section === s))} onClick={() => void designMissing()}>
+            {fr.allStart}
+          </button>
+          {allMsg && <p className={allMsg.ok ? "gm-ok" : "gm-err"}>{allMsg.text}</p>}
+        </div>
+      )}
 
       <div className="gm-stack">
         {opened.map((section) => (
