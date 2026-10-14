@@ -142,6 +142,8 @@ export function conditionalHeaders(v?: Partial<FeedValidators> | null): Record<s
   return h;
 }
 
+const BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
+
 /**
  * Fetch and parse one feed, asking only for what changed since `validators`. Throws when the URL
  * does not answer with a feed. Refuses http(s) hosts and redirect targets that resolve to a
@@ -150,19 +152,28 @@ export function conditionalHeaders(v?: Partial<FeedValidators> | null): Record<s
  */
 export async function fetchFeedConditional(url: string, sourceName: string, validators?: Partial<FeedValidators> | null): Promise<FeedResult> {
   let current = new URL(url);
+  // Some Kurdish news sites answer 403 to an unfamiliar agent name; they are asked once more as a normal browser would.
+  let asBrowser = false;
   for (let hop = 0; ; hop++) {
     if (current.protocol !== "http:" && current.protocol !== "https:") throw new Error("Refused: unsupported protocol");
     await assertPublicHost(current.hostname);
 
     const res = await fetch(current, {
       headers: {
-        "User-Agent": "HawalnoosNewsDesk/1.0 (+https://hawalnoos.com)",
+        "User-Agent": asBrowser ? BROWSER_UA : "HawalnoosNewsDesk/1.0 (+https://hawalnoos.com)",
         Accept: "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8",
+        ...(asBrowser ? { "Accept-Language": "ckb,ku;q=0.9,ar;q=0.8,en;q=0.7" } : {}),
         ...conditionalHeaders(validators),
       },
       redirect: "manual",
       signal: AbortSignal.timeout(8000),
     });
+
+    if ((res.status === 403 || res.status === 406) && !asBrowser) {
+      asBrowser = true;
+      hop--;
+      continue;
+    }
 
     const location = res.headers.get("location");
     if (res.status >= 300 && res.status < 400 && location) {
