@@ -944,7 +944,7 @@ export function NewsSettings(p: NewsSettingsProps) {
           <PhotoLibrary workspaceId={p.workspaceId} initial={p.photos} onChange={setPhotos} />
         </div>
       </details>
-      <OutputPreview kit={kit} photo={photos[0]?.pathname ?? null} photoCardsOnly={p.photoCardsOnly} />
+      <OutputPreview kit={kit} photo={photos[0]?.pathname ?? null} photoCardsOnly={p.photoCardsOnly} onColor={(slot, hex) => setKit((k) => ({ ...k, [slot]: hex }))} />
       <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => saveBrandKitAction(kit), tn.brandSaved)}>{tn.saveBrand}</button>
         </>
       )}

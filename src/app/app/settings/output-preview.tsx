@@ -98,7 +98,7 @@ function ReelSample({ kit, headline, category, place }: { kit: PreviewKit; headl
   );
 }
 
-export function OutputPreview({ kit, photo, photoCardsOnly }: { kit: PreviewKit; photo: string | null; photoCardsOnly: boolean }) {
+export function OutputPreview({ kit, photo, photoCardsOnly, onColor }: { kit: PreviewKit; photo: string | null; photoCardsOnly: boolean; onColor: (slot: "primary" | "accent", hex: string) => void }) {
   const t = useT();
   const [only, setOnly] = useState(photoCardsOnly);
   const [pending, start] = useTransition();
@@ -142,7 +142,17 @@ export function OutputPreview({ kit, photo, photoCardsOnly }: { kit: PreviewKit;
       <small className="gm-sub">{tn.previewVideo}</small>
       <div className="gm-row" style={{ gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
         <ReelSample kit={kit} headline={tn.cardSample} category={topics.politics ?? "سیاسەت"} place={tn.previewPlace} />
-        <p className="gm-hint" style={{ margin: 0, flex: 1, minWidth: 200 }}>{tn.previewVideoNote}</p>
+        <div className="gm-stack" style={{ flex: 1, minWidth: 200, gap: 10 }}>
+          <p className="gm-hint" style={{ margin: 0 }}>{tn.previewVideoNote}</p>
+          <div className="gm-row" style={{ gap: 14, flexWrap: "wrap" }}>
+            {(["primary", "accent"] as const).map((slot) => (
+              <label key={slot} className="gm-row" style={{ gap: 6 }}>
+                <input type="color" value={kit[slot]} onChange={(e) => onColor(slot, e.target.value)} />
+                <small>{t.settings.colors[slot]}</small>
+              </label>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

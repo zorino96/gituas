@@ -845,7 +845,7 @@ export const en: Dict = {
       previewCards: "Cards (photo posts)",
       previewVideo: "Video (one frame of the reel)",
       previewPlace: "Erbil",
-      previewVideoNote: "The real video moves: the headline rises word by word with a voice and captions. Its look comes from your two colours and your logo; the card pictures above come from your frame and photos.",
+      previewVideoNote: "The video does not use your frame: it follows only your logo and the two colours below. Change them here and the sample updates; then press Save brand.",
       moreColors: "Pick the colours from my logo",
       sectionFramesOptional: "Frames for each section (optional)",
       photosOptional: "My photos (optional)",
