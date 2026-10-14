@@ -34,7 +34,7 @@ export async function storeSourceImage(tenantId: string, imageUrl: string, timeo
       if (len > MAX_BYTES) return null;
       const buf = Buffer.from(await res.arrayBuffer());
       if (buf.length > MAX_BYTES) return null;
-      const jpg = await sharp(buf, { limitInputPixels: 40_000_000 }).rotate().resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 86 }).toBuffer();
+      const jpg = await sharp(buf, { limitInputPixels: 40_000_000 }).rotate().resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true }).normalise({ lower: 2, upper: 98 }).sharpen({ sigma: 0.6 }).jpeg({ quality: 88 }).toBuffer();
       const blob = await put(`merchant/${tenantId}${SOURCE_IMAGE_MARK}${Date.now()}.jpg`, jpg, { access: "public", contentType: "image/jpeg", addRandomSuffix: true, allowOverwrite: false });
       return blob.pathname;
     }
