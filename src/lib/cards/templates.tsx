@@ -182,7 +182,7 @@ function Framed({ kind, brand, content }: { kind: CardKind; brand: Brand; conten
     kind === "QUOTE" && content.quote ? `«${content.quote}»${content.speaker ? `\n— ${content.speaker}` : ""}` : content.headline;
   const font = `700 60px/1.55 ${HEADING_FONT[brand.headingFont]}`;
   const head = useFit(text, 60, 32, font);
-  const shadow = "0 2px 14px rgba(0,0,0,.6)";
+  const shadow = "0 2px 12px rgba(0,0,0,.85)";
   return (
     <>
       <div style={abs({ inset: 0, background: `linear-gradient(135deg, ${brand.primary}, ${brand.accent})` })}>
@@ -194,6 +194,16 @@ function Framed({ kind, brand, content }: { kind: CardKind; brand: Brand; conten
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={brand.frameSrc!} alt="" style={abs({ inset: 0, width: "100%", height: "100%", objectFit: "fill" })} />
       {content.credit && <Credit text={content.credit} top={120} />}
+      {/* A frame's own art (gold lines, swirls, a photo edge) can run under the words: a soft dark panel keeps them readable. */}
+      <div
+        style={abs({
+          top: box.top - 40,
+          right: 0,
+          left: 0,
+          height: box.height + 80,
+          background: "linear-gradient(to bottom, rgba(5,10,20,0), rgba(5,10,20,.86) 16%, rgba(5,10,20,.86) 84%, rgba(5,10,20,0))",
+        })}
+      />
       {stat && (
         <div style={abs({ top: box.top, right: 64, left: 64, height: STAT_H, color: brand.accent, font: `700 120px/1.2 ${HEADING_FONT[brand.headingFont]}`, whiteSpace: "nowrap", overflow: "hidden", textShadow: shadow })}>
           {stat}
