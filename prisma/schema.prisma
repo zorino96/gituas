@@ -950,6 +950,8 @@ model BrandKit {
   framePath   String?
   /// Where the headline goes on the frame: top | middle | bottom
   frameText   String   @default("bottom")
+  /// Draw the desk's logo on framed cards: off | right | left (off: the frame art already has it).
+  logoCorner  String   @default("off")
   /// Shop brand (Studio): a short line under the shop name, e.g. "جلی ژنانەی ئەوروپی".
   tagline      String?
   /// Shop brand (Studio): the delivery promise drawn on every ad, e.g. "گەیاندن بۆ هەموو شارەکان".

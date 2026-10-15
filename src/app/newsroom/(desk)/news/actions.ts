@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { assertWithin, countUsage, LimitReached, limitMessage, newsroomFrozenError } from "@/lib/billing/limits";
 import { claimSlot, refundSlot } from "@/lib/ai/slots";
 import { FOCUS_RESET_CAPS, FOCUS_RESET_SLOTS, FRAME_AI_CAPS, FRAME_AI_SLOTS, VOICE_PREVIEW_CAPS, VOICE_PREVIEW_SLOTS } from "@/lib/news/ai-budget";
-import { designFrame, FrameDesignError, storeFrame } from "@/lib/news/frame-design";
+import { designFrame, FrameDesignError, frameWindowOk, storeFrame } from "@/lib/news/frame-design";
 import { isFrameSection } from "@/lib/news/frames";
 import { TAXONOMY } from "@/lib/news/taxonomy";
 import { canAutoPublish, NEWS_LIMITS, promptFilterFor, videoQuotaFor } from "@/lib/billing/plans";
@@ -33,7 +33,7 @@ import { CARD_KINDS, type CardKind } from "@/lib/news/types";
 import { cleanVoiceNote } from "@/lib/news/voice";
 import { writeDraft } from "@/lib/news/write";
 import { can } from "@/lib/newsroom/roles";
-import { isFrameText } from "@/lib/cards/brand";
+import { isFrameText, isLogoCorner } from "@/lib/cards/brand";
 import { dict, getLang } from "@/lib/i18n";
 import { currentWorkspace, loadAccountLists, loadConnections, type Workspace } from "@/app/app/data";
 
@@ -293,8 +293,9 @@ export async function saveBrandKitAction(kit: {
   headingFont: "kufi" | "sans";
   framePath?: string | null;
   frameText?: string;
+  logoCorner?: string;
 }): Promise<Result> {
-  const { ws, m } = await desk();
+  const { ws, m, t } = await desk();
   if (!ws) return { ok: false, error: m.notNews };
   if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
   if (![kit.primary, kit.accent, kit.text].every((c) => HEX.test(c))) return { ok: false, error: m.badColors };
@@ -302,6 +303,11 @@ export async function saveBrandKitAction(kit: {
   if (kit.logoPath && !isOwnPath(kit.logoPath, ws.id)) return { ok: false, error: m.badLogo };
   const framePath = kit.framePath ?? null;
   if (framePath && (!isOwnPath(framePath, ws.id) || !/\.png$/i.test(framePath))) return { ok: false, error: m.badLogo };
+  // A frame that is new to the desk must have a photo window, or it would cover every story photo.
+  if (framePath) {
+    const current = await db.brandKit.findUnique({ where: { tenantId: ws.id }, select: { framePath: true } });
+    if (current?.framePath !== framePath && (await frameWindowOk(framePath)) === false) return { ok: false, error: t.settings.news.frameNoWindow };
+  }
   const data = {
     logoPath: kit.logoPath,
     primary: kit.primary,
@@ -310,6 +316,7 @@ export async function saveBrandKitAction(kit: {
     headingFont: kit.headingFont,
     framePath,
     frameText: isFrameText(kit.frameText) ? kit.frameText : "bottom",
+    logoCorner: isLogoCorner(kit.logoCorner) ? kit.logoCorner : "off",
   };
   await db.brandKit.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, ...data }, update: data });
   return { ok: true };
@@ -385,7 +392,9 @@ export async function designSectionFrameAction(input: {
   const e = t.settings.news.frames.err;
   if (!ws) return { ok: false, error: m.notNews };
   if (!can(ws.role, "configure")) return { ok: false, error: m.notAllowed };
-  if (!isFrameSection(input?.section)) return { ok: false, error: m.badLogo };
+  // "main" is the desk's main frame (every section without its own uses it); the others are sections.
+  const isMain = input?.section === "main";
+  if (!isMain && !isFrameSection(input?.section)) return { ok: false, error: m.badLogo };
   const frozen = await newsroomFrozenError(ws.id);
   if (frozen) return { ok: false, error: frozen };
   const referencePath = input.referencePath ? String(input.referencePath) : null;
@@ -395,7 +404,7 @@ export async function designSectionFrameAction(input: {
 
   const slot = await claimSlot(ws.id, FRAME_AI_SLOTS, FRAME_AI_CAPS);
   if (!slot.ok) return { ok: false, error: e.limit };
-  const label = input.section === "breaking" ? "breaking news" : (TAXONOMY.find((c) => c.id === input.section)?.id ?? input.section);
+  const label = isMain ? "all news (the agency's main frame)" : input.section === "breaking" ? "breaking news" : (TAXONOMY.find((c) => c.id === input.section)?.id ?? input.section);
   let sent = false;
   try {
     // Read inside the try: a failure here is given back like any failure before the request left.
@@ -408,7 +417,7 @@ export async function designSectionFrameAction(input: {
       frameText,
       designPrompt: settings?.designPrompt ?? "",
       note,
-      mainFramePath: kit?.framePath && isOwnPath(kit.framePath, ws.id) ? kit.framePath : null,
+      mainFramePath: !isMain && kit?.framePath && isOwnPath(kit.framePath, ws.id) ? kit.framePath : null,
       referencePath,
       logoPath: kit?.logoPath && isOwnPath(kit.logoPath, ws.id) ? kit.logoPath : null,
       fill: kit?.primary ?? null,
@@ -417,11 +426,15 @@ export async function designSectionFrameAction(input: {
       },
     });
     const framePath = await storeFrame(ws.id, input.section, png);
-    await db.newsFrame.upsert({
-      where: { tenantId_section: { tenantId: ws.id, section: input.section } },
-      create: { tenantId: ws.id, section: input.section, framePath, frameText, referencePath, note: note || null },
-      update: { framePath, frameText, referencePath, note: note || null },
-    });
+    if (isMain) {
+      await db.brandKit.upsert({ where: { tenantId: ws.id }, create: { tenantId: ws.id, framePath, frameText }, update: { framePath, frameText } });
+    } else {
+      await db.newsFrame.upsert({
+        where: { tenantId_section: { tenantId: ws.id, section: input.section } },
+        create: { tenantId: ws.id, section: input.section, framePath, frameText, referencePath, note: note || null },
+        update: { framePath, frameText, referencePath, note: note || null },
+      });
+    }
     revalidatePath("/newsroom/brand");
     return { ok: true, framePath };
   } catch (err) {

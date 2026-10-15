@@ -171,6 +171,14 @@ const FRAME_BOX: Record<FrameText, { top: number; height: number }> = {
 };
 const STAT_H = 150;
 
+/** Whether a "#RRGGBB" colour is light (the headline's colour decides if a dark panel helps behind it). */
+function isLight(hex: string): boolean {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  if (!m) return true;
+  const [r, g, b] = [m[1], m[2], m[3]].map((x) => parseInt(x, 16));
+  return 0.299 * r + 0.587 * g + 0.114 * b > 140;
+}
+
 /**
  * The outlet's own frame: the story photo (or the brand gradient) fills the card, their PNG
  * frame sits on top, and the headline goes where they left room for it.
@@ -193,17 +201,28 @@ function Framed({ kind, brand, content }: { kind: CardKind; brand: Brand; conten
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={brand.frameSrc!} alt="" style={abs({ inset: 0, width: "100%", height: "100%", objectFit: "fill" })} />
-      {content.credit && <Credit text={content.credit} top={120} />}
-      {/* A frame's own art (gold lines, swirls, a photo edge) can run under the words: a soft dark panel keeps them readable. */}
-      <div
-        style={abs({
-          top: box.top - 40,
-          right: 0,
-          left: 0,
-          height: box.height + 80,
-          background: "linear-gradient(to bottom, rgba(5,10,20,0), rgba(5,10,20,.86) 16%, rgba(5,10,20,.86) 84%, rgba(5,10,20,0))",
-        })}
-      />
+      {brand.logoCorner !== "off" && brand.logoSrc && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={brand.logoSrc}
+          alt=""
+          style={abs({ top: 48, [brand.logoCorner === "left" ? "left" : "right"]: 56, height: 96, width: "auto", maxWidth: 300, objectFit: "contain" })}
+        />
+      )}
+      {content.credit && <Credit text={content.credit} top={Math.max(24, box.top - 76)} />}
+      {/* A frame's own art (lines, swirls, a photo edge) can run under light words: a soft dark panel keeps them
+          readable. Dark words (on a light band) get none: the panel would turn the owner's band dark. */}
+      {isLight(brand.text) && (
+        <div
+          style={abs({
+            top: box.top - 40,
+            right: 0,
+            left: 0,
+            height: box.height + 80,
+            background: "linear-gradient(to bottom, rgba(5,10,20,0), rgba(5,10,20,.86) 16%, rgba(5,10,20,.86) 84%, rgba(5,10,20,0))",
+          })}
+        />
+      )}
       {stat && (
         <div style={abs({ top: box.top, right: 64, left: 64, height: STAT_H, color: brand.accent, font: `700 120px/1.2 ${HEADING_FONT[brand.headingFont]}`, whiteSpace: "nowrap", overflow: "hidden", textShadow: shadow })}>
           {stat}

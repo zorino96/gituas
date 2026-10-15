@@ -34,6 +34,10 @@ export interface SectionFramesProps {
   designPrompt: string;
   /** The AI image service is configured. */
   aiEnabled: boolean;
+  /** Every card is the photo card: a breaking frame is never used. */
+  photoCardsOnly?: boolean;
+  /** Called before any design: writes what is on the screen. Returns an error text, or null when ready. */
+  beforeDesign?: () => Promise<string | null>;
 }
 
 const PREVIEW_W = 150;
@@ -66,6 +70,7 @@ export function SectionFrames(p: SectionFramesProps) {
   const [frames, setFrames] = useState<SectionFrame[]>(p.frames);
   const [opened, setOpened] = useState<string[]>(p.frames.map((f) => f.section));
   const [prompt, setPrompt] = useState(p.designPrompt);
+  const [savedPrompt, setSavedPrompt] = useState(p.designPrompt);
   const [promptMsg, setPromptMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [promptBusy, setPromptBusy] = useState(false);
   const [allRef, setAllRef] = useState<string | null>(null);
@@ -73,7 +78,25 @@ export function SectionFrames(p: SectionFramesProps) {
   const [allMsg, setAllMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const nameOf = (s: string) => (s === "breaking" ? fr.breaking : (topics[s] ?? s));
-  const free = FRAME_SECTIONS.filter((s) => !opened.includes(s));
+  // With photo cards only, a breaking card never exists, so its frame would never be used.
+  const usable = FRAME_SECTIONS.filter((s) => !(p.photoCardsOnly && s === "breaking"));
+  const free = usable.filter((s) => !opened.includes(s));
+
+  /** What the AI reads (brand, main frame, the desk's words) is saved first. Returns an error text or null. */
+  async function ensureReady(): Promise<string | null> {
+    const early = await p.beforeDesign?.();
+    if (early) return early;
+    if (prompt !== savedPrompt) {
+      try {
+        const r = await saveDesignPromptAction(prompt);
+        if (!r.ok) return r.error;
+        setSavedPrompt(r.designPrompt);
+      } catch {
+        return t.common.error;
+      }
+    }
+    return null;
+  }
 
   function put(next: SectionFrame) {
     setFrames((all) => [...all.filter((f) => f.section !== next.section), next]);
@@ -102,12 +125,14 @@ export function SectionFrames(p: SectionFramesProps) {
 
   // One section after another (each is a minute of AI work and its own paid slot); the daily cap ends the run.
   async function designMissing() {
-    const todo = FRAME_SECTIONS.filter((s) => !frames.some((f) => f.section === s)).slice(0, 6);
+    const todo = usable.filter((s) => !frames.some((f) => f.section === s)).slice(0, 6);
     if (!todo.length) return;
     setAllBusy("run");
     setAllMsg(null);
     let done = 0;
     try {
+      const early = await ensureReady();
+      if (early) return setAllMsg({ ok: false, text: early });
       for (const section of todo) {
         setAllMsg({ ok: true, text: fr.allProgress(nameOf(section), done + 1, todo.length) });
         const r = await designSectionFrameAction({ section, referencePath: allRef, note: "", frameText: p.kit.frameText });
@@ -131,8 +156,11 @@ export function SectionFrames(p: SectionFramesProps) {
       const r = await saveDesignPromptAction(prompt);
       if (r.ok) {
         setPrompt(r.designPrompt);
+        setSavedPrompt(r.designPrompt);
         setPromptMsg({ ok: true, text: fr.promptSaved });
       } else setPromptMsg({ ok: false, text: r.error });
+    } catch {
+      setPromptMsg({ ok: false, text: t.common.error });
     } finally {
       setPromptBusy(false);
     }
@@ -176,7 +204,7 @@ export function SectionFrames(p: SectionFramesProps) {
               <img src={mediaSrc(allRef) ?? ""} alt="" width={56} height={56} style={{ objectFit: "cover", borderRadius: 8 }} />
             )}
           </div>
-          <button type="button" className="gm-btn" style={{ alignSelf: "flex-start" }} disabled={!!allBusy || !FRAME_SECTIONS.some((s) => !frames.some((f) => f.section === s))} onClick={() => void designMissing()}>
+          <button type="button" className="gm-btn" style={{ alignSelf: "flex-start" }} disabled={!!allBusy || !usable.some((s) => !frames.some((f) => f.section === s))} onClick={() => void designMissing()}>
             {fr.allStart}
           </button>
           {allMsg && <p className={allMsg.ok ? "gm-ok" : "gm-err"}>{allMsg.text}</p>}
@@ -191,6 +219,8 @@ export function SectionFrames(p: SectionFramesProps) {
             name={nameOf(section)}
             frame={frames.find((f) => f.section === section) ?? null}
             p={p}
+            locked={!!allBusy}
+            ensure={ensureReady}
             onSaved={put}
             onRemoved={(s) => {
               drop(s);
@@ -220,6 +250,8 @@ function SectionCard({
   name,
   frame,
   p,
+  locked,
+  ensure,
   onSaved,
   onRemoved,
 }: {
@@ -227,6 +259,9 @@ function SectionCard({
   name: string;
   frame: SectionFrame | null;
   p: SectionFramesProps;
+  /** A run of "design all" is going: the card's own buttons wait. */
+  locked: boolean;
+  ensure: () => Promise<string | null>;
   onSaved: (f: SectionFrame) => void;
   onRemoved: (section: string) => void;
 }) {
@@ -285,6 +320,8 @@ function SectionCard({
     setMsg(null);
     setBusy("design");
     try {
+      const early = await ensure();
+      if (early) return setMsg({ ok: false, text: early });
       const r = await designSectionFrameAction({ section, referencePath: reference, note, frameText: text });
       if (!r.ok) return setMsg({ ok: false, text: r.error });
       onSaved({ section, framePath: r.framePath, frameText: text, referencePath: reference, note });
@@ -299,17 +336,29 @@ function SectionCard({
 
   async function setText(pos: FrameText) {
     if (!frame) return;
+    const before = frame;
     onSaved({ ...frame, frameText: pos });
-    const r = await saveSectionFrameTextAction(section, pos);
-    if (!r.ok) setMsg({ ok: false, text: r.error });
+    try {
+      const r = await saveSectionFrameTextAction(section, pos);
+      if (!r.ok) {
+        onSaved(before);
+        setMsg({ ok: false, text: r.error });
+      }
+    } catch {
+      onSaved(before);
+      setMsg({ ok: false, text: t.common.error });
+    }
   }
 
   async function remove() {
+    if (frame && !window.confirm(tn.bdSectionRemoveConfirm)) return;
     setBusy("remove");
     try {
       const r = frame ? await removeSectionFrameAction(section) : { ok: true as const };
       if (!r.ok) return setMsg({ ok: false, text: r.error });
       onRemoved(section);
+    } catch {
+      setMsg({ ok: false, text: t.common.error });
     } finally {
       setBusy(null);
     }
@@ -321,9 +370,9 @@ function SectionCard({
         <div dir="ltr" style={{ width: PREVIEW_W, height: (CARD_H * PREVIEW_W) / CARD_W, overflow: "hidden", borderRadius: 10, flex: "none" }}>
           <div style={{ transform: `scale(${PREVIEW_W / CARD_W})`, transformOrigin: "top left", width: CARD_W, height: CARD_H }}>
             <NewsCard
-              kind={shownFrame ? "STANDARD" : "BREAKING"}
+              kind={section === "breaking" ? "BREAKING" : "STANDARD"}
               brand={brand}
-              content={{ headline: tn.cardSample, stat: null, quote: null, speaker: null, stamp: "١٠:٤٢", photoSrc: shownFrame ? mediaSrc(p.samplePhoto) : null }}
+              content={{ headline: tn.cardSample, stat: null, quote: null, speaker: null, stamp: "١٠:٤٢", photoSrc: mediaSrc(p.samplePhoto) ?? "/brand/sample-photo.jpg" }}
             />
           </div>
         </div>
@@ -331,17 +380,17 @@ function SectionCard({
           <p className="gm-sec" style={{ margin: 0 }}>{name}</p>
           <small className="gm-hint">{frame ? fr.ownFrame : fr.mainFrame}</small>
           <div className="gm-row" style={{ gap: 8, flexWrap: "wrap" }}>
-            <label className="gm-btn quiet small" style={{ opacity: busy ? 0.6 : 1, pointerEvents: busy ? "none" : "auto" }}>
+            <label className="gm-btn quiet small" style={{ opacity: busy || locked ? 0.6 : 1, pointerEvents: busy || locked ? "none" : "auto" }}>
               {busy === "upload" ? tn.uploading : fr.uploadReady}
               <input type="file" accept="image/png" hidden disabled={!!busy} onChange={(e) => { if (e.target.files?.[0]) void pickReady(e.target.files[0]); e.target.value = ""; }} />
             </label>
             {p.aiEnabled && (
-              <button type="button" className="gm-btn small" disabled={!!busy} onClick={() => setDesigning((v) => !v)} aria-expanded={designing}>
+              <button type="button" className="gm-btn small" disabled={!!busy || locked} onClick={() => setDesigning((v) => !v)} aria-expanded={designing}>
                 {fr.design}
               </button>
             )}
-            <button type="button" className="gm-btn quiet small" disabled={!!busy} onClick={() => void remove()}>
-              {frame ? fr.remove : tn.frameRemove}
+            <button type="button" className="gm-btn quiet small" disabled={!!busy || locked} onClick={() => void remove()}>
+              {frame ? fr.remove : tn.bdClose}
             </button>
           </div>
           {frame && (
@@ -384,7 +433,7 @@ function SectionCard({
             <input className="gm-input" value={note} maxLength={NOTE_MAX} placeholder={fr.notePlaceholder} onChange={(e) => setNote(e.target.value)} />
           </label>
           <small className="gm-hint">{fr.cost}</small>
-          <button type="button" className="gm-btn" style={{ alignSelf: "flex-start" }} disabled={!!busy} onClick={() => void design()}>
+          <button type="button" className="gm-btn" style={{ alignSelf: "flex-start" }} disabled={!!busy || locked} onClick={() => void design()}>
             {busy === "design" ? fr.designing : fr.start}
           </button>
         </div>

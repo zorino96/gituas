@@ -8,7 +8,13 @@ export interface Brand {
   /** The outlet's own PNG frame; when set, every card is the story photo behind it. */
   frameSrc: string | null;
   frameText: FrameText;
+  /** Where the logo is drawn on a framed card; "off" when the frame art already carries it. */
+  logoCorner: LogoCorner;
 }
+
+export const LOGO_CORNERS = ["off", "right", "left"] as const;
+export type LogoCorner = (typeof LOGO_CORNERS)[number];
+export const isLogoCorner = (v: unknown): v is LogoCorner => typeof v === "string" && (LOGO_CORNERS as readonly string[]).includes(v);
 
 /** Where the headline sits on an outlet's frame. */
 export const FRAME_TEXT = ["top", "middle", "bottom"] as const;
@@ -30,7 +36,7 @@ export function mediaSrc(pathname: string | null | undefined): string | null {
 }
 
 export function brandFrom(
-  kit: { logoPath: string | null; primary: string; accent: string; text: string; headingFont: string; framePath?: string | null; frameText?: string | null } | null,
+  kit: { logoPath: string | null; primary: string; accent: string; text: string; headingFont: string; framePath?: string | null; frameText?: string | null; logoCorner?: string | null } | null,
   pageName: string,
 ): Brand {
   return {
@@ -42,5 +48,6 @@ export function brandFrom(
     headingFont: kit?.headingFont === "sans" ? "sans" : "kufi",
     frameSrc: mediaSrc(kit?.framePath),
     frameText: isFrameText(kit?.frameText) ? kit.frameText : "bottom",
+    logoCorner: isLogoCorner(kit?.logoCorner) ? kit.logoCorner : "off",
   };
 }

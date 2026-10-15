@@ -7,11 +7,9 @@ import { upload } from "@vercel/blob/client";
 
 import { useT } from "@/lib/i18n/client";
 
-import { OutputPreview } from "./output-preview";
-import { CARD_H, CARD_W } from "@/lib/cards/templates";
-import { brandFrom, FRAME_TEXT, mediaSrc, type FrameText } from "@/lib/cards/brand";
-import { ReferencePicker } from "./color-picker";
-import { SectionFrames, type SectionFrame } from "./section-frames";
+import { BrandEditor } from "./brand-editor";
+import type { FrameText, LogoCorner } from "@/lib/cards/brand";
+import type { SectionFrame } from "./section-frames";
 import { AUTO_DAILY_MAX, AUTO_MIN_GAP, AUTO_MODES, AUTO_TARGETS, MAX_AUTO_ACCOUNTS, type AutoMode, type AutoTarget } from "@/lib/news/autopilot-settings";
 import { GROUPS, type SourceGroup, type SourceLang } from "@/lib/news/catalog";
 import { subcategoryLabel, TAXONOMY } from "@/lib/news/taxonomy";
@@ -25,13 +23,10 @@ import {
   addRssSourceAction,
   removeSourceAction,
   saveAutopilotAction,
-  saveBrandKitAction,
   saveCategoriesAction,
   saveKeywordsAction,
   saveNewsFilterAction,
   saveVideoSettingsAction,
-  addNewsPhotoAction,
-  deleteNewsPhotoAction,
   type LibraryPhoto,
   addNewsClipAction,
   deleteNewsClipAction,
@@ -97,7 +92,7 @@ export interface NewsSettingsProps {
     accounts: string[];
   };
   feeds: Array<{ id: string; name: string; url: string; lastError: string | null }>;
-  kit: { logoPath: string | null; primary: string; accent: string; text: string; headingFont: "kufi" | "sans"; framePath: string | null; frameText: FrameText };
+  kit: { logoPath: string | null; primary: string; accent: string; text: string; headingFont: "kufi" | "sans"; framePath: string | null; frameText: FrameText; logoCorner: LogoCorner };
   /** The photo library of the desk: card backgrounds behind its frame. */
   photos: LibraryPhoto[];
   /** Frames of their own by section (the main frame is `kit.framePath`). */
@@ -107,8 +102,6 @@ export interface NewsSettingsProps {
   /** The AI image service is configured: frames can be designed. */
   aiFrames: boolean;
 }
-
-const PREVIEW_W = 180;
 
 export function NewsSettings(p: NewsSettingsProps) {
   const router = useRouter();
@@ -121,10 +114,6 @@ export function NewsSettings(p: NewsSettingsProps) {
   const [keywords, setKeywords] = useState(p.keywords.join("، "));
   const [feedUrl, setFeedUrl] = useState("");
   const [feedName, setFeedName] = useState("");
-  const [kit, setKit] = useState(p.kit);
-  const [photos, setPhotos] = useState(p.photos);
-  const [uploadingFrame, setUploadingFrame] = useState(false);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [cats, setCats] = useState<string[]>(p.categories);
   const [voiceNote, setVoiceNote] = useState(p.voiceNote);
   const lang = useLang();
@@ -225,51 +214,6 @@ export function NewsSettings(p: NewsSettingsProps) {
         }),
       tn.saved,
     );
-  }
-
-  /** The frame must be a PNG of the card's 4:5 shape; checked here before it is uploaded. */
-  async function pickFrame(file: File) {
-    if (file.type !== "image/png") return setMsg({ ok: false, text: tn.frameBadSize });
-    const size = await new Promise<{ w: number; h: number } | null>((resolve) => {
-      const img = new Image();
-      img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
-      img.onerror = () => resolve(null);
-      img.src = URL.createObjectURL(file);
-    });
-    if (!size || size.w < 540 || Math.abs(size.w / size.h - CARD_W / CARD_H) > 0.02) return setMsg({ ok: false, text: tn.frameBadSize });
-    setMsg(null);
-    setUploadingFrame(true);
-    try {
-      const blob = await upload(`merchant/${p.workspaceId}/frame-${Date.now()}.png`, file, {
-        access: "public",
-        handleUploadUrl: "/api/app/upload",
-        contentType: "image/png",
-      });
-      setKit((k) => ({ ...k, framePath: blob.pathname }));
-    } catch (e) {
-      setMsg({ ok: false, text: tn.logoFailed(e instanceof Error ? e.message : t.common.error) });
-    } finally {
-      setUploadingFrame(false);
-    }
-  }
-
-  async function pickLogo(file: File) {
-    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) return setMsg({ ok: false, text: tn.onlyImages });
-    setMsg(null);
-    setUploadingLogo(true);
-    try {
-      const blob = await upload(`merchant/${p.workspaceId}/logo-${Date.now()}.${file.type.split("/")[1]}`, file, {
-        access: "public",
-        handleUploadUrl: "/api/app/upload",
-        contentType: file.type,
-      });
-      setKit((k) => ({ ...k, logoPath: blob.pathname }));
-      setMsg({ ok: true, text: tn.logoUploaded });
-    } catch (e) {
-      setMsg({ ok: false, text: tn.logoFailed(e instanceof Error ? e.message : t.common.error) });
-    } finally {
-      setUploadingLogo(false);
-    }
   }
 
   return (
@@ -852,101 +796,19 @@ export function NewsSettings(p: NewsSettingsProps) {
         </>
       )}
       {show("brand") && (
-        <>
-      <p className="gm-sec">{tn.brandSec}</p>
-      <div className="gm-card gm-stack">
-        <div className="gm-row" style={{ gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-          {kit.logoPath && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={mediaSrc(kit.logoPath) ?? ""} alt="" width={44} height={44} style={{ objectFit: "contain", borderRadius: 10, background: "var(--raised)" }} />
-          )}
-          <label className="gm-btn quiet small" style={{ opacity: uploadingLogo ? 0.6 : 1, pointerEvents: uploadingLogo ? "none" : "auto" }}>
-            {uploadingLogo ? tn.uploading : kit.logoPath ? tn.changeLogo : tn.logo}
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              hidden
-              disabled={uploadingLogo}
-              onChange={(e) => e.target.files?.[0] && pickLogo(e.target.files[0])}
-            />
-          </label>
-        </div>
-        <div className="gm-row" style={{ gap: 12, flexWrap: "wrap" }}>
-          {(["primary", "accent", "text"] as const).map((key) => (
-            <label key={key} className="gm-row" style={{ gap: 6 }}>
-              <input type="color" value={kit[key]} onChange={(e) => setKit((k) => ({ ...k, [key]: e.target.value }))} />
-              <small>{t.settings.colors[key]}</small>
-            </label>
-          ))}
-        </div>
-        <details>
-          <summary className="gm-hint" style={{ cursor: "pointer" }}>{tn.moreColors}</summary>
-          <div style={{ marginTop: 8 }}>
-            <ReferencePicker
-              logoSrc={mediaSrc(kit.logoPath)}
-              values={kit}
-              onPick={(slot, hex) => setKit((k) => ({ ...k, [slot]: hex }))}
-            />
-          </div>
-        </details>
-        <div className="gm-chips">
-          {(["kufi", "sans"] as const).map((f) => (
-            <button key={f} type="button" className="gm-chip" aria-pressed={kit.headingFont === f} onClick={() => setKit((k) => ({ ...k, headingFont: f }))}>
-              {f === "kufi" ? tn.fontKufi : tn.fontSans}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="gm-card gm-stack">
-        <p className="gm-sec" style={{ margin: 0 }}>{tn.frameSec}</p>
-        <p className="gm-hint" style={{ margin: 0 }}>{tn.frameHint}</p>
-        <div className="gm-row" style={{ gap: 8, flexWrap: "wrap" }}>
-          <label className="gm-btn quiet small" style={{ opacity: uploadingFrame ? 0.6 : 1, pointerEvents: uploadingFrame ? "none" : "auto" }}>
-            {uploadingFrame ? tn.uploading : kit.framePath ? tn.frameChange : tn.frameUpload}
-            <input type="file" accept="image/png" hidden disabled={uploadingFrame} onChange={(e) => { if (e.target.files?.[0]) void pickFrame(e.target.files[0]); e.target.value = ""; }} />
-          </label>
-          {kit.framePath && (
-            <button type="button" className="gm-btn quiet small" onClick={() => setKit((k) => ({ ...k, framePath: null }))}>
-              {tn.frameRemove}
-            </button>
-          )}
-        </div>
-        {kit.framePath && (
-          <>
-            <p className="gm-hint" style={{ margin: 0 }}>{tn.frameTextLabel}</p>
-            <div className="gm-chips">
-              {FRAME_TEXT.map((pos) => (
-                <button key={pos} type="button" className="gm-chip" aria-pressed={kit.frameText === pos} onClick={() => setKit((k) => ({ ...k, frameText: pos }))}>
-                  {tn.frameText[pos]}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-      <details className="gm-stack" style={{ gap: 10 }}>
-        <summary className="gm-sec" style={{ cursor: "pointer" }}>{tn.sectionFramesOptional}</summary>
-        <div className="gm-stack" style={{ marginTop: 10 }}>
-          <SectionFrames
-            workspaceId={p.workspaceId}
-            pageName={p.pageName}
-            kit={kit}
-            samplePhoto={photos[0]?.pathname ?? null}
-            frames={p.sectionFrames}
-            designPrompt={p.designPrompt}
-            aiEnabled={p.aiFrames}
-          />
-        </div>
-      </details>
-      <details className="gm-stack" style={{ gap: 10 }}>
-        <summary className="gm-sec" style={{ cursor: "pointer" }}>{tn.photosOptional}</summary>
-        <div className="gm-card gm-stack" style={{ marginTop: 10 }}>
-          <PhotoLibrary workspaceId={p.workspaceId} initial={p.photos} onChange={setPhotos} />
-        </div>
-      </details>
-      <OutputPreview kit={kit} photo={photos[0]?.pathname ?? null} photoCardsOnly={p.photoCardsOnly} onColor={(slot, hex) => setKit((k) => ({ ...k, [slot]: hex }))} />
-      <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => saveBrandKitAction(kit), tn.brandSaved)}>{tn.saveBrand}</button>
-        </>
+        <BrandEditor
+          workspaceId={p.workspaceId}
+          pageName={p.pageName}
+          kit={p.kit}
+          photos={p.photos}
+          sectionFrames={p.sectionFrames}
+          designPrompt={p.designPrompt}
+          aiFrames={p.aiFrames}
+          photoCardsOnly={p.photoCardsOnly}
+          sourceImages={p.sourceImages}
+          aiPictures={p.aiPictures}
+          accountNames={{ FB: p.autopilot.accountLists.FB[0]?.name ?? null, IG: p.autopilot.accountLists.IG[0]?.name ?? null }}
+        />
       )}
       {msg && <p className={msg.ok ? "gm-ok" : "gm-err"}>{msg.text}</p>}
     </>
@@ -1035,86 +897,3 @@ function ClipLibrary({ workspaceId, initial }: { workspaceId: string; initial: L
 }
 
 /** The desk's own photos for card backgrounds: upload, say what each shows, delete. */
-function PhotoLibrary({ workspaceId, initial, onChange }: { workspaceId: string; initial: LibraryPhoto[]; onChange: (photos: LibraryPhoto[]) => void }) {
-  const t = useT();
-  const tn = t.settings.news;
-  const [photos, setPhotos] = useState(initial);
-  const [label, setLabel] = useState("");
-  const [general, setGeneral] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
-  const update = (next: LibraryPhoto[]) => {
-    setPhotos(next);
-    onChange(next);
-  };
-
-  async function add(file: File | undefined) {
-    if (!file) return;
-    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) return setNote({ ok: false, text: tn.onlyImages });
-    if (!label.trim()) return setNote({ ok: false, text: tn.clipBadLabel });
-    setBusy(true);
-    setNote(null);
-    try {
-      const ext = file.type === "image/jpeg" ? "jpg" : file.type.split("/")[1];
-      const blob = await upload(`merchant/${workspaceId}/photos/${Date.now()}.${ext}`, file, {
-        access: "public",
-        handleUploadUrl: "/api/app/upload",
-        contentType: file.type,
-      });
-      const r = await addNewsPhotoAction({ pathname: blob.pathname, url: blob.url, label, general });
-      if (!r.ok) return setNote({ ok: false, text: r.error });
-      update([r.photo, ...photos]);
-      setLabel("");
-      setGeneral(false);
-    } catch (e) {
-      setNote({ ok: false, text: e instanceof Error ? e.message : t.common.error });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function remove(id: string) {
-    const r = await deleteNewsPhotoAction(id);
-    if (r.ok) update(photos.filter((x) => x.id !== id));
-    else setNote({ ok: false, text: r.error });
-  }
-
-  return (
-    <div className="gm-stack" style={{ gap: 10 }}>
-      <p className="gm-sec" style={{ margin: 0 }}>{tn.photosSec}</p>
-      <p className="gm-hint" style={{ margin: 0 }}>{tn.photosHint}</p>
-      <div className="gm-field">
-        <label htmlFor="photo-label">{tn.photoLabel}</label>
-        <input id="photo-label" className="gm-input" dir="auto" maxLength={120} value={label} onChange={(e) => setLabel(e.target.value)} />
-      </div>
-      <label className="gm-radio">
-        <input type="checkbox" checked={general} onChange={(e) => setGeneral(e.target.checked)} />
-        <span>{tn.photoGeneral}</span>
-      </label>
-      <label className="gm-btn quiet small" style={{ alignSelf: "flex-start", opacity: busy ? 0.6 : 1, pointerEvents: busy ? "none" : "auto" }}>
-        {busy ? tn.clipUploading : tn.photoAdd}
-        <input type="file" accept="image/png,image/jpeg,image/webp" hidden disabled={busy} onChange={(e) => { void add(e.target.files?.[0]); e.target.value = ""; }} />
-      </label>
-      {note && <p className={note.ok ? "gm-ok" : "gm-err"} style={{ margin: 0 }}>{note.text}</p>}
-      {photos.length === 0 ? (
-        <p className="gm-sub" style={{ margin: 0 }}>{tn.photosEmpty}</p>
-      ) : (
-        photos.map((ph) => (
-          <div key={ph.id} className="gm-target">
-            <div className="gm-row" style={{ gap: 10 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={mediaSrc(ph.pathname)!} alt="" style={{ width: 64, height: 80, objectFit: "cover", borderRadius: 8 }} />
-              <div>
-                <p dir="auto" style={{ margin: 0 }}>{ph.label}</p>
-                {ph.general && <span className="gm-badge ghost">{tn.clipGeneralBadge}</span>}
-              </div>
-            </div>
-            <button type="button" className="gm-btn small quiet" onClick={() => void remove(ph.id)}>
-              {tn.clipDelete}
-            </button>
-          </div>
-        ))
-      )}
-    </div>
-  );
-}

@@ -1,6 +1,6 @@
 // What the newsroom's setup screens show, read once for every one of them (sources, automatic publishing, video, brand).
 import { loadVoiceClone } from "@/lib/voice/clone";
-import { isFrameText } from "@/lib/cards/brand";
+import { isFrameText, isLogoCorner } from "@/lib/cards/brand";
 import { db } from "@/lib/db";
 import { imageEnabled } from "@/lib/ai/image";
 import { canAutoPublish, promptFilterFor, refreshSecFor, videoQuotaFor } from "@/lib/billing/plans";
@@ -94,6 +94,7 @@ export async function loadNewsProps(
       headingFont: kit?.headingFont === "sans" ? "sans" : "kufi",
       framePath: kit?.framePath ?? null,
       frameText: isFrameText(kit?.frameText) ? kit.frameText : "bottom",
+      logoCorner: isLogoCorner(kit?.logoCorner) ? kit.logoCorner : "off",
     },
     sectionFrames: frames.map((f) => ({
       section: f.section,

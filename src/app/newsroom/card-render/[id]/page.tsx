@@ -56,7 +56,7 @@ export default async function CardRenderPage({
     loadFrames(draft.tenantId),
     db.brandKit.findUnique({
       where: { tenantId: draft.tenantId },
-      select: { logoPath: true, primary: true, accent: true, text: true, headingFont: true, framePath: true, frameText: true },
+      select: { logoPath: true, primary: true, accent: true, text: true, headingFont: true, framePath: true, frameText: true, logoCorner: true },
     }),
     db.tenant.findUnique({ where: { id: draft.tenantId }, select: { name: true } }),
   ]);

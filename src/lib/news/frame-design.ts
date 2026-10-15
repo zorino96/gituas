@@ -265,6 +265,26 @@ export async function designFrame(input: {
   return out.toBuffer();
 }
 
+/**
+ * Whether a frame file has a photo window: the see-through share of its pixels is within what a card can use. A
+ * flattened PNG (no window) would cover every story photo, so it is refused. `null` when the file cannot be read.
+ */
+export async function frameWindowOk(pathname: string): Promise<boolean | null> {
+  const bytes = await load(pathname);
+  if (!bytes) return null;
+  try {
+    const { data } = await sharp(bytes, { limitInputPixels: 40_000_000 })
+      .resize(108, 135, { fit: "fill" })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const share = transparentShare(data);
+    return share >= WINDOW_MIN && share <= WINDOW_MAX;
+  } catch {
+    return null;
+  }
+}
+
 /** Stores a designed frame in the desk's own folder. */
 export async function storeFrame(tenantId: string, section: string, png: Buffer): Promise<string> {
   const blob = await put(`merchant/${tenantId}/frame-${section}-${Date.now()}.png`, png, {
