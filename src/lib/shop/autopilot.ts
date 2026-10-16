@@ -13,7 +13,8 @@ import { loadAutopilotSignals } from "@/lib/orders/audience";
 import { effectiveMode, isDue, pickProduct, SLOT_GUARD_MS, slotHours } from "./autopilot-plan";
 import { cityHashtags } from "@/lib/orders/hashtags";
 import { formatMoney } from "./money";
-import { loadProfile, profileLines, type Profile } from "./profile";
+import { hasLinkOrPhone, loadProfile, profileLines, type Profile } from "./profile";
+import { numbersIn } from "./smart";
 
 /**
  * Stores posted per tick; the cron route has 60 seconds in all and one post can take ~40.
@@ -30,7 +31,7 @@ export interface AutoDraft {
 }
 
 async function writeCaption(name: string, description: string | null, ai?: AiOptions, biz?: Profile | null): Promise<string> {
-  const about = profileLines(biz ?? null, { lang: biz?.language ?? "ckb", audience: "owner" });
+  const about = profileLines(biz ?? null, { lang: biz?.language ?? "ckb", audience: "caption" });
   const language = biz?.language === "ar" ? "Arabic (Iraqi, Arabic script)" : "Sorani Kurdish (Arabic script)";
   // The call at the end follows what the owner wants from their page.
   const ending = biz?.goal === "grow" ? "End with a call to follow the page." : "End with a call to message the page.";
@@ -53,19 +54,23 @@ ${about.length ? `About the business (confirmed by the owner):\n${about.join("\n
       },
       (d) => (typeof (d as { text?: unknown })?.text === "string" ? (d as { text: string }) : null),
     );
-    if (data.text.trim()) return data.text.trim();
+    const text = data.text.trim();
+    // With a profile the caption is public and goes out with no review: no link, handle or phone, and no number the product does not have.
+    const allowed = new Set(numbersIn(`${name} ${description ?? ""}`));
+    const clean = !biz || (!hasLinkOrPhone(text) && numbersIn(text).every((n) => allowed.has(n)));
+    if (text && clean) return text;
   } catch (e) {
     console.error("[shop-autopilot] caption failed:", e instanceof Error ? e.message : "unknown error");
   }
   return [name, description?.trim()].filter(Boolean).join("\n");
 }
 
-function priceLine(variants: { amountMinor: number; currency: string; inStock: boolean }[]): string {
+function priceLine(variants: { amountMinor: number; currency: string; inStock: boolean }[], lang: "ckb" | "ar" = "ckb"): string {
   const live = variants.filter((v) => v.inStock && v.amountMinor > 0);
   if (!live.length) return "";
   const low = live.reduce((a, b) => (b.amountMinor < a.amountMinor ? b : a));
   const from = live.some((v) => v.currency === low.currency && v.amountMinor !== low.amountMinor);
-  return `💰 ${from ? "لە " : ""}${formatMoney(low.amountMinor, low.currency, "ckb")}`;
+  return `💰 ${from ? (lang === "ar" ? "من " : "لە ") : ""}${formatMoney(low.amountMinor, low.currency, lang)}`;
 }
 
 async function runStore(store: {
@@ -109,7 +114,7 @@ async function runStore(store: {
   // Hashtags of the cities its buyers come from, in both scripts: how Kurdish shoppers find sellers.
   const tags = cityHashtags(profile.cities).join(" ");
   const biz = await loadProfile(store.id);
-  const caption = [await writeCaption(full.name, full.description, aiFor(store), biz), priceLine(full.variants), tags].filter(Boolean).join("\n\n");
+  const caption = [await writeCaption(full.name, full.description, aiFor(store), biz), priceLine(full.variants, biz?.language === "ar" ? "ar" : "ckb"), tags].filter(Boolean).join("\n\n");
   const draft: AutoDraft = { productId: full.id, caption, media: { url, pathname: new URL(url).pathname.slice(1), type: "IMAGE" }, at: new Date(now).toISOString() };
   await db.product.update({ where: { id: full.id }, data: { autoPostedAt: new Date(now) } });
   await db.store.update({ where: { id: store.id }, data: { autoDraft: draft as unknown as Prisma.InputJsonValue } });

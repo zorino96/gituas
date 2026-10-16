@@ -22,6 +22,8 @@ import {
   type Fact,
   type Goal,
   type Tone,
+  cleanLine,
+  hasLinkOrPhone,
 } from "@/lib/shop/profile-shared";
 import { finishInterviewAction, saveProfileStepAction } from "./actions";
 
@@ -32,25 +34,30 @@ export interface SetupInitial {
   offerLine: string;
   customer: Customer[];
   sellsTo: string[];
-  language: "ckb" | "ar";
+  language: "ckb" | "ar" | null;
   tone: Tone | null;
   facts: Fact[];
   finished: boolean;
+  /** The facts that were already switched on before this visit (the owner confirmed them earlier). */
+  confirmedBefore: string[];
 }
 
 type StepId = "goal" | "what" | "who" | "where" | "facts" | "tone" | "review";
 
 /** The screens for this goal, in order: delivery and payment only for people who sell or take enquiries. */
 export function stepsFor(goal: Goal | null, hasFacts: boolean): StepId[] {
+  // Only an owner who wants viewers and followers is spared the questions about buyers; every one of them can be skipped.
+  const asksBuyers = goal !== "grow";
   const out: StepId[] = ["goal", "what", "who"];
-  if (goal === "sell" || goal === "leads") out.push("where");
-  if (goal === "sell") out.push("facts");
+  if (asksBuyers) out.push("where", "facts");
   out.push("tone");
-  if (goal === "sell" && hasFacts) out.push("review");
+  if (asksBuyers && hasFacts) out.push("review");
   return out;
 }
 
 const toggle = <T,>(list: T[], v: T): T[] => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+
+const keyOf = (f: Pick<Fact, "k" | "v">) => `${f.k}:${f.v}`;
 
 export function SetupClient({ storeId, storeName, initial, initialStep = 0 }: { storeId: string; storeName: string; initial: SetupInitial; initialStep?: number }) {
   const t = useT();
@@ -74,8 +81,8 @@ export function SetupClient({ storeId, storeName, initial, initialStep = 0 }: { 
       case "what": return { category: p.category, offerLine: p.offerLine };
       case "who": return { customer: p.customer };
       case "where": return { sellsTo: p.sellsTo };
-      // Chosen facts are stored switched off: they are switched on only when the owner confirms the review screen.
-      case "facts": return { facts: p.facts.map((f) => ({ ...f, on: false })) };
+      // New facts are stored switched off by the server: they are switched on only when the owner confirms the review screen.
+      case "facts": return { facts: p.facts };
       case "tone": return { tone: p.tone, language: p.language };
       default: return {};
     }
@@ -87,9 +94,11 @@ export function SetupClient({ storeId, storeName, initial, initialStep = 0 }: { 
     try {
       const r = await saveProfileStepAction(storeId, patchFor(step), { step, index: i, skipped });
       if (!r.ok) return setErr(s.saveFailed(r.error));
+      if (r.dropped?.length) return setErr(`${s.customRefused} ${r.dropped.join("، ")}`);
       if (step === steps[steps.length - 1]) {
-        // The last screen: the review when there are facts to confirm, else done at once.
-        const f = await finishInterviewAction(storeId, p.facts.map((x) => ({ ...x, on: step === "review" ? x.on : false })));
+        // The last screen: the review when there are facts to confirm, else done at once (facts never reviewed stay as they were).
+        const before = new Set(initial.confirmedBefore);
+        const f = await finishInterviewAction(storeId, p.facts.map((x) => ({ ...x, on: step === "review" ? x.on : before.has(keyOf(x)) })));
         if (!f.ok) return setErr(s.saveFailed(f.error));
         return setDone(true);
       }
@@ -103,7 +112,8 @@ export function SetupClient({ storeId, storeName, initial, initialStep = 0 }: { 
 
   const setFact = (k: Fact["k"], v: string, on: boolean) =>
     setP((x) => {
-      const rest = x.facts.filter((f) => !(f.k === k && f.v === v));
+      // Returns is one choice: a new one replaces the one before.
+      const rest = x.facts.filter((f) => !(f.k === k && (f.v === v || (k === "returns" && on))));
       return { ...x, facts: on ? [...rest, { k, v, on: true }] : rest };
     });
   const hasFact = (k: Fact["k"], v: string) => p.facts.some((f) => f.k === k && f.v === v);
@@ -133,7 +143,7 @@ export function SetupClient({ storeId, storeName, initial, initialStep = 0 }: { 
       <div>
         <h2 className="gm-title kufi" style={{ marginBottom: 4 }}>{s.title}</h2>
         {storeName && <p className="gm-sub" style={{ margin: 0 }}>{storeName}</p>}
-        {i === 0 && <p className="gm-hint" style={{ marginTop: 6 }}>{s.intro}</p>}
+        {i === 0 && <p className="gm-hint" style={{ marginTop: 6 }}>{initial.finished ? s.finishedNote : s.intro}</p>}
       </div>
 
       <div className="gm-card gm-stack">
@@ -200,9 +210,12 @@ export function SetupClient({ storeId, storeName, initial, initialStep = 0 }: { 
                   className="gm-btn small quiet"
                   disabled={!custom.trim()}
                   onClick={() => {
-                    const text = custom.trim();
+                    const text = cleanLine(custom, 160);
+                    if (!text) return;
+                    if (hasLinkOrPhone(text)) return setErr(s.customRefused);
+                    setErr(null);
                     setCustom("");
-                    if (text) setP((x) => ({ ...x, facts: [...x.facts, { k: "custom", v: text, on: true }] }));
+                    setP((x) => (x.facts.some((f) => f.k === "custom" && f.v === text) ? x : { ...x, facts: [...x.facts, { k: "custom", v: text, on: true }] }));
                   }}
                 >
                   {s.customAdd}
@@ -218,7 +231,7 @@ export function SetupClient({ storeId, storeName, initial, initialStep = 0 }: { 
             <p className="gm-sec" style={{ margin: 0 }}>{s.toneQ}</p>
             <div className="gm-chips">{TONES.map((v) => chip(v, label("tone", v), p.tone === v, () => setP((x) => ({ ...x, tone: x.tone === v ? null : v }))))}</div>
             <small className="gm-sub">{s.langQ}</small>
-            <div className="gm-chips">{PROFILE_LANGS.map((v) => chip(v, label("lang", v), p.language === v, () => setP((x) => ({ ...x, language: v }))))}</div>
+            <div className="gm-chips">{PROFILE_LANGS.map((v) => chip(v, label("lang", v), p.language === v, () => setP((x) => ({ ...x, language: x.language === v ? null : v }))))}</div>
             <small className="gm-hint">{s.langHint}</small>
           </>
         )}
@@ -230,12 +243,13 @@ export function SetupClient({ storeId, storeName, initial, initialStep = 0 }: { 
             {p.facts.length === 0 && <p className="gm-hint" style={{ margin: 0 }}>{s.reviewEmpty}</p>}
             {p.facts.map((f) => (
               <div key={`${f.k}:${f.v}`} className="gm-between">
-                <span dir="auto">{f.k === "payment" ? label("pay", f.v) : f.k === "returns" ? label("ret", f.v) : f.v}</span>
+                <span dir="auto" id={`fact-${f.k}-${f.v.length}-${f.v.slice(0, 12)}`}>{f.k === "payment" ? label("pay", f.v) : f.k === "returns" ? label("ret", f.v) : f.v}</span>
                 <button
                   type="button"
                   role="switch"
                   aria-checked={f.on}
-                  aria-label={f.on ? s.factSay : s.factHide}
+                  aria-labelledby={`fact-${f.k}-${f.v.length}-${f.v.slice(0, 12)}`}
+                  title={f.on ? s.factSay : s.factHide}
                   className="gm-knob"
                   onClick={() => setP((x) => ({ ...x, facts: x.facts.map((y) => (y.k === f.k && y.v === f.v ? { ...y, on: !y.on } : y)) }))}
                 >

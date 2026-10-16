@@ -66,43 +66,74 @@ const MAX_CUSTOM_FACTS = 3;
 
 const one = <T extends string>(list: readonly T[], v: unknown): T | null => (typeof v === "string" && (list as readonly string[]).includes(v) ? (v as T) : null);
 const many = <T extends string>(list: readonly T[], v: unknown): T[] => (Array.isArray(v) ? [...new Set(v.filter((x): x is T => typeof x === "string" && (list as readonly string[]).includes(x)))] : []);
-/** A typed line: control and direction characters out, spaces folded, cut to length. */
+/**
+ * Characters that show nothing but can hide a link or a number from a check: controls, soft hyphen, zero-width space and
+ * joiner, word joiner and the invisible math signs, bidi marks, the BOM and the "tag" block. The zero-width NON-joiner
+ * (U+200C) stays: Kurdish and Persian need it.
+ */
+const INVISIBLE = /[\u0000-\u001F\u007F-\u009F\u00AD\u061C\u200B\u200D-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]|[\u{E0000}-\u{E007F}]/gu;
+
+/** A typed line: invisible characters out, spaces folded, cut to length (the raw text is cut first: it may be huge). */
 export function cleanLine(v: unknown, max: number): string | null {
   if (typeof v !== "string") return null;
-  const t = v.replace(/[\u0000-\u001F\u007F‎‏‪-‮⁦-⁩]/g, " ").replace(/\s+/g, " ").trim();
+  // Line breaks and tabs are spaces; every other invisible character is simply removed (so it cannot split a link in two).
+  const t = v.slice(0, max * 4).replace(/[\r\n\t\v\f]/g, " ").replace(INVISIBLE, "").replace(/\s+/g, " ").trim();
   return t ? Array.from(t).slice(0, max).join("") : null;
 }
 
-/** A link, a handle or a phone number in a typed fact: a reply may never carry one, so such a fact is refused. */
-const LINK_OR_PHONE = /(https?:\/\/|www\.|[\p{L}\p{N}-]+\.[a-z]{2,}\b|@[\p{L}\p{N}_.]{3,}|\d[\d\s-]{6,}\d)/iu;
 const toWestern = (s: string) => s.replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660)).replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0));
 
-/** What an owner's input may become: only known ids, short clean text, no link or phone inside a fact. */
+/**
+ * A link, an account handle or a phone number in a typed text. A reply or a caption may never carry one, so text that has
+ * one is refused. Look-alike characters are folded first (NFKC), digits of every script count, and any separator may sit
+ * between the digits of a phone number.
+ */
+export function hasLinkOrPhone(text: string): boolean {
+  const t = toWestern(text.replace(INVISIBLE, "").normalize("NFKC"));
+  if (/(https?:\/\/|www\.|[\p{L}\p{N}-]+\.[a-z]{2,}\b|@[\p{L}\p{N}_.]{3,})/iu.test(t)) return true;
+  return /\d{7,}/.test(t.replace(/[\s.,/()\-–—·_]/g, ""));
+}
+
+const MAX_FACTS_RAW = 30;
+
+/** What an owner's input may become: only known ids, short clean text, no link or phone inside any typed text. */
 export function sanitizePatch(input: unknown): ProfilePatch {
   const r = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
   const out: ProfilePatch = {};
+  const typed = (v: unknown, max: number): string | null => {
+    const t = cleanLine(v, max);
+    return t && !hasLinkOrPhone(t) ? t : null;
+  };
   if ("goal" in r) out.goal = one(GOALS, r.goal);
-  if ("goalText" in r) out.goalText = cleanLine(r.goalText, GOAL_TEXT_MAX);
+  if ("goalText" in r) out.goalText = typed(r.goalText, GOAL_TEXT_MAX);
   if ("category" in r) out.category = one(CATEGORIES, r.category);
-  if ("offerLine" in r) out.offerLine = cleanLine(r.offerLine, OFFER_MAX);
+  if ("offerLine" in r) out.offerLine = typed(r.offerLine, OFFER_MAX);
   if ("customer" in r) out.customer = many(CUSTOMERS, r.customer);
   if ("sellsTo" in r) {
     const codes = new Set(CITIES.map((c) => c.code));
-    out.sellsTo = Array.isArray(r.sellsTo) ? [...new Set(r.sellsTo.filter((c): c is string => typeof c === "string" && codes.has(c)))].slice(0, 19) : [];
+    out.sellsTo = Array.isArray(r.sellsTo) ? [...new Set(r.sellsTo.slice(0, 60).filter((c): c is string => typeof c === "string" && codes.has(c)))].slice(0, 19) : [];
   }
   if ("language" in r) out.language = one(PROFILE_LANGS, r.language);
   if ("tone" in r) out.tone = one(TONES, r.tone);
   if ("facts" in r && Array.isArray(r.facts)) {
+    // At most one fact per chip, one returns rule, and three typed facts: nine in all, whatever was sent.
     const facts: Fact[] = [];
+    const seen = new Set<string>();
     let customs = 0;
-    for (const f of r.facts) {
+    let returns = 0;
+    for (const f of r.facts.slice(0, MAX_FACTS_RAW)) {
       const x = (f && typeof f === "object" ? f : {}) as Record<string, unknown>;
       const on = x.on === true;
-      if (x.k === "payment" && one(PAYMENTS, x.v)) facts.push({ k: "payment", v: x.v as string, on });
-      else if (x.k === "returns" && one(RETURNS, x.v)) facts.push({ k: "returns", v: x.v as string, on });
-      else if (x.k === "custom" && customs < MAX_CUSTOM_FACTS) {
-        const text = cleanLine(x.v, CUSTOM_MAX);
-        if (text && !LINK_OR_PHONE.test(toWestern(text))) {
+      if (x.k === "payment" && one(PAYMENTS, x.v) && !seen.has(`p:${x.v}`)) {
+        seen.add(`p:${x.v}`);
+        facts.push({ k: "payment", v: x.v as string, on });
+      } else if (x.k === "returns" && one(RETURNS, x.v) && returns === 0) {
+        returns++;
+        facts.push({ k: "returns", v: x.v as string, on });
+      } else if (x.k === "custom" && customs < MAX_CUSTOM_FACTS) {
+        const text = typed(x.v, CUSTOM_MAX);
+        if (text && !seen.has(`c:${text}`)) {
+          seen.add(`c:${text}`);
           facts.push({ k: "custom", v: text, on });
           customs++;
         }
@@ -111,6 +142,18 @@ export function sanitizePatch(input: unknown): ProfilePatch {
     out.facts = facts;
   }
   return out;
+}
+
+const factKey = (f: Pick<Fact, "k" | "v">) => `${f.k}:${f.v}`;
+
+/**
+ * The facts after a screen saves them: a fact already switched on stays on (the owner confirmed it before); a new one is
+ * stored OFF until the owner confirms the review screen; one that was taken out is gone. The client's `on` flags are
+ * never trusted here, only at finishInterviewAction.
+ */
+export function mergeFacts(previous: Fact[], incoming: Fact[]): Fact[] {
+  const was = new Map(previous.map((f) => [factKey(f), f.on]));
+  return incoming.map((f) => ({ k: f.k, v: f.v, on: was.get(factKey(f)) === true }));
 }
 
 /** The interview was finished (the owner confirmed the last screen). */
@@ -123,7 +166,7 @@ type FactTable = Record<string, Partial<Record<Lang, string>> & { ckb: string; a
 const PAYMENT_TEXT: FactTable = {
   cod: { ckb: "پارەدان لە کاتی گەیاندندا ئەکرێت.", ar: "الدفع عند الاستلام متاح.", en: "Cash on delivery is available." },
   transfer: { ckb: "پارەدان بە گواستنەوەی بانکی یان ئەپی پارە ئەکرێت.", ar: "الدفع بالتحويل المصرفي أو بمحفظة إلكترونية متاح.", en: "Payment by bank transfer or a mobile wallet is available." },
-  pickup: { ckb: "دەتوانیت خۆت بێیت و بەرهەمەکە وەربگریت.", ar: "يمكنك الاستلام من المحل بنفسك.", en: "You can collect the order yourself." },
+  pickup: { ckb: "دەتوانیت خۆت بێیت و بەرهەمەکە وەربگریت.", ar: "يمكنك استلام الطلب بنفسك.", en: "You can collect the order yourself." },
 };
 const RETURNS_TEXT: FactTable = {
   none: { ckb: "کاڵای فرۆشراو ناگەڕێندرێتەوە.", ar: "البضاعة المباعة لا تُسترجع.", en: "Sold items are not returned." },
@@ -150,32 +193,46 @@ const TONE_EN: Record<Tone, string> = { friendly: "warm and friendly", formal: "
 export const PROFILE_LINES_MAX_CHARS = 700;
 
 /**
- * The profile as prompt lines. For a buyer reply (`audience: "buyer"`) only what a buyer may be told or what shapes the
- * wording: the offer, the customers, the cities, the tone and the switched-on facts in the buyer's language. For the
- * owner's own tools (`"owner"`) the goal as well. Cut to PROFILE_LINES_MAX_CHARS; the facts are cut last.
+ * The profile as prompt lines; nothing until the owner has finished the interview (what is saved on the way is not
+ * "confirmed" yet). `audience`:
+ *  - "buyer": a reply to a buyer: the offer, the customers, the cities, the tone and the switched-on facts, the facts in
+ *    the buyer's language;
+ *  - "caption": a public post: only what the page is about (type, offer, customers, tone), never the facts, the cities or the goal;
+ *  - "owner": the owner's own tools: the buyer lines and the goal.
+ * Cut to PROFILE_LINES_MAX_CHARS in one pass: the confirmed facts first, then the description in order of use.
  */
-export function profileLines(p: Profile | null, o: { lang: Lang; audience: "buyer" | "owner" }): string[] {
-  if (!p) return [];
+export function profileLines(p: Profile | null, o: { lang: Lang; audience: "buyer" | "caption" | "owner" }): string[] {
+  if (!p || !interviewDone(p)) return [];
+  const budget = PROFILE_LINES_MAX_CHARS;
+  const factLines: string[] = [];
+  if (o.audience !== "caption") {
+    const texts = p.facts.filter((f) => f.on).map((f) => factText(f, o.lang)).filter((t): t is string => !!t);
+    if (texts.length) {
+      factLines.push("The owner confirmed these facts; the shop may tell them to buyers:");
+      let used = factLines[0].length;
+      for (const t of texts) {
+        const line = `- ${t}`;
+        if (used + 1 + line.length > budget) break;
+        factLines.push(line);
+        used += 1 + line.length;
+      }
+      if (factLines.length === 1) factLines.length = 0;
+    }
+  }
   const cities = p.sellsTo.map((c) => CITIES.find((x) => x.code === c)?.en).filter(Boolean);
+  const candidates: string[] = [];
+  if (p.category) candidates.push(`Business type: ${CATEGORY_EN[p.category]}.`);
+  if (p.offerLine) candidates.push(`What they offer: ${p.offerLine}`);
+  if (p.customer.length) candidates.push(`Mainly for: ${p.customer.map((c) => CUSTOMER_EN[c]).join(", ")}.`);
+  if (p.tone) candidates.push(`Tone: ${TONE_EN[p.tone]}.`);
+  if (o.audience !== "caption" && cities.length && cities.length < 19) candidates.push(`Usually delivers to: ${cities.join(", ")}.`);
+  if (o.audience === "owner" && (p.goalText || p.goal)) candidates.push(`The owner's goal with Gituas: ${p.goalText ?? p.goal}.`);
   const head: string[] = [];
-  if (p.category) head.push(`Business type: ${CATEGORY_EN[p.category]}.`);
-  if (p.offerLine) head.push(`What they offer: ${p.offerLine}`);
-  if (p.customer.length) head.push(`Customers: ${p.customer.map((c) => CUSTOMER_EN[c]).join(", ")}.`);
-  if (cities.length && cities.length < 19) head.push(`Delivers to: ${cities.join(", ")}.`);
-  if (p.tone) head.push(`Tone: ${TONE_EN[p.tone]}.`);
-  if (o.audience === "owner" && (p.goalText || p.goal)) head.push(`The owner's goal with Gituas: ${p.goalText ?? p.goal}.`);
-  const facts = p.facts.filter((f) => f.on).map((f) => factText(f, o.lang)).filter((t): t is string => !!t);
-  const factLines = facts.length ? ["The owner confirmed these facts; the shop may tell them to buyers:", ...facts.map((t) => `- ${t}`)] : [];
-  const fit = (lines: string[]) => lines.join("\n").length <= PROFILE_LINES_MAX_CHARS;
-  let all = [...head, ...factLines];
-  // Cut the head lines from the end first, then the facts from the end.
-  while (!fit(all) && head.length) {
-    head.pop();
-    all = [...head, ...factLines];
+  let used = factLines.reduce((n, l) => n + l.length + 1, 0);
+  for (const l of candidates) {
+    if (used + l.length + 1 > budget) continue;
+    head.push(l);
+    used += l.length + 1;
   }
-  while (!fit(all) && factLines.length > 1) {
-    factLines.pop();
-    all = [...head, ...factLines];
-  }
-  return fit(all) ? all : [];
+  return [...head, ...factLines];
 }

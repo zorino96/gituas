@@ -453,10 +453,10 @@ export const en: Dict = {
     whereHint: "If you already set cities in automatic replies, they are ticked here.",
     factsQ: "What may Gituas tell buyers about payment and returns?",
     factsHint: "Only what you tick is said. No numbers or prices here: prices come from your products.",
-    payQ: "Payment",
+    payQ: "Payment and pickup",
     pay_cod: "Cash on delivery",
     pay_transfer: "Bank transfer or a mobile wallet",
-    pay_pickup: "Collect it yourself",
+    pay_pickup: "The buyer collects it",
     retQ: "Returns",
     ret_none: "No returns",
     ret_exchange: "Exchange if there is a problem",
@@ -488,6 +488,9 @@ export const en: Dict = {
     todayCta: "Start",
     progress: (n: number, total: number) => `${n} of ${total}`,
     saveFailed: (msg: string) => `Not saved: ${msg}`,
+    customRefused: "Not added: links, account names and phone numbers are not allowed.",
+    finishedNote: "You finished this before. Change any answer and press Finish at the end.",
+    editCta: "Change my answers",
   },
 
   home: {
@@ -875,6 +878,7 @@ export const en: Dict = {
     testMsgText: "Gituas test",
     handoffHint: "The link sent to customers, whose taps are counted:",
     passwordSec: "Password",
+    redeemSec: "Test code",
     accountSec: "Account",
     signedInAs: "Signed in as",
     signOut: "Sign out",
@@ -890,6 +894,21 @@ export const en: Dict = {
       saving: "Saving…",
       change: "Change password",
       add: "Add password",
+    },
+
+    /** The test-code card in Settings (a code the owner minted removes every limit). */
+    redeem: {
+      hint: "If you have a code, type it here. It removes every limit on this account so you can test it freely.",
+      label: "Code",
+      apply: "Activate",
+      applying: "Activating…",
+      done: "Activated. There are no limits on this account now.",
+      already: "This code is already active on this account.",
+      invalid: "The code is not valid, has expired, or has been used up.",
+      rate: "Too many tries. Try again tomorrow.",
+      failed: "That did not work. Try again.",
+      ownerOnly: "Only the account owner can enter a code.",
+      active: "Test code active: this account has no limits.",
     },
 
     colors: {

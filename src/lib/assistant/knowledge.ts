@@ -21,7 +21,7 @@ export interface KnowledgeFeatures {
   pictures: boolean;
 }
 
-const LABEL: Record<StorePlan, string> = { FREE: "Free", MERCHANT: "Merchant", PRO: "Pro", MAX: "Max" };
+const LABEL: Record<StorePlan, string> = { FREE: "Free", MERCHANT: "Merchant", PRO: "Pro", MAX: "Max", UNLIMITED: "Test (no limits)" };
 
 const iqd = (n: number) => `${n.toLocaleString("en-US")} IQD`;
 

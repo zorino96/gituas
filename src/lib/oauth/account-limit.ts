@@ -13,7 +13,7 @@ import { db } from "@/lib/db";
 const COUNTED: readonly string[] = ["META_FACEBOOK", "META_INSTAGRAM", "TIKTOK", "YOUTUBE"];
 
 /** Per platform, by the best plan among the workspace's stores. */
-export const SHOP_ACCOUNT_CAP: Record<string, number> = { FREE: 2, MERCHANT: 5, PRO: 15, MAX: 30 };
+export const SHOP_ACCOUNT_CAP: Record<string, number> = { FREE: 2, MERCHANT: 5, PRO: 15, MAX: 30, UNLIMITED: 100 };
 /** Per platform, by the newsroom's plan. */
 export const NEWS_ACCOUNT_CAP: Record<string, number> = { LITE: 2, MANUAL: 3, AUTO: 5, ENTERPRISE: 20 };
 

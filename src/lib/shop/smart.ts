@@ -82,6 +82,9 @@ export function numbersIn(s: string): string[] {
   return found.map((n) => n.replace(/[,.٫٬،]/g, ""));
 }
 
+/** The lines of the profile block the owner switched on as facts (the description lines never widen the guard). */
+const confirmedLines = (profile?: string[]): string[] => (profile ?? []).filter((l) => l.startsWith("- "));
+
 /** Every number the shop's facts and the owner's instructions already contain. */
 export function allowedNumbers(facts: SmartFacts, brief: string): Set<string> {
   const text = [
@@ -91,7 +94,7 @@ export function allowedNumbers(facts: SmartFacts, brief: string): Set<string> {
     ...(facts.asked ? [facts.asked.name, ...facts.asked.lines] : []),
     ...facts.catalog.flatMap((p) => [p.name, ...p.lines]),
     facts.ownerDm ?? "",
-    ...(facts.profile ?? []),
+    ...confirmedLines(facts.profile),
     brief,
   ].join("\n");
   return new Set(numbersIn(text));
@@ -99,7 +102,7 @@ export function allowedNumbers(facts: SmartFacts, brief: string): Set<string> {
 
 /** The words the facts and the owner's instructions use: a number word may only be said when it is among them. */
 export function allowedWords(facts: SmartFacts, brief: string): Set<string> {
-  const text = [facts.shop, facts.tagline ?? "", ...facts.delivery, facts.ownerDm ?? "", ...(facts.profile ?? []), brief, ...(facts.asked ? [facts.asked.name, ...facts.asked.lines] : []), ...facts.catalog.flatMap((p) => [p.name, ...p.lines])].join(" ");
+  const text = [facts.shop, facts.tagline ?? "", ...facts.delivery, facts.ownerDm ?? "", ...confirmedLines(facts.profile), brief, ...(facts.asked ? [facts.asked.name, ...facts.asked.lines] : []), ...facts.catalog.flatMap((p) => [p.name, ...p.lines])].join(" ");
   return new Set(wordsIn(text));
 }
 
@@ -162,7 +165,7 @@ Hard rules:
 - Every number you write must already appear in the facts or in the owner's instructions. Write prices exactly as in the facts. No phone numbers, no other links, no handles.
 - Follow the owner's instructions; they override your own style. If they say not to mention the price, do not.
 - Never pressure, insult or promise what you cannot keep, and never say you are an AI.
-- Understand before you answer. If you cannot tell what the buyer wants (words missing or garbled, or a voice note that speech recognition probably got wrong), do NOT guess: set clear to false and write one short, polite line asking them to say it again or type it.
+${i.facts.profile?.length ? `- The "About the business" block only describes the shop and its usual customers: it is never a reason to turn a buyer away or to promise anything. Something it does not say, or a city or customer type it does not name, means the team will confirm it (needsOwner true). Only the lines under "The owner confirmed these facts" may be stated as the shop's policy. The Delivery lines and the owner's instructions override it, tone included.\n` : ""}- Understand before you answer. If you cannot tell what the buyer wants (words missing or garbled, or a voice note that speech recognition probably got wrong), do NOT guess: set clear to false and write one short, polite line asking them to say it again or type it.
 Reply with one JSON object only: {"text": "<the reply>", "needsOwner": true | false, "clear": true | false}`;
 }
 

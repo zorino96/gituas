@@ -6,31 +6,31 @@ import { db } from "@/lib/db";
 import { Prisma } from "@/generated/prisma/client";
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
-import { profileEnabled, sanitizePatch } from "@/lib/shop/profile";
+import { mergeFacts, profileEnabled, sanitizePatch } from "@/lib/shop/profile-shared";
 import { currentWorkspace } from "@/app/app/data";
 
-export type SetupResult = { ok: true } | { ok: false; error: string };
+export type SetupResult = { ok: true; dropped?: string[] } | { ok: false; error: string };
 
-/** The signed-in workspace's own store, for roles that may configure; nothing at all while the interview is switched off. */
-async function ownedStore(storeId: string) {
+/** The signed-in shop workspace's own store, for roles that may configure; nothing at all while the interview is switched off. */
+async function ownedStore(storeId: unknown) {
   const [ws, t] = await Promise.all([currentWorkspace(), getLang().then(dict)]);
   if (!ws) return { error: t.actions.common.signIn } as const;
-  if (!can(ws.role, "configure")) return { error: t.nr.team.roles.notAllowed } as const;
-  if (!profileEnabled()) return { error: t.actions.common.signIn } as const;
+  if (ws.kind !== "MERCHANT" || !can(ws.role, "configure") || !profileEnabled()) return { error: t.nr.team.roles.notAllowed } as const;
+  if (typeof storeId !== "string" || !storeId) return { error: t.actions.automation.storeNotFound } as const;
   const store = await db.store.findFirst({ where: { id: storeId, tenantId: ws.id }, select: { id: true } });
   if (!store) return { error: t.actions.automation.storeNotFound } as const;
   return { store, t } as const;
 }
 
 const strs = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, 20) : []);
-
 /** Saves one screen of the interview: only the fields it sends, and where the owner got to. A skipped screen saves nothing else. */
 export async function saveProfileStepAction(storeId: string, patch: unknown, meta: { step: string; index: number; skipped: boolean }): Promise<SetupResult> {
   const r = await ownedStore(storeId);
   if (r.error !== undefined) return { ok: false, error: r.error };
+  const id = r.store.id;
   try {
-    const data = meta.skipped ? {} : sanitizePatch(patch);
-    const row = await db.businessProfile.findUnique({ where: { storeId }, select: { interview: true } });
+    const sent = meta.skipped ? {} : sanitizePatch(patch);
+    const row = await db.businessProfile.findUnique({ where: { storeId: id }, select: { interview: true, facts: true } });
     const iv = (row?.interview && typeof row.interview === "object" ? row.interview : {}) as Record<string, unknown>;
     const name = String(meta.step).slice(0, 20);
     const answered = new Set(strs(iv.answered));
@@ -43,14 +43,19 @@ export async function saveProfileStepAction(storeId: string, patch: unknown, met
       skipped.delete(name);
     }
     const interview = { ...iv, step: Math.max(0, Math.min(20, Math.trunc(Number(meta.index) + 1) || 0)), answered: [...answered], skipped: [...skipped] } as Prisma.InputJsonObject;
-    // Json columns need their own typing; everything else is already clean.
-    const { facts, ...rest } = data;
-    const fields = { ...rest, ...(facts ? { facts: facts as unknown as Prisma.InputJsonArray } : {}), interview };
-    await db.businessProfile.upsert({ where: { storeId }, create: { storeId, ...fields }, update: fields });
-    return { ok: true };
+    const { facts, ...rest } = sent;
+    const merged = facts ? mergeFacts(sanitizePatch({ facts: row?.facts }).facts ?? [], facts) : undefined;
+    const fields = { ...rest, ...(merged ? { facts: merged as unknown as Prisma.InputJsonArray } : {}), interview };
+    await db.businessProfile.upsert({ where: { storeId: id }, create: { storeId: id, ...fields }, update: fields });
+    // A typed fact the server refused (a link, a phone number, a fourth one) is reported, not dropped silently.
+    const asked = !meta.skipped && patch && typeof patch === "object" ? (patch as { facts?: unknown }).facts : undefined;
+    const dropped = Array.isArray(asked)
+      ? asked.filter((f): f is { k: string; v: string } => !!f && (f as { k?: unknown }).k === "custom" && typeof (f as { v?: unknown }).v === "string").map((f) => f.v).filter((v) => !merged?.some((m) => m.k === "custom" && m.v === v.trim()))
+      : [];
+    return { ok: true, dropped: dropped.length ? dropped.slice(0, 5) : undefined };
   } catch (e) {
     console.error("[setup] save failed:", e instanceof Error ? e.message.slice(0, 80) : "unknown error");
-    return { ok: false, error: r.t.actions.common.signIn };
+    return { ok: false, error: r.t.common.error };
   }
 }
 
@@ -58,17 +63,18 @@ export async function saveProfileStepAction(storeId: string, patch: unknown, met
 export async function finishInterviewAction(storeId: string, facts: unknown): Promise<SetupResult> {
   const r = await ownedStore(storeId);
   if (r.error !== undefined) return { ok: false, error: r.error };
+  const id = r.store.id;
   try {
     const clean = sanitizePatch({ facts }).facts ?? [];
-    const row = await db.businessProfile.findUnique({ where: { storeId }, select: { interview: true } });
+    const row = await db.businessProfile.findUnique({ where: { storeId: id }, select: { interview: true } });
     const iv = (row?.interview && typeof row.interview === "object" ? row.interview : {}) as Record<string, unknown>;
     const interview = { ...iv, doneAt: new Date().toISOString() } as Prisma.InputJsonObject;
     const fields = { facts: clean as unknown as Prisma.InputJsonArray, interview };
-    await db.businessProfile.upsert({ where: { storeId }, create: { storeId, ...fields }, update: fields });
+    await db.businessProfile.upsert({ where: { storeId: id }, create: { storeId: id, ...fields }, update: fields });
     revalidatePath("/app");
     return { ok: true };
   } catch (e) {
     console.error("[setup] finish failed:", e instanceof Error ? e.message.slice(0, 80) : "unknown error");
-    return { ok: false, error: r.t.actions.common.signIn };
+    return { ok: false, error: r.t.common.error };
   }
 }

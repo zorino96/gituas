@@ -10,6 +10,7 @@ import { disconnectAccountAction, saveWhatsAppAction } from "../actions";
 import { useT } from "@/lib/i18n/client";
 import { LanguageCard } from "./language-card";
 import { PasswordCard } from "./password-card";
+import { RedeemCard } from "./redeem-card";
 import { SetupTabs } from "./setup-tabs";
 
 interface Conn {
@@ -40,6 +41,8 @@ export function SettingsClient({
   account,
   desk = false,
   setupPending = false,
+  setupStores = [],
+  redeem = null,
 }: {
   account: { email: string | null; hasPassword: boolean };
   slug: string;
@@ -51,6 +54,10 @@ export function SettingsClient({
   desk?: boolean;
   /** The setup interview is on and not finished: a new connection goes on to it. */
   setupPending?: boolean;
+  /** The stores whose setup answers can be opened again (empty while the interview is off). */
+  setupStores?: { id: string; name: string }[];
+  /** The test-code card (null = not shown: only the owner sees it). */
+  redeem?: { unlimited: boolean } | null;
 }) {
   const base = useBase();
   const t = useT();
@@ -77,7 +84,7 @@ export function SettingsClient({
       /* ignore */
     }
   };
-  const connectHref = (provider: string) => `/api/oauth/${provider.toLowerCase()}/start?next=${base}/${setupPending && !desk ? "setup" : "settings"}${ack ? "&ack=1" : ""}`;
+  const connectHref = (provider: string) => `/api/oauth/${provider.toLowerCase()}/start?next=${base}/${setupPending && !desk && (provider === "META_FACEBOOK" || provider === "META_INSTAGRAM") ? "setup" : "settings"}${ack ? "&ack=1" : ""}`;
   const [raw, setRaw] = useState(whatsappNumber ? localForm(whatsappNumber) : "");
   const [saved, setSaved] = useState<string | null>(whatsappNumber);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -115,6 +122,19 @@ export function SettingsClient({
             <SetupTabs />
           </div>
         </>
+      )}
+
+      {setupStores.length > 0 && !desk && (
+        <div className="gm-card gm-stack">
+          <b className="kufi">{t.setup.todayTitle}</b>
+          <div className="gm-row" style={{ gap: 8, flexWrap: "wrap" }}>
+            {setupStores.map((st) => (
+              <Link key={st.id} href={`/app/setup?store=${st.id}`} className="gm-btn small quiet">
+                {setupStores.length > 1 && st.name ? `${st.name}: ` : ""}{t.setup.editCta}
+              </Link>
+            ))}
+          </div>
+        </div>
       )}
 
       <div className="gm-card">
@@ -235,6 +255,13 @@ export function SettingsClient({
         <>
           <p className="gm-sec">{s.passwordSec}</p>
           <PasswordCard email={account.email} hasPassword={account.hasPassword} />
+        </>
+      )}
+
+      {redeem && (
+        <>
+          <p className="gm-sec">{s.redeemSec}</p>
+          <RedeemCard unlimited={redeem.unlimited} />
         </>
       )}
 

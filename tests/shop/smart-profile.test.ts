@@ -13,17 +13,19 @@ describe("the owner's profile in a smart reply", () => {
     expect(withProfile).toContain("Business type: beauty and care.");
   });
 
-  it("lets a number the owner typed into a fact be said, and no other", () => {
-    const f: SmartFacts = { ...facts, profile: ["What they offer: 24 hour service", "- Exchange within 7 days"] };
+  it("lets a number in a confirmed fact be said, but never one from the description lines", () => {
+    const f: SmartFacts = { ...facts, profile: ["What they offer: 24 hour service from 15000", "- Exchange within 7 days"] };
     const nums = allowedNumbers(f, "");
-    expect(nums.has("24")).toBe(true);
     expect(nums.has("7")).toBe(true);
+    expect(nums.has("24")).toBe(false);
+    expect(nums.has("15000")).toBe(false);
     expect(nums.has("5000")).toBe(false);
   });
 
   it("lets the words the owner used be said, so a correct reply is not thrown away", () => {
     const f: SmartFacts = { ...facts, profile: ["- Money back within seven days"] };
     expect(allowedWords(f, "").has("seven")).toBe(true);
+    expect(allowedWords({ ...facts, profile: ["What they offer: seven day service"] }, "").has("seven")).toBe(false);
     expect(allowedWords(facts, "").has("seven")).toBe(false);
   });
 });

@@ -3,10 +3,10 @@
 import { DAILY_ANALYSES } from "@/lib/boost/cache";
 import { maxPlanOpen, SHOP_PRICES } from "@/lib/billing/prices";
 import { SHOP_ACCOUNT_CAP } from "@/lib/oauth/account-limit";
-import { SHOP_LIMITS, type StorePlan } from "@/lib/shop/plans";
+import { SHOP_LIMITS, type SoldPlan } from "@/lib/shop/plans";
 
 export interface PlanRow {
-  plan: StorePlan;
+  plan: SoldPlan;
   price: number;
   /** null = every post. */
   posts: number | null;
@@ -22,7 +22,7 @@ export interface PlanRow {
 
 /** Free, Merchant and Pro always; Max only while it is on sale. */
 export function planRows(): PlanRow[] {
-  const plans: StorePlan[] = ["FREE", "MERCHANT", "PRO", ...(maxPlanOpen() ? (["MAX"] as const) : [])];
+  const plans: SoldPlan[] = ["FREE", "MERCHANT", "PRO", ...(maxPlanOpen() ? (["MAX"] as const) : [])];
   return plans.map((plan) => {
     const l = SHOP_LIMITS[plan];
     return {

@@ -15,7 +15,7 @@ const ALLOWED = ["image/jpeg", "image/png", "image/webp", "video/mp4", "video/qu
 const MAX_BYTES = 250 * 1024 * 1024;
 /** What a workspace that pays nothing may put on our storage: fewer, smaller files (it only needs them for its own posts). */
 const FREE_MAX_BYTES = 40 * 1024 * 1024;
-const FILES_PER_DAY = { free: 20, paid: 100 };
+const FILES_PER_DAY = { free: 20, paid: 100, unlimited: 2000 };
 
 /** A newsroom desk with a plan that is running (not a trial, not frozen). */
 async function newsDeskPays(tenantId: string): Promise<boolean> {
@@ -45,8 +45,11 @@ export async function POST(req: Request): Promise<NextResponse> {
         if (!ws) throw new Error("Not signed in");
         if (!pathname.startsWith(`merchant/${ws.id}/`) || pathname.includes("..")) throw new Error("Invalid path");
         // Storage is not free and nothing deletes a file: a count a day and a size by plan, for every kind of upload.
-        const paid = ws.kind === "MERCHANT" ? (await limitsOf(ws.id)).aiUsd > SHOP_LIMITS.FREE.aiUsd : await newsDeskPays(ws.id);
-        const today = await takeDaily(ws.id, "upload_day", 1, paid ? FILES_PER_DAY.paid : FILES_PER_DAY.free);
+        const shopAi = ws.kind === "MERCHANT" ? (await limitsOf(ws.id)).aiUsd : 0;
+        const paid = ws.kind === "MERCHANT" ? shopAi > SHOP_LIMITS.FREE.aiUsd : await newsDeskPays(ws.id);
+        // A workspace with a test code (its shops are UNLIMITED) has a far higher number of files a day.
+        const cap = shopAi >= SHOP_LIMITS.UNLIMITED.aiUsd ? FILES_PER_DAY.unlimited : paid ? FILES_PER_DAY.paid : FILES_PER_DAY.free;
+        const today = await takeDaily(ws.id, "upload_day", 1, cap);
         if (today < 1) throw new Error("Too many uploads today");
         // Reference pictures and clips for AI video ads end up inside ads that may be posted by themselves: only people who
         // can publish may add them, only to a store of this workspace, and each kind has its own types and size.

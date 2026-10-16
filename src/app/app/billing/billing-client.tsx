@@ -141,7 +141,7 @@ export function BillingClient({ product, configured, env, result, targets, invoi
             <div className="gm-grid lg">
               {PLANS[product].map((plan) => {
                 const price = priceFor(product, plan);
-                if (price == null || hiddenPlans.includes(plan)) return null;
+                if (price == null || hiddenPlans.includes(plan) || t.plan === "UNLIMITED") return null;
                 const name = planLabel(plan, lang);
                 const amount = formatMoney(price, "IQD", lang);
                 const current = t.plan === plan;

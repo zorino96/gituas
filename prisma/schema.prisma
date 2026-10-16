@@ -396,6 +396,8 @@ model Tenant {
   ownerId               String
   plan                  TenantPlan        @default(MANUAL)
   onboardingDismissedAt DateTime?
+  /// A code the owner minted was redeemed on this workspace: every store of it (and every store connected later) is on UNLIMITED.
+  unlimited             Boolean           @default(false)
   aiDailyCap            Int?
   stripeCustomerId      String?           @unique
   stripeSubscriptionId  String?           @unique
@@ -1048,6 +1050,8 @@ enum StorePlan {
   PRO
   /// The Max plan: Claude Opus for replies, analysis and videos. Added with gituas-private/apply-max-plan.cjs.
   MAX
+  /// Never sold: set only by redeeming a code the owner minted (RedeemCode); very large limits for testing accounts.
+  UNLIMITED
 }
 
 enum OutboxKind {
@@ -1101,6 +1105,37 @@ model BusinessProfile {
   interview Json     @default("{}")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// A code the owner mints (gituas-private/mint-code.cjs) to lift the limits of one test account. Only a hash is kept; the
+/// code itself is shown once, to the owner, when it is made.
+model RedeemCode {
+  id        String       @id @default(cuid())
+  /// sha256 of the normalised code.
+  codeHash  String       @unique
+  /// What it does: UNLIMITED (the only kind so far).
+  kind      String       @default("UNLIMITED")
+  /// How many workspaces may redeem it, and how many did.
+  maxUses   Int          @default(1)
+  uses      Int          @default(0)
+  expiresAt DateTime?
+  /// The owner's own note ("test shop 2").
+  note      String?
+  revokedAt DateTime?
+  createdAt DateTime     @default(now())
+  redemptions Redemption[]
+}
+
+model Redemption {
+  id        String     @id @default(cuid())
+  codeId    String
+  code      RedeemCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  tenantId  String
+  userId    String
+  createdAt DateTime   @default(now())
+
+  @@unique([codeId, tenantId])
+  @@index([tenantId])
 }
 
 model Store {

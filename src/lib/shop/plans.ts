@@ -1,6 +1,9 @@
-export type StorePlan = "FREE" | "MERCHANT" | "PRO" | "MAX";
+/** UNLIMITED is never sold or listed: a code the owner minted puts a test account on it (src/lib/shop/redeem.ts). */
+export type StorePlan = "FREE" | "MERCHANT" | "PRO" | "MAX" | "UNLIMITED";
 
-export const STORE_PLANS: readonly StorePlan[] = ["FREE", "MERCHANT", "PRO", "MAX"];
+/** The plans on sale, in order (everything that lists or prices plans uses this, so UNLIMITED never shows). */
+export type SoldPlan = Exclude<StorePlan, "UNLIMITED">;
+export const STORE_PLANS: readonly SoldPlan[] = ["FREE", "MERCHANT", "PRO", "MAX"];
 
 export interface ShopLimits {
   /** How many of the newest posts are automated; null means all. */
@@ -41,7 +44,14 @@ export const SHOP_LIMITS: Record<StorePlan, ShopLimits> = {
   MERCHANT: { posts: 25, repliesPerDay: 1000, aiVaryPerMonth: 150, smartPerMonth: 400, voiceNotesPerDay: 4, aiUsd: 1.25, aiOpusUsd: 0, videosPerMonth: 16, imagesPerMonth: 6 },
   PRO: { posts: null, repliesPerDay: 5000, aiVaryPerMonth: 300, smartPerMonth: 800, voiceNotesPerDay: 8, aiUsd: 2, aiOpusUsd: 0, videosPerMonth: 24, imagesPerMonth: 12 },
   MAX: { posts: null, repliesPerDay: 5000, aiVaryPerMonth: 1000, smartPerMonth: 1500, voiceNotesPerDay: 12, aiUsd: 7.5, aiOpusUsd: 5, videosPerMonth: VIDEOS_PER_DAY * 30, imagesPerMonth: 30 },
+  // Test accounts: no limit anyone would meet while testing. The AI figures are a safety ceiling against a runaway loop, not a plan:
+  // $100 a month in all, $60 of it on Opus, per workspace.
+  UNLIMITED: { posts: null, repliesPerDay: 100_000, aiVaryPerMonth: 100_000, smartPerMonth: 100_000, voiceNotesPerDay: 2_000, aiUsd: 100, aiOpusUsd: 60, videosPerMonth: 3_000, imagesPerMonth: 3_000 },
 };
+
+/** Videos and AI pictures a day for a store of this plan (the same two numbers for every sold plan). */
+export const videosPerDayOf = (plan: StorePlan): number => (plan === "UNLIMITED" ? 500 : VIDEOS_PER_DAY);
+export const imagesPerDayOf = (plan: StorePlan, monthly: number): number => (plan === "UNLIMITED" ? 500 : monthly > 0 ? IMAGES_PER_DAY : 0);
 
 export function isStorePlan(v: unknown): v is StorePlan {
   return typeof v === "string" && Object.hasOwn(SHOP_LIMITS, v);
@@ -81,14 +91,22 @@ export function tenantLimits(plans: readonly StorePlan[]): TenantLimits {
   // A workspace with no shop has nothing to spend the free allowance on.
   const counted: StorePlan[] = paid.length ? paid : plans.length ? ["FREE"] : [];
   const out: TenantLimits = { aiUsd: 0, aiOpusUsd: 0, videos: { LITE: 0, PRO: 0 }, videosPerDay: 0, images: 0, imagesPerDay: 0 };
+  let testSeen = false;
   for (const p of counted) {
+    // A test workspace counts once however many shops it has, so the AI ceiling is per workspace, not per shop.
+    if (p === "UNLIMITED") {
+      if (testSeen) continue;
+      testSeen = true;
+    }
     const l = SHOP_LIMITS[p];
     out.aiUsd += l.aiUsd;
     out.aiOpusUsd += l.aiOpusUsd;
+    // Both kinds of video are open to a test account.
+    if (p === "UNLIMITED") out.videos.LITE += l.videosPerMonth;
     out.videos[planUsesOpus(p) ? "PRO" : "LITE"] += l.videosPerMonth;
-    out.videosPerDay += VIDEOS_PER_DAY;
+    out.videosPerDay += videosPerDayOf(p);
     out.images += l.imagesPerMonth;
-    out.imagesPerDay += l.imagesPerMonth > 0 ? IMAGES_PER_DAY : 0;
+    out.imagesPerDay += imagesPerDayOf(p, l.imagesPerMonth);
   }
   return out;
 }

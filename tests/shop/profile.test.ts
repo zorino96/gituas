@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { factText, PROFILE_LINES_MAX_CHARS, profileEnabled, profileLines, sanitizePatch, type Profile } from "@/lib/shop/profile";
+import { factText, hasLinkOrPhone, mergeFacts, PROFILE_LINES_MAX_CHARS, profileEnabled, profileLines, sanitizePatch, type Profile } from "@/lib/shop/profile-shared";
 
 const base: Profile = {
   storeId: "s1",
@@ -16,7 +16,7 @@ const base: Profile = {
     { k: "payment", v: "cod", on: true },
     { k: "returns", v: "exchange", on: false },
   ],
-  interview: { step: 0, answered: [], skipped: [] },
+  interview: { step: 0, answered: [], skipped: [], doneAt: "2026-10-16T10:00:00.000Z" },
 };
 
 afterEach(() => {
@@ -70,11 +70,16 @@ describe("facts in the buyer's language", () => {
 });
 
 describe("profileLines", () => {
+  it("says nothing until the owner has finished the interview", () => {
+    expect(profileLines({ ...base, interview: { step: 3, answered: [], skipped: [] } }, { lang: "ckb", audience: "buyer" })).toEqual([]);
+  });
+
   it("is empty without a profile and says only switched-on facts", () => {
     expect(profileLines(null, { lang: "ckb", audience: "buyer" })).toEqual([]);
     const text = profileLines(base, { lang: "ckb", audience: "buyer" }).join("\n");
     expect(text).toContain("clothes and fashion");
     expect(text).toContain("Erbil, Duhok");
+    expect(text).toContain("Usually delivers to");
     expect(text).toContain("پارەدان لە کاتی گەیاندندا");
     expect(text).not.toContain("دەگۆڕدرێتەوە");
     expect(text).not.toContain("goal");
@@ -84,6 +89,15 @@ describe("profileLines", () => {
     const p = { ...base, goalText: "ببمە بەناوبانگ" };
     expect(profileLines(p, { lang: "ckb", audience: "owner" }).join("\n")).toContain("ببمە بەناوبانگ");
     expect(profileLines(p, { lang: "ckb", audience: "buyer" }).join("\n")).not.toContain("ببمە بەناوبانگ");
+  });
+
+  it("tells a public caption only what the page is about, never the facts, cities or goal", () => {
+    const p = { ...base, goalText: "ببمە بەناوبانگ" };
+    const text = profileLines(p, { lang: "ckb", audience: "caption" }).join("\n");
+    expect(text).toContain("clothes and fashion");
+    expect(text).not.toContain("پارەدان");
+    expect(text).not.toContain("Erbil");
+    expect(text).not.toContain("ببمە بەناوبانگ");
   });
 
   it("stays under the cap, cutting the description before the facts", () => {
@@ -99,5 +113,45 @@ describe("the switch", () => {
     expect(profileEnabled()).toBe(false);
     process.env.BUSINESS_PROFILE_ENABLED = "1";
     expect(profileEnabled()).toBe(true);
+  });
+});
+
+describe("hardening", () => {
+  it("finds a phone number or link however it is written", () => {
+    for (const t of ["0750.123.4567", "0750/123/4567", "0750,123,4567", "٠٧٥٠ ١٢٣ ٤٥٦٧", "07​750123456", "https://x.com/a", "shop.iq", "@my_shop"]) expect(hasLinkOrPhone(t), t).toBe(true);
+    for (const t of ["جلی ژنانەی ئەوروپی", "24 hour service", "ئەگەر کێشەی هەبوو دەگۆڕدرێتەوە"]) expect(hasLinkOrPhone(t), t).toBe(false);
+  });
+
+  it("refuses a phone or link in the offer line and the goal, not only in typed facts", () => {
+    expect(sanitizePatch({ offerLine: "پەیوەندی 07701234567" }).offerLine).toBeNull();
+    expect(sanitizePatch({ goalText: "www.example.com" }).goalText).toBeNull();
+  });
+
+  it("keeps ten thousand duplicate facts to a handful, quickly", () => {
+    const facts = Array.from({ length: 10_000 }, (_, i) => ({ k: i % 2 ? "payment" : "returns", v: i % 2 ? "cod" : "none", on: true }));
+    const t0 = Date.now();
+    const out = sanitizePatch({ facts }).facts!;
+    expect(out.length).toBeLessThanOrEqual(9);
+    expect(out.filter((f) => f.k === "returns").length).toBe(1);
+    expect(Date.now() - t0).toBeLessThan(200);
+    const lines = profileLines({ ...base, facts: Array.from({ length: 9 }, (_, i) => ({ k: "custom" as const, v: "ا".repeat(160) + i, on: true })) }, { lang: "ckb", audience: "buyer" });
+    expect(lines.join("\n").length).toBeLessThanOrEqual(PROFILE_LINES_MAX_CHARS);
+  });
+
+  it("keeps one returns rule", () => {
+    const out = sanitizePatch({ facts: [{ k: "returns", v: "none", on: true }, { k: "returns", v: "refund", on: true }] }).facts!;
+    expect(out).toEqual([{ k: "returns", v: "none", on: true }]);
+  });
+
+  it("invisible characters cannot hide a link", () => {
+    expect(sanitizePatch({ offerLine: "www​.example⁠.com" }).offerLine).toBeNull();
+  });
+});
+
+describe("mergeFacts", () => {
+  it("keeps what was confirmed, stores new ones off, drops removed ones, ignores the client's flags", () => {
+    const previous = [{ k: "payment" as const, v: "cod", on: true }, { k: "returns" as const, v: "none", on: false }];
+    const incoming = [{ k: "payment" as const, v: "cod", on: false }, { k: "payment" as const, v: "pickup", on: true }];
+    expect(mergeFacts(previous, incoming)).toEqual([{ k: "payment", v: "cod", on: true }, { k: "payment", v: "pickup", on: false }]);
   });
 });

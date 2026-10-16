@@ -7,7 +7,7 @@ import { imageEnabled } from "@/lib/ai/image";
 import { imagesLeft } from "@/lib/ai/image-left";
 import { allowanceOf, OPTIONAL_SHARE } from "@/lib/ai/meter";
 import { db } from "@/lib/db";
-import { interviewDone, loadProfile, profileEnabled } from "@/lib/shop/profile";
+import { interviewDone, loadProfiles, profileEnabled, type Profile } from "@/lib/shop/profile";
 
 export interface AssistantConnections {
   facebook: { connected: boolean; name?: string };
@@ -17,6 +17,20 @@ export interface AssistantConnections {
 }
 
 const DAY = 86_400_000;
+
+/** What the assistant may read of a store's profile: short values in the owner's own words, no buyer data. */
+function businessOf(p: Profile | null) {
+  if (!p) return undefined;
+  const short = (v: string | null) => (v ? Array.from(v).slice(0, 80).join("") : undefined);
+  return {
+    goal: short(p.goalText ?? p.goal),
+    kind: p.category ?? undefined,
+    offer: short(p.offerLine),
+    customers: p.customer.length ? p.customer : undefined,
+    deliversTo: p.sellsTo.length ? (p.sellsTo.length >= 19 ? "everywhere" : `${p.sellsTo.length} cities`) : undefined,
+    tone: p.tone ?? undefined,
+  };
+}
 
 /** A compact JSON-able picture of the account. */
 export async function loadAssistantState(tenantId: string, connections: AssistantConnections, now = Date.now()) {
@@ -42,7 +56,7 @@ export async function loadAssistantState(tenantId: string, connections: Assistan
   });
   const video = adVideoEnabled();
   // What each owner told Gituas about their work (only while the interview is switched on); their own words, no buyer data.
-  const profiles = profileEnabled() ? await Promise.all(stores.map((s) => loadProfile(s.id))) : null;
+  const profiles = profileEnabled() ? await loadProfiles(stores.map((s) => s.id)) : null;
   const [allowance, videos, images, waiting, products] = await Promise.all([
     allowanceOf({ scope: tenantId }).catch(() => null),
     video ? workspaceVideos(tenantId).catch(() => null) : null,
@@ -53,7 +67,7 @@ export async function loadAssistantState(tenantId: string, connections: Assistan
   ]);
   return {
     today: new Date(now).toISOString().slice(0, 10),
-    shops: stores.map((s, i) => {
+    shops: stores.map((s) => {
       const lapsed = s.plan !== "FREE" && !!s.planPaidUntil && s.planPaidUntil.getTime() < now;
       return {
         name: s.name || (s.igUsername ? `@${s.igUsername}` : "(no name)"),
@@ -69,17 +83,8 @@ export async function loadAssistantState(tenantId: string, connections: Assistan
         autoPosts: s.autoMode,
         autoPostsPerDay: s.autoPerDay,
         dailyVideo: video ? s.videoAutoMode : undefined,
-        setupInterview: profiles ? (interviewDone(profiles[i]) ? "done" : "not done yet") : undefined,
-        business: profiles?.[i]
-          ? {
-              goal: profiles[i]!.goalText ?? profiles[i]!.goal ?? undefined,
-              kind: profiles[i]!.category ?? undefined,
-              offer: profiles[i]!.offerLine ?? undefined,
-              customers: profiles[i]!.customer.length ? profiles[i]!.customer : undefined,
-              deliversTo: profiles[i]!.sellsTo.length ? profiles[i]!.sellsTo : undefined,
-              tone: profiles[i]!.tone ?? undefined,
-            }
-          : undefined,
+        setupInterview: profiles ? (interviewDone(profiles.get(s.id) ?? null) ? "done" : "not done yet") : undefined,
+        business: businessOf(profiles?.get(s.id) ?? null),
       };
     }),
     connectedAccounts: connections,

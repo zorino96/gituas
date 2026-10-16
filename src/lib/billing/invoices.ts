@@ -29,6 +29,8 @@ export async function startCheckout(i: {
   if (i.product === "SHOP") {
     const store = i.storeId ? await db.store.findFirst({ where: { id: i.storeId, tenantId: i.tenantId }, select: { id: true, plan: true } }) : null;
     if (!store) return { ok: false, error: "دووکانەکە نەدۆزرایەوە." };
+    // A shop with a test code has no limits: nothing to buy, and a payment must never replace that plan.
+    if (store.plan === "UNLIMITED") return { ok: false, error: "ئەم دووکانە بێ سنوورە و پێویستی بە پارەدان نییە." };
     currentPlan = store.plan;
   }
   const amount = checkoutPrice(i.product, i.plan, currentPlan);

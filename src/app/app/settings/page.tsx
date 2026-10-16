@@ -2,7 +2,9 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { dict, getLang } from "@/lib/i18n";
 import { currentWorkspace, loadAccountLists, loadConnections, requireWorkspace } from "../data";
+import { can } from "@/lib/newsroom/roles";
 import { profileEnabled } from "@/lib/shop/profile";
+import { isUnlimited } from "@/lib/shop/redeem";
 import { SettingsClient } from "./settings-client";
 
 export default async function SettingsPage({
@@ -20,18 +22,24 @@ export default async function SettingsPage({
     db.user.findUnique({ where: { id: session!.user!.id! }, select: { email: true, passwordHash: true } }),
   ]);
 
-  // The interview follows the first connection while it is switched on and no store has finished it.
-  const setupPending =
+  // The setup interview (only while it is switched on): the FIRST Facebook or Instagram connection of a shop workspace goes on to it,
+  // and every store can be reopened from here to change its answers.
+  const setupStores =
     profileEnabled() && ws.kind === "MERCHANT"
       ? await db.store
-          .findMany({ where: { tenantId: ws.id }, select: { profile: { select: { interview: true } } } })
-          .then((rows) => !rows.some((r) => !!(r.profile?.interview as { doneAt?: string } | undefined)?.doneAt))
-          .catch(() => false)
-      : false;
+          .findMany({ where: { tenantId: ws.id }, orderBy: { createdAt: "asc" }, take: 15, select: { id: true, name: true, igUsername: true } })
+          .catch(() => [])
+      : [];
+  const setupPending = profileEnabled() && ws.kind === "MERCHANT" && setupStores.length === 0;
+
+  // The test-code card is for the workspace owner only.
+  const redeem = can(ws.role, "team") ? { unlimited: await isUnlimited(ws.id) } : null;
 
   return (
     <SettingsClient
+      redeem={redeem}
       setupPending={setupPending}
+      setupStores={setupStores.map((s) => ({ id: s.id, name: s.name || (s.igUsername ? `@${s.igUsername}` : "") }))}
       slug={ws.slug}
       whatsappNumber={ws.whatsappNumber}
       connected={sp.connected}

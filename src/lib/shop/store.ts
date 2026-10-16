@@ -28,7 +28,7 @@ export function slotToClear(platform: MetaPlatform): { fbPageId: null } | { igUs
  * flow; the caller catches.
  */
 export async function connectStore(tenantId: string, platform: MetaPlatform, accountId: string, accountName: string): Promise<string | null> {
-  const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { kind: true } });
+  const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { kind: true, unlimited: true } });
   if (tenant?.kind !== "MERCHANT") return null;
 
   const slot = platform === "META_FACEBOOK" ? { fbPageId: accountId } : { igUserId: accountId };
@@ -45,9 +45,13 @@ export async function connectStore(tenantId: string, platform: MetaPlatform, acc
     const target = pickStoreForAccount(stores, platform);
     store = target
       ? await db.store.update({ where: { id: target }, data: { ...slot, ...extra }, select: { id: true, tenantId: true, fbPageId: true, igUserId: true } })
-      : await db.store.create({ data: { tenantId, name: accountName, ...slot, ...extra }, select: { id: true, tenantId: true, fbPageId: true, igUserId: true } });
+      : await db.store.create({
+          // A workspace that redeemed a test code keeps having no limits: its new shops are born UNLIMITED.
+          data: { tenantId, name: accountName, ...slot, ...extra, ...(tenant.unlimited ? { plan: "UNLIMITED" as const } : {}) },
+          select: { id: true, tenantId: true, fbPageId: true, igUserId: true },
+        });
     // A brand-new shop may get the launch offer (the first three new shops: Pro free for a week).
-    if (!target) await claimLaunchPromo(tenantId, store.id);
+    if (!target && !tenant.unlimited) await claimLaunchPromo(tenantId, store.id);
   }
   await db.store.update({ where: { id: store.id }, data: { pausedReason: null, ...extra } });
 

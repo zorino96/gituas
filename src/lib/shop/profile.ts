@@ -28,6 +28,19 @@ function fromRow(row: {
   };
 }
 
+/** The profiles of several stores in one query, by store id (a store with none is missing). Never throws; empty when off. */
+export async function loadProfiles(storeIds: string[]): Promise<Map<string, Profile>> {
+  const out = new Map<string, Profile>();
+  if (!profileEnabled() || !storeIds.length) return out;
+  try {
+    const rows = await db.businessProfile.findMany({ where: { storeId: { in: storeIds.slice(0, 50) } } });
+    for (const r of rows) out.set(r.storeId, fromRow(r));
+  } catch (e) {
+    console.error("[profile] read failed:", e instanceof Error ? e.message.slice(0, 80) : "unknown error");
+  }
+  return out;
+}
+
 /** The store's profile, or null: the switch is off, nothing was answered yet, or the table cannot be read. Never throws. */
 export async function loadProfile(storeId: string): Promise<Profile | null> {
   if (!profileEnabled()) return null;

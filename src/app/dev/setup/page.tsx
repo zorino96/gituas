@@ -26,13 +26,14 @@ export default async function DevSetupPage({ searchParams }: { searchParams: Pro
               offerLine: "",
               customer: ["women"],
               sellsTo: ["erbil"],
-              language: "ckb",
+              language: null,
               tone: null,
               facts: [
                 { k: "payment", v: "cod", on: true },
                 { k: "returns", v: "exchange", on: true },
               ],
               finished: false,
+              confirmedBefore: [],
             }}
           />
         </div>

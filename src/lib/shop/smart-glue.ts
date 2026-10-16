@@ -112,8 +112,9 @@ export async function smartTry(ctx: SmartContext): Promise<SmartOutput | null> {
   if ((await smartUsed(store.id)) >= SHOP_LIMITS[plan].smartPerMonth) return null;
   try {
     const kit = await db.brandKit.findUnique({ where: { tenantId: store.tenantId }, select: { tagline: true, deliveryNote: true } });
-    // What the owner told Gituas about the work; none (and no extra cost) when the interview is off or not done.
-    const biz = await loadProfile(store.id);
+    // What the owner told Gituas about the work, once they have finished the interview (the lines are empty before). A public
+    // reply is 140 characters with no numbers and cannot use it, so it neither reads nor pays for it.
+    const biz = ctx.kind === "public" ? null : await loadProfile(store.id);
     const facts: SmartFacts = {
       shop: store.name.trim() || "the shop",
       tagline: kit?.tagline?.trim() || null,
