@@ -105,7 +105,10 @@ export async function completeJson<T = unknown>(
       try {
         const result = await routerJson(call, timeout);
         const data = validate(result.data);
-        if (data !== null) return { data, model: result.model };
+        if (data !== null) {
+          console.info("[router] answered:", result.model);
+          return { data, model: result.model };
+        }
         console.error("[router] reply did not fit; kurd.gg takes over");
       } catch (e) {
         noteRouterFailure(e);
