@@ -128,7 +128,7 @@ export async function judgeFocus(tenantId: string): Promise<number> {
         let data: (boolean | null)[] = b.map(() => null);
         try {
           const { system, user } = focusPrompt(f, b);
-          data = (await completeJson({ system, user, strength: "fast", thinking: false }, (d) => parseFocus(d, b.length))).data;
+          data = (await completeJson({ system, user, strength: "fast", thinking: false, free: "light" }, (d) => parseFocus(d, b.length))).data;
         } catch (e) {
           console.error("[news] focus failed:", e instanceof Error ? e.message : "unknown error");
         }

@@ -123,6 +123,7 @@ Reply with JSON only: {"say":"..."}`,
         user: `<<<\n${say}\n>>>`,
         strength: "fast",
         thinking: false,
+        free: "draft",
       },
       (d) => {
         const s = (d as { say?: unknown })?.say;
@@ -180,6 +181,7 @@ Reply with JSON only: {"keep":true} when the story fits the rule, else {"keep":f
         user: `RULE: """${prompt}"""\n\nSTORY: ${story.title}${story.snippet ? ` — ${story.snippet.slice(0, 200)}` : ""}`,
         strength: "fast",
         thinking: false,
+        free: "light",
       },
       (d) => (typeof (d as { keep?: unknown })?.keep === "boolean" ? (d as { keep: boolean }) : null),
     );
@@ -273,7 +275,7 @@ export async function prepareVideo(jobId: string): Promise<boolean> {
     ]);
     if (!draft || !item || !tenant) throw new Error("draft or story missing");
     const { system, user } = reelPrompt(draft);
-    const script = (await completeJson({ system, user, strength: "fast", thinking: false }, parseReelScript)).data;
+    const script = (await completeJson({ system, user, strength: "fast", thinking: false, free: "draft" }, parseReelScript)).data;
 
     // The desk's own voice (ENTERPRISE): read once per video; without it a ready-made voice reads.
     const clone = job.voice === CUSTOM_VOICE ? await cloneVoiceFor(job.tenantId) : null;

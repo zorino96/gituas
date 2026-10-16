@@ -31,7 +31,7 @@ export async function aiPictureForStory(tenantId: string, story: { title: string
   let sent = false;
   try {
     const { data } = await completeJson<string>(
-      { system: SCENE_SYSTEM, user: `${story.title}${story.snippet ? ` — ${story.snippet.slice(0, 300)}` : ""}`, strength: "fast", thinking: false, budgetMs: Math.min(15_000, budgetMs - 10_000) },
+      { system: SCENE_SYSTEM, user: `${story.title}${story.snippet ? ` — ${story.snippet.slice(0, 300)}` : ""}`, strength: "fast", thinking: false, free: "light", budgetMs: Math.min(15_000, budgetMs - 10_000) },
       (d) => {
         const s = (d as { scene?: unknown } | null)?.scene;
         return typeof s === "string" && s.trim().length > 5 && s.length < 400 ? s.trim() : null;

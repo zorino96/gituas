@@ -127,7 +127,7 @@ export async function draftFor(
   opts?: DraftOptions,
 ): Promise<{ draft: Draft; model: string }> {
   const { data, model } = await completeJson<Draft>(
-    { system: buildSystemPrompt(opts), user: buildUserPrompt(item, feedback, opts?.avoid), strength },
+    { system: buildSystemPrompt(opts), user: buildUserPrompt(item, feedback, opts?.avoid), strength, free: "draft" },
     validateDraft,
   );
   return { draft: data, model };

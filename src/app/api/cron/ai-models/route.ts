@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { completeJson } from "@/lib/ai/provider";
 import { kurdggConfigured, kurdggJson } from "@/lib/ai/kurdgg";
+import { routerConfigured, routerJson, routerScope } from "@/lib/ai/router";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,6 +63,20 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: true, model: r.model, ms: Date.now() - started, data: r.data });
     } catch (e) {
       return NextResponse.json({ ok: false, ms: Date.now() - started, error: e instanceof Error ? `${e.name}: ${e.message}` : "failed" });
+    }
+  }
+  // ?test=router: the same Sorani request to the free router alone, with its status when it fails.
+  if (new URL(req.url).searchParams.get("test") === "router") {
+    const started = Date.now();
+    if (!routerConfigured()) return NextResponse.json({ ok: false, error: "ROUTER_BASE_URL, ROUTER_API_KEY or ROUTER_MODEL is not set (or ROUTER_ENABLED=0)", scope: routerScope() });
+    try {
+      const r = await routerJson(
+        { system: 'Reply with JSON only: {"text": "<one sentence>"}', user: "بە کوردیی سۆرانی ڕستەیەکی کورت بنووسە دەربارەی کەشی هەولێر لە پاییزدا.", strength: "fast" },
+        25_000,
+      );
+      return NextResponse.json({ ok: true, model: r.model, ms: Date.now() - started, scope: routerScope(), data: r.data });
+    } catch (e) {
+      return NextResponse.json({ ok: false, ms: Date.now() - started, scope: routerScope(), error: e instanceof Error ? `${e.name}: ${e.message}` : "failed" });
     }
   }
   // ?test=1: one short Sorani request through the whole chain, to see which model answers.

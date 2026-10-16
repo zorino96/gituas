@@ -6,6 +6,7 @@
 // AiUnavailable, and the feature's own fallback (fixed templates, plain rules) takes over.
 import { kurdggConfigured, kurdggJson, KurdggReplyError, MIN_MAX_TOKENS } from "./kurdgg";
 import { chooseTier, recordSpend, type Meter } from "./meter";
+import { noteRouterFailure, routerAllows, routerJson } from "./router";
 import { estimateTokens, type AiTier } from "./models";
 
 export type { Meter } from "./meter";
@@ -37,6 +38,12 @@ export interface JsonCall {
   essential?: boolean;
   /** The longest answer to accept, in tokens. Every use case should set it: a runaway reply costs money. */
   maxTokens?: number;
+  /**
+   * May go to the free router first (./router.ts). Only for work on PUBLIC news content: a free gateway can keep what
+   * it is sent, so a buyer's message, a voice note or an order never sets this. "light" = classifying, filtering,
+   * picking; "draft" = also writing the news drafts and video scripts (a wider scope the owner switches on).
+   */
+  free?: "light" | "draft";
 }
 
 export interface JsonResult {
@@ -64,6 +71,10 @@ const DEADLINE_MS = 50_000;
 const MIN_RETRY_MS = 8_000;
 /** Time kept back from an Opus try so that a Haiku try can still follow it. */
 const HAIKU_RESERVE_MS = 9_000;
+/** The free router: how long one try may take, the least worth trying, and the time kept for kurd.gg after it. */
+const ROUTER_TIMEOUT: Record<Strength, number> = { fast: 14_000, strong: 24_000 };
+const ROUTER_MIN_MS = 5_000;
+const ROUTER_PAID_RESERVE_MS = 22_000;
 
 /** Failures that another try may fix: the network, the provider's own errors and its rate limit. */
 function retryable(e: unknown): boolean {
@@ -79,10 +90,30 @@ export async function completeJson<T = unknown>(
   call: JsonCall,
   validate: (data: unknown) => T | null = (d) => d as T,
 ): Promise<{ data: T; model: string }> {
-  if (!kurdggConfigured()) throw new AiUnavailable("no AI provider is configured");
+  const viaRouter = routerAllows(call);
+  if (!kurdggConfigured() && !viaRouter) throw new AiUnavailable("no AI provider is configured");
   const start = Date.now();
   const deadlineMs = Math.min(DEADLINE_MS, Math.max(0, call.budgetMs ?? DEADLINE_MS));
   const remaining = () => deadlineMs - (Date.now() - start);
+
+  // Free first: the router costs nothing, so it is tried before the allowance is looked at or anything is counted. Any
+  // failure (quota, an outage, a slow answer, a reply that does not fit) goes on to kurd.gg below, with the time it needs.
+  if (viaRouter) {
+    const room = remaining() - ROUTER_PAID_RESERVE_MS;
+    const timeout = Math.min(ROUTER_TIMEOUT[call.strength], room);
+    if (timeout >= ROUTER_MIN_MS) {
+      try {
+        const result = await routerJson(call, timeout);
+        const data = validate(result.data);
+        if (data !== null) return { data, model: result.model };
+        console.error("[router] reply did not fit; kurd.gg takes over");
+      } catch (e) {
+        noteRouterFailure(e);
+        console.error("[router] failed; kurd.gg takes over:", message(e).slice(0, 80));
+      }
+    }
+  }
+  if (!kurdggConfigured()) throw new AiUnavailable("the free router did not answer and no paid provider is configured");
 
   // The workspace's allowance decides the model and whether there is a call at all. A call with no
   // workspace to count it against is never Opus.
