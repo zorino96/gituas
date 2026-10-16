@@ -48,12 +48,12 @@ export function planFacts(f: KnowledgeFeatures = { max: true, video: true, pictu
 }
 
 const videoSection = () =>
-  `- AI video: the AI writes the script, reads it aloud in a Kurdish voice and makes a short vertical video ad for the brand. At most ${VIDEOS_PER_DAY} video a day for each paid shop, counted across the whole account. Two kinds: Lite (script by the fast model) and Pro (script by the strongest model, on the Max plan). It can use the owner's reference pictures and clips, can plan the day's video itself, can be posted right away, or one can be made every day by itself.`;
+  `- AI video: the AI writes the script, reads it aloud in a Kurdish voice and makes a short vertical video (about 35 seconds, five or six scenes) that promotes the brand, a product or a channel. It does not make long videos of several minutes, documentaries or story videos for YouTube monetization. At most ${VIDEOS_PER_DAY} video a day for each paid shop, counted across the whole account. Two kinds: Lite (script by the fast model) and Pro (script by the strongest model, on the Max plan). It can use the owner's reference pictures and clips, can plan the day's video itself, can be posted right away, or one can be made every day by itself.`;
 
 /** The product, section by section. */
 function product(f: KnowledgeFeatures): string {
   const makes = f.video || f.pictures ? ", makes AI " + [f.pictures ? "pictures" : "", f.video ? "video ads" : ""].filter(Boolean).join(" and ") : "";
-  return `Gituas is a tool for shops that sell on Facebook and Instagram in Iraqi Kurdistan. It answers buyers' comments and messages automatically, publishes posts${makes} and keeps the orders. One connected Facebook Page or Instagram account is one "shop"; a plan is bought per shop and covers Facebook, Instagram, TikTok and YouTube for it.
+  return `Gituas is a tool for businesses, brands and channels (shops, restaurants, services, content channels) that sell or grow an audience on Facebook and Instagram in Iraqi Kurdistan and Iraq. It answers followers' and buyers' comments and messages automatically, publishes posts${makes} and keeps the orders. One connected Facebook Page or Instagram account is one "shop"; a plan is bought per shop and covers Facebook, Instagram, TikTok and YouTube for it.
 
 Where things are (the names are in "ui_names"):
 - Today: the day at a glance.
