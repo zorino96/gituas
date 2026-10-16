@@ -379,3 +379,22 @@ automation for Iraqi/Kurdish merchants. Full design: see the pivot spec.
   permissions at risk. Needs template variation, an app-wide rate ceiling on
   top of the per-store cap, and a review step before a new store's auto-send
   is enabled.
+
+## AI cost
+
+- **Free AI router (9router or Cloudflare Workers AI) — decision pending, switched OFF 2026-10-16.**
+  The code is in place and dormant: `src/lib/ai/router.ts` plus a `free` flag on
+  `JsonCall`; with `ROUTER_ENABLED=0` (set on Vercel) nothing goes through it.
+  Tried first, for public news calls only (classify, prompt filter, photo pick,
+  picture scene), with kurd.gg taking over on any failure.
+  - Measured on 100 real stories: Llama 3.3 70B agreed with the stored Claude
+    labels on 92 % of categories and 80 % of regions; Llama 3.1 8B only 68 % / 49 %;
+    free allowance is about 84 batches of 20 stories a day (~1,700 stories).
+    The free models write bad Sorani, so drafts, video scripts and anything with
+    buyer data must stay on Claude.
+  - To switch on: `ROUTER_ENABLED=1` (or remove it) and redeploy. To use a real
+    9router instead: run it on an always-on host with an https address and set
+    `ROUTER_BASE_URL`, `ROUTER_API_KEY`, `ROUTER_MODEL` (script:
+    `gituas-private/set-router.ps1`, then `router-push.cjs --push`).
+  - Rotating several Gmail accounts to get around free limits is against Google's
+    terms; not built.
