@@ -52,6 +52,38 @@ export async function GET(req: Request) {
     };
     return NextResponse.json({ json: await shape(true).catch((e) => String(e)), plain: await shape(false).catch((e) => String(e)) });
   }
+  // ?test=anthropic: what the key in use says to a few plain requests (status and Anthropic's own error message, never the key).
+  if (new URL(req.url).searchParams.get("test") === "anthropic") {
+    const key = process.env.KURDGG_API_KEY?.trim();
+    const base = (process.env.KURDGG_BASE_URL?.trim() || "https://api.kurd.gg/v1").replace(/\/$/, "");
+    const model = process.env.KURDGG_MODEL?.trim() || "";
+    if (!key) return NextResponse.json({ ok: false, error: "no key" });
+    const look = async (name: string, url: string, init: RequestInit) => {
+      try {
+        const res = await fetch(url, { ...init, signal: AbortSignal.timeout(25_000) });
+        const raw = await res.text();
+        let msg = raw.slice(0, 220);
+        try {
+          const j = JSON.parse(raw);
+          msg = j?.error?.message ?? (Array.isArray(j?.data) ? `models: ${j.data.map((m: { id?: string }) => m.id).join(", ")}` : msg);
+        } catch {}
+        return { name, status: res.status, message: String(msg).slice(0, 400) };
+      } catch (e) {
+        return { name, status: 0, message: e instanceof Error ? e.name : "failed" };
+      }
+    };
+    const root = base.replace(/\/v1$/, "");
+    const ws = process.env.ANTHROPIC_WORKSPACE_ID?.trim();
+    const wsHeader: Record<string, string> = ws ? { "anthropic-workspace-id": ws } : {};
+    const msgs = [{ role: "user", content: "Say ok" }];
+    const out = [
+      await look("native models", `${root}/v1/models`, { headers: { "x-api-key": key, "anthropic-version": "2023-06-01", ...wsHeader } }),
+      await look("native messages", `${root}/v1/messages`, { method: "POST", headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "Content-Type": "application/json", ...wsHeader }, body: JSON.stringify({ model, max_tokens: 20, messages: msgs }) }),
+      await look("compat plain", `${base}/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", ...wsHeader }, body: JSON.stringify({ model, max_tokens: 20, messages: msgs }) }),
+      await look("compat + response_format", `${base}/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", ...wsHeader }, body: JSON.stringify({ model, max_tokens: 3000, temperature: 0.3, stream: false, response_format: { type: "json_object" }, messages: msgs }) }),
+    ];
+    return NextResponse.json({ model, base, out });
+  }
   // ?test=kurdgg: the same request to kurd.gg alone, with its error (status/code only) when it fails.
   // ?test=kurdgg-opus: the same, with the Opus model (to tell which of the two models is down).
   if (["kurdgg", "kurdgg-opus"].includes(new URL(req.url).searchParams.get("test") ?? "")) {
@@ -137,9 +169,20 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const body = (await req.json().catch(() => null)) as { model?: string; system?: string; user?: string; list?: boolean; claude?: boolean; maxTokens?: number } | null;
+  // {claude: true, system, user}: one JSON answer from the main provider alone (the Haiku key), with the model that answered.
+  if (body?.claude) {
+    if (!body.user) return NextResponse.json({ ok: false, error: "user is needed" });
+    const started = Date.now();
+    try {
+      const r = await kurdggJson({ system: body.system ?? "Reply with JSON only.", user: body.user, strength: "strong", maxTokens: Math.min(8000, Math.max(500, body.maxTokens ?? 6000)) }, 85_000, "haiku");
+      return NextResponse.json({ ok: true, model: r.model, ms: Date.now() - started, usage: r.usage, data: r.data });
+    } catch (e) {
+      return NextResponse.json({ ok: false, ms: Date.now() - started, error: e instanceof Error ? `${e.name}: ${e.message}` : "failed" });
+    }
+  }
   const key = process.env.GOOGLE_AI_API_KEY?.trim();
   if (!key) return NextResponse.json({ ok: false, error: "GOOGLE_AI_API_KEY is not set" });
-  const body = (await req.json().catch(() => null)) as { model?: string; system?: string; user?: string; list?: boolean } | null;
   const base = "https://generativelanguage.googleapis.com/v1beta";
   if (body?.list) {
     const res = await fetch(`${base}/models?pageSize=200`, { headers: { "x-goog-api-key": key }, signal: AbortSignal.timeout(20_000) });

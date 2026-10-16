@@ -3,6 +3,7 @@
 //   KURDGG_BASE_URL       default https://api.kurd.gg/v1
 //   KURDGG_MODEL          the Haiku model id (default cc/claude-haiku-5-5)
 //   KURDGG_MODEL_OPUS     the Opus model id (default cc/claude-opus-5-5), used only by plans that include it
+//   ANTHROPIC_WORKSPACE_ID  sent as the anthropic-workspace-id header when the key is an Anthropic key not tied to a workspace
 import { estimateTokens, modelFor, type AiTier } from "./models";
 import type { JsonCall, JsonResult } from "./provider";
 
@@ -199,7 +200,12 @@ export async function kurdggJson(call: JsonCall, timeoutMs: number, tier: AiTier
   const systemText = `${system}\n\nReply with one JSON object only.`;
   const res = await fetch(`${base}/chat/completions`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${process.env.KURDGG_API_KEY!.trim()}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${process.env.KURDGG_API_KEY!.trim()}`,
+      "Content-Type": "application/json",
+      // An Anthropic key that is not tied to one workspace must name it on every request.
+      ...(process.env.ANTHROPIC_WORKSPACE_ID?.trim() ? { "anthropic-workspace-id": process.env.ANTHROPIC_WORKSPACE_ID.trim() } : {}),
+    },
     body: JSON.stringify({
       model,
       stream: false,
