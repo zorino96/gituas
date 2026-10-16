@@ -53,7 +53,7 @@ const videoSection = () =>
 /** The product, section by section. */
 function product(f: KnowledgeFeatures): string {
   const makes = f.video || f.pictures ? ", makes AI " + [f.pictures ? "pictures" : "", f.video ? "video ads" : ""].filter(Boolean).join(" and ") : "";
-  return `Gituas is a tool for businesses, brands and channels (shops, restaurants, services, content channels) that sell or grow an audience on Facebook and Instagram in Iraqi Kurdistan and Iraq. It answers followers' and buyers' comments and messages automatically, publishes posts${makes} and keeps the orders. One connected Facebook Page or Instagram account is one "shop"; a plan is bought per shop and covers Facebook, Instagram, TikTok and YouTube for it.
+  return `Gituas is a tool for anyone who runs a Facebook Page or Instagram account in Iraqi Kurdistan and Iraq, whatever the purpose (a shop, a brand, a creator, a service). It answers followers' and buyers' comments and messages automatically, publishes posts${makes} and keeps the orders. One connected Facebook Page or Instagram account is one "shop"; a plan is bought per shop and covers Facebook, Instagram, TikTok and YouTube for it.
 
 Where things are (the names are in "ui_names"):
 - Today: the day at a glance.
