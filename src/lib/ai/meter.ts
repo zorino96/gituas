@@ -8,7 +8,7 @@
 import { db } from "@/lib/db";
 import { monthKey } from "@/lib/billing/limits";
 import { limitsOf } from "@/lib/shop/tenant-plans";
-import { microUsd, type AiTier } from "./models";
+import { microUsd, opusAvailable, type AiTier } from "./models";
 
 export interface Meter {
   /** The workspace (tenant) the call is for. */
@@ -70,7 +70,7 @@ export async function chooseTier(meter: Meter, wanted: AiTier, opts: { essential
   const [limit, s] = await Promise.all([limitsOf(meter.scope), spentOf(meter.scope)]);
   const cap = limit.aiUsd * 1e6 * (opts.essential ? 1 : OPTIONAL_SHARE);
   if (s.total >= cap) return null;
-  if (wanted === "opus" && limit.aiOpusUsd > 0 && s.opus < limit.aiOpusUsd * 1e6) return "opus";
+  if (wanted === "opus" && opusAvailable() && limit.aiOpusUsd > 0 && s.opus < limit.aiOpusUsd * 1e6) return "opus";
   return "haiku";
 }
 

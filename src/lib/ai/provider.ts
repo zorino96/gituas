@@ -10,7 +10,7 @@ import { deepseekAllows, deepseekJson, DeepseekReplyError } from "./deepseek";
 import { kurdggConfigured, kurdggJson, KurdggReplyError, MIN_MAX_TOKENS } from "./kurdgg";
 import { chooseTier, recordSpend, type Meter } from "./meter";
 import { noteRouterFailure, routerAllows, routerJson } from "./router";
-import { estimateTokens, type AiTier } from "./models";
+import { estimateTokens, opusAvailable, type AiTier } from "./models";
 
 export type { Meter } from "./meter";
 export type { AiTier } from "./models";
@@ -136,7 +136,8 @@ export async function completeJson<T = unknown>(
 
   // The workspace's allowance decides the model and whether there is a call at all. A call with no
   // workspace to count it against is never Opus.
-  let tier: AiTier = call.meter ? (call.tier ?? "haiku") : call.opus === "always" ? "opus" : "haiku";
+  // With Opus switched off (AI_OPUS_ENABLED=0) every call is Haiku, whatever the call or the plan asks for.
+  let tier: AiTier = !opusAvailable() ? "haiku" : call.meter ? (call.tier ?? "haiku") : call.opus === "always" ? "opus" : "haiku";
   if (call.meter) {
     // If the count cannot be read the call is made with Haiku: a counting fault must not stop the shop answering.
     const allowed = await chooseTier(call.meter, tier, { essential: call.essential }).catch((): AiTier => "haiku");
@@ -177,7 +178,7 @@ export async function completeJson<T = unknown>(
       if (data === null) {
         errors.push("the reply did not have the shape we need");
         if (tier === "opus") tier = "haiku";
-        else if (call.opus === "retry" && !call.meter) tier = "opus";
+        else if (call.opus === "retry" && !call.meter && opusAvailable()) tier = "opus";
         continue;
       }
       return { data, model: result.model };

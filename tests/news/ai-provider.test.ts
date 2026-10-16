@@ -1,4 +1,4 @@
-import { beforeEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 
 vi.mock("@/lib/ai/kurdgg", async (orig) => ({ ...(await orig<typeof import("@/lib/ai/kurdgg")>()), kurdggConfigured: vi.fn(), kurdggJson: vi.fn() }));
 vi.mock("@/lib/ai/meter", () => ({ chooseTier: vi.fn(), recordSpend: vi.fn() }));
@@ -243,5 +243,30 @@ describe("the DeepSeek stand-by", () => {
     expect(logged).not.toContain("Aso");
     expect(logged).not.toContain("0750");
     warn.mockRestore();
+  });
+});
+
+describe("Opus switched off (AI_OPUS_ENABLED=0)", () => {
+  beforeEach(() => {
+    vi.stubEnv("AI_OPUS_ENABLED", "0");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("asks kurd.gg for Haiku even when the call wants Opus, for a workspace and for a system call", async () => {
+    vi.mocked(meter.chooseTier).mockResolvedValue("haiku");
+    vi.mocked(kg.kurdggJson).mockResolvedValue(ok());
+    await completeJson({ ...call, strength: "strong", tier: "opus", meter: { scope: "t1" } });
+    await completeJson({ ...call, strength: "strong", opus: "always" });
+    expect(vi.mocked(kg.kurdggJson).mock.calls.map((c) => c[2])).toEqual(["haiku", "haiku"]);
+    expect(vi.mocked(meter.chooseTier).mock.calls[0][1]).toBe("haiku");
+  });
+
+  it("does not move to Opus after a reply that did not fit", async () => {
+    vi.mocked(kg.kurdggJson).mockResolvedValue(ok({ wrong: true }));
+    const needsA = (d: unknown) => ((d as { a?: number })?.a ? (d as { a: number }) : null);
+    await expect(completeJson({ ...call, opus: "retry" }, needsA)).rejects.toBeInstanceOf(AiUnavailable);
+    expect(vi.mocked(kg.kurdggJson).mock.calls.map((c) => c[2])).toEqual(["haiku", "haiku"]);
   });
 });

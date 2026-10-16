@@ -1,3 +1,5 @@
+import { opusAvailable } from "@/lib/ai/models";
+
 export type BillingProduct = "SHOP" | "NEWS" | "STUDIO";
 
 export const PERIOD_DAYS = 30;
@@ -69,7 +71,8 @@ export function planLabel(plan: string, lang: "ckb" | "ar" | "en" = "ckb"): stri
  * owner has switched it on: a payment that could not be applied would take money for nothing.
  */
 export function maxPlanOpen(): boolean {
-  return process.env.MAX_PLAN_ENABLED?.trim() === "1";
+  // Not sold while Opus is switched off (AI_OPUS_ENABLED=0): the plan is its Opus part.
+  return process.env.MAX_PLAN_ENABLED?.trim() === "1" && opusAvailable();
 }
 
 /** What a checkout may charge: the price of a plan that is for sale right now, or null. */

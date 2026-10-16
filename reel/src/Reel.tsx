@@ -52,7 +52,7 @@ export function reelTimeline(segments: { seconds?: number }[], fps = REEL_FPS) {
 }
 
 /** The caption line at a moment: the spoken sentence in groups of four words, timed by their length. */
-function captionAt(text: string, t: number): string {
+export function captionAt(text: string, t: number): string {
   const words = text.split(/\s+/).filter(Boolean);
   const groups: string[] = [];
   for (let i = 0; i < words.length; i += 4) groups.push(words.slice(i, i + 4).join(" "));

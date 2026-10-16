@@ -13,10 +13,19 @@ export const DEFAULT_MODEL: Record<AiTier, string> = {
   opus: "cc/claude-opus-5-5",
 };
 
-/** The kurd.gg model id of a tier; the environment may name another model of the same tier. */
+/**
+ * Whether Opus may be used at all. AI_OPUS_ENABLED=0 makes all of Gituas Haiku-only (the key in use has no Opus): no call asks
+ * for Opus, no plan's Opus part is spent, and the Max plan is not sold. Anything but "0" leaves Opus available.
+ */
+export function opusAvailable(): boolean {
+  return process.env.AI_OPUS_ENABLED?.trim() !== "0";
+}
+
+/** The kurd.gg model id of a tier; the environment may name another model of the same tier. Opus is Haiku while Opus is switched off. */
 export function modelFor(tier: AiTier): string {
-  const named = tier === "opus" ? process.env.KURDGG_MODEL_OPUS : process.env.KURDGG_MODEL;
-  return named?.trim() || DEFAULT_MODEL[tier];
+  const useOpus = tier === "opus" && opusAvailable();
+  const named = useOpus ? process.env.KURDGG_MODEL_OPUS : process.env.KURDGG_MODEL;
+  return named?.trim() || DEFAULT_MODEL[useOpus ? "opus" : "haiku"];
 }
 
 /** Which tier a model id belongs to (anything that is not an Opus model is priced as Haiku). */
