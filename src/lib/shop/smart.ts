@@ -32,6 +32,8 @@ export interface SmartFacts {
   orderLink: string | null;
   /** The owner's own default first message, when they wrote one: wording the reply may follow and restate. */
   ownerDm?: string | null;
+  /** What the owner told Gituas in the setup interview (src/lib/shop/profile.ts), already cut to size; empty when there is none. */
+  profile?: string[];
 }
 
 export interface SmartInput {
@@ -89,6 +91,7 @@ export function allowedNumbers(facts: SmartFacts, brief: string): Set<string> {
     ...(facts.asked ? [facts.asked.name, ...facts.asked.lines] : []),
     ...facts.catalog.flatMap((p) => [p.name, ...p.lines]),
     facts.ownerDm ?? "",
+    ...(facts.profile ?? []),
     brief,
   ].join("\n");
   return new Set(numbersIn(text));
@@ -96,7 +99,7 @@ export function allowedNumbers(facts: SmartFacts, brief: string): Set<string> {
 
 /** The words the facts and the owner's instructions use: a number word may only be said when it is among them. */
 export function allowedWords(facts: SmartFacts, brief: string): Set<string> {
-  const text = [facts.shop, facts.tagline ?? "", ...facts.delivery, facts.ownerDm ?? "", brief, ...(facts.asked ? [facts.asked.name, ...facts.asked.lines] : []), ...facts.catalog.flatMap((p) => [p.name, ...p.lines])].join(" ");
+  const text = [facts.shop, facts.tagline ?? "", ...facts.delivery, facts.ownerDm ?? "", ...(facts.profile ?? []), brief, ...(facts.asked ? [facts.asked.name, ...facts.asked.lines] : []), ...facts.catalog.flatMap((p) => [p.name, ...p.lines])].join(" ");
   return new Set(wordsIn(text));
 }
 
@@ -173,6 +176,7 @@ export function buildUser(i: SmartInput, problem?: string): string {
   const parts: string[] = [];
   parts.push(`Owner's instructions (follow strictly):\n"""\n${i.brief.trim() || "(none given: be helpful and honest)"}\n"""`);
   parts.push(`Shop: ${f.shop}${f.tagline ? ` — ${f.tagline}` : ""}`);
+  if (f.profile?.length) parts.push(`About the business (confirmed by the owner):\n${f.profile.join("\n")}`);
   if (f.delivery.length) parts.push(`Delivery:\n${f.delivery.map((d) => `- ${d}`).join("\n")}`);
   if (f.ownerDm?.trim()) parts.push(`The owner's usual first message (for reference; follow its wording where it fits):\n"""\n${f.ownerDm.trim().slice(0, 600)}\n"""`);
   parts.push(f.asked ? `Product this chat is about:\n${line(f.asked)}` : "Product this chat is about: not known yet");

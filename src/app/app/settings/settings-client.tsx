@@ -39,6 +39,7 @@ export function SettingsClient({
   connectError,
   account,
   desk = false,
+  setupPending = false,
 }: {
   account: { email: string | null; hasPassword: boolean };
   slug: string;
@@ -48,6 +49,8 @@ export function SettingsClient({
   connectError?: string;
   /** A newsroom: the desk's own setup lives on its own screens, linked from here. */
   desk?: boolean;
+  /** The setup interview is on and not finished: a new connection goes on to it. */
+  setupPending?: boolean;
 }) {
   const base = useBase();
   const t = useT();
@@ -74,7 +77,7 @@ export function SettingsClient({
       /* ignore */
     }
   };
-  const connectHref = (provider: string) => `/api/oauth/${provider.toLowerCase()}/start?next=${base}/settings${ack ? "&ack=1" : ""}`;
+  const connectHref = (provider: string) => `/api/oauth/${provider.toLowerCase()}/start?next=${base}/${setupPending && !desk ? "setup" : "settings"}${ack ? "&ack=1" : ""}`;
   const [raw, setRaw] = useState(whatsappNumber ? localForm(whatsappNumber) : "");
   const [saved, setSaved] = useState<string | null>(whatsappNumber);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);

@@ -1075,6 +1075,34 @@ enum MessageOutcome {
 }
 
 /// One connected Facebook Page and/or Instagram account that the shop automates.
+/// What the owner told Gituas about their work in the setup interview (src/lib/shop/profile.ts). One row per store;
+/// no row = the owner has not been asked yet, and everything works as before. `facts` are the only part buyers can be
+/// told, and each one has its own on/off switch the owner controls.
+model BusinessProfile {
+  storeId   String   @id
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  /// sell | grow | leads | other: what the owner wants Gituas to do for them. `goalText` is their own words.
+  goal      String?
+  goalText  String?
+  /// A chip id (fashion, beauty, ...) and one typed line about what they offer or what the page is about.
+  category  String?
+  offerLine String?
+  /// Chip ids: women, men, youth, parents, families, businesses, everyone.
+  customer  String[] @default([])
+  /// City codes (src/lib/orders/cities.ts).
+  sellsTo   String[] @default([])
+  /// Default language of captions and posts: ckb | ar. Replies keep following the buyer's language.
+  language  String?
+  /// friendly | formal | direct.
+  tone      String?
+  /// [{ k: "payment" | "returns" | "custom", v: chip id or typed text, on: boolean }]
+  facts     Json     @default("[]")
+  /// { step, answered: string[], skipped: string[], doneAt }.
+  interview Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Store {
   id                String               @id @default(cuid())
   tenantId          String
@@ -1132,6 +1160,7 @@ model Store {
   updatedAt         DateTime             @updatedAt
   tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   products          Product[]
+  profile           BusinessProfile?
   templates         AutomationTemplate[]
   posts             PostAutomation[]
   jobs              OutboxJob[]

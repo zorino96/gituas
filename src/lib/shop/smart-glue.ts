@@ -8,6 +8,7 @@ import { cityFees, COPY, deliveryLine, type CardProduct, type CardStore } from "
 import { formatMoney, type Lang } from "./money";
 import { SHOP_LIMITS, type StorePlan } from "./plans";
 import { countSmart, smartUsed } from "./quota";
+import { loadProfile, profileLines } from "./profile";
 import { smartReply, type SmartFacts, type SmartKind, type SmartOutput, type SmartProduct } from "./smart";
 
 const DAY = 86_400_000;
@@ -111,6 +112,8 @@ export async function smartTry(ctx: SmartContext): Promise<SmartOutput | null> {
   if ((await smartUsed(store.id)) >= SHOP_LIMITS[plan].smartPerMonth) return null;
   try {
     const kit = await db.brandKit.findUnique({ where: { tenantId: store.tenantId }, select: { tagline: true, deliveryNote: true } });
+    // What the owner told Gituas about the work; none (and no extra cost) when the interview is off or not done.
+    const biz = await loadProfile(store.id);
     const facts: SmartFacts = {
       shop: store.name.trim() || "the shop",
       tagline: kit?.tagline?.trim() || null,
@@ -119,6 +122,7 @@ export async function smartTry(ctx: SmartContext): Promise<SmartOutput | null> {
       catalog: await catalog(store.id, ctx.product?.id ?? null, ctx.lang),
       orderLink: ctx.waLink,
       ownerDm: store.defaultDm?.trim() || null,
+      profile: profileLines(biz, { lang: ctx.lang, audience: "buyer" }),
     };
     const turns = ctx.kind === "dm_followup" && ctx.senderId ? await history(store.id, ctx.senderId, ctx.messageId) : [];
     // Opus when the store's plan includes it: the reply is what the buyer reads.

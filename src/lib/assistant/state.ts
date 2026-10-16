@@ -7,6 +7,7 @@ import { imageEnabled } from "@/lib/ai/image";
 import { imagesLeft } from "@/lib/ai/image-left";
 import { allowanceOf, OPTIONAL_SHARE } from "@/lib/ai/meter";
 import { db } from "@/lib/db";
+import { interviewDone, loadProfile, profileEnabled } from "@/lib/shop/profile";
 
 export interface AssistantConnections {
   facebook: { connected: boolean; name?: string };
@@ -27,6 +28,7 @@ export async function loadAssistantState(tenantId: string, connections: Assistan
       name: true,
       plan: true,
       planPaidUntil: true,
+      id: true,
       fbPageId: true,
       igUserId: true,
       igUsername: true,
@@ -39,6 +41,8 @@ export async function loadAssistantState(tenantId: string, connections: Assistan
     },
   });
   const video = adVideoEnabled();
+  // What each owner told Gituas about their work (only while the interview is switched on); their own words, no buyer data.
+  const profiles = profileEnabled() ? await Promise.all(stores.map((s) => loadProfile(s.id))) : null;
   const [allowance, videos, images, waiting, products] = await Promise.all([
     allowanceOf({ scope: tenantId }).catch(() => null),
     video ? workspaceVideos(tenantId).catch(() => null) : null,
@@ -49,7 +53,7 @@ export async function loadAssistantState(tenantId: string, connections: Assistan
   ]);
   return {
     today: new Date(now).toISOString().slice(0, 10),
-    shops: stores.map((s) => {
+    shops: stores.map((s, i) => {
       const lapsed = s.plan !== "FREE" && !!s.planPaidUntil && s.planPaidUntil.getTime() < now;
       return {
         name: s.name || (s.igUsername ? `@${s.igUsername}` : "(no name)"),
@@ -65,6 +69,17 @@ export async function loadAssistantState(tenantId: string, connections: Assistan
         autoPosts: s.autoMode,
         autoPostsPerDay: s.autoPerDay,
         dailyVideo: video ? s.videoAutoMode : undefined,
+        setupInterview: profiles ? (interviewDone(profiles[i]) ? "done" : "not done yet") : undefined,
+        business: profiles?.[i]
+          ? {
+              goal: profiles[i]!.goalText ?? profiles[i]!.goal ?? undefined,
+              kind: profiles[i]!.category ?? undefined,
+              offer: profiles[i]!.offerLine ?? undefined,
+              customers: profiles[i]!.customer.length ? profiles[i]!.customer : undefined,
+              deliversTo: profiles[i]!.sellsTo.length ? profiles[i]!.sellsTo : undefined,
+              tone: profiles[i]!.tone ?? undefined,
+            }
+          : undefined,
       };
     }),
     connectedAccounts: connections,

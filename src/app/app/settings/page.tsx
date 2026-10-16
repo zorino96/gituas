@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { dict, getLang } from "@/lib/i18n";
 import { currentWorkspace, loadAccountLists, loadConnections, requireWorkspace } from "../data";
+import { profileEnabled } from "@/lib/shop/profile";
 import { SettingsClient } from "./settings-client";
 
 export default async function SettingsPage({
@@ -19,8 +20,18 @@ export default async function SettingsPage({
     db.user.findUnique({ where: { id: session!.user!.id! }, select: { email: true, passwordHash: true } }),
   ]);
 
+  // The interview follows the first connection while it is switched on and no store has finished it.
+  const setupPending =
+    profileEnabled() && ws.kind === "MERCHANT"
+      ? await db.store
+          .findMany({ where: { tenantId: ws.id }, select: { profile: { select: { interview: true } } } })
+          .then((rows) => !rows.some((r) => !!(r.profile?.interview as { doneAt?: string } | undefined)?.doneAt))
+          .catch(() => false)
+      : false;
+
   return (
     <SettingsClient
+      setupPending={setupPending}
       slug={ws.slug}
       whatsappNumber={ws.whatsappNumber}
       connected={sp.connected}

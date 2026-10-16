@@ -9,6 +9,8 @@ import { can } from "@/lib/newsroom/roles";
 import { commentState, countStates } from "@/lib/merchant/state";
 import { ago } from "./format";
 import { promoUntil } from "@/lib/billing/promo";
+import { db } from "@/lib/db";
+import { profileEnabled } from "@/lib/shop/profile";
 
 export const maxDuration = 60;
 
@@ -27,6 +29,14 @@ export default async function TodayPage() {
     ws.kind === "MERCHANT" ? promoUntil(ws.id).catch(() => null) : null,
   ]);
   const lang = await getLang();
+  // The setup interview: offered while a connected store has not finished it (only when it is switched on).
+  const needsSetup =
+    profileEnabled() && ws.kind === "MERCHANT" && can(ws.role, "configure") && anyConnected
+      ? await db.store
+          .findMany({ where: { tenantId: ws.id }, select: { profile: { select: { interview: true } } } })
+          .then((rows) => rows.length > 0 && rows.some((r) => !(r.profile?.interview as { doneAt?: string } | undefined)?.doneAt))
+          .catch(() => false)
+      : false;
 
   const counts = countStates(posts);
   const waitingConvs = conversations.filter(
@@ -48,6 +58,14 @@ export default async function TodayPage() {
         <p className="gm-note" style={{ marginBottom: 14 }}>
           {t.home.promo(promo.toLocaleDateString(lang === "en" ? "en-GB" : "ar-IQ", { day: "numeric", month: "numeric", year: "numeric", timeZone: "Asia/Baghdad" }))}
         </p>
+      )}
+
+      {needsSetup && (
+        <div className="gm-card" style={{ marginBottom: 14 }}>
+          <b className="kufi">{t.setup.todayTitle}</b>
+          <p className="gm-sub" style={{ margin: "4px 0 10px" }}>{t.setup.todayBody}</p>
+          <Link href="/app/setup" className="gm-btn">{t.setup.todayCta}</Link>
+        </div>
       )}
 
       {!anyConnected && (

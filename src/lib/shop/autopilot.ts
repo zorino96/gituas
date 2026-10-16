@@ -13,6 +13,7 @@ import { loadAutopilotSignals } from "@/lib/orders/audience";
 import { effectiveMode, isDue, pickProduct, SLOT_GUARD_MS, slotHours } from "./autopilot-plan";
 import { cityHashtags } from "@/lib/orders/hashtags";
 import { formatMoney } from "./money";
+import { loadProfile, profileLines, type Profile } from "./profile";
 
 /**
  * Stores posted per tick; the cron route has 60 seconds in all and one post can take ~40.
@@ -28,18 +29,22 @@ export interface AutoDraft {
   at: string;
 }
 
-async function writeCaption(name: string, description: string | null, ai?: AiOptions): Promise<string> {
+async function writeCaption(name: string, description: string | null, ai?: AiOptions, biz?: Profile | null): Promise<string> {
+  const about = profileLines(biz ?? null, { lang: biz?.language ?? "ckb", audience: "owner" });
+  const language = biz?.language === "ar" ? "Arabic (Iraqi, Arabic script)" : "Sorani Kurdish (Arabic script)";
+  // The call at the end follows what the owner wants from their page.
+  const ending = biz?.goal === "grow" ? "End with a call to follow the page." : "End with a call to message the page.";
   try {
     const { data } = await completeJson<{ text: string }>(
       {
         system: 'You write short social media texts for shops in Iraqi Kurdistan. Reply with JSON only: {"text": "<the text>"}',
-        user: `Write a Sorani Kurdish (Arabic script) caption for this product.
+        user: `Write a ${language} caption for this product.
 Product: """${name.slice(0, 120)}"""
 ${description ? `About it: """${description.slice(0, 600)}"""` : ""}
-Rules:
+${about.length ? `About the business (confirmed by the owner):\n${about.join("\n")}\n` : ""}Rules:
 - 2 to 3 short lines, a curiosity hook first.
 - No price, size, quantity or delivery fee: the price is added separately.
-- End with a call to message the page. No hashtags. At most two emoji.`,
+- ${ending} No hashtags. At most two emoji.`,
         strength: "fast",
         tier: "haiku",
         meter: ai?.meter,
@@ -103,7 +108,8 @@ async function runStore(store: {
   const url = full.photos[0];
   // Hashtags of the cities its buyers come from, in both scripts: how Kurdish shoppers find sellers.
   const tags = cityHashtags(profile.cities).join(" ");
-  const caption = [await writeCaption(full.name, full.description, aiFor(store)), priceLine(full.variants), tags].filter(Boolean).join("\n\n");
+  const biz = await loadProfile(store.id);
+  const caption = [await writeCaption(full.name, full.description, aiFor(store), biz), priceLine(full.variants), tags].filter(Boolean).join("\n\n");
   const draft: AutoDraft = { productId: full.id, caption, media: { url, pathname: new URL(url).pathname.slice(1), type: "IMAGE" }, at: new Date(now).toISOString() };
   await db.product.update({ where: { id: full.id }, data: { autoPostedAt: new Date(now) } });
   await db.store.update({ where: { id: store.id }, data: { autoDraft: draft as unknown as Prisma.InputJsonValue } });
