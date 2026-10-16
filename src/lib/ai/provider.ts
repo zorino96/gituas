@@ -224,5 +224,7 @@ export async function completeJson<T = unknown>(
       }
     }
   }
+  // Only the HTTP status or the kind of failure is logged: the text of an error can carry a piece of a reply.
+  console.error("[ai] no provider answered:", errors.map((e) => /^(deepseek: )?HTTP \d{3}/.exec(e)?.[0] ?? (e.startsWith("deepseek:") ? "deepseek: no usable reply" : "no usable reply")).join(" | ") || "none tried");
   throw new AiUnavailable(errors.join("; ") || "the AI did not answer");
 }
