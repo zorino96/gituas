@@ -53,13 +53,15 @@ export async function GET(req: Request) {
     return NextResponse.json({ json: await shape(true).catch((e) => String(e)), plain: await shape(false).catch((e) => String(e)) });
   }
   // ?test=kurdgg: the same request to kurd.gg alone, with its error (status/code only) when it fails.
-  if (new URL(req.url).searchParams.get("test") === "kurdgg") {
+  // ?test=kurdgg-opus: the same, with the Opus model (to tell which of the two models is down).
+  if (["kurdgg", "kurdgg-opus"].includes(new URL(req.url).searchParams.get("test") ?? "")) {
     const started = Date.now();
     if (!kurdggConfigured()) return NextResponse.json({ ok: false, error: "KURDGG_API_KEY or KURDGG_MODEL is not set" });
     try {
       const r = await kurdggJson(
         { system: 'Reply with JSON only: {"text": "<one sentence>"}', user: "بە کوردیی سۆرانی ڕستەیەکی کورت بنووسە دەربارەی کەشی هەولێر لە پاییزدا.", strength: "fast" },
         25_000,
+        new URL(req.url).searchParams.get("test") === "kurdgg-opus" ? "opus" : "haiku",
       );
       return NextResponse.json({ ok: true, model: r.model, ms: Date.now() - started, data: r.data });
     } catch (e) {
