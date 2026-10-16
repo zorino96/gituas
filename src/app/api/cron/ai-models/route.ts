@@ -128,3 +128,42 @@ export async function GET(req: Request) {
     models: (body?.data ?? []).map((m) => m.id).filter(Boolean),
   });
 }
+
+/**
+ * A probe for Google's Gemini through the key the app already holds (GOOGLE_AI_API_KEY), to compare Sorani quality: the same
+ * Bearer secret as above. GET ?models=1 lists the Gemini models the key offers; POST {model, system, user} returns the text of one
+ * answer. It never returns the key, and it is not used by any feature.
+ */
+export async function POST(req: Request) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const key = process.env.GOOGLE_AI_API_KEY?.trim();
+  if (!key) return NextResponse.json({ ok: false, error: "GOOGLE_AI_API_KEY is not set" });
+  const body = (await req.json().catch(() => null)) as { model?: string; system?: string; user?: string; list?: boolean } | null;
+  const base = "https://generativelanguage.googleapis.com/v1beta";
+  if (body?.list) {
+    const res = await fetch(`${base}/models?pageSize=200`, { headers: { "x-goog-api-key": key }, signal: AbortSignal.timeout(20_000) });
+    const b = (await res.json().catch(() => null)) as { models?: { name?: string; supportedGenerationMethods?: string[] }[] } | null;
+    const names = (b?.models ?? []).filter((m) => m.supportedGenerationMethods?.includes("generateContent")).map((m) => m.name?.replace(/^models\//, "")).filter((n): n is string => !!n && /gemini|gemma/i.test(n));
+    return NextResponse.json({ ok: res.ok, status: res.status, models: names });
+  }
+  if (!body?.model || !body.user) return NextResponse.json({ ok: false, error: "model and user are needed" });
+  const started = Date.now();
+  try {
+    const res = await fetch(`${base}/models/${encodeURIComponent(body.model)}:generateContent`, {
+      method: "POST",
+      headers: { "x-goog-api-key": key, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...(body.system ? { systemInstruction: { parts: [{ text: body.system }] } } : {}),
+        contents: [{ role: "user", parts: [{ text: body.user }] }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 4000 },
+      }),
+      signal: AbortSignal.timeout(90_000),
+    });
+    const b = (await res.json().catch(() => null)) as { candidates?: { content?: { parts?: { text?: string }[] } }[] } | null;
+    const text = (b?.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("").trim();
+    return NextResponse.json({ ok: res.ok && !!text, status: res.status, ms: Date.now() - started, text });
+  } catch (e) {
+    return NextResponse.json({ ok: false, ms: Date.now() - started, error: e instanceof Error ? e.name : "failed" });
+  }
+}
