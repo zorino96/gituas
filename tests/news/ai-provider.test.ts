@@ -177,6 +177,24 @@ describe("the DeepSeek stand-by", () => {
     expect(ds.deepseekJson).not.toHaveBeenCalled();
   });
 
+  it("gets a second go when the first DeepSeek reply did not fit, or the call failed in a way another try may fix", async () => {
+    down();
+    const needsA = (d: unknown) => ((d as { a?: number })?.a ? (d as { a: number }) : null);
+    vi.mocked(ds.deepseekJson).mockResolvedValueOnce(dsOk({ wrong: true })).mockResolvedValueOnce(dsOk({ a: 7 }));
+    expect((await completeJson(call, needsA)).data).toEqual({ a: 7 });
+    vi.mocked(ds.deepseekJson).mockReset();
+    vi.mocked(ds.deepseekJson).mockRejectedValueOnce(new Error("HTTP 503 unknown")).mockResolvedValueOnce(dsOk({ a: 8 }));
+    expect((await completeJson(call, needsA)).data).toEqual({ a: 8 });
+    expect(ds.deepseekJson).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not repeat a DeepSeek call that was refused for good (a client error)", async () => {
+    down();
+    vi.mocked(ds.deepseekJson).mockRejectedValue(new Error("HTTP 401 unknown"));
+    await expect(completeJson(call)).rejects.toBeInstanceOf(AiUnavailable);
+    expect(ds.deepseekJson).toHaveBeenCalledTimes(1);
+  });
+
   it("fails with both reasons when DeepSeek fails too", async () => {
     down();
     vi.mocked(ds.deepseekJson).mockRejectedValue(new Error("HTTP 429 unknown"));

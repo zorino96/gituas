@@ -204,10 +204,12 @@ export async function completeJson<T = unknown>(
 
   // kurd.gg did not answer: DeepSeek takes over, counted like a Haiku call (it costs less, so the allowance is never undercounted).
   if (standby) {
-    const timeout = Math.min(TIMEOUT[call.strength] * (careful ? OPUS_TIME : 1), remaining() - 500);
-    if (timeout >= STANDBY_MIN_MS) {
+    // Two tries at most: a reply that did not fit, or a failure another try may fix, gets one more go while time remains.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const timeout = Math.min(TIMEOUT[call.strength] * (careful ? OPUS_TIME : 1), remaining() - 500);
+      if (timeout < (attempt === 0 ? STANDBY_MIN_MS : MIN_RETRY_MS)) break;
       // Only the HTTP status or "no usable reply" is logged: the text of an error can carry a piece of the model's reply.
-      console.warn("[ai] kurd.gg did not answer; DeepSeek takes over:", errors.map((e) => /^HTTP \d{3}/.exec(e)?.[0] ?? "no usable reply").join(" | ") || "not configured");
+      if (attempt === 0) console.warn("[ai] kurd.gg did not answer; DeepSeek takes over:", errors.map((e) => /^HTTP \d{3}/.exec(e)?.[0] ?? "no usable reply").join(" | ") || "not configured");
       try {
         const result = await deepseekJson(call, timeout, careful);
         await spend(result.usage, "haiku"); // paid for, whether or not the shape fits
@@ -221,6 +223,7 @@ export async function completeJson<T = unknown>(
           await spend({ in: estimateTokens(`${call.system}${call.user}`), out: Math.ceil(Math.max(call.maxTokens ?? 2000, MIN_MAX_TOKENS) / 2) }, "haiku");
         }
         errors.push(`deepseek: ${message(e)}`);
+        if (!retryable(e)) break;
       }
     }
   }
