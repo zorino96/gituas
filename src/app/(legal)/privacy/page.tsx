@@ -11,7 +11,7 @@ export default function PrivacyPage() {
   return (
     <article>
       <h1 className="font-display text-4xl md:text-5xl leading-tight">Privacy Policy</h1>
-      <Updated date="October 12, 2026" />
+      <Updated date="October 16, 2026" />
 
       <Lead>
         This policy covers Gituas (gituas.com), a tool for shops and creators to publish to their own
@@ -212,7 +212,10 @@ export default function PrivacyPage() {
           questions you ask the in-app assistant, with a summary of your own settings (plan, which
           Pages are connected, what is switched on, counts) so it can answer about your shop; and,
           for news, the public headline and summary of a story. Sender phone numbers and account
-          tokens are never sent to them; we send only what each task needs.
+          tokens are never sent to them; we send only what each task needs. When kurd.gg
+          cannot give a usable answer to a request (an outage, a slow reply or an unusable one), the
+          same text is sent instead to DeepSeek, an AI provider based in China, as a stand-by.
+          Pictures are never sent to DeepSeek.
         </LI>
         <LI>
           <Strong>Voice messages.</Strong> When a buyer sends a voice message, its audio is sent to
@@ -270,7 +273,7 @@ export default function PrivacyPage() {
       <P>
         Our database and files are stored on managed infrastructure in the United States and the
         European Union. AI providers may process the text and pictures we send them in other
-        countries, including the United States. All third-party access tokens are encrypted at rest using AES-256-GCM before
+        countries, including the United States and, for the DeepSeek stand-by, China. All third-party access tokens are encrypted at rest using AES-256-GCM before
         being written to the database, and are decrypted only in memory at the moment an action you
         authorized is performed. Access to production systems is restricted and logged.
       </P>

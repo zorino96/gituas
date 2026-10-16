@@ -1,9 +1,12 @@
 // One call shape for JSON completions, and one provider: kurd.gg, with two models only (see
 // ./models.ts): Claude Haiku for everything, and Claude Opus for workspaces whose plan includes it.
+// When kurd.gg cannot answer (an outage, busy, slow, a reply that does not fit), DeepSeek answers instead (./deepseek.ts);
+// it is a stand-by only: it is tried after kurd.gg has failed, never before, and never past a refused allowance.
 //
 // A call made for a workspace carries a `meter`: its monthly AI allowance is checked before the call
 // and charged after it (./meter.ts). When the allowance is used up the call is refused with
 // AiUnavailable, and the feature's own fallback (fixed templates, plain rules) takes over.
+import { deepseekAllows, deepseekJson, DeepseekReplyError } from "./deepseek";
 import { kurdggConfigured, kurdggJson, KurdggReplyError, MIN_MAX_TOKENS } from "./kurdgg";
 import { chooseTier, recordSpend, type Meter } from "./meter";
 import { noteRouterFailure, routerAllows, routerJson } from "./router";
@@ -77,6 +80,11 @@ const DEADLINE_MS = 50_000;
 const MIN_RETRY_MS = 8_000;
 /** Time kept back from an Opus try so that a Haiku try can still follow it. */
 const HAIKU_RESERVE_MS = 9_000;
+/**
+ * A stand-by try needs at least this long to be worth making. No time is kept back for it from kurd.gg's tries (a healthy
+ * kurd.gg must get exactly the time it always had): it takes what is left, which after a failure is most of the budget.
+ */
+const STANDBY_MIN_MS = 4_000;
 /** The free router: how long one try may take, the least worth trying, and the time kept for kurd.gg after it. */
 const ROUTER_TIMEOUT: Record<Strength, number> = { fast: 14_000, strong: 24_000 };
 const ROUTER_MIN_MS = 5_000;
@@ -97,7 +105,7 @@ export async function completeJson<T = unknown>(
   validate: (data: unknown) => T | null = (d) => d as T,
 ): Promise<{ data: T; model: string }> {
   const viaRouter = routerAllows(call);
-  if (!kurdggConfigured() && !viaRouter) throw new AiUnavailable("no AI provider is configured");
+  if (!kurdggConfigured() && !viaRouter && !deepseekAllows(call)) throw new AiUnavailable("no AI provider is configured");
   const start = Date.now();
   const deadlineMs = Math.min(DEADLINE_MS, Math.max(0, call.budgetMs ?? DEADLINE_MS));
   const remaining = () => deadlineMs - (Date.now() - start);
@@ -122,7 +130,9 @@ export async function completeJson<T = unknown>(
       }
     }
   }
-  if (!kurdggConfigured()) throw new AiUnavailable("the free router did not answer and no paid provider is configured");
+  // Without a kurd.gg key the stand-by is the provider (after the allowance check below).
+  const kurdgg = kurdggConfigured();
+  if (!kurdgg && !deepseekAllows(call)) throw new AiUnavailable("the free router did not answer and no paid provider is configured");
 
   // The workspace's allowance decides the model and whether there is a call at all. A call with no
   // workspace to count it against is never Opus.
@@ -133,6 +143,9 @@ export async function completeJson<T = unknown>(
     if (!allowed) throw new AiUnavailable("this month's AI allowance is used up");
     tier = allowed;
   }
+  // The careful DeepSeek model stands in for Opus; the fast one for Haiku.
+  const careful = tier === "opus";
+  const standby = deepseekAllows(call);
 
   const spend = async (usage: { in: number; out: number } | undefined, used: AiTier) => {
     if (!call.meter || !usage) return;
@@ -144,7 +157,7 @@ export async function completeJson<T = unknown>(
   };
 
   const errors: string[] = [];
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; kurdgg && attempt < 2; attempt++) {
     const per = TIMEOUT[call.strength] * (tier === "opus" ? OPUS_TIME : 1);
     // An Opus try leaves room for a Haiku try after it: a slow or failing Opus never costs the whole answer.
     const room = remaining() - 1_000 - (tier === "opus" ? HAIKU_RESERVE_MS : 0);
@@ -185,6 +198,29 @@ export async function completeJson<T = unknown>(
         continue;
       }
       if (!retryable(e)) break;
+    }
+  }
+
+  // kurd.gg did not answer: DeepSeek takes over, counted like a Haiku call (it costs less, so the allowance is never undercounted).
+  if (standby) {
+    const timeout = Math.min(TIMEOUT[call.strength] * (careful ? OPUS_TIME : 1), remaining() - 500);
+    if (timeout >= STANDBY_MIN_MS) {
+      // Only the HTTP status or "no usable reply" is logged: the text of an error can carry a piece of the model's reply.
+      console.warn("[ai] kurd.gg did not answer; DeepSeek takes over:", errors.map((e) => /^HTTP \d{3}/.exec(e)?.[0] ?? "no usable reply").join(" | ") || "not configured");
+      try {
+        const result = await deepseekJson(call, timeout, careful);
+        await spend(result.usage, "haiku"); // paid for, whether or not the shape fits
+        const data = validate(result.data);
+        if (data !== null) return { data, model: result.model };
+        errors.push("deepseek: the reply did not have the shape we need");
+      } catch (e) {
+        // A reply that arrived but could not be read was billed too; a call that timed out may have been: count a guess.
+        if (e instanceof DeepseekReplyError) await spend(e.usage, "haiku");
+        else if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
+          await spend({ in: estimateTokens(`${call.system}${call.user}`), out: Math.ceil(Math.max(call.maxTokens ?? 2000, MIN_MAX_TOKENS) / 2) }, "haiku");
+        }
+        errors.push(`deepseek: ${message(e)}`);
+      }
     }
   }
   throw new AiUnavailable(errors.join("; ") || "the AI did not answer");

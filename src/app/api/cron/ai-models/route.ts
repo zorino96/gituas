@@ -2,6 +2,7 @@ import { modelFor } from "@/lib/ai/models";
 import { NextResponse } from "next/server";
 
 import { completeJson } from "@/lib/ai/provider";
+import { deepseekConfigured, deepseekJson } from "@/lib/ai/deepseek";
 import { kurdggConfigured, kurdggJson } from "@/lib/ai/kurdgg";
 import { routerConfigured, routerJson, routerScope } from "@/lib/ai/router";
 
@@ -61,6 +62,22 @@ export async function GET(req: Request) {
         25_000,
       );
       return NextResponse.json({ ok: true, model: r.model, ms: Date.now() - started, data: r.data });
+    } catch (e) {
+      return NextResponse.json({ ok: false, ms: Date.now() - started, error: e instanceof Error ? `${e.name}: ${e.message}` : "failed" });
+    }
+  }
+  // ?test=deepseek (or deepseek-pro): the same request to the DeepSeek stand-by alone, with its status when it fails.
+  const standbyTest = new URL(req.url).searchParams.get("test");
+  if (standbyTest === "deepseek" || standbyTest === "deepseek-pro") {
+    const started = Date.now();
+    if (!deepseekConfigured()) return NextResponse.json({ ok: false, error: "DEEPSEEK_API_KEY is not set (or AI_FALLBACK_ENABLED=0)" });
+    try {
+      const r = await deepseekJson(
+        { system: 'Reply with JSON only: {"text": "<one sentence>"}', user: "Write one short sentence in Central Kurdish (Sorani, Arabic script) about autumn weather in Erbil.", strength: "fast" },
+        40_000,
+        standbyTest === "deepseek-pro",
+      );
+      return NextResponse.json({ ok: true, model: r.model, ms: Date.now() - started, usage: r.usage, data: r.data });
     } catch (e) {
       return NextResponse.json({ ok: false, ms: Date.now() - started, error: e instanceof Error ? `${e.name}: ${e.message}` : "failed" });
     }

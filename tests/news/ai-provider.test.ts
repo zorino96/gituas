@@ -2,10 +2,12 @@ import { beforeEach, describe, it, expect, vi } from "vitest";
 
 vi.mock("@/lib/ai/kurdgg", async (orig) => ({ ...(await orig<typeof import("@/lib/ai/kurdgg")>()), kurdggConfigured: vi.fn(), kurdggJson: vi.fn() }));
 vi.mock("@/lib/ai/meter", () => ({ chooseTier: vi.fn(), recordSpend: vi.fn() }));
+vi.mock("@/lib/ai/deepseek", async (orig) => ({ ...(await orig<typeof import("@/lib/ai/deepseek")>()), deepseekAllows: vi.fn(), deepseekJson: vi.fn() }));
 
 import { AiUnavailable, completeJson } from "@/lib/ai/provider";
 import * as kg from "@/lib/ai/kurdgg";
 import * as meter from "@/lib/ai/meter";
+import * as ds from "@/lib/ai/deepseek";
 import { KurdggReplyError } from "@/lib/ai/kurdgg";
 
 const call = { system: "s", user: "u", strength: "fast" as const };
@@ -119,5 +121,127 @@ describe("completeJson", () => {
 
   it("gives AiUnavailable the name AiUnavailable", () => {
     expect(new AiUnavailable("x").name).toBe("AiUnavailable");
+  });
+});
+
+describe("the DeepSeek stand-by", () => {
+  const dsOk = (data: unknown = { from: "deepseek" }) => ({ data, model: "deepseek-flash", usage: { in: 400, out: 50 } });
+  const down = () => vi.mocked(kg.kurdggJson).mockRejectedValue(new Error("HTTP 503 unknown"));
+  beforeEach(() => {
+    vi.mocked(ds.deepseekAllows).mockReturnValue(true);
+  });
+
+  it("answers when kurd.gg is down, after kurd.gg has had its two tries", async () => {
+    down();
+    vi.mocked(ds.deepseekJson).mockResolvedValue(dsOk());
+    const out = await completeJson(call);
+    expect(out).toEqual({ data: { from: "deepseek" }, model: "deepseek-flash" });
+    expect(kg.kurdggJson).toHaveBeenCalledTimes(2);
+    expect(ds.deepseekJson).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(ds.deepseekJson).mock.calls[0][2]).toBe(false);
+  });
+
+  it("is not used while kurd.gg answers", async () => {
+    vi.mocked(kg.kurdggJson).mockResolvedValue(ok());
+    await completeJson(call);
+    expect(ds.deepseekJson).not.toHaveBeenCalled();
+  });
+
+  it("counts what it cost as a Haiku call against the workspace's allowance", async () => {
+    vi.mocked(meter.chooseTier).mockResolvedValue("haiku");
+    down();
+    vi.mocked(ds.deepseekJson).mockResolvedValue(dsOk());
+    await completeJson({ ...call, meter: { scope: "t1" } });
+    expect(meter.recordSpend).toHaveBeenCalledWith({ scope: "t1" }, "haiku", 400, 50);
+  });
+
+  it("uses the careful model when the call was worth Opus", async () => {
+    vi.mocked(meter.chooseTier).mockResolvedValue("opus");
+    down();
+    vi.mocked(ds.deepseekJson).mockResolvedValue(dsOk());
+    await completeJson({ ...call, strength: "strong", tier: "opus", meter: { scope: "t1" } });
+    expect(vi.mocked(ds.deepseekJson).mock.calls[0][2]).toBe(true);
+  });
+
+  it("never gets around a refused allowance", async () => {
+    vi.mocked(meter.chooseTier).mockResolvedValue(null);
+    vi.mocked(ds.deepseekJson).mockResolvedValue(dsOk());
+    await expect(completeJson({ ...call, meter: { scope: "t1" } })).rejects.toThrow(/allowance/);
+    expect(ds.deepseekJson).not.toHaveBeenCalled();
+  });
+
+  it("is not tried for a call it cannot take (pictures), and the call fails as before", async () => {
+    vi.mocked(ds.deepseekAllows).mockReturnValue(false);
+    down();
+    await expect(completeJson({ ...call, images: ["data:image/png;base64,AAAA"] })).rejects.toBeInstanceOf(AiUnavailable);
+    expect(ds.deepseekJson).not.toHaveBeenCalled();
+  });
+
+  it("fails with both reasons when DeepSeek fails too", async () => {
+    down();
+    vi.mocked(ds.deepseekJson).mockRejectedValue(new Error("HTTP 429 unknown"));
+    await expect(completeJson(call)).rejects.toThrow(/HTTP 503.*deepseek: HTTP 429/);
+  });
+
+  it("pays for a DeepSeek reply of the wrong shape, and fails", async () => {
+    vi.mocked(meter.chooseTier).mockResolvedValue("haiku");
+    down();
+    vi.mocked(ds.deepseekJson).mockResolvedValue(dsOk({ wrong: true }));
+    const needsA = (d: unknown) => ((d as { a?: number })?.a ? (d as { a: number }) : null);
+    await expect(completeJson({ ...call, meter: { scope: "t1" } }, needsA)).rejects.toBeInstanceOf(AiUnavailable);
+    expect(meter.recordSpend).toHaveBeenCalledWith({ scope: "t1" }, "haiku", 400, 50);
+  });
+
+  it("answers after a kurd.gg timeout too, with the time that is left", async () => {
+    vi.mocked(kg.kurdggJson).mockRejectedValue(Object.assign(new Error("timed out"), { name: "TimeoutError" }));
+    vi.mocked(ds.deepseekJson).mockResolvedValue(dsOk());
+    expect((await completeJson({ ...call, budgetMs: 30_000 })).data).toEqual({ from: "deepseek" });
+    expect(kg.kurdggJson).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(ds.deepseekJson).mock.calls[0][1]).toBeGreaterThanOrEqual(4_000);
+  });
+
+  it("takes no time from a healthy kurd.gg: its first try gets what it always had", async () => {
+    vi.mocked(kg.kurdggJson).mockResolvedValue(ok());
+    await completeJson({ ...call, budgetMs: 30_000 });
+    expect(vi.mocked(kg.kurdggJson).mock.calls[0][1]).toBe(18_000);
+    vi.mocked(meter.chooseTier).mockResolvedValue("opus");
+    await completeJson({ ...call, budgetMs: 30_000, tier: "opus", meter: { scope: "t1" } });
+    // Opus: the 30 s budget less 1 s and the 9 s kept for a Haiku try after it, as before the stand-by existed
+    expect(vi.mocked(kg.kurdggJson).mock.calls[1][1]).toBe(20_000);
+  });
+
+  it("is the provider when there is no kurd.gg key, after the allowance check", async () => {
+    vi.mocked(kg.kurdggConfigured).mockReturnValue(false);
+    vi.mocked(ds.deepseekJson).mockResolvedValue(dsOk());
+    expect((await completeJson(call)).data).toEqual({ from: "deepseek" });
+    expect(kg.kurdggJson).not.toHaveBeenCalled();
+    vi.mocked(meter.chooseTier).mockResolvedValue(null);
+    await expect(completeJson({ ...call, meter: { scope: "t1" } })).rejects.toThrow(/allowance/);
+    vi.mocked(ds.deepseekAllows).mockReturnValue(false);
+    await expect(completeJson(call)).rejects.toThrow(/no AI provider/);
+  });
+
+  it("counts a DeepSeek reply that was billed but could not be read, and a DeepSeek timeout", async () => {
+    vi.mocked(meter.chooseTier).mockResolvedValue("haiku");
+    down();
+    vi.mocked(ds.deepseekJson).mockRejectedValueOnce(new ds.DeepseekReplyError("empty reply", { in: 300, out: 900 }));
+    await expect(completeJson({ ...call, meter: { scope: "t1" } })).rejects.toBeInstanceOf(AiUnavailable);
+    expect(meter.recordSpend).toHaveBeenCalledWith({ scope: "t1" }, "haiku", 300, 900);
+    vi.mocked(meter.recordSpend).mockClear();
+    vi.mocked(ds.deepseekJson).mockRejectedValueOnce(Object.assign(new Error("timed out"), { name: "TimeoutError" }));
+    await expect(completeJson({ ...call, meter: { scope: "t1" } })).rejects.toBeInstanceOf(AiUnavailable);
+    expect(meter.recordSpend).toHaveBeenCalledTimes(1);
+  });
+
+  it("logs only the status of a failure, never a piece of a reply", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.mocked(kg.kurdggJson).mockRejectedValue(new Error(`Unexpected token "s", "sorry, the buyer Aso 0750 1234567 asked" is not valid JSON`));
+    vi.mocked(ds.deepseekJson).mockResolvedValue(dsOk());
+    await completeJson(call);
+    const logged = warn.mock.calls.flat().join(" ");
+    expect(logged).toContain("DeepSeek takes over");
+    expect(logged).not.toContain("Aso");
+    expect(logged).not.toContain("0750");
+    warn.mockRestore();
   });
 });
