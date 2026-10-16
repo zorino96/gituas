@@ -35,7 +35,7 @@ export function routerScope(): FreeLevel {
 export function routerAllows(call: JsonCall, now = Date.now()): boolean {
   if (!call.free || !routerConfigured()) return false;
   // Opus was asked for because the work is worth it, and a picture needs a model that can see.
-  if (call.tier === "opus" || call.images?.length) return false;
+  if (call.tier === "opus" || call.opus === "always" || call.images?.length) return false;
   if (call.free === "draft" && routerScope() !== "draft") return false;
   return now >= coolUntil;
 }

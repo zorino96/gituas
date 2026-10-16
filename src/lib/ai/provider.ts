@@ -44,6 +44,12 @@ export interface JsonCall {
    * picking; "draft" = also writing the news drafts and video scripts (a wider scope the owner switches on).
    */
   free?: "light" | "draft";
+  /**
+   * Opus for a system call that has no workspace allowance (the newsroom's drafts). "retry": Haiku first, and Opus when
+   * its reply does not fit (a failed check); "always": Opus first, Haiku only when Opus fails. Ignored when a `meter` is
+   * given: a workspace's allowance decides the model there.
+   */
+  opus?: "retry" | "always";
 }
 
 export interface JsonResult {
@@ -120,7 +126,7 @@ export async function completeJson<T = unknown>(
 
   // The workspace's allowance decides the model and whether there is a call at all. A call with no
   // workspace to count it against is never Opus.
-  let tier: AiTier = call.meter ? (call.tier ?? "haiku") : "haiku";
+  let tier: AiTier = call.meter ? (call.tier ?? "haiku") : call.opus === "always" ? "opus" : "haiku";
   if (call.meter) {
     // If the count cannot be read the call is made with Haiku: a counting fault must not stop the shop answering.
     const allowed = await chooseTier(call.meter, tier, { essential: call.essential }).catch((): AiTier => "haiku");
@@ -158,6 +164,7 @@ export async function completeJson<T = unknown>(
       if (data === null) {
         errors.push("the reply did not have the shape we need");
         if (tier === "opus") tier = "haiku";
+        else if (call.opus === "retry" && !call.meter) tier = "opus";
         continue;
       }
       return { data, model: result.model };

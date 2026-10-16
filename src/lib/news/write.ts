@@ -52,7 +52,16 @@ export async function writeDraft(
   strength: Strength,
   opts: { startedAt: number; voiceNote?: string | null },
 ): Promise<Written> {
-  const style: DraftOptions = { voice: voiceFor(tenantId), voiceNote: opts.voiceNote };
+  // The top plan writes with Opus first (NEWS_DRAFT_OPUS=0 turns that off); every other desk with Haiku, and Opus when a
+  // draft fails the Kurdish check. Opus is unmetered here: the plan's own draft count bounds it.
+  let opus: "retry" | "always" = "retry";
+  try {
+    const t = await db.tenant.findUnique({ where: { id: tenantId }, select: { plan: true } });
+    if (t?.plan === "ENTERPRISE" && process.env.NEWS_DRAFT_OPUS?.trim() !== "0") opus = "always";
+  } catch {
+    // Haiku with the retry.
+  }
+  const style: DraftOptions = { voice: voiceFor(tenantId), voiceNote: opts.voiceNote, opus };
   let attempt = 1;
   let currentStrength: Strength = strength;
   let result = await draftFor(item, currentStrength, undefined, style);

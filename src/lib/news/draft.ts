@@ -1,4 +1,5 @@
 import { completeJson, type Strength } from "@/lib/ai/provider";
+import { hasKurdishDefects } from "./kurdish-check";
 import { normalizeForMatch } from "./text";
 import type { CopyPart } from "./rules";
 import { CARD_KINDS, CATEGORIES, type CardKind, type Draft } from "./types";
@@ -30,6 +31,8 @@ export interface DraftOptions {
   voiceNote?: string | null;
   /** Our own previous draft, when it read too much like another outlet's: write it differently. */
   avoid?: { headline: string; body: string };
+  /** Which model writes: Haiku with Opus on a failed check (retry), or Opus first (always). */
+  opus?: "retry" | "always";
 }
 
 /** The system prompt, with the desk's house style and the outlet's own style note when there are any. */
@@ -107,6 +110,8 @@ export function validateDraft(raw: unknown): Draft | null {
   const stat = strOrNum(r.stat, 30);
   const quote = str(r.quote, 200);
   const speaker = str(r.speaker, 60);
+  // A Latin letter inside a Kurdish word, an Arabic-only letter or a doubled alef: written again, never posted.
+  if (hasKurdishDefects(headline, body, quote, speaker)) return null;
   if (cardKind === "STAT" && !stat) cardKind = "STANDARD";
   if (cardKind === "QUOTE" && (!quote || !speaker)) cardKind = "STANDARD";
   return {
@@ -127,7 +132,7 @@ export async function draftFor(
   opts?: DraftOptions,
 ): Promise<{ draft: Draft; model: string }> {
   const { data, model } = await completeJson<Draft>(
-    { system: buildSystemPrompt(opts), user: buildUserPrompt(item, feedback, opts?.avoid), strength, free: "draft" },
+    { system: buildSystemPrompt(opts), user: buildUserPrompt(item, feedback, opts?.avoid), strength, free: "draft", opus: opts?.opus ?? "retry" },
     validateDraft,
   );
   return { draft: data, model };
