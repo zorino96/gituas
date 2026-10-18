@@ -23,6 +23,8 @@ export class DeepseekReplyError extends Error {
   constructor(
     message: string,
     public readonly usage: { in: number; out: number },
+    /** The answer ran into max_tokens: the same cap would cut it again. */
+    public readonly truncated = false,
   ) {
     super(message);
     this.name = "DeepseekReplyError";
@@ -63,7 +65,7 @@ export async function deepseekJson(call: JsonCall, timeoutMs: number, careful = 
     signal: AbortSignal.timeout(timeoutMs),
   });
   const raw = await res.text();
-  let body: { model?: string; choices?: { message?: { content?: unknown } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number }; error?: { type?: string; code?: string } } | null = null;
+  let body: { model?: string; choices?: { message?: { content?: unknown }; finish_reason?: unknown }[]; usage?: { prompt_tokens?: number; completion_tokens?: number }; error?: { type?: string; code?: string } } | null = null;
   try {
     body = JSON.parse(raw);
   } catch {
@@ -81,13 +83,14 @@ export async function deepseekJson(call: JsonCall, timeoutMs: number, careful = 
     typeof stated?.prompt_tokens === "number" && typeof stated?.completion_tokens === "number"
       ? { in: stated.prompt_tokens, out: stated.completion_tokens }
       : { in: estimateTokens(systemText + user), out: estimateTokens(text) };
-  if (!text.trim()) throw new DeepseekReplyError("empty reply", usage);
+  const cut = body?.choices?.[0]?.finish_reason === "length";
+  if (!text.trim()) throw new DeepseekReplyError("empty reply", usage, cut);
   let data: unknown;
   try {
     data = extractJson(text);
   } catch {
     // The parser's own message quotes the reply: only the fact is kept.
-    throw new DeepseekReplyError("the reply was not JSON", usage);
+    throw new DeepseekReplyError("the reply was not JSON", usage, cut);
   }
   return { data, model: body?.model ?? model, usage };
 }

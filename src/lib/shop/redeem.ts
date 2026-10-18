@@ -14,17 +14,23 @@ const TRIES_PER_DAY = 10;
  */
 export async function redeemCode(opts: { tenantId: string; userId: string; kind: string; raw: string }): Promise<RedeemResult> {
   const { tenantId, userId, kind, raw } = opts;
-  const [byWorkspace, byPerson] = await Promise.all([
-    takeDaily(tenantId, "redeem_try", 1, TRIES_PER_DAY).catch(() => 0),
-    takeDaily(userId, "redeem_try", 1, TRIES_PER_DAY).catch(() => 0),
-  ]);
-  if (byWorkspace < 1 || byPerson < 1) return { ok: false, error: "rate" };
+  let tries: number[];
+  try {
+    tries = await Promise.all([takeDaily(tenantId, "redeem_try", 1, TRIES_PER_DAY), takeDaily(userId, "redeem_try", 1, TRIES_PER_DAY)]);
+  } catch (e) {
+    // A database fault is "try again", not "wait until tomorrow".
+    console.error("redeem counter failed", e instanceof Error ? e.name : e);
+    return { ok: false, error: "failed" };
+  }
+  if (tries.some((n) => n < 1)) return { ok: false, error: "rate" };
   if (!looksLikeCode(raw)) return { ok: false, error: "invalid" };
 
   const codeHash = hashCode(raw);
   try {
     return await db.$transaction(async (tx) => {
       const now = new Date();
+      // One redemption at a time for a workspace: a second request at the same moment then sees the first one's row and answers "already".
+      await tx.$queryRaw`SELECT 1 FROM "Tenant" WHERE "id" = ${tenantId} FOR UPDATE`;
       const code = await tx.redeemCode.findUnique({ where: { codeHash } });
       const again = code ? await tx.redemption.findUnique({ where: { codeId_tenantId: { codeId: code.id, tenantId } }, select: { id: true } }) : null;
       if (code && again && !code.revokedAt) {
@@ -38,6 +44,8 @@ export async function redeemCode(opts: { tenantId: string; userId: string; kind:
       if (taken.count !== 1) return { ok: false as const, error: "invalid" as const };
       await tx.redemption.create({ data: { codeId: code.id, tenantId, userId } });
       const stores = await grant(tx, tenantId, kind);
+      // A payment link made before the code is no longer payable: it could not change the plan any more.
+      if (kind !== "NEWS") await tx.invoice.updateMany({ where: { tenantId, product: "SHOP", status: "PENDING" }, data: { status: "CANCELLED" } });
       await tx.auditLog.create({
         data: { tenantId, actor: "USER", action: "billing.test_code", reasoning: "Redeemed a test code: no limits on this workspace.", metadata: { codeId: code.id, stores } },
       });

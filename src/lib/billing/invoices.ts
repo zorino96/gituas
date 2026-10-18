@@ -26,6 +26,11 @@ export async function startCheckout(i: {
 }): Promise<CheckoutResult> {
   if (!waylConfigured()) return { ok: false, error: "پارەدان هێشتا ئامادە نییە." };
   let currentPlan: string | undefined;
+  if (i.product === "NEWS") {
+    // A news desk with a test code is on the top plan already: nothing to buy, and a payment must never lower it.
+    const t = await db.tenant.findUnique({ where: { id: i.tenantId }, select: { unlimited: true } }).catch(() => null);
+    if (t?.unlimited) return { ok: false, error: "ئەم دێسکە بێ سنوورە و پێویستی بە پارەدان نییە." };
+  }
   if (i.product === "SHOP") {
     const store = i.storeId ? await db.store.findFirst({ where: { id: i.storeId, tenantId: i.tenantId }, select: { id: true, plan: true } }) : null;
     if (!store) return { ok: false, error: "دووکانەکە نەدۆزرایەوە." };
@@ -91,7 +96,9 @@ export async function confirmInvoice(invoiceId: string): Promise<"paid" | "paid_
         // Lock the row so two payments at the same moment both count.
         await tx.$queryRaw`SELECT 1 FROM "Store" WHERE "id" = ${inv.storeId} FOR UPDATE`;
         const s = await tx.store.findUnique({ where: { id: inv.storeId }, select: { plan: true, planPaidUntil: true } });
-        if (s) {
+        // A shop that got a test code after this invoice was made keeps its plan: the payment is recorded and left for a refund
+        // (applied stays false, so the audit row below says it was not applied).
+        if (s && s.plan !== "UNLIMITED") {
           await tx.store.update({
             where: { id: inv.storeId },
             data: { plan: inv.plan as "MERCHANT" | "PRO" | "MAX", planPaidUntil: nextPaidUntil(inv.product as BillingProduct, { plan: s.plan, paidUntil: s.planPaidUntil }, inv.plan, now) },

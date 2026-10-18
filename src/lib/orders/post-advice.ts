@@ -126,21 +126,32 @@ export async function adviseForPost(i: {
   const modelAi = await aiForTenant(i.tenantId, { opus: true });
   const own = i.mediaUrl && i.mediaType && (isOwnBlobUrl(i.mediaUrl, i.tenantId) || (i.remoteMedia && metaMediaUrl(i.mediaUrl))) ? i.mediaUrl : null;
   const picture = own && i.mediaType === "IMAGE" ? await imageDataUrl(own) : null;
+  const ask = async (withPicture: boolean, budgetMs: number) =>
+    (
+      await completeJson<PostAdvice>(
+        {
+          system: SYSTEM,
+          user: withPicture ? context : `${context}\n(The media could not be seen: leave creativeScore out.)`,
+          ...(withPicture ? { images: [picture!] } : {}),
+          strength: "strong",
+          tier: modelAi?.tier,
+          meter: modelAi?.meter,
+          maxTokens: 1400,
+          budgetMs,
+        },
+        (d) => parseAdvice(d, signals.cities, withPicture),
+      )
+    ).data;
+  const started = Date.now();
   try {
-    const { data } = await completeJson<PostAdvice>(
-      {
-        system: SYSTEM,
-        user: picture ? context : `${context}\n(The media could not be seen: leave creativeScore out.)`,
-        ...(picture ? { images: [picture] } : {}),
-        strength: "strong",
-        tier: modelAi?.tier,
-        meter: modelAi?.meter,
-        maxTokens: 1400,
-        budgetMs: 40_000,
-      },
-      (d) => parseAdvice(d, signals.cities, !!picture),
-    );
-    return data;
+    try {
+      return await ask(!!picture, 40_000);
+    } catch (e) {
+      // The picture could not be read by any model (the stand-by cannot see): the advice is given from the caption and the
+      // reactions alone, if the first try left time for it.
+      if (!picture || Date.now() - started > 20_000) throw e;
+      return await ask(false, 25_000);
+    }
   } catch (e) {
     console.error("[post-advice] failed:", e instanceof Error ? e.message.slice(0, 160) : "unknown error");
     return null;

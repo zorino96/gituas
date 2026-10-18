@@ -88,7 +88,7 @@ export const Story: React.FC<StoryProps> = (props) => {
       })}
 
       {/* the title, always small at the top */}
-      <div style={{ position: "absolute", left: 50, right: 50, top: 95, textAlign: "center", direction: "rtl" }}>
+      <div style={{ position: "absolute", left: 50, right: 50, top: 95, textAlign: "center", direction: "rtl", opacity: 1 - intro }}>
         <div style={{ display: "inline-block", fontFamily: FONT, fontWeight: 700, fontSize: 36, color: "#111", background: GOLD, padding: "6px 24px", borderRadius: 999 }}>{props.tag}</div>
         <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 56, color: "#fff", marginTop: 18, lineHeight: 1.3, textShadow: "0 3px 14px rgba(0,0,0,0.85)" }}>{props.title}</div>
       </div>

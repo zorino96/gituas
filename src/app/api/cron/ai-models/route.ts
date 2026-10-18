@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { completeJson } from "@/lib/ai/provider";
 import { deepseekConfigured, deepseekJson } from "@/lib/ai/deepseek";
-import { kurdggConfigured, kurdggJson } from "@/lib/ai/kurdgg";
+import { isAnthropicHost, kurdggConfigured, kurdggHeaders, kurdggJson } from "@/lib/ai/kurdgg";
 import { routerConfigured, routerJson, routerScope } from "@/lib/ai/router";
 
 export const runtime = "nodejs";
@@ -22,10 +22,11 @@ export async function GET(req: Request) {
     const shape = async (jsonMode: boolean) => {
       const res = await fetch(`${base}/chat/completions`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        headers: kurdggHeaders(),
         body: JSON.stringify({
           model: modelFor("haiku"),
-          ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
+          // Anthropic's own endpoint refuses response_format json_object: for it both halves are the plain request.
+          ...(jsonMode && !isAnthropicHost(base) ? { response_format: { type: "json_object" } } : {}),
           messages: [
             { role: "system", content: 'Reply with JSON only: {"text": "<one sentence>"}' },
             { role: "user", content: "بە کوردیی سۆرانی ڕستەیەکی کورت بنووسە دەربارەی هەولێر." },
@@ -155,7 +156,11 @@ export async function GET(req: Request) {
   const key = process.env.KURDGG_API_KEY?.trim();
   if (!key) return NextResponse.json({ keySet: false, model: process.env.KURDGG_MODEL ?? null, models: [] });
   const base = (process.env.KURDGG_BASE_URL?.trim() || "https://api.kurd.gg/v1").replace(/\/$/, "");
-  const res = await fetch(`${base}/models`, { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(15_000) });
+  // Anthropic's own listing is the native one (x-api-key + version); a gateway takes the Bearer key.
+  const listHeaders: Record<string, string> = isAnthropicHost(base)
+    ? { "x-api-key": key, "anthropic-version": "2023-06-01", ...(process.env.ANTHROPIC_WORKSPACE_ID?.trim() ? { "anthropic-workspace-id": process.env.ANTHROPIC_WORKSPACE_ID.trim() } : {}) }
+    : kurdggHeaders();
+  const res = await fetch(`${base}/models`, { headers: listHeaders, signal: AbortSignal.timeout(15_000) });
   const body = (await res.json().catch(() => null)) as { data?: { id?: string }[] } | null;
   return NextResponse.json({
     keySet: true,
@@ -173,13 +178,21 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const body = (await req.json().catch(() => null)) as { model?: string; system?: string; user?: string; list?: boolean; claude?: boolean; maxTokens?: number } | null;
+  const body = (await req.json().catch(() => null)) as { model?: string; system?: string; user?: string; list?: boolean; claude?: boolean; maxTokens?: number; imageUrl?: string } | null;
   // {claude: true, system, user}: one JSON answer from the main provider alone (the Haiku key), with the model that answered.
   if (body?.claude) {
     if (!body.user) return NextResponse.json({ ok: false, error: "user is needed" });
     const started = Date.now();
     try {
-      const r = await kurdggJson({ system: body.system ?? "Reply with JSON only.", user: body.user, strength: "strong", maxTokens: Math.min(8000, Math.max(500, body.maxTokens ?? 6000)) }, 85_000, "haiku");
+      // imageUrl: a picture the model should look at (fetched here and sent as a data URL, like the app's own callers do).
+      let images: string[] | undefined;
+      if (body.imageUrl) {
+        const img = await fetch(body.imageUrl, { signal: AbortSignal.timeout(15_000) });
+        const type = img.headers.get("content-type")?.split(";")[0] ?? "image/png";
+        if (!img.ok || !type.startsWith("image/")) return NextResponse.json({ ok: false, error: "the picture could not be fetched" });
+        images = [`data:${type};base64,${Buffer.from(await img.arrayBuffer()).toString("base64")}`];
+      }
+      const r = await kurdggJson({ system: body.system ?? "Reply with JSON only.", user: body.user, strength: "strong", maxTokens: Math.min(8000, Math.max(500, body.maxTokens ?? 6000)), ...(images ? { images } : {}) }, 85_000, "haiku");
       return NextResponse.json({ ok: true, model: r.model, ms: Date.now() - started, usage: r.usage, data: r.data });
     } catch (e) {
       return NextResponse.json({ ok: false, ms: Date.now() - started, error: e instanceof Error ? `${e.name}: ${e.message}` : "failed" });

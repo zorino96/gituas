@@ -97,20 +97,25 @@ function strOrNum(v: unknown, max: number): string | null {
   return str(v, max);
 }
 
+/** The Arabic letters Kurdish orthography replaces one for one (ي → ی, ك → ک, ى → ی, ة → ە): a model's slip that needs no second try. */
+export function kurdishLetters<T extends string | null>(s: T): T {
+  return (s === null ? s : s.replace(/ي/g, "ی").replace(/ك/g, "ک").replace(/ى/g, "ی").replace(/ة/g, "ە")) as T;
+}
+
 /** The AI's JSON as a Draft, or null when it is unusable. Lengths are clamped; the rules flag long text. */
 export function validateDraft(raw: unknown): Draft | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
-  const headline = str(r.headline, 160);
-  const body = str(r.body, 800);
+  const headline = kurdishLetters(str(r.headline, 160));
+  const body = kurdishLetters(str(r.body, 800));
   if (!headline || !body) return null;
   const rawCategory = typeof r.category === "string" ? normalizeForMatch(r.category) : "";
   const category = CATEGORIES.find((c) => normalizeForMatch(c) === rawCategory) ?? "گشتی";
   let cardKind: CardKind = CARD_KINDS.includes(r.cardKind as CardKind) ? (r.cardKind as CardKind) : "STANDARD";
   const stat = strOrNum(r.stat, 30);
-  const quote = str(r.quote, 200);
-  const speaker = str(r.speaker, 60);
-  // A Latin letter inside a Kurdish word, an Arabic-only letter or a doubled alef: written again, never posted.
+  const quote = kurdishLetters(str(r.quote, 200));
+  const speaker = kurdishLetters(str(r.speaker, 60));
+  // A Latin letter inside a Kurdish word or a doubled alef: written again, never posted. (The Arabic ي ك ى ة were mapped above.)
   if (hasKurdishDefects(headline, body, quote, speaker)) return null;
   if (cardKind === "STAT" && !stat) cardKind = "STANDARD";
   if (cardKind === "QUOTE" && (!quote || !speaker)) cardKind = "STANDARD";

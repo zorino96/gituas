@@ -74,9 +74,11 @@ async function attachNumber(
     data: { waPhoneNumberId: null, waBusinessId: null, waDisplayPhone: null, waPinEncrypted: null },
   });
   const existing = await waStore(ws.id);
-  const store = existing ?? (await db.store.create({ data: { tenantId: ws.id, name: n.info.name || ws.name }, select: { id: true } }));
+  // A workspace that redeemed a test code keeps having no limits: its new shops are born UNLIMITED, with no launch offer.
+  const unlimited = existing ? false : !!(await db.tenant.findUnique({ where: { id: ws.id }, select: { unlimited: true } }).catch(() => null))?.unlimited;
+  const store = existing ?? (await db.store.create({ data: { tenantId: ws.id, name: n.info.name || ws.name, ...(unlimited ? { plan: "UNLIMITED" as const } : {}) }, select: { id: true } }));
   // A brand-new shop may get the launch offer (the first three new shops: Pro free for a week).
-  if (!existing) await claimLaunchPromo(ws.id, store.id);
+  if (!existing && !unlimited) await claimLaunchPromo(ws.id, store.id);
   await db.store.update({
     where: { id: store.id },
     data: { waPhoneNumberId: n.phoneNumberId, waBusinessId: n.wabaId, waDisplayPhone: n.info.display, waPinEncrypted: n.pin ? vaultEncrypt(n.pin) : null },

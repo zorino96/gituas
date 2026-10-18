@@ -18,6 +18,17 @@ export function isAnthropicHost(base: string): boolean {
   }
 }
 
+/** The headers of a request to the main provider: the key, JSON, and the workspace when an Anthropic key needs one. */
+export function kurdggHeaders(): Record<string, string> {
+  const workspace = process.env.ANTHROPIC_WORKSPACE_ID?.trim();
+  return {
+    Authorization: `Bearer ${process.env.KURDGG_API_KEY?.trim() ?? ""}`,
+    "Content-Type": "application/json",
+    // An Anthropic key that is not tied to one workspace must name it on every request.
+    ...(workspace ? { "anthropic-workspace-id": workspace } : {}),
+  };
+}
+
 export function kurdggConfigured(): boolean {
   return !!process.env.KURDGG_API_KEY?.trim();
 }
@@ -34,7 +45,13 @@ export function extractJson(content: string): unknown {
   } catch {
     const start = text.indexOf("{");
     const end = text.lastIndexOf("}");
-    if (start >= 0 && end > start) return JSON.parse(text.slice(start, end + 1));
+    if (start >= 0 && end > start) {
+      try {
+        return JSON.parse(text.slice(start, end + 1));
+      } catch {
+        // The parser's own message quotes the reply: only the fact is kept.
+      }
+    }
     throw new Error("the reply was not JSON");
   }
 }
@@ -209,12 +226,7 @@ export async function kurdggJson(call: JsonCall, timeoutMs: number, tier: AiTier
   const systemText = `${system}\n\nReply with one JSON object only.`;
   const res = await fetch(`${base}/chat/completions`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.KURDGG_API_KEY!.trim()}`,
-      "Content-Type": "application/json",
-      // An Anthropic key that is not tied to one workspace must name it on every request.
-      ...(process.env.ANTHROPIC_WORKSPACE_ID?.trim() ? { "anthropic-workspace-id": process.env.ANTHROPIC_WORKSPACE_ID.trim() } : {}),
-    },
+    headers: kurdggHeaders(),
     body: JSON.stringify({
       model,
       stream: false,
@@ -272,8 +284,8 @@ export async function kurdggJson(call: JsonCall, timeoutMs: number, tier: AiTier
   let data: unknown;
   try {
     data = extractJson(content);
-  } catch (e) {
-    throw new KurdggReplyError(e instanceof Error ? e.message : "the reply was not JSON", usage, ranIntoCap(finishReason(raw)));
+  } catch {
+    throw new KurdggReplyError("the reply was not JSON", usage, ranIntoCap(finishReason(raw)));
   }
   return { data, model: `kurdgg/${replyModel ?? model}`, usage };
 }

@@ -16,6 +16,7 @@ import {
   saveDesignPromptAction,
   saveSectionFrameTextAction,
 } from "@/app/newsroom/(desk)/news/actions";
+import { opusAvailable } from "@/lib/ai/models";
 import { maxPlanOpen } from "@/lib/billing/prices";
 import { db } from "@/lib/db";
 import { dict, getLang } from "@/lib/i18n";
@@ -205,7 +206,7 @@ export async function askAssistantAction(input: { workspaceId: string; messages:
       turns,
       uiNames,
       state,
-      features: { max: maxPlanOpen() || hasMax, video, pictures: imageEnabled() },
+      features: { max: opusAvailable() && (maxPlanOpen() || hasMax), video, pictures: imageEnabled() },
       attachments: infos,
       nowBaghdad: baghdadNow(),
       uncounted: noShop,

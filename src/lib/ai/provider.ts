@@ -6,6 +6,7 @@
 // A call made for a workspace carries a `meter`: its monthly AI allowance is checked before the call
 // and charged after it (./meter.ts). When the allowance is used up the call is refused with
 // AiUnavailable, and the feature's own fallback (fixed templates, plain rules) takes over.
+import { altAllows, altJson, altModels, AltReplyError } from "./alt";
 import { deepseekAllows, deepseekJson, DeepseekReplyError } from "./deepseek";
 import { kurdggConfigured, kurdggJson, KurdggReplyError, MIN_MAX_TOKENS } from "./kurdgg";
 import { chooseTier, recordSpend, type Meter } from "./meter";
@@ -53,6 +54,11 @@ export interface JsonCall {
    * given: a workspace's allowance decides the model there.
    */
   opus?: "retry" | "always";
+  /**
+   * "deepseek": try the DeepSeek model FIRST and the main provider (Haiku) after it, when DeepSeek fails. The owner's choice for
+   * AI video scripts. Ignored for a call with pictures (DeepSeek cannot see them): that one goes to the main provider first.
+   */
+  prefer?: "deepseek";
 }
 
 export interface JsonResult {
@@ -85,6 +91,8 @@ const HAIKU_RESERVE_MS = 9_000;
  * kurd.gg must get exactly the time it always had): it takes what is left, which after a failure is most of the budget.
  */
 const STANDBY_MIN_MS = 4_000;
+/** Time kept back for the main provider when DeepSeek is tried first (call.prefer): a DeepSeek that hangs must not cost Haiku its try. */
+const PREFER_RESERVE_MS = 10_000;
 /** The free router: how long one try may take, the least worth trying, and the time kept for kurd.gg after it. */
 const ROUTER_TIMEOUT: Record<Strength, number> = { fast: 14_000, strong: 24_000 };
 const ROUTER_MIN_MS = 5_000;
@@ -92,7 +100,7 @@ const ROUTER_PAID_RESERVE_MS = 22_000;
 
 /** Failures that another try may fix: the network, the provider's own errors and its rate limit. */
 function retryable(e: unknown): boolean {
-  if (e instanceof KurdggReplyError && e.truncated) return false; // the same cap would cut it again
+  if ((e instanceof KurdggReplyError || e instanceof DeepseekReplyError) && e.truncated) return false; // the same cap would cut it again
   if (!(e instanceof Error)) return false;
   if (e.name === "TimeoutError" || e.name === "AbortError") return false; // already used its time
   const m = /^HTTP (\d{3})/.exec(e.message);
@@ -105,7 +113,7 @@ export async function completeJson<T = unknown>(
   validate: (data: unknown) => T | null = (d) => d as T,
 ): Promise<{ data: T; model: string }> {
   const viaRouter = routerAllows(call);
-  if (!kurdggConfigured() && !viaRouter && !deepseekAllows(call)) throw new AiUnavailable("no AI provider is configured");
+  if (!kurdggConfigured() && !viaRouter && !deepseekAllows(call) && !altAllows(call)) throw new AiUnavailable("no AI provider is configured");
   const start = Date.now();
   const deadlineMs = Math.min(DEADLINE_MS, Math.max(0, call.budgetMs ?? DEADLINE_MS));
   const remaining = () => deadlineMs - (Date.now() - start);
@@ -126,13 +134,14 @@ export async function completeJson<T = unknown>(
         console.error("[router] reply did not fit; kurd.gg takes over");
       } catch (e) {
         noteRouterFailure(e);
-        console.error("[router] failed; kurd.gg takes over:", message(e).slice(0, 80));
+        // The status only: the text of an error can carry a piece of the gateway's reply.
+        console.error("[router] failed; kurd.gg takes over:", /^HTTP \d{3}/.exec(message(e))?.[0] ?? (e instanceof Error ? e.name : "failed"));
       }
     }
   }
   // Without a kurd.gg key the stand-by is the provider (after the allowance check below).
   const kurdgg = kurdggConfigured();
-  if (!kurdgg && !deepseekAllows(call)) throw new AiUnavailable("the free router did not answer and no paid provider is configured");
+  if (!kurdgg && !deepseekAllows(call) && !altAllows(call)) throw new AiUnavailable("the free router did not answer and no paid provider is configured");
 
   // The workspace's allowance decides the model and whether there is a call at all. A call with no
   // workspace to count it against is never Opus.
@@ -158,6 +167,42 @@ export async function completeJson<T = unknown>(
   };
 
   const errors: string[] = [];
+
+  // DeepSeek: a stand-by after the main provider has failed, or (call.prefer) the first choice with the main provider after it.
+  // Counted like a Haiku call (it costs less, so the allowance is never undercounted).
+  const runDeepseek = async (tries: number, reserveMs: number, announce: boolean): Promise<{ data: T; model: string } | null> => {
+    for (let attempt = 0; attempt < tries; attempt++) {
+      const timeout = Math.min(TIMEOUT[call.strength] * (careful ? OPUS_TIME : 1), remaining() - 500 - reserveMs);
+      if (timeout < (attempt === 0 ? STANDBY_MIN_MS : MIN_RETRY_MS)) break;
+      // Only the HTTP status or "no usable reply" is logged: the text of an error can carry a piece of the model's reply.
+      if (announce && attempt === 0) console.warn("[ai] kurd.gg did not answer; DeepSeek takes over:", errors.map((e) => /^HTTP \d{3}/.exec(e)?.[0] ?? "no usable reply").join(" | ") || "not configured");
+      try {
+        const result = await deepseekJson(call, timeout, careful);
+        await spend(result.usage, "haiku"); // paid for, whether or not the shape fits
+        const data = validate(result.data);
+        if (data !== null) return { data, model: result.model };
+        errors.push("deepseek: the reply did not have the shape we need");
+      } catch (e) {
+        // A reply that arrived but could not be read was billed too; a call that timed out may have been: count a guess.
+        if (e instanceof DeepseekReplyError) await spend(e.usage, "haiku");
+        else if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
+          await spend({ in: estimateTokens(`${call.system}${call.user}`), out: Math.ceil(Math.max(call.maxTokens ?? 2000, MIN_MAX_TOKENS) / 2) }, "haiku");
+        }
+        errors.push(`deepseek: ${message(e)}`);
+        if (!retryable(e)) break;
+      }
+    }
+    return null;
+  };
+
+  let deepseekDone = false;
+  if (call.prefer === "deepseek" && standby) {
+    // One try only, and time kept back for the main provider after it.
+    const first = await runDeepseek(1, kurdgg ? PREFER_RESERVE_MS : 0, false);
+    deepseekDone = true;
+    if (first) return first;
+  }
+
   for (let attempt = 0; kurdgg && attempt < 2; attempt++) {
     const per = TIMEOUT[call.strength] * (tier === "opus" ? OPUS_TIME : 1);
     // An Opus try leaves room for a Haiku try after it: a slow or failing Opus never costs the whole answer.
@@ -202,32 +247,34 @@ export async function completeJson<T = unknown>(
     }
   }
 
-  // kurd.gg did not answer: DeepSeek takes over, counted like a Haiku call (it costs less, so the allowance is never undercounted).
-  if (standby) {
-    // Two tries at most: a reply that did not fit, or a failure another try may fix, gets one more go while time remains.
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const timeout = Math.min(TIMEOUT[call.strength] * (careful ? OPUS_TIME : 1), remaining() - 500);
-      if (timeout < (attempt === 0 ? STANDBY_MIN_MS : MIN_RETRY_MS)) break;
-      // Only the HTTP status or "no usable reply" is logged: the text of an error can carry a piece of the model's reply.
-      if (attempt === 0) console.warn("[ai] kurd.gg did not answer; DeepSeek takes over:", errors.map((e) => /^HTTP \d{3}/.exec(e)?.[0] ?? "no usable reply").join(" | ") || "not configured");
+  // The main provider did not answer: DeepSeek takes over (unless it was already the first choice).
+  if (standby && !deepseekDone) {
+    const second = await runDeepseek(2, 0, true);
+    if (second) return second;
+  }
+
+  // Then the owner's alternative models, one after the other, each with one try.
+  if (altAllows(call)) {
+    console.warn("[ai] main provider and DeepSeek did not answer; trying the alternative models");
+    for (const model of altModels()) {
+      const timeout = Math.min(TIMEOUT[call.strength], remaining() - 500);
+      if (timeout < STANDBY_MIN_MS) break;
       try {
-        const result = await deepseekJson(call, timeout, careful);
-        await spend(result.usage, "haiku"); // paid for, whether or not the shape fits
+        const result = await altJson(call, timeout, model);
+        await spend(result.usage, "haiku");
         const data = validate(result.data);
         if (data !== null) return { data, model: result.model };
-        errors.push("deepseek: the reply did not have the shape we need");
+        errors.push("alt: the reply did not have the shape we need");
       } catch (e) {
-        // A reply that arrived but could not be read was billed too; a call that timed out may have been: count a guess.
-        if (e instanceof DeepseekReplyError) await spend(e.usage, "haiku");
+        if (e instanceof AltReplyError) await spend(e.usage, "haiku");
         else if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
           await spend({ in: estimateTokens(`${call.system}${call.user}`), out: Math.ceil(Math.max(call.maxTokens ?? 2000, MIN_MAX_TOKENS) / 2) }, "haiku");
         }
-        errors.push(`deepseek: ${message(e)}`);
-        if (!retryable(e)) break;
+        errors.push(`alt: ${message(e)}`);
       }
     }
   }
   // Only the HTTP status or the kind of failure is logged: the text of an error can carry a piece of a reply.
-  console.error("[ai] no provider answered:", errors.map((e) => /^(deepseek: )?HTTP \d{3}/.exec(e)?.[0] ?? (e.startsWith("deepseek:") ? "deepseek: no usable reply" : "no usable reply")).join(" | ") || "none tried");
+  console.error("[ai] no provider answered:", errors.map((e) => /^((deepseek|alt): )?HTTP \d{3}/.exec(e)?.[0] ?? (/^(deepseek|alt):/.test(e) ? `${e.split(":")[0]}: no usable reply` : "no usable reply")).join(" | ") || "none tried");
   throw new AiUnavailable(errors.join("; ") || "the AI did not answer");
 }

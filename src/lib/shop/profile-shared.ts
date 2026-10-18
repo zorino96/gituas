@@ -91,7 +91,7 @@ const toWestern = (s: string) => s.replace(/[٠-٩]/g, (d) => String(d.charCodeA
 export function hasLinkOrPhone(text: string): boolean {
   const t = toWestern(text.replace(INVISIBLE, "").normalize("NFKC"));
   if (/(https?:\/\/|www\.|[\p{L}\p{N}-]+\.[a-z]{2,}\b|@[\p{L}\p{N}_.]{3,})/iu.test(t)) return true;
-  return /\d{7,}/.test(t.replace(/[\s.,/()\-–—·_]/g, ""));
+  return /\d{7,}/.test(t.replace(/[\s.,/()\-–—·_\u060C\u066B\u066C\u200C]/g, ""));
 }
 
 const MAX_FACTS_RAW = 30;

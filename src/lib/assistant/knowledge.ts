@@ -47,8 +47,8 @@ export function planFacts(f: KnowledgeFeatures = { max: true, video: true, pictu
     .join("\n");
 }
 
-const videoSection = () =>
-  `- AI video: the AI writes the script, reads it aloud in a Kurdish voice and makes a short vertical video (about 35 seconds, five or six scenes) that promotes the brand, a product or a channel. It does not make long videos of several minutes, documentaries or story videos for YouTube monetization. At most ${VIDEOS_PER_DAY} video a day for each paid shop, counted across the whole account. Two kinds: Lite (script by the fast model) and Pro (script by the strongest model, on the Max plan). It can use the owner's reference pictures and clips, can plan the day's video itself, can be posted right away, or one can be made every day by itself.`;
+const videoSection = (f: KnowledgeFeatures) =>
+  `- AI video: the AI writes the script, reads it aloud in a Kurdish voice and makes a short vertical video (about 35 seconds, five or six scenes) that promotes the brand, a product or a channel. It does not make long videos of several minutes, documentaries or story videos for YouTube monetization. At most ${VIDEOS_PER_DAY} video a day for each paid shop, counted across the whole account. ${f.max ? "Two kinds: Lite (script by the fast model) and Pro (script by the strongest model, on the Max plan)." : "The script is written by the fast model."} It can use the owner's reference pictures and clips, can plan the day's video itself, can be posted right away, or one can be made every day by itself.`;
 
 /** The product, section by section. */
 function product(f: KnowledgeFeatures): string {
@@ -62,7 +62,7 @@ Where things are (the names are in "ui_names"):
 - Orders: orders from comments and messages (the automatic reply asks the buyer for name, phone, city and address in the chat), or recorded by hand.
 - WhatsApp: connects the shop's WhatsApp Business number so buyers can write there.
 - Publish: write one post and choose Facebook, Instagram, TikTok, YouTube. Instagram and TikTok need a picture or video; YouTube needs a video; a text-only post goes to Facebook only. Facebook, Instagram and YouTube can be scheduled (from 10 minutes to 60 days ahead); TikTok is always posted at once. It suggests a caption and hashtags${f.pictures ? ", and can make an AI picture from an idea and reference pictures" : ""}${f.video ? " or an AI video" : ""}. Choosing a product tags the post, so the first comment already gets that product's card. One post goes to at most 5 accounts of a platform (TikTok 1).
-${f.video ? videoSection() : ""}
+${f.video ? videoSection(f) : ""}
 ${f.pictures || f.video ? `- "Gituas review": a switch under the idea box when making an AI picture or video. It rewrites the owner's idea with the brand's name, tagline and products in view, and shows what was asked. Switched off, the owner's words go through exactly as typed. If the review cannot be done, nothing is made or counted.` : ""}
 - Auto replies: automatic replies START OFF; the owner switches them on there. For each post the owner picks a product (and a reply template; a default private message can stand in when a post has no product). Products are opened from "Products" on this page: name, JPEG photos, price per variant, in stock.
 - Auto posts: the owner chooses Off, Prepare only or Post automatically, and 1 to 3 posts a day. Gituas picks the hours from when buyers message the most (otherwise 13:00, 20:00 and 22:00, Baghdad time). It needs a product that is in stock, has a photo the owner uploaded (JPEG) and was not posted in the last 7 days; best sellers first; the caption gets the price and city hashtags. Posting by itself goes to Facebook and Instagram on paid plans; on the Free plan it only prepares the latest post, which the owner opens in Publish. TikTok can take the prepared picture post after one tap by the owner; YouTube needs a video, so it cannot.

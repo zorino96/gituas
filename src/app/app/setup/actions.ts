@@ -52,7 +52,13 @@ export async function saveProfileStepAction(storeId: string, patch: unknown, met
     const dropped = Array.isArray(asked)
       ? asked.filter((f): f is { k: string; v: string } => !!f && (f as { k?: unknown }).k === "custom" && typeof (f as { v?: unknown }).v === "string").map((f) => f.v).filter((v) => !merged?.some((m) => m.k === "custom" && m.v === v.trim()))
       : [];
-    return { ok: true, dropped: dropped.length ? dropped.slice(0, 5) : undefined };
+    // The same for the offer line and the goal: a link or a phone number in them is refused, and the owner is told.
+    const rawPatch = !meta.skipped && patch && typeof patch === "object" ? (patch as Record<string, unknown>) : {};
+    const refusedLines = (["offerLine", "goalText"] as const)
+      .filter((k) => typeof rawPatch[k] === "string" && (rawPatch[k] as string).trim() && (sent as Record<string, unknown>)[k] == null)
+      .map((k) => (rawPatch[k] as string).trim().slice(0, 60));
+    const all = [...dropped, ...refusedLines];
+    return { ok: true, dropped: all.length ? all.slice(0, 5) : undefined };
   } catch (e) {
     console.error("[setup] save failed:", e instanceof Error ? e.message.slice(0, 80) : "unknown error");
     return { ok: false, error: r.t.common.error };

@@ -92,6 +92,8 @@ export function SetupClient({ storeId, storeName, initial, initialStep = 0 }: { 
     setBusy(true);
     setErr(null);
     try {
+      // A link or a phone number is refused in the offer line and the goal too: said here before anything is sent.
+      if (!skipped && ((step === "goal" && hasLinkOrPhone(cleanLine(p.goalText, 200) ?? "")) || (step === "what" && hasLinkOrPhone(cleanLine(p.offerLine, 140) ?? "")))) return setErr(s.customRefused);
       const r = await saveProfileStepAction(storeId, patchFor(step), { step, index: i, skipped });
       if (!r.ok) return setErr(s.saveFailed(r.error));
       if (r.dropped?.length) return setErr(`${s.customRefused} ${r.dropped.join("، ")}`);
@@ -243,12 +245,12 @@ export function SetupClient({ storeId, storeName, initial, initialStep = 0 }: { 
             {p.facts.length === 0 && <p className="gm-hint" style={{ margin: 0 }}>{s.reviewEmpty}</p>}
             {p.facts.map((f) => (
               <div key={`${f.k}:${f.v}`} className="gm-between">
-                <span dir="auto" id={`fact-${f.k}-${f.v.length}-${f.v.slice(0, 12)}`}>{f.k === "payment" ? label("pay", f.v) : f.k === "returns" ? label("ret", f.v) : f.v}</span>
+                <span dir="auto">{f.k === "payment" ? label("pay", f.v) : f.k === "returns" ? label("ret", f.v) : f.v}</span>
                 <button
                   type="button"
                   role="switch"
                   aria-checked={f.on}
-                  aria-labelledby={`fact-${f.k}-${f.v.length}-${f.v.slice(0, 12)}`}
+                  aria-label={f.on ? s.factSay : s.factHide}
                   title={f.on ? s.factSay : s.factHide}
                   className="gm-knob"
                   onClick={() => setP((x) => ({ ...x, facts: x.facts.map((y) => (y.k === f.k && y.v === f.v ? { ...y, on: !y.on } : y)) }))}

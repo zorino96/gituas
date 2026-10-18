@@ -1,3 +1,4 @@
+import { opusAvailable } from "@/lib/ai/models";
 /** UNLIMITED is never sold or listed: a code the owner minted puts a test account on it (src/lib/shop/redeem.ts). */
 export type StorePlan = "FREE" | "MERCHANT" | "PRO" | "MAX" | "UNLIMITED";
 
@@ -59,7 +60,8 @@ export function isStorePlan(v: unknown): v is StorePlan {
 
 /** Whether a plan includes Claude Opus (replies, analysis and video scripts). */
 export function planUsesOpus(plan: StorePlan): boolean {
-  return SHOP_LIMITS[plan].aiOpusUsd > 0;
+  // Not while Opus is switched off (AI_OPUS_ENABLED=0): every video is then a Lite video.
+  return opusAvailable() && SHOP_LIMITS[plan].aiOpusUsd > 0;
 }
 
 /** The store's own cap applies when it is lower than the plan's. */
@@ -101,8 +103,8 @@ export function tenantLimits(plans: readonly StorePlan[]): TenantLimits {
     const l = SHOP_LIMITS[p];
     out.aiUsd += l.aiUsd;
     out.aiOpusUsd += l.aiOpusUsd;
-    // Both kinds of video are open to a test account.
-    if (p === "UNLIMITED") out.videos.LITE += l.videosPerMonth;
+    // Both kinds of video are open to a test account (while Opus is switched off there is only the one kind).
+    if (p === "UNLIMITED" && planUsesOpus(p)) out.videos.LITE += l.videosPerMonth;
     out.videos[planUsesOpus(p) ? "PRO" : "LITE"] += l.videosPerMonth;
     out.videosPerDay += videosPerDayOf(p);
     out.images += l.imagesPerMonth;

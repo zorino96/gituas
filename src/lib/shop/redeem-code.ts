@@ -11,7 +11,7 @@ export function normalizeCode(raw: string): string {
   return raw
     .normalize("NFKC")
     .toUpperCase()
-    .replace(/[\s\-_.​-‏‪-‮⁠-⁤﻿]/g, "")
+    .replace(/[\s\-_.\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]/g, "")
     .slice(0, 64);
 }
 

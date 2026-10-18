@@ -122,7 +122,8 @@ export type DirectorCall = (call: JsonCall, timeoutMs: number) => Promise<{ data
  * the whole allowance is gone it is refused and the plain storyboard is used.
  */
 export function defaultDirector(tier: VideoTier, meter?: Meter): DirectorCall {
-  return (call, timeoutMs) => completeJson({ ...call, tier: tier === "PRO" ? "opus" : "haiku", meter: call.meter ?? meter, budgetMs: timeoutMs });
+  // The owner's choice: video scripts go to DeepSeek first and to Haiku when DeepSeek fails (a call with pictures goes to Haiku first).
+  return (call, timeoutMs) => completeJson({ ...call, tier: tier === "PRO" ? "opus" : "haiku", meter: call.meter ?? meter, budgetMs: timeoutMs, prefer: "deepseek" });
 }
 
 export interface Written {
@@ -170,6 +171,7 @@ export async function writeAdSpec(input: WriteInput): Promise<Written> {
   const ctx: DirectorContext = { plan: input.plan, avoidLooks: input.avoidLooks, recentHooks: input.recentHooks, refPictures: input.images?.length ?? 0 };
   let problems: string[] | undefined;
   let model = "none";
+  let withPictures = !!input.images?.length;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const out = await call(
@@ -179,7 +181,7 @@ export async function writeAdSpec(input: WriteInput): Promise<Written> {
           strength: "strong",
           maxTokens: tier === "PRO" ? 3200 : 2400,
           meter: input.meter,
-          ...(input.images?.length ? { images: input.images } : {}),
+          ...(withPictures ? { images: input.images } : {}),
         },
         timeout,
       );
@@ -192,6 +194,14 @@ export async function writeAdSpec(input: WriteInput): Promise<Written> {
       }
       problems = n.errors;
     } catch {
+      // No model could read the pictures (the stand-by provider cannot see): one more go from the words alone, so a
+      // video with reference pictures is not turned into the plain template just because the pictures could not be read.
+      if (withPictures) {
+        withPictures = false;
+        ctx.refPictures = 0;
+        attempt--;
+        continue;
+      }
       break;
     }
   }

@@ -155,3 +155,10 @@ describe("mergeFacts", () => {
     expect(mergeFacts(previous, incoming)).toEqual([{ k: "payment", v: "cod", on: true }, { k: "payment", v: "pickup", on: false }]);
   });
 });
+
+describe("review follow-ups", () => {
+  it("finds a phone number split by the Arabic comma, the Arabic thousands separator or a zero-width non-joiner", () => {
+    for (const t of ["0750،123،4567", "0750٬123٬4567", "0750‌123‌4567", "0750٫123٫4567"]) expect(hasLinkOrPhone(t), t).toBe(true);
+    expect(hasLinkOrPhone("جلی ژنانە، بەرگی هاوین، ٢٤ کاتژمێر")).toBe(false);
+  });
+});

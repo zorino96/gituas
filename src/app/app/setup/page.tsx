@@ -59,7 +59,7 @@ export default async function SetupPage({ searchParams }: { searchParams: Promis
   };
   // Back to the screen the owner left on (a finished interview starts again from the first, to change an answer).
   const savedStep = (row?.interview as { step?: unknown } | undefined)?.step;
-  const initialStep = !initial.finished && typeof savedStep === "number" && Number.isInteger(savedStep) ? Math.max(0, Math.min(savedStep, 3)) : 0;
+  const initialStep = !initial.finished && typeof savedStep === "number" && Number.isInteger(savedStep) ? Math.max(0, Math.min(savedStep, 20)) : 0;
 
   return <SetupClient key={store.id} storeId={store.id} storeName={store.name || (store.igUsername ? `@${store.igUsername}` : "")} initial={initial} initialStep={initialStep} />;
 }
