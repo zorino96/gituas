@@ -183,7 +183,7 @@ export async function POST(req: Request) {
   // {altDebug: true, model}: what one alternative model says to a few plain requests (status and its own error message).
   if (body?.altDebug) {
     if (!altConfigured()) return NextResponse.json({ ok: false, error: "the alternative models are not configured" });
-    const model = body.model && altModels().includes(body.model) ? body.model : altModels()[0];
+    const model = body.model && /^[\w.:/@+-]{1,80}$/.test(body.model) ? body.model : altModels()[0];
     const base = process.env.ALT_AI_BASE_URL!.trim().replace(/\/$/, "");
     const msgs = [{ role: "user", content: "Say ok" }];
     const variants: [string, Record<string, unknown>][] = [
@@ -213,7 +213,7 @@ export async function POST(req: Request) {
   // {alt: true, model?, system, user}: one JSON answer from one of the alternative models alone (the first one when no model is named).
   if (body?.alt) {
     if (!altConfigured()) return NextResponse.json({ ok: false, error: "the alternative models are not configured", models: altModels() });
-    const model = body.model && altModels().includes(body.model) ? body.model : altModels()[0];
+    const model = body.model && /^[\w.:/@+-]{1,80}$/.test(body.model) ? body.model : altModels()[0];
     const started = Date.now();
     try {
       const r = await altJson({ system: body.system ?? "Reply with JSON only.", user: body.user ?? "Say ok", strength: "fast", maxTokens: 1500 }, 60_000, model);

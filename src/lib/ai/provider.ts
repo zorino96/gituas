@@ -55,10 +55,26 @@ export interface JsonCall {
    */
   opus?: "retry" | "always";
   /**
-   * "deepseek": try the DeepSeek model FIRST and the main provider (Haiku) after it, when DeepSeek fails. The owner's choice for
-   * AI video scripts. Ignored for a call with pictures (DeepSeek cannot see them): that one goes to the main provider first.
+   * "video": the owner's order for AI video scripts (see videoOrder): DeepSeek V4.1 Flash first (its own API, then the free one
+   * of the gateway), then the gateway's Claude, then Haiku, then the other alternative models. The steps that cannot take a call
+   * with pictures are skipped, so that one goes to the main provider first.
    */
-  prefer?: "deepseek";
+  prefer?: "video";
+}
+
+/**
+ * The order of the steps for a call with prefer "video": deepseek (the DeepSeek API, V4.1 Flash), alt (every alternative model, in
+ * ALT_AI_MODELS order), alt:<model id> (one of them), main (Haiku through the main key). AI_VIDEO_ORDER (comma list) changes it.
+ * Whatever the list leaves out still runs afterwards in the ordinary order (main, DeepSeek, the other alternative models).
+ */
+export const DEFAULT_VIDEO_ORDER = "deepseek,alt:oc/deepseek-v4.1-flash-free,alt:cc/claude-haiku-5-5,main,alt";
+export function videoOrder(): string[] {
+  const out: string[] = [];
+  for (const raw of (process.env.AI_VIDEO_ORDER?.trim() || DEFAULT_VIDEO_ORDER).split(",")) {
+    const step = raw.trim();
+    if (/^(deepseek|main|alt|alt:[\w.:/@+-]{1,80})$/.test(step) && !out.includes(step)) out.push(step);
+  }
+  return out;
 }
 
 export interface JsonResult {
@@ -195,12 +211,50 @@ export async function completeJson<T = unknown>(
     return null;
   };
 
+  // An alternative model: one try, counted like a Haiku call (also a reply that was billed but unusable, and a timeout).
+  const triedAlt = new Set<string>();
+  const runAlt = async (model: string, reserveMs: number): Promise<{ data: T; model: string } | null> => {
+    triedAlt.add(model);
+    const timeout = Math.min(TIMEOUT[call.strength], remaining() - 500 - reserveMs);
+    if (timeout < STANDBY_MIN_MS) return null;
+    try {
+      const result = await altJson(call, timeout, model);
+      await spend(result.usage, "haiku");
+      const data = validate(result.data);
+      if (data !== null) return { data, model: result.model };
+      errors.push("alt: the reply did not have the shape we need");
+    } catch (e) {
+      if (e instanceof AltReplyError) await spend(e.usage, "haiku");
+      else if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
+        await spend({ in: estimateTokens(`${call.system}${call.user}`), out: Math.ceil(Math.max(call.maxTokens ?? 2000, MIN_MAX_TOKENS) / 2) }, "haiku");
+      }
+      errors.push(`alt: ${message(e)}`);
+    }
+    return null;
+  };
+
   let deepseekDone = false;
-  if (call.prefer === "deepseek" && standby) {
-    // One try only, and time kept back for the main provider after it.
-    const first = await runDeepseek(1, kurdgg ? PREFER_RESERVE_MS : 0, false);
-    deepseekDone = true;
-    if (first) return first;
+  if (call.prefer === "video") {
+    // The owner's order for video scripts: every step before "main" gets one try, with time kept back for the main provider after it.
+    const steps = videoOrder();
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i];
+      if (step === "main") break;
+      const reserve = kurdgg && steps.slice(i + 1).includes("main") ? PREFER_RESERVE_MS : 0;
+      if (step === "deepseek") {
+        if (standby && !deepseekDone) {
+          deepseekDone = true;
+          const r = await runDeepseek(1, reserve, false);
+          if (r) return r;
+        }
+      } else if (altAllows(call)) {
+        for (const m of step === "alt" ? altModels() : [step.slice(4)]) {
+          if (triedAlt.has(m)) continue;
+          const r = await runAlt(m, reserve);
+          if (r) return r;
+        }
+      }
+    }
   }
 
   for (let attempt = 0; kurdgg && attempt < 2; attempt++) {
@@ -253,25 +307,13 @@ export async function completeJson<T = unknown>(
     if (second) return second;
   }
 
-  // Then the owner's alternative models, one after the other, each with one try.
+  // Then the owner's alternative models (those not tried yet), one after the other, each with one try.
   if (altAllows(call)) {
-    console.warn("[ai] main provider and DeepSeek did not answer; trying the alternative models");
-    for (const model of altModels()) {
-      const timeout = Math.min(TIMEOUT[call.strength], remaining() - 500);
-      if (timeout < STANDBY_MIN_MS) break;
-      try {
-        const result = await altJson(call, timeout, model);
-        await spend(result.usage, "haiku");
-        const data = validate(result.data);
-        if (data !== null) return { data, model: result.model };
-        errors.push("alt: the reply did not have the shape we need");
-      } catch (e) {
-        if (e instanceof AltReplyError) await spend(e.usage, "haiku");
-        else if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
-          await spend({ in: estimateTokens(`${call.system}${call.user}`), out: Math.ceil(Math.max(call.maxTokens ?? 2000, MIN_MAX_TOKENS) / 2) }, "haiku");
-        }
-        errors.push(`alt: ${message(e)}`);
-      }
+    const rest = altModels().filter((m) => !triedAlt.has(m));
+    if (rest.length) console.warn("[ai] main provider and DeepSeek did not answer; trying the alternative models");
+    for (const m of rest) {
+      const r = await runAlt(m, 0);
+      if (r) return r;
     }
   }
   // Only the HTTP status or the kind of failure is logged: the text of an error can carry a piece of a reply.

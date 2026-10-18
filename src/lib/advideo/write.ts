@@ -122,8 +122,8 @@ export type DirectorCall = (call: JsonCall, timeoutMs: number) => Promise<{ data
  * the whole allowance is gone it is refused and the plain storyboard is used.
  */
 export function defaultDirector(tier: VideoTier, meter?: Meter): DirectorCall {
-  // The owner's choice: video scripts go to DeepSeek first and to Haiku when DeepSeek fails (a call with pictures goes to Haiku first).
-  return (call, timeoutMs) => completeJson({ ...call, tier: tier === "PRO" ? "opus" : "haiku", meter: call.meter ?? meter, budgetMs: timeoutMs, prefer: "deepseek" });
+  // The owner's order for video scripts: DeepSeek V4.1 Flash first, the gateway's Claude, then Haiku (see videoOrder in the provider).
+  return (call, timeoutMs) => completeJson({ ...call, tier: tier === "PRO" ? "opus" : "haiku", meter: call.meter ?? meter, budgetMs: timeoutMs, prefer: "video" });
 }
 
 export interface Written {
