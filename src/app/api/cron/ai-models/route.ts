@@ -2,6 +2,7 @@ import { modelFor } from "@/lib/ai/models";
 import { NextResponse } from "next/server";
 
 import { completeJson } from "@/lib/ai/provider";
+import { altConfigured, altJson, altModels } from "@/lib/ai/alt";
 import { deepseekConfigured, deepseekJson } from "@/lib/ai/deepseek";
 import { isAnthropicHost, kurdggConfigured, kurdggHeaders, kurdggJson } from "@/lib/ai/kurdgg";
 import { routerConfigured, routerJson, routerScope } from "@/lib/ai/router";
@@ -178,7 +179,19 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const body = (await req.json().catch(() => null)) as { model?: string; system?: string; user?: string; list?: boolean; claude?: boolean; maxTokens?: number; imageUrl?: string } | null;
+  const body = (await req.json().catch(() => null)) as { model?: string; system?: string; user?: string; list?: boolean; claude?: boolean; alt?: boolean; maxTokens?: number; imageUrl?: string } | null;
+  // {alt: true, model?, system, user}: one JSON answer from one of the alternative models alone (the first one when no model is named).
+  if (body?.alt) {
+    if (!altConfigured()) return NextResponse.json({ ok: false, error: "the alternative models are not configured", models: altModels() });
+    const model = body.model && altModels().includes(body.model) ? body.model : altModels()[0];
+    const started = Date.now();
+    try {
+      const r = await altJson({ system: body.system ?? "Reply with JSON only.", user: body.user ?? "Say ok", strength: "fast", maxTokens: 1500 }, 60_000, model);
+      return NextResponse.json({ ok: true, model: r.model, ms: Date.now() - started, usage: r.usage, data: r.data });
+    } catch (e) {
+      return NextResponse.json({ ok: false, model, ms: Date.now() - started, error: e instanceof Error ? `${e.name}: ${e.message}` : "failed" });
+    }
+  }
   // {claude: true, system, user}: one JSON answer from the main provider alone (the Haiku key), with the model that answered.
   if (body?.claude) {
     if (!body.user) return NextResponse.json({ ok: false, error: "user is needed" });

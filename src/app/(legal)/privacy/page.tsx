@@ -214,8 +214,11 @@ export default function PrivacyPage() {
           for news, the public headline and summary of a story. Sender phone numbers and account
           tokens are never sent to it; we send only what each task needs. When Anthropic
           cannot give a usable answer to a request (an outage, a slow reply or an unusable one), the
-          same text is sent instead to DeepSeek, an AI provider based in China, as a stand-by.
-          Pictures are never sent to DeepSeek.
+          same text is sent instead to DeepSeek, an AI provider based in China, as a stand-by. AI video
+          scripts are written by DeepSeek first and by Anthropic when DeepSeek cannot. If both fail, the
+          text can go to kurd.gg (Pawan.Krd), an AI gateway that passes it to free models of other
+          providers (DeepSeek, GLM, Qwen, LongCat), which may be hosted outside the European Union and the
+          United States. Pictures are never sent to DeepSeek or to those models.
         </LI>
         <LI>
           <Strong>Voice messages.</Strong> When a buyer sends a voice message, its audio is sent to
@@ -273,7 +276,7 @@ export default function PrivacyPage() {
       <P>
         Our database and files are stored on managed infrastructure in the United States and the
         European Union. AI providers may process the text and pictures we send them in other
-        countries, including the United States and, for the DeepSeek stand-by, China. All third-party access tokens are encrypted at rest using AES-256-GCM before
+        countries, including the United States and, for the stand-by models, China. All third-party access tokens are encrypted at rest using AES-256-GCM before
         being written to the database, and are decrypted only in memory at the moment an action you
         authorized is performed. Access to production systems is restricted and logged.
       </P>
