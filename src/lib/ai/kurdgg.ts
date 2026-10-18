@@ -218,7 +218,8 @@ export async function kurdggJson(call: JsonCall, timeoutMs: number, tier: AiTier
     body: JSON.stringify({
       model,
       stream: false,
-      temperature: 0.3,
+      // Anthropic's own models refuse `temperature` ("deprecated for this model"); a gateway still gets it.
+      ...(isAnthropicHost(base) ? {} : { temperature: 0.3 }),
       max_tokens: Math.max(maxTokens ?? DEFAULT_MAX_TOKENS, MIN_MAX_TOKENS),
       // Anthropic's own endpoint takes only response_format "json_schema": for it the JSON is asked for in the prompt
       // ("Reply with one JSON object only") and cut out of the reply by extractJson, as for every other gateway.
