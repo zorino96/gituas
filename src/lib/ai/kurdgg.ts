@@ -9,6 +9,15 @@ import type { JsonCall, JsonResult } from "./provider";
 
 const DEFAULT_BASE = "https://api.kurd.gg/v1";
 
+/** Whether the base address is Anthropic's own API (a key made at console.anthropic.com) and not a gateway. */
+export function isAnthropicHost(base: string): boolean {
+  try {
+    return /(^|\.)anthropic\.com$/i.test(new URL(base).hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function kurdggConfigured(): boolean {
   return !!process.env.KURDGG_API_KEY?.trim();
 }
@@ -211,7 +220,9 @@ export async function kurdggJson(call: JsonCall, timeoutMs: number, tier: AiTier
       stream: false,
       temperature: 0.3,
       max_tokens: Math.max(maxTokens ?? DEFAULT_MAX_TOKENS, MIN_MAX_TOKENS),
-      response_format: { type: "json_object" },
+      // Anthropic's own endpoint takes only response_format "json_schema": for it the JSON is asked for in the prompt
+      // ("Reply with one JSON object only") and cut out of the reply by extractJson, as for every other gateway.
+      ...(isAnthropicHost(base) ? {} : { response_format: { type: "json_object" } }),
       messages: [
         { role: "system", content: systemText },
         {

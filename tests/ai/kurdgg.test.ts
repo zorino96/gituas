@@ -67,6 +67,40 @@ describe("kurdggJson", () => {
   });
 });
 
+describe("Anthropic's own endpoint", () => {
+  it("is told to answer in JSON by the prompt only (it refuses response_format json_object), and gets the workspace header", async () => {
+    const { kurdggJson, isAnthropicHost } = await import("@/lib/ai/kurdgg");
+    expect(isAnthropicHost("https://api.anthropic.com/v1")).toBe(true);
+    expect(isAnthropicHost("https://api.kurd.gg/v1")).toBe(false);
+    expect(isAnthropicHost("https://evilanthropic.com/v1")).toBe(false);
+    expect(isAnthropicHost("not a url")).toBe(false);
+    const seen: { body: Record<string, unknown>; headers: Record<string, string> }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: { body: string; headers: Record<string, string> }) => {
+        seen.push({ body: JSON.parse(init.body), headers: init.headers });
+        return new Response(JSON.stringify({ model: "claude-haiku-5-5", choices: [{ message: { content: '{"ok":true}' } }] }), { status: 200 });
+      }),
+    );
+    vi.stubEnv("KURDGG_API_KEY", "k");
+    vi.stubEnv("KURDGG_BASE_URL", "https://api.anthropic.com/v1");
+    vi.stubEnv("KURDGG_MODEL", "claude-haiku-5-5");
+    vi.stubEnv("ANTHROPIC_WORKSPACE_ID", "wrkspc_test");
+    await kurdggJson({ system: "sys", user: "hello", strength: "fast" }, 5_000);
+    expect(seen[0].body).not.toHaveProperty("response_format");
+    expect(seen[0].body).toMatchObject({ model: "claude-haiku-5-5", stream: false });
+    expect(seen[0].headers["anthropic-workspace-id"]).toBe("wrkspc_test");
+    // a gateway still gets JSON mode and no workspace header
+    vi.stubEnv("KURDGG_BASE_URL", "https://api.kurd.gg/v1");
+    vi.stubEnv("ANTHROPIC_WORKSPACE_ID", "");
+    await kurdggJson({ system: "sys", user: "hello", strength: "fast" }, 5_000);
+    expect(seen[1].body).toMatchObject({ response_format: { type: "json_object" } });
+    expect(seen[1].headers).not.toHaveProperty("anthropic-workspace-id");
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+});
+
 describe("replies that are not a plain string", () => {
   it("reads a list of content parts as text", () => {
     expect(partsText([{ type: "text", text: "{\"a\":" }, { type: "text", text: "1}" }])).toBe("{\"a\":1}");
