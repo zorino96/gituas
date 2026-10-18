@@ -11,7 +11,7 @@ export default function PrivacyPage() {
   return (
     <article>
       <h1 className="font-display text-4xl md:text-5xl leading-tight">Privacy Policy</h1>
-      <Updated date="October 16, 2026" />
+      <Updated date="October 19, 2026" />
 
       <Lead>
         This policy covers Gituas (gituas.com), a tool for shops and creators to publish to their own
@@ -204,15 +204,15 @@ export default function PrivacyPage() {
       <P>We share data only with the service providers that run Gituas and Hawalnoos for us:</P>
       <UL>
         <LI>
-          <Strong>AI text processing.</Strong> kurd.gg (Pawan.Krd), an AI gateway that passes requests
-          to Anthropic&rsquo;s Claude models (Haiku and Opus). We send them: the text of buyer
+          <Strong>AI text processing.</Strong> Anthropic, which runs the Claude model (Haiku) we ask. We
+          send it: the text of buyer
           comments, direct messages and WhatsApp messages, with your product names and prices, so
           they can tell what the buyer is asking and help word the reply; the content you are
           drafting; the pictures of your own products when an ad or a post is being planned; the
           questions you ask the in-app assistant, with a summary of your own settings (plan, which
           Pages are connected, what is switched on, counts) so it can answer about your shop; and,
           for news, the public headline and summary of a story. Sender phone numbers and account
-          tokens are never sent to them; we send only what each task needs. When kurd.gg
+          tokens are never sent to it; we send only what each task needs. When Anthropic
           cannot give a usable answer to a request (an outage, a slow reply or an unusable one), the
           same text is sent instead to DeepSeek, an AI provider based in China, as a stand-by.
           Pictures are never sent to DeepSeek.
