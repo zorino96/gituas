@@ -179,7 +179,37 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const body = (await req.json().catch(() => null)) as { model?: string; system?: string; user?: string; list?: boolean; claude?: boolean; alt?: boolean; maxTokens?: number; imageUrl?: string } | null;
+  const body = (await req.json().catch(() => null)) as { model?: string; system?: string; user?: string; list?: boolean; claude?: boolean; alt?: boolean; altDebug?: boolean; maxTokens?: number; imageUrl?: string } | null;
+  // {altDebug: true, model}: what one alternative model says to a few plain requests (status and its own error message).
+  if (body?.altDebug) {
+    if (!altConfigured()) return NextResponse.json({ ok: false, error: "the alternative models are not configured" });
+    const model = body.model && altModels().includes(body.model) ? body.model : altModels()[0];
+    const base = process.env.ALT_AI_BASE_URL!.trim().replace(/\/$/, "");
+    const msgs = [{ role: "user", content: "Say ok" }];
+    const variants: [string, Record<string, unknown>][] = [
+      ["plain", { model, messages: msgs }],
+      ["max_tokens 20", { model, max_tokens: 20, messages: msgs }],
+      ["max_tokens 3000", { model, max_tokens: 3000, messages: msgs }],
+      ["stream false + 3000", { model, stream: false, max_tokens: 3000, messages: msgs }],
+      ["as the app sends", { model, stream: false, max_tokens: 3000, messages: [{ role: "system", content: "Reply with JSON only.\n\nReply with one JSON object only." }, { role: "user", content: "Say ok" }] }],
+    ];
+    const out = [];
+    for (const [name, payload] of variants) {
+      try {
+        const res = await fetch(`${base}/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${process.env.ALT_AI_API_KEY!.trim()}`, "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(25_000) });
+        const raw = await res.text();
+        let msg = raw.slice(0, 160);
+        try {
+          const j = JSON.parse(raw);
+          msg = j?.error?.message ?? j?.error ?? (res.ok ? "ok" : msg);
+        } catch {}
+        out.push({ name, status: res.status, message: String(msg).slice(0, 220) });
+      } catch (e) {
+        out.push({ name, status: 0, message: e instanceof Error ? e.name : "failed" });
+      }
+    }
+    return NextResponse.json({ model, out });
+  }
   // {alt: true, model?, system, user}: one JSON answer from one of the alternative models alone (the first one when no model is named).
   if (body?.alt) {
     if (!altConfigured()) return NextResponse.json({ ok: false, error: "the alternative models are not configured", models: altModels() });
