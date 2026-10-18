@@ -275,7 +275,8 @@ export async function prepareVideo(jobId: string): Promise<boolean> {
     ]);
     if (!draft || !item || !tenant) throw new Error("draft or story missing");
     const { system, user } = reelPrompt(draft);
-    const script = (await completeJson({ system, user, strength: "fast", thinking: false, free: "draft" }, parseReelScript)).data;
+    // The owner's order for video scripts (DeepSeek V4.1 Flash first, Haiku after it): see videoOrder in the AI provider.
+    const script = (await completeJson({ system, user, strength: "fast", thinking: false, free: "draft", prefer: "video" }, parseReelScript)).data;
 
     // The desk's own voice (ENTERPRISE): read once per video; without it a ready-made voice reads.
     const clone = job.voice === CUSTOM_VOICE ? await cloneVoiceFor(job.tenantId) : null;

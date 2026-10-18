@@ -1,8 +1,8 @@
 import { modelFor } from "@/lib/ai/models";
 import { NextResponse } from "next/server";
 
-import { completeJson } from "@/lib/ai/provider";
 import { altConfigured, altJson, altModels } from "@/lib/ai/alt";
+import { completeJson, videoOrder } from "@/lib/ai/provider";
 import { deepseekConfigured, deepseekJson } from "@/lib/ai/deepseek";
 import { isAnthropicHost, kurdggConfigured, kurdggHeaders, kurdggJson } from "@/lib/ai/kurdgg";
 import { routerConfigured, routerJson, routerScope } from "@/lib/ai/router";
@@ -179,7 +179,17 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const body = (await req.json().catch(() => null)) as { model?: string; system?: string; user?: string; list?: boolean; claude?: boolean; alt?: boolean; altDebug?: boolean; maxTokens?: number; imageUrl?: string } | null;
+  const body = (await req.json().catch(() => null)) as { model?: string; system?: string; user?: string; list?: boolean; claude?: boolean; alt?: boolean; altDebug?: boolean; video?: boolean; maxTokens?: number; imageUrl?: string } | null;
+  // {video: true, system, user}: the real chain for a video script (completeJson with prefer "video"), and which model answered.
+  if (body?.video) {
+    const started = Date.now();
+    try {
+      const r = await completeJson<unknown>({ system: body.system ?? "Reply with JSON only.", user: body.user ?? "Say ok", strength: "fast", thinking: false, prefer: "video", maxTokens: 1500 });
+      return NextResponse.json({ ok: true, order: videoOrder(), model: r.model, ms: Date.now() - started, data: r.data });
+    } catch (e) {
+      return NextResponse.json({ ok: false, order: videoOrder(), ms: Date.now() - started, error: e instanceof Error ? `${e.name}: ${e.message}`.slice(0, 300) : "failed" });
+    }
+  }
   // {altDebug: true, model}: what one alternative model says to a few plain requests (status and its own error message).
   if (body?.altDebug) {
     if (!altConfigured()) return NextResponse.json({ ok: false, error: "the alternative models are not configured" });
