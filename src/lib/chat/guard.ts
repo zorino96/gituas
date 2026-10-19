@@ -126,9 +126,16 @@ export function cleanOutbound(text: string, corpus: string, opts: { keepAmounts?
     .trim();
 }
 
+/**
+ * Words the owner does not know. Gituas keeps a Facebook Page and an Instagram account together in a "shop"; a Sorani answer that says
+ * "شاپ" (also written "شۆپ") means that group, and the owner reads it as something he never connected. It is said as "گروپ" (group), which
+ * is what it is. A word the model is told not to use still slips out of a long chat that already holds it, so it is changed here for good.
+ */
+export const ownerWords = (text: string): string => text.replace(/ش[اۆ]پ/g, "گروپ");
+
 /** The model's words to the person: invisible characters out, every link out except ours, cut to a sane length. */
 export function cleanAnswer(text: string, max = 3_000): string {
-  return stripInvisible(text)
+  return ownerWords(stripInvisible(text))
     .replace(URL_RE, (found) => {
       const tail = TRAILING.exec(found)?.[0] ?? "";
       const url = tail ? found.slice(0, -tail.length) : found;

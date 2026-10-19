@@ -167,8 +167,30 @@ export const chatAr: typeof chatCkb = {
     open: "فتح",
   },
 
+  // The Accounts sheet and card: which connected account the chat works with, and connecting another.
+  accounts: {
+    open: "الحسابات",
+    title: "الحسابات",
+    close: "إغلاق",
+    sub: "اختر الحساب الذي تعمل عليه المحادثة، أو اربط حسابًا آخر.",
+    deskSub: "هذه هي الحسابات المرتبطة هنا. يمكنك ربط حساب آخر.",
+    loading: "جارٍ تحميل حساباتك…",
+    loadFailed: "تعذّر تحميل حساباتك.",
+    retry: "حاول مرة أخرى",
+    kind: { FB: "صفحة فيسبوك", IG: "حساب إنستغرام", TT: "حساب تيك توك", YT: "قناة يوتيوب" },
+    empty: "لم يُربط أي شيء بعد.",
+    noPost: "لا تستطيع المحادثة النشر أو الرد هنا.",
+    inUse: "قيد الاستخدام",
+    chosen: (kind: string, name: string) => `أصبحت المحادثة تعمل الآن مع ${kind} «${name}».`,
+    chooseFailed: "تعذّر التبديل. حاول مرة أخرى.",
+    connect: "اربط",
+    connectAnother: "اربط حسابًا آخر",
+    whatsappHelp: "لواتساب صفحته الخاصة.",
+    whatsappOpen: "فتح واتساب",
+  },
+
   settings: {
-    sec: "المحادثة",
+    sec:"المحادثة",
     title: "المحادثة والإجراءات",
     sub: "حدّد إلى أي مدى تعمل المحادثة دون أن تسألك. يمكنك رؤية كل إجراء في بطاقته.",
     levelsLabel: "كيف تعمل المحادثة",

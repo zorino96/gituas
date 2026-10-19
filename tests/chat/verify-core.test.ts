@@ -8,6 +8,8 @@ async function load(fns: Record<string, VerifyFn>) {
   vi.resetModules();
   vi.doMock("@/lib/chat/verify/shop", () => ({ SHOP_VERIFIERS: fns }));
   vi.doMock("@/lib/chat/verify/rules", () => ({ RULE_VERIFIERS: {} }));
+  vi.doMock("@/lib/chat/verify/accounts", () => ({ ACCOUNT_VERIFIERS: {} }));
+  vi.doMock("@/lib/chat/verify/reset", () => ({ RESET_VERIFIERS: {} }));
   vi.doMock("@/lib/chat/verify/news", () => ({ NEWS_VERIFIERS: {} }));
   return await import("@/lib/chat/verify");
 }

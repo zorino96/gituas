@@ -11,6 +11,7 @@ import type { ChatAttachment, MessageDto, RunDto, VerifyReport, ViewBlock } from
 import { useT } from "@/lib/i18n/client";
 import { videoJobStatusAction } from "../video/actions";
 import { minutesLeft, shownStatus, splitLinks, valueDir } from "./chat-model";
+import { ChatAccounts } from "./chat-accounts";
 import { safeHrefFor } from "./chat-frame-model";
 import { useChatShell } from "./chat-shell";
 
@@ -22,13 +23,20 @@ export function Avatar() {
   );
 }
 
-/** Plain text with the https addresses made into links. Nothing else is interpreted. */
+/** **bold** as the model writes a name or a button: shown as bold, never as asterisks. Nothing else is interpreted. */
+function Bold({ text }: { text: string }) {
+  const parts = text.split(/\*\*([^*\n]+)\*\*/g);
+  if (parts.length === 1) return <>{text}</>;
+  return <>{parts.map((p, i) => (i % 2 === 1 ? <strong key={i}>{p}</strong> : p))}</>;
+}
+
+/** Plain text with the https addresses made into links and **bold** shown as bold. Nothing else is interpreted. */
 function RichText({ text }: { text: string }) {
   return (
     <>
       {splitLinks(text).map((part, i) =>
         typeof part === "string" ? (
-          part
+          <Bold key={i} text={part} />
         ) : (
           <a key={i} className="gm-link ch-url" dir="ltr" href={part.url} target="_blank" rel="noopener noreferrer">
             {part.url}
@@ -58,7 +66,7 @@ function BlockLink({ href }: { href?: string }) {
 
 function BlockView({ block }: { block: ViewBlock }) {
   const t = useT().chat.views;
-  const { kind } = useChatShell();
+  const { kind, workspaceId, accounts } = useChatShell();
   if (block.kind === "note") {
     return (
       <p className={`ch-note ${block.tone === "warn" ? "warn" : ""}`} dir="auto" role={block.tone === "warn" ? "note" : undefined}>
@@ -67,6 +75,8 @@ function BlockView({ block }: { block: ViewBlock }) {
       </p>
     );
   }
+  // The person's connected accounts: live controls (choose the one the chat works with, connect another), the same as the header's Accounts sheet.
+  if (block.kind === "accounts") return <ChatAccounts inline api={accounts} workspaceId={workspaceId} />;
   const heading = block.title ? <h3 className="ch-block-title">{block.title}</h3> : null;
 
   if (block.kind === "stats") {

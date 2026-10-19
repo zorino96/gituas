@@ -30,7 +30,7 @@ export function refuse(message: string): never {
   throw new ToolRefusal(message);
 }
 
-export const NO_SHOP = "There is no shop yet. The person has to connect a Facebook Page or an Instagram account in Settings first; you cannot do that for them.";
+export const NO_SHOP = "Nothing is connected yet. The person connects a Facebook Page or an Instagram account with the Connect button that show_accounts puts in the chat; you cannot do that for them.";
 export const productNotFound = (hint: unknown) =>
   `No single product matches "${String(hint ?? "").slice(0, 80)}". Call list_products and pass the product's exact name or its id.`;
 

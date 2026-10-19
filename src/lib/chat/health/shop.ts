@@ -27,7 +27,9 @@ import { num } from "@/lib/i18n/num";
 import { say as chatSay } from "../text";
 import { A, ago, be, DAY, E, endingSoon, found, HOUR, hv, K, metaAccounts, MIN, N, say, there, words, type Def, type Finder, type Finding, type HealthCtx } from "./types";
 
-const RECONNECT = words("لە ڕێکخستن دووبارە پەیوەستی بکەرەوە.", "أعد الربط من الإعدادات.", "Reconnect it in Settings.");
+// Accounts are connected and reconnected inside the chat (the Accounts button, show_accounts), never in Settings.
+const RECONNECT = words("لە دوگمەی «ئەکاونتەکان»ی چات «پەیوەست بکە» دابگرە.", "اضغط «اربط» في زر «الحسابات» في المحادثة.", "Press Connect in the Accounts button of the chat.");
+const CONNECT_BUTTON = "the Connect button that show_accounts puts in the chat (never send the person to Settings for it)";
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Connections
@@ -40,8 +42,8 @@ const noPage: Def = {
     () => "لا توجد صفحة فيسبوك أو حساب إنستغرام مربوط، لذلك لا يُنشر شيء ولا تُرسل ردود.",
     () => "No Facebook Page or Instagram account is connected, so nothing is posted and no replies go out.",
   ),
-  todo: words("لە ڕێکخستن پەیجەکەت پەیوەست بکە.", "اربط صفحتك من الإعدادات.", "Connect your Page in Settings."),
-  fix: "Nothing is connected, so nothing can be posted and no automatic reply works. The person must connect a Facebook Page or Instagram account in Settings (/app/settings); you cannot do that for them.",
+  todo: words("لە دوگمەی «ئەکاونتەکان»ی چات پەیجەکەت پەیوەست بکە.", "اربط صفحتك من زر «الحسابات» في المحادثة.", "Connect your Page with the Accounts button of the chat."),
+  fix: `Nothing is connected, so nothing can be posted and no automatic reply works. The person must connect a Facebook Page or Instagram account with ${CONNECT_BUTTON}; you cannot do that for them.`,
 };
 const fbExpired: Def = {
   area: "connections",
@@ -52,7 +54,7 @@ const fbExpired: Def = {
     (n) => `The connection of ${E(n, N.fbPage)} has ended, so posts and replies there are not going out.`,
   ),
   todo: RECONNECT,
-  fix: "A Facebook Page connection has expired or is gone. Meta tokens cannot be refreshed: the person must reconnect the Page in Settings (/app/settings); you cannot do that for them. Until then posts and automatic replies on Facebook do not work.",
+  fix: `A Facebook Page connection has expired or is gone. Meta tokens cannot be refreshed: the person must reconnect the Page with ${CONNECT_BUTTON}; you cannot do that for them. Until then posts and automatic replies on Facebook do not work.`,
 };
 const igExpired: Def = {
   area: "connections",
@@ -63,7 +65,7 @@ const igExpired: Def = {
     (n) => `The connection of ${E(n, N.igAccount)} has ended, so posts and replies there are not going out.`,
   ),
   todo: RECONNECT,
-  fix: "An Instagram connection has expired or is gone. The person must reconnect it in Settings (/app/settings); you cannot do that for them. Until then posts and automatic replies on Instagram do not work.",
+  fix: `An Instagram connection has expired or is gone. The person must reconnect it with ${CONNECT_BUTTON}; you cannot do that for them. Until then posts and automatic replies on Instagram do not work.`,
 };
 const paused: Def = {
   area: "connections",
@@ -74,7 +76,7 @@ const paused: Def = {
     (n) => `Automatic replies are paused in ${E(n, N.shop)} because Facebook or Instagram no longer accepts the connection.`,
   ),
   todo: RECONNECT,
-  fix: "Replies are paused (the shop's pausedReason is token): Meta rejected the access. The person must reconnect in Settings (/app/settings); you cannot do that for them.",
+  fix: `Replies are paused (the shop's pausedReason is token): Meta rejected the access. The person must reconnect with ${CONNECT_BUTTON}; you cannot do that for them.`,
 };
 const expiring: Def = {
   area: "connections",
@@ -85,7 +87,7 @@ const expiring: Def = {
     (n) => `The connection of ${E(n, N.fbPage)} ends within a week.`,
   ),
   todo: words("پێش ئەوەی تەواو ببێت دووبارە پەیوەستی بکەرەوە.", "أعد الربط قبل أن ينتهي.", "Reconnect it before it ends."),
-  fix: "A Facebook Page connection ends within 7 days. The person must reconnect it in Settings (/app/settings) before then; you cannot do that for them.",
+  fix: `A Facebook Page connection ends within 7 days. The person must reconnect it with ${CONNECT_BUTTON} before then; you cannot do that for them.`,
 };
 
 export const connectionsFinder: Finder = {
@@ -102,22 +104,22 @@ export const connectionsFinder: Finder = {
     ]);
     const accounts = metaAccounts(creds, c.now);
     const live = (provider: string, id: string | null): boolean => !!id && accounts.get(`${provider}:${id}`)?.live === true;
-    const href = `${c.base}/settings`;
+    // No link to a screen: the connection is made with the Accounts button of the chat (the todo and the fix say so).
     const out: Finding[] = [];
 
     if (!stores.length || stores.every((s) => !s.fbPageId && !s.igUserId)) {
-      if (![...accounts.values()].some((a) => a.live)) out.push(found(c, noPage, 0, href));
+      if (![...accounts.values()].some((a) => a.live)) out.push(found(c, noPage, 0));
       return out;
     }
     const fbBad = stores.filter((s) => s.fbPageId && !live("META_FACEBOOK", s.fbPageId)).length;
     const igBad = stores.filter((s) => s.igUserId && !live("META_INSTAGRAM", s.igUserId)).length;
-    if (fbBad) out.push(found(c, fbExpired, fbBad, href));
-    if (igBad) out.push(found(c, igExpired, igBad, href));
+    if (fbBad) out.push(found(c, fbExpired, fbBad));
+    if (igBad) out.push(found(c, igExpired, igBad));
     const tokenPaused = stores.filter((s) => s.pausedReason === "token").length;
-    if (tokenPaused && !fbBad && !igBad) out.push(found(c, paused, tokenPaused, href));
+    if (tokenPaused && !fbBad && !igBad) out.push(found(c, paused, tokenPaused));
     const mine = new Set(stores.map((s) => s.fbPageId).filter((id): id is string => !!id));
     const soon = endingSoon([...accounts.values()].filter((a) => mine.has(a.id)), c.now, 7 * DAY).length;
-    if (soon) out.push(found(c, expiring, soon, href));
+    if (soon) out.push(found(c, expiring, soon));
     return out;
   },
 };

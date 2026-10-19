@@ -55,7 +55,9 @@ export type ViewBlock =
   | { kind: "stats"; title?: string; items: { label: string; value: string }[]; href?: string }
   | { kind: "table"; title?: string; columns: string[]; rows: string[][]; more?: number; href?: string }
   | { kind: "list"; title?: string; items: { title: string; sub?: string; badge?: string; href?: string }[]; more?: number; href?: string }
-  | { kind: "note"; text: string; tone?: "info" | "warn" };
+  | { kind: "note"; text: string; tone?: "info" | "warn" }
+  /** The person's connected accounts, drawn by the screen as live controls: choose which one the chat uses, and connect another. No data inside: the screen asks the server. */
+  | { kind: "accounts" };
 
 export interface CardLine {
   label: string;

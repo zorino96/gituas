@@ -329,7 +329,7 @@ describe("the older tools' cards", () => {
 
   it("refuse when there is no shop yet, and when the product is not found exactly", async () => {
     db.store.findMany.mockResolvedValue([]);
-    expect(await refusal(cardOf("set_auto_replies", { on: true }))).toMatch(/no shop/i);
+    expect(await refusal(cardOf("set_auto_replies", { on: true }))).toMatch(/nothing is connected yet/i);
     db.store.findMany.mockResolvedValue([{ id: "s2", name: "Shop two", igUsername: null, fbPageId: "fb1", igUserId: null }]);
     expect(await refusal(cardOf("archive_product", { product: "ring" }))).toMatch(/list_products/);
     expect(await refusal(cardOf("make_video", { idea: "a short ad", product: "nothing" }))).toMatch(/No single product/);

@@ -16,6 +16,7 @@ import {
 import { db } from "@/lib/db";
 import type { YouTubeBlock } from "@/lib/merchant/youtube-insights";
 import type { MConversation, MPost } from "@/lib/merchant/types";
+import { scopedAccount } from "@/lib/oauth/account-scope";
 import { marketSignals } from "@/lib/orders/market";
 import { loadCommentOutcomes } from "@/lib/shop/state";
 import { commentItems, type AccountsRead, type CommentItem } from "./reads-shape";
@@ -27,18 +28,23 @@ export type Unreadable = "not_connected" | "no_time" | "timeout" | "failed";
 
 const metaConnected = (c: Connections): boolean => c.META_FACEBOOK.connected || c.META_INSTAGRAM.connected;
 
-/** The account each platform's live read covered, for a platform that has several connected (see AccountsRead). */
+/**
+ * The account each platform's live read covered, for a platform that has several connected (see AccountsRead). `chosen` is set when
+ * the person chose that account in the chat (the whole turn runs inside their choice, see lib/chat/accounts.ts); without a choice the
+ * read covered the newest account.
+ */
 async function accountsRead(tenantId: string, conns: Connections): Promise<AccountsRead> {
   const lists = await loadAccountLists(tenantId).catch(() => null);
   if (!lists) return {};
   const out: AccountsRead = {};
-  const one = (platform: "FB" | "IG", conn: Connections["META_FACEBOOK"], list: { id: string; name: string }[]) => {
+  const one = (platform: "FB" | "IG", provider: "META_FACEBOOK" | "META_INSTAGRAM", list: { id: string; name: string }[]) => {
+    const conn = conns[provider];
     if (!conn.connected || list.length < 2) return;
     const name = conn.name ?? list.find((a) => a.id === conn.accountId)?.name ?? conn.accountId ?? "";
-    out[platform] = { name, others: list.length - 1 };
+    out[platform] = { name, others: list.length - 1, ...(scopedAccount(provider) ? { chosen: true } : {}) };
   };
-  one("FB", conns.META_FACEBOOK, lists.META_FACEBOOK);
-  one("IG", conns.META_INSTAGRAM, lists.META_INSTAGRAM);
+  one("FB", "META_FACEBOOK", lists.META_FACEBOOK);
+  one("IG", "META_INSTAGRAM", lists.META_INSTAGRAM);
   return out;
 }
 

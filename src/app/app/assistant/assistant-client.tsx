@@ -272,7 +272,7 @@ export function AssistantClient({
     ...(connections.facebook ? [] : [{ provider: "meta_facebook", label: t.connect.facebook }]),
     ...(connections.instagram ? [] : [{ provider: "meta_instagram", label: t.connect.instagram }]),
   ];
-  const connectHref = (provider: string) => `/api/oauth/${provider}/start?next=/app/assistant&ack=1`;
+  const connectHref = (provider: string) => `/api/oauth/${provider}/start?next=/app/assistant${ack ? "&ack=1" : ""}`;
 
   const phone = (
     <bdi dir="ltr" style={{ display: "inline-block" }}>

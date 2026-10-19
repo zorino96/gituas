@@ -114,14 +114,40 @@ describe("connections", () => {
     expect(await run(connectionsFinder)).toEqual([]);
   });
 
-  it("an expired Facebook Page is urgent, with the number, a fix for the model and the Settings screen", async () => {
+  it("an expired Facebook Page is urgent, with the number, a fix for the model and the Accounts button of the chat (no Settings screen)", async () => {
     db.oAuthCredential.findMany.mockResolvedValue([{ ...LIVE_FB, expiresAt: at(-DAY) }, LIVE_IG]);
     const [f, ...rest] = await run(connectionsFinder);
     expect(rest).toEqual([]);
-    expect(f).toMatchObject({ area: "connections", severity: "high", href: "/app/settings" });
+    expect(f).toMatchObject({ area: "connections", severity: "high" });
+    expect(f).not.toHaveProperty("href");
     expect(f.text).toBe("The connection of 1 Facebook Page has ended, so posts and replies there are not going out.");
     expect(f.fix).toMatch(/reconnect/i);
-    expect(f.todo).toBe("Reconnect it in Settings.");
+    expect(f.fix).toContain("show_accounts");
+    expect(f.todo).toBe("Press Connect in the Accounts button of the chat.");
+  });
+
+  it("no connection finding sends the person to Settings, in any language, in the person's text or the model's fix", async () => {
+    const scenes: [string, () => void][] = [
+      ["nothing connected", () => { db.oAuthCredential.findMany.mockResolvedValue([]); db.store.findMany.mockResolvedValue([]); }],
+      ["expired Page", () => db.oAuthCredential.findMany.mockResolvedValue([{ ...LIVE_FB, expiresAt: at(-DAY) }, LIVE_IG])],
+      ["expired Instagram", () => db.oAuthCredential.findMany.mockResolvedValue([LIVE_FB, { ...LIVE_IG, expiresAt: at(-HOUR) }])],
+      ["paused", () => db.store.findMany.mockResolvedValue([{ ...STORE, pausedReason: "token" }])],
+      ["ending soon", () => db.oAuthCredential.findMany.mockResolvedValue([{ ...LIVE_FB, expiresAt: at(3 * DAY) }, LIVE_IG])],
+    ];
+    for (const [name, set] of scenes) {
+      clear();
+      set();
+      for (const lang of ["ckb", "ar", "en"] as const) {
+        const out = await run(connectionsFinder, lang);
+        expect(out.length, name).toBeGreaterThan(0);
+        for (const f of out) {
+          expect(f.fix, name).not.toMatch(/in Settings|\/app\/settings/);
+          expect(f.fix, name).toContain("show_accounts");
+          expect(f.todo ?? "", `${name}/${lang}`).not.toMatch(/Settings|ڕێکخستن|الإعدادات/);
+          expect(f.href, name).toBeUndefined();
+        }
+      }
+    }
   });
 
   it("an expired credential does not count when the same account was reconnected since (one row is live)", async () => {
@@ -176,7 +202,7 @@ describe("connections", () => {
 
   it("tells the person to reconnect with the right Sorani verb (not the verb for 'fall')", async () => {
     db.oAuthCredential.findMany.mockResolvedValue([{ ...LIVE_FB, expiresAt: at(-DAY) }, LIVE_IG]);
-    expect((await run(connectionsFinder, "ckb"))[0].todo).toBe("لە ڕێکخستن دووبارە پەیوەستی بکەرەوە.");
+    expect((await run(connectionsFinder, "ckb"))[0].todo).toBe("لە دوگمەی «ئەکاونتەکان»ی چات «پەیوەست بکە» دابگرە.");
   });
 });
 

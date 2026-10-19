@@ -95,7 +95,7 @@ const fromAction = (r: { ok: true } | { ok: false; error: string }, okText: stri
 async function onePlatform(ctx: ToolCtx, p: "FB" | "IG") {
   const [conns, lists] = await Promise.all([loadConnections(ctx.tenantId), loadAccountLists(ctx.tenantId).catch(() => null)]);
   const account = p === "FB" ? conns.META_FACEBOOK : conns.META_INSTAGRAM;
-  if (!account.connected) return refuse(`${platformName(p)} is not connected. The person has to connect it in Settings; you cannot do that for them.`);
+  if (!account.connected) return refuse(`${platformName(p)} is not connected. The person connects it with the Connect button that show_accounts puts in the chat; you cannot do that for them.`);
   const off = { connected: false } as const;
   const scoped: Connections = { ...conns, META_FACEBOOK: p === "FB" ? conns.META_FACEBOOK : off, META_INSTAGRAM: p === "IG" ? conns.META_INSTAGRAM : off };
   const all = lists ? (p === "FB" ? lists.META_FACEBOOK : lists.META_INSTAGRAM) : [];

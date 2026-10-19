@@ -161,6 +161,29 @@ export const chatCkb = {
     open: "کردنەوە",
   },
 
+  // The Accounts sheet and card: which connected account the chat works with, and connecting another (a Page, an Instagram account,
+  // a TikTok account, a YouTube channel are named for what they are; nothing here says "shop").
+  accounts: {
+    open: "ئەکاونتەکان",
+    title: "ئەکاونتەکان",
+    close: "داخستن",
+    sub: "هەڵبژێرە چات بە کام ئەکاونت کار بکات، یان ئەکاونتێکی تر پەیوەست بکە.",
+    deskSub: "ئەمانە ئەو ئەکاونتانەن کە لێرە پەیوەستن. دەتوانیت ئەکاونتێکی تر پەیوەست بکەیت.",
+    loading: "ئەکاونتەکانت دێنە ئامادەوە…",
+    loadFailed: "ئەکاونتەکانت نەهاتن.",
+    retry: "دووبارە هەوڵ بدەرەوە",
+    kind: { FB: "پەیجی فەیسبووک", IG: "ئەکاونتی ئینستاگرام", TT: "ئەکاونتی تیکتۆک", YT: "کەناڵی یوتیوب" },
+    empty: "هێشتا هیچ شتێک پەیوەست نەکراوە.",
+    noPost: "چات ناتوانێت لێرەدا پۆست بکات یان وەڵام بداتەوە.",
+    inUse: "بەکاردێت",
+    chosen: (kind: string, name: string) => `ئێستا چات لەگەڵ ${kind} «${name}» کار دەکات.`,
+    chooseFailed: "نەگۆڕدرا. دووبارە هەوڵ بدەرەوە.",
+    connect: "پەیوەست بکە",
+    connectAnother: "ئەکاونتێکی تر پەیوەست بکە",
+    whatsappHelp: "واتسئەپ لاپەڕەی تایبەتی خۆی هەیە.",
+    whatsappOpen: "کردنەوەی واتسئەپ",
+  },
+
   settings: {
     sec: "چات",
     title: "چات و کارەکان",

@@ -8,7 +8,7 @@ import { microUsd } from "@/lib/ai/models";
 import type { KnowledgeFeatures } from "@/lib/assistant/knowledge";
 import { dict } from "@/lib/i18n";
 import { LIMITS } from "./budget";
-import { executeClaimedRun, toolCtx, type Actor } from "./confirm";
+import { currentAccounts, executeClaimedRun, toolCtx, type Actor } from "./confirm";
 import { cleanAnswer, cleanOutbound, decide, ownerCorpus, titleFrom } from "./guard";
 import { buildHistory } from "./history";
 import { indexTools, riskOf, toolSpecs } from "./registry";
@@ -32,6 +32,7 @@ import { systemPromptNews } from "./system-news";
 import { NEWS_QUICK, say } from "./text";
 import { isWriteTool, ToolRefusal, type Autonomy, type Card, type ChatAttachment, type ChatErrorCode, type ChatEvent, type ChatTool, type AnyQuickId, type ChatKind, type ViewBlock } from "./types";
 import { withTimeout } from "./util";
+import { can } from "@/lib/newsroom/roles";
 import { verifyForModel } from "./verify";
 import { noteOf, wrapForModel } from "./wrap";
 
@@ -121,7 +122,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnOut
   const snapshotText = JSON.stringify(snap.state);
   const fileNote = input.attachments.length ? `\n[attached: ${input.attachments.map((a) => `${a.id} (${a.kind})`).join(", ")}]` : "";
   const messages: ChatMsg[] = [
-    { role: "system", content: (actor.kind === "news" ? systemPromptNews : systemPrompt)({ lang: actor.lang, uiNames: snap.uiNames, state: snap.state, features: snap.features, attachments: everyAttachment, advisor: advisorOn, buttons: { confirm: dict(actor.lang).chat.runs.confirm, cancel: dict(actor.lang).chat.runs.cancel }, nowBaghdad: asBaghdad(started) }) },
+    { role: "system", content: (actor.kind === "news" ? systemPromptNews : systemPrompt)({ mayConfigure: can(actor.role, "configure"), lang: actor.lang, uiNames: snap.uiNames, state: snap.state, features: snap.features, attachments: everyAttachment, advisor: advisorOn, buttons: { confirm: dict(actor.lang).chat.runs.confirm, cancel: dict(actor.lang).chat.runs.cancel }, nowBaghdad: asBaghdad(started) }) },
     ...buildHistory(priorRows, runMap),
     { role: "user", content: input.text + fileNote },
   ];
@@ -201,7 +202,9 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnOut
       risk,
       autonomy: input.autonomy,
       tainted,
-      card: { ...card, long: !!tool.long },
+      // A shop's card remembers the accounts the chat acts as now ({} = none chosen): Confirm refuses it if the person has chosen another
+      // account since, instead of running it as an account the card never named. A desk names its accounts in its own tools.
+      card: { ...card, long: !!tool.long, ...(actor.kind === "shop" ? { accounts: currentAccounts() } : {}) },
       now: deps.now(),
     });
     didWork = true;

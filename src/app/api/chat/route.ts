@@ -1,3 +1,4 @@
+import { withChatAccounts } from "@/lib/chat/accounts";
 import { errorText } from "@/lib/chat/text";
 import { actorFromSession } from "@/lib/chat/session";
 import { executeChatRequest } from "@/lib/chat/turn";
@@ -39,7 +40,8 @@ export async function POST(req: Request): Promise<Response> {
         }
       };
       try {
-        await executeChatRequest(who.actor, body, emit);
+        // Every tool of the turn acts as the Page / Instagram account / channel the person chose in the chat.
+        await withChatAccounts(who.actor.tenantId, who.actor.kind, () => executeChatRequest(who.actor, body, emit));
       } finally {
         try {
           controller.close();

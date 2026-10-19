@@ -4,6 +4,7 @@
 import { baghdadDay, takeDaily } from "@/lib/ai/slots";
 import { db } from "@/lib/db";
 import { can, type Role } from "@/lib/newsroom/roles";
+import { scopedAccount, type AccountChoice, type ScopedProvider } from "@/lib/oauth/account-scope";
 import { ACTIONS_PER_DAY, LIMITS, NEWS_ACTIONS_PER_DAY, NEWS_POSTS_PER_DAY, POSTS_PER_DAY } from "./budget";
 import {
   argsHashOf,
@@ -38,6 +39,30 @@ export interface Actor {
 const POST_TOOLS = new Set(["post_now", "schedule_post"]);
 const ACTIONS_METRIC = "chat_action_day";
 const POSTS_METRIC = "chat_post_day";
+
+const SCOPED: readonly ScopedProvider[] = ["META_FACEBOOK", "META_INSTAGRAM", "TIKTOK", "YOUTUBE"];
+
+/** The accounts the chat acts as right now (the person's choice for this request; {} when they chose none). A card stores this when it is made. */
+export function currentAccounts(): AccountChoice {
+  const out: AccountChoice = {};
+  for (const p of SCOPED) {
+    const id = scopedAccount(p);
+    if (id) out[p] = id;
+  }
+  return out;
+}
+
+/**
+ * Whether the person changed the accounts since this card was made. A card made before the accounts were stored has nothing to compare
+ * with and is not checked. A card made with no choice (`{}`) differs from a request with one: the card was made for the newest
+ * connections, and Confirm must not run it as another account.
+ */
+export function accountsChanged(card: unknown, now: AccountChoice = currentAccounts()): boolean {
+  const made = card && typeof card === "object" && !Array.isArray(card) ? (card as { accounts?: unknown }).accounts : undefined;
+  if (!made || typeof made !== "object" || Array.isArray(made)) return false;
+  const was = made as Record<string, unknown>;
+  return SCOPED.some((p) => (typeof was[p] === "string" && was[p] ? was[p] : undefined) !== now[p]);
+}
 
 /** A change that did not happen gives its place in the day back. */
 async function giveBack(tenantId: string, metric: string): Promise<void> {
@@ -83,6 +108,9 @@ export async function executeClaimedRun(i: {
   if (!can(actor.role, tool.permission)) return fail(errorText("forbidden", actor.lang));
   const parsed = tool.schema.safeParse(run.args);
   if (!parsed.success || argsHashOf(run.args) !== run.argsHash) return fail(errorText("badrequest", actor.lang));
+  // A card runs as the accounts it was made under. The person pressing Confirm may have chosen another account since (the choice is read
+  // from the request), and the card named the old one: nothing runs, and nothing was counted yet, so there is nothing to give back.
+  if (i.how === "CONFIRMED" && accountsChanged(run.card)) return fail(say("accountChanged", actor.lang));
 
   if ((await takeDaily(actor.tenantId, ACTIONS_METRIC, 1, actor.kind === "news" ? NEWS_ACTIONS_PER_DAY : ACTIONS_PER_DAY)) < 1) return fail(say("actionsLimit", actor.lang));
   const isPost = tool.countsAsPost === true || POST_TOOLS.has(tool.name);

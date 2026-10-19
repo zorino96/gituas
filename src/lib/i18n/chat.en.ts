@@ -159,8 +159,30 @@ export const chatEn: typeof chatCkb = {
     open: "Open",
   },
 
+  // The Accounts sheet and card: which connected account the chat works with, and connecting another.
+  accounts: {
+    open: "Accounts",
+    title: "Accounts",
+    close: "Close",
+    sub: "Choose which account the chat works with, or connect another one.",
+    deskSub: "These are the accounts connected here. You can connect another one.",
+    loading: "Loading your accounts…",
+    loadFailed: "Your accounts did not load.",
+    retry: "Try again",
+    kind: { FB: "Facebook Page", IG: "Instagram account", TT: "TikTok account", YT: "YouTube channel" },
+    empty: "Nothing connected yet.",
+    noPost: "The chat cannot post or reply here.",
+    inUse: "In use",
+    chosen: (kind: string, name: string) => `The chat now works with the ${kind} “${name}”.`,
+    chooseFailed: "It did not switch. Try again.",
+    connect: "Connect",
+    connectAnother: "Connect another",
+    whatsappHelp: "WhatsApp has its own page.",
+    whatsappOpen: "Open WhatsApp",
+  },
+
   settings: {
-    sec: "Chat",
+    sec:"Chat",
     title: "Chat and actions",
     sub: "Choose how far the chat may act without asking. You can always see each action on its card.",
     levelsLabel: "How the chat acts",

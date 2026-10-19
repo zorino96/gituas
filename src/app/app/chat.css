@@ -272,3 +272,52 @@ a.ch-item:hover { background: var(--raised); }
 .ch-level small { display: block; margin-top: 2px; font-size: 13px; line-height: 1.7; color: var(--muted); }
 .ch-set-danger { padding-top: 14px; border-top: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 10px; }
 .ch-set-danger-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ---------- Accounts: the header button, the sheet it opens, and the card (chat-accounts.tsx) ---------- */
+/* the button: the icon alone on a phone, the icon and its word on a wider window */
+.ch-accbtn { flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 40px; height: 40px; padding: 0 10px; border: 1px solid transparent; border-radius: 20px; background: transparent;
+  color: var(--ink); font: inherit; font-size: 13.5px; font-weight: 600; line-height: 1; cursor: pointer; transition: background-color 0.15s; }
+.ch-accbtn:hover { background: var(--raised); }
+.ch-accbtn span { display: none; }
+@media (min-width: 640px) { .ch-accbtn { padding: 0 14px; border-color: var(--line); } .ch-accbtn span { display: inline; } }
+
+/* the sheet: from the bottom on a phone, in the middle of a wider window; the frame behind it is inert */
+.ch-sheet-scrim { position: absolute; inset: 0; z-index: 50; background: var(--scrim); }
+.ch-sheet { position: absolute; z-index: 51; inset-inline: 0; bottom: 0; max-height: min(90%, 760px); display: flex; flex-direction: column; border: 1px solid var(--line); border-bottom: 0; border-radius: 22px 22px 0 0;
+  background: var(--surface); box-shadow: var(--shadow-lg); padding-bottom: env(safe-area-inset-bottom, 0px); animation: ch-sheet-in 0.2s ease; }
+.ch-sheet-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 8px; padding-inline: 18px 10px; border-bottom: 1px solid var(--line-soft); }
+.ch-sheet-head h2 { flex: 1; min-width: 0; margin: 0; font-size: 16px; font-weight: 700; line-height: 1.5; text-align: start; }
+.ch-sheet-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 14px 16px 18px; }
+@media (min-width: 640px) {
+  .ch-sheet { inset: 0; margin: auto; width: min(560px, calc(100% - 32px)); height: fit-content; max-height: min(86%, 760px); border-bottom: 1px solid var(--line); border-radius: 22px; padding-bottom: 0; }
+}
+@keyframes ch-sheet-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+/* the card: one group per platform, a radio row per account, Connect under it */
+.ca { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.ca-sub { margin: 0; font-size: 13.5px; line-height: 1.7; color: var(--muted); text-align: start; }
+.ca-group { min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); text-align: start; }
+.ca-head { font-size: 14px; line-height: 1.5; }
+.ca-empty { margin: 0; font-size: 13px; line-height: 1.7; color: var(--muted); }
+.ca-opts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ca-opt { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); transition: border-color 0.15s, background-color 0.15s; }
+label.ca-opt { cursor: pointer; }
+label.ca-opt:hover { background: var(--raised); }
+.ca-opt.on, .ca-opt:has(input:checked) { border-color: var(--ink); background: var(--raised); }
+.ca-opt:has(input:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
+.ca-opt input { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--ink); }
+.ca-av { flex: none; width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: var(--media); border: 1px solid var(--line); }
+.ca-av.ph { display: inline-grid; place-items: center; background: var(--sunken); font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+.ca-name { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 600; line-height: 1.5; text-align: start; overflow-wrap: anywhere; }
+/* the line under a group is always there for a screen reader to watch; empty, it takes the gap back so nothing moves */
+.ca-live { min-width: 0; }
+.ca-live:empty { margin-block-start: -8px; }
+.ca-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ca .gm-btn { min-height: 44px; padding-inline: 18px; }
+.ca-ackbox { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--raised); }
+.ca-ackbox .ch-ack { min-height: 44px; align-items: center; }
+.ca-ackbox .ch-ack input { flex: none; width: 20px; height: 20px; margin: 0; }
+.ca-loading { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+.ca-skel { display: flex; flex-direction: column; gap: 10px; min-height: 180px; }
+.ca-skel i { display: block; height: 56px; border-radius: var(--radius); background: var(--sunken); animation: ch-shimmer 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .ch-sheet, .ca-skel i { animation: none; } }

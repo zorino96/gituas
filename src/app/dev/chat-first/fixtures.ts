@@ -1,6 +1,8 @@
 // Made-up data for /dev/chat-first: a shop's chat in all three languages, with every kind of block and a card in every state,
 // and a pretend server (threads, a streamed answer, Confirm and Cancel) so the screen can be tried with no session and no database.
 
+import type { AccountPlatform, ChatAccountsResult, ChatAccountsState } from "@/app/app/assistant/account-actions";
+import type { AccountsApi } from "@/app/app/assistant/chat-accounts";
 import type { ChatApi } from "@/app/app/assistant/chat-shell";
 import type { ChatTransport } from "@/app/app/assistant/chat-transport";
 import type { ChatEvent, ChatRequest, MessageDto, RunDecisionResponse, RunDto, ThreadSummary, ViewBlock } from "@/lib/chat/types";
@@ -268,6 +270,7 @@ export function fixtureThread(lang: Lang, scenario: Scenario, kind: DevKind = "s
       msg("m3", 3, "user", w.userPost, { attachments: [{ id: "a1", url: picture.url, pathname: picture.pathname, kind: "image", name: picture.name }] }),
       msg("m4", 4, "assistant", w.replyPost, { runs: [run("r-open", w)] }),
       msg("m5", 5, "assistant", "", { blocks: [w.list] }),
+      msg("m6", 6, "assistant", "", { blocks: [{ kind: "accounts" }] }),
     ],
   };
 }
@@ -288,8 +291,40 @@ export function fixtureThreads(lang: Lang, kind: DevKind = "shop"): ThreadSummar
  */
 const betterTitles = new Map<string, string>();
 
+/** The pretend accounts of the Accounts sheet: two Pages, two Instagram accounts and a YouTube channel. A desk can only connect. */
+function fixtureAccounts(kind: DevKind): AccountsApi {
+  const wait = () => new Promise((r) => setTimeout(r, 250));
+  const lists: ChatAccountsState["lists"] = {
+    FB: [{ id: "fb-1", name: "Sunrise Bakery", avatarUrl: null }, { id: "fb-2", name: "Sunrise Cafe", avatarUrl: null }],
+    IG: [{ id: "ig-1", name: "@sunrise.bakery", avatarUrl: null }, { id: "ig-2", name: "@sunrise.cafe", avatarUrl: null }],
+    TT: [],
+    YT: [{ id: "yt-1", name: "Sunrise TV", avatarUrl: null }],
+  };
+  let selected: ChatAccountsState["selected"] = { FB: "fb-2", IG: "ig-1", TT: null, YT: "yt-1" };
+  const state = (): ChatAccountsResult => ({
+    ok: true,
+    kind: kind === "news" ? "news" : "shop",
+    lists,
+    selected: kind === "news" ? { FB: null, IG: null, TT: null, YT: null } : selected,
+    canConfigure: true,
+  });
+  return {
+    async list() {
+      await wait();
+      return state();
+    },
+    async choose({ platform, id }: { platform: AccountPlatform; id: string }) {
+      await wait();
+      if (kind === "news") return { ok: false, code: "forbidden" };
+      if (!lists[platform].some((a) => a.id === id)) return { ok: false, code: "not_found" };
+      selected = { ...selected, [platform]: id };
+      return state();
+    },
+  };
+}
+
 export function fixtureApi(lang: Lang, kind: DevKind = "shop"): ChatApi {
-  let threads = [{ id: "t-demo", title: wordsOf(lang, kind).title, pinned: false, lastMessageAt: iso(1) }, ...fixtureThreads(lang, kind)];
+  let threads =[{ id: "t-demo", title: wordsOf(lang, kind).title, pinned: false, lastMessageAt: iso(1) }, ...fixtureThreads(lang, kind)];
   const wait = () => new Promise((r) => setTimeout(r, 250));
   return {
     async list(input) {
@@ -312,6 +347,7 @@ export function fixtureApi(lang: Lang, kind: DevKind = "shop"): ChatApi {
       threads = threads.filter((t) => t.id !== id);
       return { ok: true };
     },
+    accounts: fixtureAccounts(kind),
   };
 }
 

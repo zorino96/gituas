@@ -18,7 +18,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Check, ChevronDown, LifeBuoy, Menu, MessageCircle, Pencil, Pin, PinOff, Search, Settings, SquarePen, Trash2, X, Ellipsis, type LucideIcon } from "lucide-react";
+import { Check, ChevronDown, LifeBuoy, Menu, MessageCircle, Pencil, Pin, PinOff, Search, Settings, SquarePen, Trash2, UsersRound, X, Ellipsis, type LucideIcon } from "lucide-react";
 
 import type { ChatErrorCode, ChatKind, ThreadSummary } from "@/lib/chat/types";
 import { useLang, useT } from "@/lib/i18n/client";
@@ -26,6 +26,7 @@ import { LANGS, type Lang } from "@/lib/i18n/lang";
 import { classicHref, rememberFace } from "../face";
 import { setLangAction } from "../lang-actions";
 import { Pending, useSections } from "../nav";
+import { ChatAccounts, lazyAccountsApi, type AccountsApi } from "./chat-accounts";
 import { groupThreads, menuTarget, upsertThread, type GroupKey } from "./chat-model";
 import { activeThreadId, chatKindOf, headerTitleAfterRefresh, listForWorkspace, TITLE_REFRESH_MS } from "./chat-frame-model";
 import "../chat.css";
@@ -46,6 +47,8 @@ export interface ChatApi {
   rename(input: { id: string; title: string }): Promise<{ ok: boolean }>;
   pin(input: { id: string; pinned: boolean }): Promise<{ ok: boolean }>;
   remove(input: { id: string }): Promise<{ ok: boolean }>;
+  /** The Accounts sheet and card (choose which connected account the chat works with, connect another). Left out: the app's own server actions. */
+  accounts?: AccountsApi;
 }
 
 export interface ChatShellValue {
@@ -67,6 +70,8 @@ export interface ChatShellValue {
   workspaceId: string | null;
   /** The server said this tab's workspace is no longer the one the person is working in (they switched in another tab). */
   stale: boolean;
+  /** Where the Accounts sheet and the chat's accounts card ask for the connected accounts and save a choice. */
+  accounts: AccountsApi;
 }
 
 /** Where a new chat and a stored chat live. The dev preview points them at itself; the news desk's are under /newsroom. */
@@ -86,6 +91,7 @@ const NOOP: ChatShellValue = {
   refreshLater: () => undefined,
   workspaceId: null,
   stale: false,
+  accounts: lazyAccountsApi,
 };
 const Ctx = createContext<ChatShellValue>(NOOP);
 export const useChatShell = (): ChatShellValue => useContext(Ctx);
@@ -212,6 +218,10 @@ export function ChatFrame({
   const [threads, setThreads] = useState<ThreadSummary[]>(cache?.workspaceId === workspaceId ? cache.threads : []);
   const [load, setLoad] = useState<"loading" | "ready" | "error">(cache?.workspaceId === workspaceId ? "ready" : "loading");
   const [open, setOpen] = useState(false);
+  // The Accounts sheet (choose or connect an account without leaving the chat).
+  const [accountsOpen, setAccountsOpen] = useState(false);
+  const accountsButton = useRef<HTMLButtonElement>(null);
+  const accountsClose = useRef<HTMLButtonElement>(null);
   const [signal, setSignal] = useState(0);
   // Set when a call says the session's workspace is not the one this frame was opened for (the person switched in another tab).
   const [stale, setStale] = useState(false);
@@ -261,6 +271,27 @@ export function ChatFrame({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, closeDrawer]);
+
+  // The Accounts sheet closes like the drawer: Escape, its X or the shade put the keyboard back on its button; a link inside it moves on.
+  const restoreAccountsFocus = useRef(false);
+  const closeAccounts = useCallback(() => {
+    restoreAccountsFocus.current = true;
+    setAccountsOpen(false);
+  }, []);
+  useEffect(() => {
+    if (!accountsOpen && restoreAccountsFocus.current) accountsButton.current?.focus();
+    restoreAccountsFocus.current = false;
+  }, [accountsOpen]);
+  useEffect(() => setAccountsOpen(false), [path]);
+  useEffect(() => {
+    if (!accountsOpen) return;
+    accountsClose.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeAccounts();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [accountsOpen, closeAccounts]);
 
   // Every history read names the workspace the frame was opened for; "workspace" in answer means the tab is out of date.
   const frameApi = useMemo<ChatApi>(() => ({ ...api, list: listForWorkspace(api.list, workspaceId, () => setStale(true)) }), [api, workspaceId]);
@@ -323,6 +354,7 @@ export function ChatFrame({
     [refresh],
   );
 
+  const accountsApi = api.accounts ?? lazyAccountsApi;
   const value = useMemo<ChatShellValue>(
     () => ({
       upsertThread: (thread) => remember((list) => upsertThread(list, thread)),
@@ -334,8 +366,9 @@ export function ChatFrame({
       refreshLater,
       workspaceId,
       stale,
+      accounts: accountsApi,
     }),
-    [remember, signal, chatKind, hrefs, refreshLater, workspaceId, stale],
+    [remember, signal, chatKind, hrefs, refreshLater, workspaceId, stale, accountsApi],
   );
 
   const newChat = () => {
@@ -350,6 +383,7 @@ export function ChatFrame({
         <Sidebar
           open={open}
           modal={open && !desktop}
+          inert={accountsOpen}
           onClose={closeDrawer}
           closeRef={closeButton}
           api={frameApi}
@@ -376,7 +410,7 @@ export function ChatFrame({
           sideTop={sideTop}
           sideNote={sideNote}
         />
-        <main className="ch-main" inert={open && !desktop}>
+        <main className="ch-main" inert={(open && !desktop) || accountsOpen}>
           <header className="ch-head">
             <button
               ref={menuButton}
@@ -392,6 +426,19 @@ export function ChatFrame({
             <h1 className="ch-head-title" dir="auto">
               {title === null ? "" : title || c.newChat}
             </h1>
+            <button
+              ref={accountsButton}
+              type="button"
+              className="ch-accbtn"
+              aria-label={c.accounts.open}
+              title={c.accounts.open}
+              aria-haspopup="dialog"
+              aria-expanded={accountsOpen}
+              onClick={() => setAccountsOpen(true)}
+            >
+              <UsersRound size={19} aria-hidden="true" />
+              <span>{c.accounts.open}</span>
+            </button>
             <Link href={hrefs.newChat} className="ch-iconbtn ch-only-phone" aria-label={c.newChat} title={c.newChat} onClick={newChat}>
               <SquarePen size={19} aria-hidden="true" />
             </Link>
@@ -400,6 +447,22 @@ export function ChatFrame({
           {stale && <ReloadNote />}
           {children}
         </main>
+        {accountsOpen && (
+          <>
+            <div className="ch-sheet-scrim" onClick={closeAccounts} aria-hidden="true" />
+            <div className="ch-sheet" role="dialog" aria-modal="true" aria-labelledby="ch-accounts-title">
+              <div className="ch-sheet-head">
+                <h2 id="ch-accounts-title">{c.accounts.title}</h2>
+                <button ref={accountsClose} type="button" className="ch-iconbtn" aria-label={c.accounts.close} onClick={closeAccounts}>
+                  <X size={19} aria-hidden="true" />
+                </button>
+              </div>
+              <div className="ch-sheet-body">
+                <ChatAccounts api={accountsApi} workspaceId={workspaceId} />
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </Ctx.Provider>
   );
@@ -408,6 +471,7 @@ export function ChatFrame({
 function Sidebar({
   open,
   modal,
+  inert,
   onClose,
   closeRef,
   api,
@@ -433,6 +497,8 @@ function Sidebar({
 }: {
   open: boolean;
   modal: boolean;
+  /** Something modal is open over the whole frame (the Accounts sheet): the sidebar is out of reach too. */
+  inert: boolean;
   onClose: () => void;
   closeRef: RefObject<HTMLButtonElement | null>;
   api: ChatApi;
@@ -564,7 +630,7 @@ function Sidebar({
   });
 
   return (
-    <aside id="ch-side" className={`ch-side${open ? " open" : ""}`} {...(modal ? { role: "dialog", "aria-modal": true, "aria-label": c.frame.chats } : {})}>
+    <aside id="ch-side" className={`ch-side${open ? " open" : ""}`} inert={inert} {...(modal ?{ role: "dialog", "aria-modal": true, "aria-label": c.frame.chats } : {})}>
       <div className="ch-side-top">
         <div className="gm-side-brand ch-brand">
           {brand ?? (

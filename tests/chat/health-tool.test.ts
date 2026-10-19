@@ -320,7 +320,8 @@ describe("what the model and the person get", () => {
     expect(list.kind).toBe("list");
     expect(list.items).toHaveLength(12);
     expect(list.more).toBe(9);
-    expect(list.items[0]).toMatchObject({ badge: "Urgent", sub: "Reconnect it in Settings.", href: "/app/settings" });
+    expect(list.items[0]).toMatchObject({ badge: "Urgent", sub: "Press Connect in the Accounts button of the chat." });
+    expect(list.items[0]).not.toHaveProperty("href");
     expect(list.items.at(-1)?.badge).toBe("Soon");
   });
 

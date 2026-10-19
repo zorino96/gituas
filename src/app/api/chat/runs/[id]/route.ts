@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { withChatAccounts } from "@/lib/chat/accounts";
 import { decideRun } from "@/lib/chat/confirm";
 import { indexTools, toolsFor } from "@/lib/chat/registry";
 import { actorFromSession } from "@/lib/chat/session";
@@ -25,13 +26,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (!parsed.success) return NextResponse.json({ ok: false, code: "badrequest", message: errorText("badrequest", actor.lang) });
   if (parsed.data.workspaceId !== actor.tenantId) return NextResponse.json({ ok: false, code: "workspace", message: errorText("workspace", actor.lang) });
   const { id } = await ctx.params;
-  const result = await decideRun({
-    runId: id,
-    action: parsed.data.action,
-    actor,
-    tools: indexTools(toolsFor(ALL_TOOLS, actor.kind, actor.role)),
-    review: parsed.data.review !== false,
-    deadline: Date.now() + 57_000,
-  });
+  // A card runs as the accounts the person chose in the chat, like the turn that proposed it.
+  const result = await withChatAccounts(actor.tenantId, actor.kind, () =>
+    decideRun({
+      runId: id,
+      action: parsed.data.action,
+      actor,
+      tools: indexTools(toolsFor(ALL_TOOLS, actor.kind, actor.role)),
+      review: parsed.data.review !== false,
+      deadline: Date.now() + 57_000,
+    }),
+  );
   return NextResponse.json(result);
 }

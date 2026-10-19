@@ -55,8 +55,12 @@ export interface Words {
   askedToStop: string;
   /** A badge on a WhatsApp chat the owner answered on the phone (the app stored no message for it). */
   answeredOnPhone: string;
-  /** A read covered the newest Page or account of a platform only: which one, how many others are connected, and where to switch. */
+  /** A news desk's read covered the newest Page or account of a platform only: which one, how many others are connected, and where to switch. */
   severalAccounts: (platform: string, account: string, others: string, screen: string) => string;
+  /** A shop chat's read covered the account the person chose in the chat (the Accounts button): which one, how many others are connected. */
+  chosenAccount: (platform: string, account: string, others: string) => string;
+  /** A shop chat's read covered the newest account because the person chose none: which one, how many others, and where to choose. */
+  newestAccount: (platform: string, account: string, others: string) => string;
   // scheduled posts
   noScheduled: string;
   pending: string;
@@ -140,7 +144,7 @@ const ckb: Words = {
   noComments: "هیچ کۆمێنتێک نەدۆزرایەوە.",
   noConversationsWaiting: "هیچ نامەیەک چاوەڕێی وەڵام نییە.",
   noConversations: "هیچ گفتوگۆیەک نەدۆزرایەوە.",
-  notConnectedMeta: "فەیسبووک و ئینستاگرام پەیوەست نەکراون. لە ڕێکخستنەکان پەیوەستیان بکە.",
+  notConnectedMeta: "فەیسبووک و ئینستاگرام پەیوەست نەکراون. لە دوگمەی «ئەکاونتەکان»ی چاتەکە «پەیوەست بکە» دابگرە.",
   metaTooSlow: "مێتا درەنگ وەڵامی دایەوە و کات نەما. دووبارە هەوڵ بدەرەوە.",
   metaFailed: "نەتوانرا لە مێتاوە بخوێنرێتەوە. دووبارە هەوڵ بدەرەوە.",
   repliesCount: (n) => `${n} وەڵام`,
@@ -151,6 +155,8 @@ const ckb: Words = {
   askedToStop: "STOP ی نووسیوە",
   answeredOnPhone: "لە مۆبایلەوە وەڵام دراوەتەوە",
   severalAccounts: (platform, account, others, screen) => `${platform}: تەنها نوێترین هەژمار خوێندرایەوە، «${account}». هەژماری دیکەی پەیوەست: ${others}. لە بەشی «${screen}» دەتوانیت بیانگۆڕیت.`,
+  chosenAccount: (platform, account, others) => `${platform}: بەپێی هەڵبژاردنی تۆ لە چاتەکەدا، «${account}» خوێندرایەوە. ئەکاونتی دیکەی پەیوەست: ${others}. بۆ گۆڕینی دوگمەی «ئەکاونتەکان» بەکاربهێنە.`,
+  newestAccount: (platform, account, others) => `${platform}: تەنها نوێترین ئەکاونت خوێندرایەوە، «${account}». ئەکاونتی دیکەی پەیوەست: ${others}. بۆ هەڵبژاردنی یەکێکی تر دوگمەی «ئەکاونتەکان»ی چاتەکە بەکاربهێنە.`,
   noScheduled: "هیچ پۆستێکی خشتەکراو نییە.",
   pending: "چاوەڕێیە",
   running: "بڵاو دەکرێتەوە",
@@ -227,7 +233,7 @@ const ar: Words = {
   noComments: "لم أجد أي تعليق.",
   noConversationsWaiting: "لا توجد رسائل بانتظار الرد.",
   noConversations: "لم أجد أي محادثة.",
-  notConnectedMeta: "فيسبوك وإنستغرام غير مرتبطين. اربطهما من الإعدادات.",
+  notConnectedMeta: "فيسبوك وإنستغرام غير مرتبطين. افتح زر «الحسابات» في المحادثة واضغط «اربط».",
   metaTooSlow: "تأخرت ميتا في الرد ولم يبقَ وقت. حاول مرة أخرى.",
   metaFailed: "تعذّرت القراءة من ميتا. حاول مرة أخرى.",
   repliesCount: (n) => `${n} ردود`,
@@ -238,6 +244,8 @@ const ar: Words = {
   askedToStop: "كتب STOP",
   answeredOnPhone: "تم الرد من الهاتف",
   severalAccounts: (platform, account, others, screen) => `${platform}: قُرئ الحساب الأحدث فقط، «${account}». عدد الحسابات الأخرى المرتبطة: ${others}. بدّل بينها من شاشة «${screen}».`,
+  chosenAccount: (platform, account, others) => `${platform}: قُرئ الحساب الذي اخترته في المحادثة، «${account}». عدد الحسابات الأخرى المرتبطة: ${others}. لتغييره استخدم زر «الحسابات».`,
+  newestAccount: (platform, account, others) => `${platform}: قُرئ الحساب الأحدث فقط، «${account}». عدد الحسابات الأخرى المرتبطة: ${others}. لاختيار حساب آخر استخدم زر «الحسابات» في المحادثة.`,
   noScheduled: "لا توجد منشورات مجدولة.",
   pending: "بالانتظار",
   running: "قيد النشر",
@@ -314,7 +322,7 @@ const en: Words = {
   noComments: "No comments found.",
   noConversationsWaiting: "No messages are waiting for a reply.",
   noConversations: "No conversations found.",
-  notConnectedMeta: "Facebook and Instagram are not connected. Connect them in Settings.",
+  notConnectedMeta: "Facebook and Instagram are not connected. Press Connect in the Accounts button of the chat.",
   metaTooSlow: "Meta was slow to answer and there was no time left. Try again.",
   metaFailed: "Could not read from Meta. Try again.",
   repliesCount: (n) => `${n} replies`,
@@ -325,6 +333,8 @@ const en: Words = {
   askedToStop: "Wrote STOP",
   answeredOnPhone: "Answered on the phone",
   severalAccounts: (platform, account, others, screen) => `${platform}: only the newest account was read, “${account}”. Other connected accounts: ${others}. Switch between them in the ${screen} screen.`,
+  chosenAccount: (platform, account, others) => `${platform}: read the account you chose in the chat, “${account}”. Other connected accounts: ${others}. The Accounts button changes it.`,
+  newestAccount: (platform, account, others) => `${platform}: only the newest account was read, “${account}”. Other connected accounts: ${others}. The Accounts button in the chat chooses another.`,
   noScheduled: "Nothing is scheduled.",
   pending: "Waiting",
   running: "Publishing",

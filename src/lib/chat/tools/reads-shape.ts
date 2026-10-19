@@ -452,11 +452,11 @@ export function commentsView(rows: CommentItem[], total: number, onlyWaiting: bo
 // Accounts
 
 /**
- * Which Page or Instagram account a live read covered, for each platform that has more than one connected. The chat has no account
- * switcher (the Comments and Messages screens do), so a read covers the newest account of a platform and must say so: an empty
- * answer from one Page is not an answer for the others.
+ * Which Page or Instagram account a live read covered, for each platform that has more than one connected. A shop's chat reads the
+ * account the person chose in it (the Accounts button; `chosen`), else the newest account of the platform, and must say which: an empty
+ * answer from one Page is not an answer for the others. A news desk's chat has no such choice: its screens switch.
  */
-export type AccountsRead = Partial<Record<"FB" | "IG", { name: string; others: number }>>;
+export type AccountsRead = Partial<Record<"FB" | "IG", { name: string; others: number; chosen?: boolean }>>;
 
 /** The notes that tell the person which Page or account a read covered, for each platform that has several (or only the one asked for). */
 export function accountNotes(accounts: AccountsRead, screen: "comments" | "messages", only: "FB" | "IG" | undefined, lang: Lang, t: Dict, kind: ChatKind = "shop"): ViewBlock[] {
@@ -466,16 +466,21 @@ export function accountNotes(accounts: AccountsRead, screen: "comments" | "messa
   const screenName = screen === "comments" ? names.comments : names.messages;
   return (["FB", "IG"] as const).flatMap((p) => {
     const a = accounts[p];
-    return a && (!only || only === p) ? [{ kind: "note" as const, text: w.severalAccounts(platformName(t, p), a.name, t.fmt.num(a.others), screenName) }] : [];
+    if (!a || (only && only !== p)) return [];
+    const platform = platformName(t, p);
+    const others = t.fmt.num(a.others);
+    // A shop chooses in the chat itself (no screen is named); a desk's accounts are switched in its own screens.
+    const text = kind === "news" ? w.severalAccounts(platform, a.name, others, screenName) : a.chosen ? w.chosenAccount(platform, a.name, others) : w.newestAccount(platform, a.name, others);
+    return [{ kind: "note" as const, text }];
   });
 }
 
-/** The same for the model: the account that was read and how many others were not. Nothing when every platform has one account. */
-export function accountsForModel(accounts: AccountsRead, only: "FB" | "IG" | undefined): Record<string, { account: string; otherAccountsNotRead: number }> | undefined {
-  const out: Record<string, { account: string; otherAccountsNotRead: number }> = {};
+/** The same for the model: the account that was read, whether the person chose it in the chat, and how many others were not. Nothing when every platform has one account. */
+export function accountsForModel(accounts: AccountsRead, only: "FB" | "IG" | undefined): Record<string, { account: string; otherAccountsNotRead: number; chosenInChat?: true }> | undefined {
+  const out: Record<string, { account: string; otherAccountsNotRead: number; chosenInChat?: true }> = {};
   for (const p of ["FB", "IG"] as const) {
     const a = accounts[p];
-    if (a && (!only || only === p)) out[p] = { account: clip(a.name, 60), otherAccountsNotRead: a.others };
+    if (a && (!only || only === p)) out[p] = { account: clip(a.name, 60), otherAccountsNotRead: a.others, ...(a.chosen ? { chosenInChat: true as const } : {}) };
   }
   return Object.keys(out).length ? out : undefined;
 }

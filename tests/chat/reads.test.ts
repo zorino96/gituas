@@ -60,6 +60,7 @@ import {
 import { orderDetailForModel, orderForModel, primaryStoreId, summarise, whatsappNumberForModel, type OrderRow } from "@/lib/chat/tools/reads-shape";
 import { words } from "@/lib/chat/tools/reads-words";
 import { dict } from "@/lib/i18n";
+import { withAccounts } from "@/lib/oauth/account-scope";
 
 const ctx = (over: Partial<ToolCtx> = {}): ToolCtx => ({
   tenantId: "t1",
@@ -661,8 +662,11 @@ describe("live reads from Meta", () => {
       threePages();
       data.loadPosts.mockResolvedValue({ posts: [post([comment()])], errors: [] });
       const r = await call("list_comments");
-      expect(noteText(r.view?.[0])).toBe(words("en").severalAccounts("Facebook", "Newest Page", "2", "Comments"));
+      // The person chose nothing in the chat: the newest account was read, and the Accounts button chooses another (no screen is named).
+      expect(noteText(r.view?.[0])).toBe(words("en").newestAccount("Facebook", "Newest Page", "2"));
       expect(noteText(r.view?.[0])).toContain("Newest Page");
+      expect(noteText(r.view?.[0])).toContain("Accounts button");
+      expect(noteText(r.view?.[0])).not.toMatch(/Comments|Messages|screen|Settings/);
       // Instagram has one account: nothing to say about it.
       expect(r.view?.filter((b) => b.kind === "note")).toHaveLength(1);
       expect((r.data as { accounts: unknown }).accounts).toEqual({ FB: { account: "Newest Page", otherAccountsNotRead: 2 } });
@@ -679,7 +683,8 @@ describe("live reads from Meta", () => {
       for (const lang of ["ckb", "ar", "en"] as const) {
         const r = await call("list_comments", {}, ctx({ lang }));
         const t = dict(lang);
-        expect(noteText(r.view?.[0]), lang).toBe(words(lang).severalAccounts(t.platform.FB, "Newest Page", t.fmt.num(2), t.nav.comments));
+        expect(noteText(r.view?.[0]), lang).toBe(words(lang).newestAccount(t.platform.FB, "Newest Page", t.fmt.num(2)));
+        expect(noteText(r.view?.[0]), lang).not.toContain(t.nav.comments);
         expect(noteText(r.view?.[1]), lang).toBe(words(lang).noCommentsWaiting);
       }
     });
@@ -691,12 +696,60 @@ describe("live reads from Meta", () => {
       db.order.findMany.mockResolvedValue([]);
       db.conversationMessage.findMany.mockResolvedValue([]);
       const r = await call("list_conversations");
-      expect(noteText(r.view?.[0])).toBe(words("en").severalAccounts("Facebook", "Newest Page", "2", "Messages"));
+      expect(noteText(r.view?.[0])).toBe(words("en").newestAccount("Facebook", "Newest Page", "2"));
       expect((r.data as { accounts: unknown }).accounts).toEqual({ FB: { account: "Newest Page", otherAccountsNotRead: 2 } });
       data.loadAccountLists.mockResolvedValue({ META_FACEBOOK: [{ id: "fb2", name: "Newest Page", avatarUrl: null }], META_INSTAGRAM: [], TIKTOK: [], YOUTUBE: [] });
       const single = await call("list_conversations");
       expect(single.view?.some((b) => b.kind === "note")).toBe(false);
       expect((single.data as { accounts?: unknown }).accounts).toBeUndefined();
+    });
+
+    it("with an account the person chose in the chat, says it read that one, by name, and that the Accounts button changes it", async () => {
+      data.loadConnections.mockResolvedValue({
+        META_FACEBOOK: { connected: true, name: "Old Page", accountId: "fb1" },
+        META_INSTAGRAM: { connected: true, name: "shop_ig", accountId: "ig1" },
+        TIKTOK: { connected: false },
+        YOUTUBE: { connected: false },
+      });
+      threePages();
+      data.loadPosts.mockResolvedValue({ posts: [post([comment()])], errors: [] });
+      data.loadConversations.mockResolvedValue({ conversations: [conv()], unreadable: 0, errors: [] });
+      db.order.findMany.mockResolvedValue([]);
+      db.conversationMessage.findMany.mockResolvedValue([]);
+      for (const lang of ["ckb", "ar", "en"] as const) {
+        const t = dict(lang);
+        const c = await withAccounts({ META_FACEBOOK: "fb1" }, () => call("list_comments", {}, ctx({ lang })));
+        expect(noteText(c.view?.[0]), lang).toBe(words(lang).chosenAccount(t.platform.FB, "Old Page", t.fmt.num(2)));
+        expect(noteText(c.view?.[0]), lang).not.toContain(t.nav.comments);
+        expect(noteText(c.view?.[0]), lang).not.toBe(words(lang).newestAccount(t.platform.FB, "Old Page", t.fmt.num(2)));
+        const m = await withAccounts({ META_FACEBOOK: "fb1" }, () => call("list_conversations", {}, ctx({ lang })));
+        expect(noteText(m.view?.[0]), lang).toBe(words(lang).chosenAccount(t.platform.FB, "Old Page", t.fmt.num(2)));
+      }
+      // The model learns that it is the person's own choice; without a choice the field is not there.
+      const r = await withAccounts({ META_FACEBOOK: "fb1" }, () => call("list_comments"));
+      expect((r.data as { accounts: unknown }).accounts).toEqual({ FB: { account: "Old Page", otherAccountsNotRead: 2, chosenInChat: true } });
+      expect(noteText(r.view?.[0])).toBe(words("en").chosenAccount("Facebook", "Old Page", "2"));
+      expect(noteText(r.view?.[0])).toContain("Old Page");
+      expect(noteText(r.view?.[0])).toContain("you chose in the chat");
+    });
+
+    it("a news desk has no choice in its chat: its note still names the screen that switches", async () => {
+      connected();
+      threePages();
+      data.loadPosts.mockResolvedValue({ posts: [], errors: [] });
+      const t = dict("en");
+      const r = await call("list_comments", {}, ctx({ kind: "news" }));
+      expect(noteText(r.view?.[0])).toBe(words("en").severalAccounts("Facebook", "Newest Page", "2", t.nr.shell.nav.items.comments));
+    });
+
+    it("no wording of the chat sends the person to Settings or to a screen to connect or switch accounts", () => {
+      for (const lang of ["ckb", "ar", "en"] as const) {
+        const w = words(lang);
+        expect(w.notConnectedMeta, lang).not.toMatch(/Settings|ڕێکخستن|الإعدادات/);
+        expect(w.newestAccount("Facebook", "A", "2"), lang).not.toMatch(/Settings|ڕێکخستن|الإعدادات|screen|شاشة|بەشی/);
+        expect(w.chosenAccount("Facebook", "A", "2"), lang).not.toMatch(/Settings|ڕێکخستن|الإعدادات|screen|شاشة|بەشی/);
+      }
+      expect(words("en").notConnectedMeta).toContain("Accounts button");
     });
 
     it("still answers when the list of accounts cannot be read", async () => {

@@ -58,6 +58,12 @@ const SAY = {
     ar: "بلغت حد التغييرات اليوم من المحادثة. حاول غداً.",
     en: "Today's limit of changes made from the chat is reached. Try again tomorrow.",
   },
+  /** Confirm was pressed after the person had changed the account the chat works as: the card is not run as another account. */
+  accountChanged: {
+    ckb: "دوای دروستکردنی ئەم کارتە هەژمارەکەت گۆڕی. لە چات دووبارە داوای بکە.",
+    ar: "غيّرت الحساب بعد إنشاء هذه البطاقة. اطلبها من جديد في المحادثة.",
+    en: "You changed the account after this card was made. Ask again.",
+  },
   /** The advice named a number that is not in the owner's own data: it is cut and this is said instead. */
   adviceNumbers: {
     ckb: "نامەوێت ژمارەیەک بڵێم کە لە داتای خۆتدا نییە. بۆ ژمارەی ورد بەشی «داواکاری» یان «ئامار» بکەرەوە.",

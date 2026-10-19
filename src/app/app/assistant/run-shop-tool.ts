@@ -12,6 +12,8 @@ import type { ChatAttachment } from "@/lib/chat/types";
 import { db } from "@/lib/db";
 import type { Dict } from "@/lib/i18n";
 import { isJpegPath, isOwnBlobUrl } from "@/lib/merchant/caption";
+import type { PublishInput } from "@/lib/merchant/publish-core";
+import { scopedAccount } from "@/lib/oauth/account-scope";
 import { limitsOf } from "@/lib/shop/tenant-plans";
 import { publishAction, saveWhatsAppAction } from "../actions";
 import { archiveProductAction, saveProductAction, saveStoreSettingsAction } from "../automation/actions";
@@ -103,13 +105,32 @@ async function findProduct(tenantId: string, hint: string): Promise<FoundProduct
 /** Why a post cannot go out, as a code that is also the key of the wording in `t.assistant.errors`. The chat's card uses the same check. */
 export type PostProblem = { why: "notConnected"; platform: "Facebook" | "Instagram" } | { why: "severalAccounts" | "badAction" | "needJpeg" };
 
+/** The connection provider behind each post target. */
+const POST_PROVIDER = { FB: "META_FACEBOOK", IG: "META_INSTAGRAM" } as const;
+
+/**
+ * The accounts the chat posts as, in the shape publishForWorkspace takes (account ids per platform): the ones the person chose in the
+ * chat for the platforms of this post. Nothing when the person chose none; the post then goes to the platform's only account, or is
+ * refused when it has several (postProblem).
+ */
+export function chosenPostAccounts(targets: readonly ("FB" | "IG")[]): NonNullable<PublishInput["accounts"]> | undefined {
+  const out: NonNullable<PublishInput["accounts"]> = {};
+  for (const tg of targets) {
+    const id = scopedAccount(POST_PROVIDER[tg]);
+    if (id) out[tg] = [id];
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 export async function postProblem(tenantId: string, args: Record<string, unknown>, atts: ChatAttachment[], conns: Connections): Promise<PostProblem | null> {
   const targets = args.targets as ("FB" | "IG")[];
   const connected = { FB: !!conns.META_FACEBOOK.connected, IG: !!conns.META_INSTAGRAM.connected };
   for (const tg of targets) if (!connected[tg]) return { why: "notConnected", platform: tg === "FB" ? "Facebook" : "Instagram" };
-  // With several Pages (or Instagram accounts) the person chooses which, in Publish: nothing is guessed here.
+  // With several Pages (or Instagram accounts) the person chooses which; nothing is guessed here. In the chat the choice is the Accounts
+  // sheet: a platform whose account was chosen there is not "several" any more, and the post is sent to that account (chosenPostAccounts).
   const lists = await loadAccountLists(tenantId);
-  if ((targets.includes("FB") && lists.META_FACEBOOK.length > 1) || (targets.includes("IG") && lists.META_INSTAGRAM.length > 1)) return { why: "severalAccounts" };
+  const unchosen = (tg: "FB" | "IG") => targets.includes(tg) && lists[POST_PROVIDER[tg]].length > 1 && !scopedAccount(POST_PROVIDER[tg]);
+  if (unchosen("FB") || unchosen("IG")) return { why: "severalAccounts" };
   const m = args.media ? atts.find((x) => x.id === args.media) : undefined;
   if (args.media && !m) return { why: "badAction" };
   if (m && m.kind === "image" && targets.includes("IG") && !isJpegPath(m.pathname)) return { why: "needJpeg" };
@@ -184,11 +205,14 @@ async function perform(input: ShopToolInput, conns: Connections, shop: Extract<A
       if (problem) return { ok: false, error: problem.why === "notConnected" ? a.errors.notConnected(problem.platform) : a.errors[problem.why] };
       const targets = args.targets as ("FB" | "IG")[];
       const m = args.media ? att(args.media) : undefined;
+      // The accounts the person chose in the chat (a scheduled post keeps them: the job that publishes it later has no chat to ask).
+      const accounts = chosenPostAccounts(targets);
       const post = {
         caption: String(args.caption ?? ""),
         targets,
         ...(m ? { media: { url: m.url, pathname: m.pathname, type: m.kind === "image" ? ("IMAGE" as const) : ("VIDEO" as const) } } : {}),
         ...(productId ? { productId } : {}),
+        ...(accounts ? { accounts } : {}),
       };
       if (tool === "schedule_post") {
         const r = await schedulePublishAction(post, String(args.when));

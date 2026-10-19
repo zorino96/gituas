@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import type { ChatMessage, ChatRun, ChatThread, Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { isOwnBlobUrl } from "@/lib/merchant/caption";
+import type { AccountChoice } from "@/lib/oauth/account-scope";
 import type { Lang } from "@/lib/i18n/lang";
 import { LIMITS } from "./budget";
 import { say } from "./text";
@@ -158,6 +159,11 @@ export const argsHashOf = (args: unknown): string => createHash("sha256").update
 export interface StoredCard extends Card {
   /** A card that takes long (a picture): run from its own request. */
   long: boolean;
+  /**
+   * The accounts the chat acted as when the card was made (a shop's chat, {} when the person had chosen none). Confirm refuses a card
+   * whose accounts changed meanwhile instead of running it as another account. A card without this field is not checked.
+   */
+  accounts?: AccountChoice;
 }
 
 export async function createRun(i: {

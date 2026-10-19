@@ -1,20 +1,24 @@
 // The eleven write tools the classic assistant already had, with the same names and arguments (their schemas are
 // SCHEMAS of src/lib/assistant/tools.ts). The card says what will happen and refuses what cannot work; the run goes
-// through runShopTool, so every check of the old confirm path (connected accounts, several Pages refused, JPEG for
-// Instagram, product matching, plan limits, the image and video switches) is the one and only copy.
+// through runShopTool, so every check of the old confirm path (connected accounts, several Pages refused unless the person chose one
+// in the chat, JPEG for Instagram, product matching, plan limits, the image and video switches) is the one and only copy.
 
 import { postProblem, type PostProblem } from "@/app/app/assistant/run-shop-tool";
+import type { Connections } from "@/app/app/data";
 import { adVideoEnabled } from "@/lib/advideo/enabled";
 import { imageEnabled } from "@/lib/ai/image";
 import { plainName } from "@/lib/assistant/ask";
 import { proposalLines, SCHEMAS, type ToolName } from "@/lib/assistant/tools";
-import { defineWrite, type Card, type ToolCtx, type WriteTool } from "@/lib/chat/types";
+import { defineWrite, type Card, type CardLine, type ToolCtx, type WriteTool } from "@/lib/chat/types";
 import { dict } from "@/lib/i18n";
+import type { Lang } from "@/lib/i18n/lang";
 import { captionProblems, type Target } from "@/lib/merchant/caption";
 import { normalizePhone } from "@/lib/merchant/phone";
 import { baghdadLocalToUtc, scheduleProblem } from "@/lib/merchant/schedule";
+import { scopedAccount } from "@/lib/oauth/account-scope";
 import { parsePrice } from "@/lib/shop/forms";
-import { attachmentsOf, pinOf, platformName, refuse, runShop, shopFor } from "./writes-common";
+import { instagramPhrase, pagePhrase } from "./reads-accounts";
+import { attachmentsOf, clip, pinOf, platformName, refuse, runShop, shopFor } from "./writes-common";
 import { CARD, LABEL, NEW } from "./writes-words";
 
 /** The texts of set_shop_options that an empty string clears. The card has to say so: an empty value would otherwise show no line at all. */
@@ -25,16 +29,34 @@ const CLEARABLE = ["defaultDm", "aiBrief", "deliveryTime", "deliveryFee"] as con
  * named loosely (a part of the name, or its id) is shown by the name it resolved to, so the person sees what will really be used,
  * and is pinned to the id it resolved to, so Confirm acts on that same product. A text that is cleared is shown as cleared.
  */
-function cardOf(ctx: ToolCtx, tool: ToolName, args: object, shop: { shopName: string; productId?: string | null; productName?: string | null }): Card {
+function cardOf(ctx: ToolCtx, tool: ToolName, args: object, shop: { shopName: string; productId?: string | null; productName?: string | null; conns?: Connections }): Card {
   const t = dict(ctx.lang);
   const files = Object.fromEntries(attachmentsOf(ctx).map((x) => [x.id, plainName(x.name) || x.kind]));
   const shown: Record<string, unknown> = shop.productName ? { ...args, product: shop.productName } : { ...args };
   if (tool === "set_shop_options") for (const k of CLEARABLE) if (shown[k] === "") shown[k] = CARD.cleared[ctx.lang];
+  const lines = proposalLines({ tool, args: shown }, t.assistant.fields, { files, shop: shop.shopName });
+  // A post names the Page / Instagram account it goes to, right after "where" (the first line), when the person chose it in the chat.
+  if (tool === "post_now" || tool === "schedule_post") lines.splice(1, 0, ...chosenAccountLine(ctx.lang, (args as { targets?: string[] }).targets ?? [], shop.conns));
   return {
     title: (t.assistant.tools as Record<string, string>)[tool] ?? tool,
-    lines: proposalLines({ tool, args: shown }, t.assistant.fields, { files, shop: shop.shopName }),
+    lines,
     ...pinOf(args as { product?: unknown }, { productId: shop.productId ?? null }),
   };
+}
+
+/**
+ * "To: the Facebook Page «X» + the Instagram account @y": the accounts a post will go to, from the connections as the chat sees them
+ * (narrowed to the chosen account). Only a platform the person chose an account for gets a name; with one account there is nothing to
+ * tell apart, and a platform with several and no choice never reaches a card (postProblem).
+ */
+function chosenAccountLine(lang: Lang, targets: readonly string[], conns?: Connections): CardLine[] {
+  if (!conns) return [];
+  const parts: string[] = [];
+  const fb = scopedAccount("META_FACEBOOK");
+  if (fb && targets.includes("FB") && conns.META_FACEBOOK.connected) parts.push(pagePhrase(lang, clip(conns.META_FACEBOOK.name ?? fb, 60)));
+  const ig = scopedAccount("META_INSTAGRAM");
+  if (ig && targets.includes("IG") && conns.META_INSTAGRAM.connected) parts.push(instagramPhrase(lang, clip(conns.META_INSTAGRAM.name ?? ig, 60)));
+  return parts.length ? [{ label: NEW.field.to[lang], value: parts.join(" + ") }] : [];
 }
 
 /** Every id must be a file attached in this chat (and a picture where a picture is needed). The model must never invent one. */
@@ -50,9 +72,9 @@ function needFiles(ctx: ToolCtx, ids: readonly string[], what: string, kind: "im
 const POST_PROBLEM = (p: PostProblem): string => {
   switch (p.why) {
     case "notConnected":
-      return `${p.platform} is not connected. The person has to connect it in Settings; you cannot do that for them.`;
+      return `${p.platform} is not connected. The person connects it with the Connect button that show_accounts puts in the chat; you cannot do that for them.`;
     case "severalAccounts":
-      return "The shop has several Facebook Pages or Instagram accounts, and the chat would have to guess which one to post to. Tell the person to post from the Publish screen, where they choose the account.";
+      return "There are several Facebook Pages or Instagram accounts connected, and the person has not chosen which one the chat posts as, so it would have to guess. Call show_accounts: it puts the Choose button in the chat. Say that a choice takes effect from their next message, then post once they have chosen.";
     case "badAction":
       return "The media id is not one of the files attached in this chat. Use an id from the attachment list.";
     case "needJpeg":
@@ -125,7 +147,7 @@ export const SHOP_WRITE_TOOLS: WriteTool[] = [
     description:
       "Publish a post right now to Facebook and/or Instagram. caption: the post text (it may be empty only when a file is attached). targets: [\"FB\"], [\"IG\"] or both; Instagram needs a picture (JPEG) or a video. " +
       "media: the id of one attached file, for example \"a1\". product: the exact name, or the id from list_products, of the product the post is about. " +
-      "Refused when a platform is not connected or the shop has several Pages or Instagram accounts.",
+      "Refused when a platform is not connected, or when there are several Pages or Instagram accounts and the person has not chosen one in the chat (show_accounts lets them choose). It posts as the account they chose, and the card names it.",
     schema: SCHEMAS.post_now,
     kinds: ["shop"],
     permission: "publish",
