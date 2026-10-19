@@ -2,13 +2,14 @@
 // route: a throwaway workspace asks one question, the turn is summarised, and everything it made is deleted. The workspace is on the
 // default autonomy (ASK), so a write the model proposes stays a proposal and never runs. Only shapes and short texts are returned.
 
+import { setupNewsDesk } from "@/app/app/data";
 import { db } from "@/lib/db";
 import type { Lang } from "@/lib/i18n/lang";
 import { loadMessages, runsOfThread } from "./store";
 import { executeChatRequest } from "./turn";
-import type { ChatEvent } from "./types";
+import type { ChatEvent, ChatKind } from "./types";
 
-export async function chatProbe(text: string, lang: Lang = "en"): Promise<Record<string, unknown>> {
+export async function chatProbe(text: string, lang: Lang = "en", kind: ChatKind = "shop"): Promise<Record<string, unknown>> {
   // A probe cut off by the function limit leaves its throwaway workspace behind: the next one clears what is over an hour old.
   const old = await db.tenant.findMany({ where: { slug: { startsWith: "probe" }, name: { startsWith: "probe" }, createdAt: { lt: new Date(Date.now() - 3_600_000) } }, select: { id: true, ownerId: true } });
   for (const t of old) {
@@ -18,13 +19,14 @@ export async function chatProbe(text: string, lang: Lang = "en"): Promise<Record
   }
   const tag = `probe${Date.now().toString(36)}`;
   const user = await db.user.create({ data: { email: `${tag}@example.invalid`, name: "chat probe" } });
-  const tenant = await db.tenant.create({ data: { name: tag, slug: tag, ownerId: user.id, kind: "MERCHANT", kindChosen: true, unlimited: true } });
+  const tenant = await db.tenant.create({ data: { name: tag, slug: tag, ownerId: user.id, kind: kind === "news" ? "NEWS" : "MERCHANT", kindChosen: true, unlimited: kind === "shop" } });
   try {
     await db.membership.create({ data: { tenantId: tenant.id, userId: user.id, role: "OWNER" } });
-    await db.store.create({ data: { tenantId: tenant.id, name: `${tag} shop`, plan: "UNLIMITED" } });
+    if (kind === "news") await db.$transaction((tx) => setupNewsDesk(tx, tenant.id));
+    else await db.store.create({ data: { tenantId: tenant.id, name: `${tag} shop`, plan: "UNLIMITED" } });
     const events: ChatEvent[] = [];
     const t0 = Date.now();
-    await executeChatRequest({ tenantId: tenant.id, userId: user.id, role: "OWNER", kind: "shop", lang }, { workspaceId: tenant.id, text }, (e) => events.push(e));
+    await executeChatRequest({ tenantId: tenant.id, userId: user.id, role: "OWNER", kind, lang }, { workspaceId: tenant.id, text }, (e) => events.push(e));
     const thread = events.find((e) => e.t === "thread") as { id: string } | undefined;
     const rows = thread ? await loadMessages(thread.id) : [];
     const runs = thread ? await runsOfThread(thread.id) : [];

@@ -10,11 +10,12 @@ import { plainName } from "@/lib/assistant/ask";
 import { db } from "@/lib/db";
 import { limitsOf } from "@/lib/shop/tenant-plans";
 import { OPTIONAL_SHARE, spentOf } from "@/lib/ai/meter";
-import { CHAT_QUICK_PER_DAY, CHAT_REFUNDS_PER_DAY, CHAT_SLOTS, chatCaps, LIMITS, NO_SHOP_CHAT_CAPS, NO_SHOP_QUICK_PER_DAY, TURN_COST_MICRO } from "./budget";
+import { newsroomAccess } from "@/lib/billing/trial";
+import { CHAT_QUICK_PER_DAY, CHAT_REFUNDS_PER_DAY, CHAT_SLOTS, chatCaps, LIMITS, newsChatCaps, NEWS_QUICK_PER_DAY, NO_SHOP_CHAT_CAPS, NO_SHOP_QUICK_PER_DAY, TURN_COST_MICRO } from "./budget";
 import type { Actor } from "./confirm";
 import { titleFrom } from "./guard";
 import { quickTitle, runQuick, runTurn, type TurnDeps } from "./loop";
-import { QUICK_PLAN } from "./quick";
+import { quickPlanOf } from "./quick";
 import { toolsFor } from "./registry";
 import { snapshotFor } from "./snapshot";
 import {
@@ -34,7 +35,7 @@ import {
 import { errorText } from "./text";
 import { titleFor } from "./title";
 import { ALL_TOOLS } from "./tools";
-import { isQuickId, type ChatAttachment, type ChatErrorCode, type ChatEvent, type ChatTool, type QuickId } from "./types";
+import { isQuickIdFor, type AnyQuickId, type ChatAttachment, type ChatErrorCode, type ChatEvent, type ChatKind, type ChatTool } from "./types";
 
 const Body = z.object({
   workspaceId: z.string().min(1).max(60),
@@ -56,8 +57,32 @@ export function cleanIncoming(raw: unknown[] | undefined, tenantId: string, exis
   return out;
 }
 
-/** What the person's own shop says about itself (so a number or handle the model repeats from it is not taken for a stranger's). */
-async function ownerFactsOf(tenantId: string): Promise<string[]> {
+/**
+ * The turns and shortcuts this workspace may take, whether its AI is metered, and whether it may write at all. A shop's follow its plan's AI
+ * allowance. A desk has no shop and so no allowance to meter against: its chat is bounded by plan-based turns (a trial gets a few, a
+ * frozen desk none) and by the per-turn cost cap, exactly as the older desk assistant was bounded by fixed numbers.
+ */
+async function chatPlanOf(actor: Actor): Promise<{ caps: { month: number; day: number }; quickPerDay: number; unmetered: boolean; frozen: boolean; aiUsd: number }> {
+  if (actor.kind === "news") {
+    const t = await db.tenant.findUnique({ where: { id: actor.tenantId }, select: { kind: true, plan: true, planPaidUntil: true, trialEndsAt: true } });
+    const access = t ? newsroomAccess(t, new Date()) : { active: false, reason: "frozen" as const, daysLeft: null };
+    return { caps: newsChatCaps({ plan: t?.plan ?? "MANUAL", reason: access.reason }), quickPerDay: NEWS_QUICK_PER_DAY, unmetered: true, frozen: !access.active, aiUsd: 0 };
+  }
+  const limits = await limitsOf(actor.tenantId);
+  const noShop = limits.aiUsd <= 0;
+  return { caps: noShop ? NO_SHOP_CHAT_CAPS : chatCaps(limits.aiUsd), quickPerDay: noShop ? NO_SHOP_QUICK_PER_DAY : CHAT_QUICK_PER_DAY, unmetered: noShop, frozen: false, aiUsd: limits.aiUsd };
+}
+
+/** What the person's own workspace says about itself (so a number or handle the model repeats from it is not taken for a stranger's). */
+async function ownerFactsOf(actor: Actor): Promise<string[]> {
+  const tenantId = actor.tenantId;
+  if (actor.kind === "news") {
+    const [tenant, accounts] = await Promise.all([
+      db.tenant.findUnique({ where: { id: tenantId }, select: { name: true, whatsappNumber: true } }),
+      db.oAuthCredential.findMany({ where: { tenantId }, select: { providerAccountName: true }, take: 20 }),
+    ]);
+    return [tenant?.name, tenant?.whatsappNumber, ...accounts.map((a) => a.providerAccountName)].filter((x): x is string => !!x);
+  }
   const [tenant, stores] = await Promise.all([
     db.tenant.findUnique({ where: { id: tenantId }, select: { whatsappNumber: true } }),
     db.store.findMany({ where: { tenantId }, select: { igUsername: true, name: true }, take: 15 }),
@@ -85,7 +110,7 @@ export async function executeChatRequest(actor: Actor, rawBody: unknown, emit: (
   if (!parsed.success) return fail("badrequest");
   const body = parsed.data;
   if (body.workspaceId !== actor.tenantId) return fail("workspace");
-  const quick: QuickId | undefined = isQuickId(body.quick) ? body.quick : undefined;
+  const quick: AnyQuickId | undefined = isQuickIdFor(actor.kind, body.quick) ? body.quick : undefined;
   if (body.quick !== undefined && !quick) return fail("badrequest");
   const text = body.text.replace(/\u0000/g, "").trim().slice(0, LIMITS.userTextChars);
   if (!quick && !text) return fail("badrequest");
@@ -104,13 +129,15 @@ export async function executeChatRequest(actor: Actor, rawBody: unknown, emit: (
   };
   try {
     // The plan's chat turns: one per question, whatever the number of model calls it takes. A shortcut takes none.
-    const limits = await limitsOf(actor.tenantId);
-    const noShop = limits.aiUsd <= 0;
-    const caps = noShop ? NO_SHOP_CHAT_CAPS : chatCaps(limits.aiUsd);
+    const plan = await chatPlanOf(actor);
+    const noShop = plan.unmetered;
+    const caps = plan.caps;
+    // A desk whose trial and plan have ended may only read: typed turns are refused (the shortcuts still work).
+    if (!quick && plan.frozen) return fail("frozen");
     if (!quick) {
       slot = await claimSlot(actor.tenantId, CHAT_SLOTS, caps);
       if (!slot.ok) return fail(slot.error === "daily" ? "limit_day" : "limit_month");
-    } else if ((await takeDaily(actor.tenantId, "chat_quick_day", 1, noShop ? NO_SHOP_QUICK_PER_DAY : CHAT_QUICK_PER_DAY)) < 1) {
+    } else if ((await takeDaily(actor.tenantId, "chat_quick_day", 1, plan.quickPerDay)) < 1) {
       return fail("limit_day");
     }
 
@@ -123,7 +150,7 @@ export async function executeChatRequest(actor: Actor, rawBody: unknown, emit: (
         return fail("not_found");
       }
     } else {
-      thread = await createThread({ tenantId: actor.tenantId, userId: actor.userId, kind: actor.kind, title: quick ? quickTitle(actor.lang, quick) : titleFrom(text) });
+      thread = await createThread({ tenantId: actor.tenantId, userId: actor.userId, kind: actor.kind, title: quick ? quickTitle(actor.kind, actor.lang, quick) : titleFrom(text) });
       isNew = true;
     }
     emit({ t: "thread", id: thread.id, title: thread.title, isNew });
@@ -134,11 +161,11 @@ export async function executeChatRequest(actor: Actor, rawBody: unknown, emit: (
     locked = thread;
 
     if (quick) {
-      await runQuick({ actor, thread, emit }, quick, QUICK_PLAN[quick], { tools: deps.tools, now: deps.now });
+      await runQuick({ actor, thread, emit }, quick, quickPlanOf(actor.kind, quick), { tools: deps.tools, now: deps.now });
     } else {
       const [messages, runs] = await Promise.all([loadMessages(thread.id), runsOfThread(thread.id)]);
       const attachments = cleanIncoming(body.attachments, actor.tenantId, attachmentsOf(messages, runs, actor.tenantId));
-      const [autonomy, ownerFacts, ai] = await Promise.all([getAutonomy(actor.tenantId), ownerFactsOf(actor.tenantId), aiForTenant(actor.tenantId)]);
+      const [autonomy, ownerFacts, ai] = await Promise.all([getAutonomy(actor.tenantId), ownerFactsOf(actor), aiForTenant(actor.tenantId)]);
       const outcome = await runTurn(
         { actor, thread, text, attachments, review: body.review !== false, autonomy, ownerFacts, emit },
         { step: deps.step, tools: deps.tools, snapshot: deps.snapshot, meter: noShop ? undefined : ai.meter, now: deps.now },
@@ -153,7 +180,7 @@ export async function executeChatRequest(actor: Actor, rawBody: unknown, emit: (
         };
       }
     }
-    emit({ t: "done", remaining: await remainingOf(actor.tenantId), ms: deps.now() - started });
+    emit({ t: "done", remaining: await remainingOf(actor.tenantId, actor.kind), ms: deps.now() - started });
     if (afterDone) await afterDone().catch(() => undefined);
   } catch (e) {
     console.error("[chat] turn failed:", e instanceof Error ? e.name : "unknown");
@@ -165,9 +192,10 @@ export async function executeChatRequest(actor: Actor, rawBody: unknown, emit: (
 }
 
 /** What is left of the plan's chat turns today and this month. */
-export async function remainingOf(tenantId: string): Promise<{ day: number; month: number }> {
-  const limits = await limitsOf(tenantId);
-  const caps = limits.aiUsd <= 0 ? NO_SHOP_CHAT_CAPS : chatCaps(limits.aiUsd);
+export async function remainingOf(tenantId: string, kind: ChatKind = "shop"): Promise<{ day: number; month: number }> {
+  const plan = await chatPlanOf({ tenantId, kind } as Actor);
+  const limits = { aiUsd: plan.aiUsd };
+  const caps = plan.caps;
   const used = await slotsUsed(tenantId, CHAT_SLOTS).catch(() => ({ day: 0, month: 0 }));
   let month = caps.month - used.month;
   // Never promise more turns than the rest of the allowance can pay for (chat stops at the optional share of it).

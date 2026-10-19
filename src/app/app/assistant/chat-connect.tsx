@@ -8,7 +8,11 @@ import { useEffect, useState } from "react";
 
 import { useT } from "@/lib/i18n/client";
 
-export function ConnectCard({ connections, justConnected }: { connections: { facebook: boolean; instagram: boolean }; justConnected: boolean }) {
+/**
+ * `setupFirst`: the shop has no store yet and the setup interview is on, so the FIRST Facebook or Instagram connection goes on to the
+ * interview (/app/setup), like the Connect buttons in Settings do. Without it the person lands back in the chat.
+ */
+export function ConnectCard({ connections, justConnected }: { connections: { facebook: boolean; instagram: boolean; setupFirst?: boolean }; justConnected: boolean }) {
   const all = useT();
   const t = all.assistant.connect;
   const [ack, setAck] = useState(false);
@@ -63,7 +67,7 @@ export function ConnectCard({ connections, justConnected }: { connections: { fac
               <a
                 key={m.provider}
                 className="gm-btn small"
-                href={`/api/oauth/${m.provider}/start?next=/app/assistant&ack=1`}
+                href={`/api/oauth/${m.provider}/start?next=${connections.setupFirst ? "/app/setup" : "/app/assistant"}&ack=1`}
                 onClick={(e) => {
                   if (!ack) {
                     e.preventDefault();

@@ -16,6 +16,8 @@ import { isOwnBlobUrl } from "@/lib/merchant/caption";
 import { exponentOf, formatMoney } from "@/lib/shop/money";
 import { parsePrice } from "@/lib/shop/forms";
 import { clip, inShop, pinOf, platformName, productNotFound, refuse, shopFor } from "./writes-common";
+import { newsCardGuard, newsRunGuard } from "./writes-news-common";
+import { NW } from "./writes-news-words";
 import { LABEL, NEW } from "./writes-words";
 
 const platform = z.enum(["FB", "IG"]).describe("FB = Facebook, IG = Instagram");
@@ -71,6 +73,15 @@ async function guarded(ctx: ToolCtx, run: () => Promise<WriteResult>): Promise<W
   }
 }
 
+/**
+ * The four tools below serve the shop AND the news desk. A desk's session must be on the desk the run belongs to, and a frozen desk
+ * (trial over, nothing paid) may only read: the same two checks as every other desk tool (see defineNews). A shop has neither.
+ */
+const deskCard = async (ctx: ToolCtx): Promise<void> => {
+  if (ctx.kind === "news") await newsCardGuard(ctx);
+};
+const deskRun = async (ctx: ToolCtx): Promise<WriteResult | null> => (ctx.kind === "news" ? newsRunGuard(ctx) : null);
+
 const fromAction = (r: { ok: true } | { ok: false; error: string }, okText: string): WriteResult => (r.ok ? { ok: true, text: okText } : { ok: false, text: r.error });
 
 /**
@@ -113,7 +124,7 @@ async function findConversation(ctx: ToolCtx, p: "FB" | "IG", id: string) {
   const { conversations } = await loadConversations(ctx.tenantId, scoped);
   const conv = conversations.find((c) => c.platform === p && c.id === id);
   if (!conv) return refuse(`Conversation "${id}" was not found among the latest ${platformName(p)} conversations. Use an id from list_conversations.`);
-  if (!conv.participantId) return refuse("This conversation has no recipient the shop can write to.");
+  if (!conv.participantId) return refuse(`This conversation has no recipient the ${ctx.kind === "news" ? "desk" : "shop"} can write to.`);
   if (!conv.withinWindow) {
     return refuse(
       "The 24-hour window is closed: Meta allows a free message only within 24 hours of the customer's last message. " +
@@ -197,14 +208,15 @@ const setOrderStatus = defineWrite({
 const hideComment = defineWrite({
   name: "hide_comment",
   description:
-    "Hide a comment on one of the shop's posts, or show a hidden one again (hidden: false). platform: FB or IG. comment: the comment's id exactly as list_comments gives it. " +
+    "Hide a comment on one of the account's posts (the shop's or the news desk's), or show a hidden one again (hidden: false). platform: FB or IG. comment: the comment's id exactly as list_comments gives it. " +
     "Hiding is reversible and does not delete the comment.",
   schema: SCHEMA.hide_comment,
-  kinds: ["shop"],
+  kinds: ["shop", "news"],
   permission: "engage",
   risk: "low",
   label: (lang) => LABEL.comment[lang],
   async card(ctx, args) {
+    await deskCard(ctx);
     const { comment, accountName } = await findComment(ctx, args.platform, args.comment);
     if (comment.hidden === args.hidden) return refuse(args.hidden ? "That comment is already hidden." : "That comment is not hidden.");
     return {
@@ -215,7 +227,8 @@ const hideComment = defineWrite({
       ],
     };
   },
-  execute: (ctx, args) =>
+  execute: async (ctx, args) =>
+    (await deskRun(ctx)) ??
     guarded(ctx, async () => {
       const { accountId } = await onePlatform(ctx, args.platform);
       const r = await setCommentHiddenAction(args.platform, args.comment, args.hidden, accountId);
@@ -226,28 +239,30 @@ const hideComment = defineWrite({
 const replyToComment = defineWrite({
   name: "reply_to_comment",
   description:
-    "Publicly reply to a customer's comment as the shop. platform: FB or IG. comment: the comment's id exactly as list_comments gives it. " +
+    "Publicly reply to a comment as the shop or the news desk. platform: FB or IG. comment: the comment's id exactly as list_comments gives it. " +
     "text: the reply, in the language of the comment, as the owner would write it (up to 2200 characters on Instagram and 8000 on Facebook). Everyone can read it.",
   schema: SCHEMA.reply_to_comment,
-  kinds: ["shop"],
+  kinds: ["shop", "news"],
   permission: "engage",
   risk: "outbound",
   textFields: ["text"],
   label: (lang) => LABEL.comment[lang],
   async card(ctx, args) {
+    await deskCard(ctx);
     if (Array.from(args.text).length > REPLY_LIMIT[args.platform]) return refuse(`The reply is longer than the ${REPLY_LIMIT[args.platform]} characters ${platformName(args.platform)} allows.`);
     const { comment, accountName } = await findComment(ctx, args.platform, args.comment);
-    if (comment.fromUs) return refuse("That comment was written by the shop's own account, not by a customer.");
+    if (comment.fromUs) return refuse(ctx.kind === "news" ? "That comment was written by the desk's own page, not by a visitor." : "That comment was written by the shop's own account, not by a customer.");
     const lines = [
       { label: NEW.field.platform[ctx.lang], value: platformLine(ctx, args.platform, accountName) },
       { label: NEW.field.comment[ctx.lang], value: clip(`${comment.author}: ${comment.text}`, 220) },
       { label: NEW.field.reply[ctx.lang], value: args.text },
     ];
     // The person should know before sending a second answer.
-    if (comment.replies.some((r) => r.fromUs)) lines.push({ label: NEW.field.note[ctx.lang], value: NEW.alreadyAnswered[ctx.lang] });
+    if (comment.replies.some((r) => r.fromUs)) lines.push({ label: NEW.field.note[ctx.lang], value: (ctx.kind === "news" ? NW.alreadyReplied : NEW.alreadyAnswered)[ctx.lang] });
     return { title: NEW.title.replyToComment[ctx.lang], lines };
   },
-  execute: (ctx, args) =>
+  execute: async (ctx, args) =>
+    (await deskRun(ctx)) ??
     guarded(ctx, async () => {
       const { accountId } = await onePlatform(ctx, args.platform);
       const r = await replyToCommentAction(args.platform, args.comment, args.text, accountId);
@@ -258,15 +273,16 @@ const replyToComment = defineWrite({
 const sendMessage = defineWrite({
   name: "send_message",
   description:
-    "Send a private message to a customer in an existing conversation, as the shop. platform: FB (Messenger) or IG (Instagram DM). conversation: the conversation's id exactly as list_conversations or get_conversation gives it. " +
+    "Send a private message in an existing conversation, as the shop or the news desk. platform: FB (Messenger) or IG (Instagram DM). conversation: the conversation's id exactly as list_conversations or get_conversation gives it. " +
     "text: up to 1000 characters. Meta allows this only within 24 hours of the customer's last message; outside that window the tool is refused. WhatsApp is not supported.",
   schema: SCHEMA.send_message,
-  kinds: ["shop"],
+  kinds: ["shop", "news"],
   permission: "engage",
   risk: "outbound",
   textFields: ["text"],
   label: (lang) => LABEL.conversation[lang],
   async card(ctx, args) {
+    await deskCard(ctx);
     const { conv, accountName } = await findConversation(ctx, args.platform, args.conversation);
     const last = [...conv.messages].reverse().find((m) => !m.fromUs);
     const lines = [
@@ -278,7 +294,8 @@ const sendMessage = defineWrite({
     return { title: NEW.title.sendMessage[ctx.lang], lines };
   },
   // The window is checked again: a card can wait for its Confirm.
-  execute: (ctx, args) =>
+  execute: async (ctx, args) =>
+    (await deskRun(ctx)) ??
     guarded(ctx, async () => {
       const { recipient, accountId } = await findConversation(ctx, args.platform, args.conversation);
       const r = await sendMessageAction(args.platform, recipient, args.text, accountId);
@@ -291,11 +308,12 @@ const cancelScheduledPost = defineWrite({
   description:
     "Cancel a post that is scheduled but has not gone out yet. post: the scheduled post's id exactly as list_scheduled_posts gives it. Only pending posts can be cancelled.",
   schema: SCHEMA.cancel_scheduled_post,
-  kinds: ["shop"],
+  kinds: ["shop", "news"],
   permission: "publish",
   risk: "destructive",
   label: (lang) => LABEL.scheduled[lang],
   async card(ctx, args) {
+    await deskCard(ctx);
     const row = await db.scheduledPost.findFirst({ where: { id: args.post, tenantId: ctx.tenantId, status: "PENDING" }, select: { runAt: true, input: true } });
     if (!row) return refuse(`There is no pending scheduled post with id "${args.post}" (it may have gone out, failed or been cancelled already). Use an id from list_scheduled_posts.`);
     const t = dict(ctx.lang);
@@ -307,6 +325,8 @@ const cancelScheduledPost = defineWrite({
     return { title: NEW.title.cancelScheduled[ctx.lang], lines };
   },
   async execute(ctx, args) {
+    const stopped = await deskRun(ctx);
+    if (stopped) return stopped;
     return fromAction(await cancelScheduledAction(args.post), NEW.done.cancelled[ctx.lang]);
   },
 });

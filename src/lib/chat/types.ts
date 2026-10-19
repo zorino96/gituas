@@ -127,6 +127,8 @@ export interface WriteToolDef<S extends z.ZodTypeAny> extends ToolCommon<S> {
   risk: Exclude<Risk, "read">;
   /** Takes more than about 20 s (a picture): it runs only from its own card's request, never inside a chat turn. */
   long?: boolean;
+  /** A public post: it counts against the day's posts (a day's number of posts is a fence). */
+  countsAsPost?: boolean;
   /**
    * The argument names that carry free text the public or a buyer will read (a caption, a reply, a product description). The loop
    * strips from them every link, phone number, @handle and domain that the person did not type themselves in this thread.
@@ -218,6 +220,7 @@ export type ChatErrorCode =
   | "unavailable" // no AI provider answered
   | "not_found"
   | "expired" // a card is too old
+  | "frozen" // a news desk whose trial and plan have ended may only read
   | "internal";
 
 /** One line of the answer to POST /api/chat (newline-delimited JSON). */
@@ -248,9 +251,17 @@ export interface ChatRequest {
   workspaceId: string;
 }
 
-export const QUICK_IDS = ["today", "orders", "comments", "messages", "scheduled"] as const;
+/** The shop's shortcut buttons. */
+export const QUICK_IDS = ["today", "orders", "comments", "messages", "scheduled", "coach"] as const;
 export type QuickId = (typeof QUICK_IDS)[number];
 export const isQuickId = (v: unknown): v is QuickId => typeof v === "string" && (QUICK_IDS as readonly string[]).includes(v);
+/** The news desk's shortcut buttons. */
+export const NEWS_QUICK_IDS = ["today", "stories", "ready", "comments", "messages", "scheduled"] as const;
+export type NewsQuickId = (typeof NEWS_QUICK_IDS)[number];
+/** A shortcut of either kind of workspace. */
+export type AnyQuickId = QuickId | NewsQuickId;
+export const quickIdsOf = (kind: ChatKind): readonly string[] => (kind === "news" ? NEWS_QUICK_IDS : QUICK_IDS);
+export const isQuickIdFor = (kind: ChatKind, v: unknown): v is AnyQuickId => typeof v === "string" && quickIdsOf(kind).includes(v);
 
 /** The body of POST /api/chat/runs/[id] and its answer. */
 export interface RunDecisionRequest {

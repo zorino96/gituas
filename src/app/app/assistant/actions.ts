@@ -7,18 +7,10 @@ import { askAssistant, cleanTurns, plainName, type AttachmentInfo, type ChatTurn
 import { assistantCaps, ASSISTANT_SLOTS, NO_SHOP_CAPS, REFUNDS_PER_DAY } from "@/lib/assistant/caps";
 import { loadAssistantState } from "@/lib/assistant/state";
 import { loadNewsAssistantState } from "@/lib/assistant/state-news";
-import { NEWS_TOOLS, parseProposal, proposalLines, type ToolName } from "@/lib/assistant/tools";
-import { isFrameSection } from "@/lib/news/frames-shared";
-import { isFrameText, type FrameText } from "@/lib/cards/brand";
-import {
-  designSectionFrameAction,
-  removeSectionFrameAction,
-  saveDesignPromptAction,
-  saveSectionFrameTextAction,
-} from "@/app/newsroom/(desk)/news/actions";
+import { parseProposal, proposalLines, type ToolName } from "@/lib/assistant/tools";
+import { runDeskTool } from "@/app/newsroom/run-desk-tool";
 import { opusAvailable } from "@/lib/ai/models";
 import { maxPlanOpen } from "@/lib/billing/prices";
-import { db } from "@/lib/db";
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
 import type { ChatAttachment as SharedAttachment } from "@/lib/chat/types";
@@ -216,71 +208,4 @@ export async function runToolAction(input: {
 
   // The shop's tools live in run-shop-tool.ts (the chat's write tools run them too).
   return runShopTool({ tenantId: ws.id, t, tool: proposal.tool, args: proposal.args, attachments: atts, review: input.review !== false });
-}
-
-/**
- * A news desk's confirmed tools. Each goes through the same server action the Brand & photos screen uses, with that
- * action's own checks (role, allowance, the desk's own files only); the reference is one of the pictures attached here.
- */
-async function runDeskTool(
-  tenantId: string,
-  tool: ToolName,
-  args: Record<string, unknown>,
-  atts: ChatAttachment[],
-  t: ReturnType<typeof dict>,
-): Promise<ToolResult> {
-  const a = t.assistant;
-  const n = a.news;
-  if (!(NEWS_TOOLS as readonly string[]).includes(tool)) return { ok: false, error: a.errors.badAction };
-  const section = String(args.section ?? "");
-  if (tool !== "set_design_prompt" && !isFrameSection(section)) return { ok: false, error: n.errors.badSection };
-
-  switch (tool) {
-    case "design_section_frame": {
-      if (!imageEnabled()) return { ok: false, error: n.errors.featureOff };
-      let referencePath: string | null = null;
-      if (typeof args.reference === "string") {
-        const f = atts.find((x) => x.id === args.reference);
-        if (!f || f.kind !== "image" || !/\.(png|jpe?g|webp)$/i.test(f.pathname)) return { ok: false, error: n.errors.badReference };
-        referencePath = f.pathname;
-      }
-      // Where the headline goes: what was asked for, else what this section has now, else the main frame's.
-      let position: FrameText | null = isFrameText(args.position) ? args.position : null;
-      if (!position) {
-        const cur = await db.newsFrame.findUnique({ where: { tenantId_section: { tenantId, section } }, select: { frameText: true } });
-        position = isFrameText(cur?.frameText) ? cur.frameText : null;
-      }
-      if (!position) {
-        const kit = await db.brandKit.findUnique({ where: { tenantId }, select: { frameText: true } });
-        position = isFrameText(kit?.frameText) ? kit.frameText : "bottom";
-      }
-      // A new design of a section keeps the reference and the note it already had unless new ones are given.
-      let note = String(args.note ?? "");
-      if (!referencePath || !note) {
-        const prev = await db.newsFrame.findUnique({ where: { tenantId_section: { tenantId, section } }, select: { referencePath: true, note: true } });
-        if (!referencePath && prev?.referencePath) referencePath = prev.referencePath;
-        if (!note && prev?.note) note = prev.note;
-      }
-      const r = await designSectionFrameAction({ section, referencePath, note, frameText: position });
-      return r.ok ? { ok: true, text: n.done.frame } : { ok: false, error: r.error };
-    }
-    case "set_design_prompt": {
-      const r = await saveDesignPromptAction(String(args.text ?? ""));
-      return r.ok ? { ok: true, text: r.designPrompt ? n.done.prompt : n.done.promptCleared } : { ok: false, error: r.error };
-    }
-    case "set_frame_text": {
-      const pos = args.position;
-      if (!isFrameText(pos)) return { ok: false, error: a.errors.badAction };
-      const own = await db.newsFrame.findUnique({ where: { tenantId_section: { tenantId, section } }, select: { id: true } });
-      if (!own) return { ok: false, error: n.errors.noFrame };
-      const r = await saveSectionFrameTextAction(section, pos);
-      return r.ok ? { ok: true, text: n.done.position } : { ok: false, error: r.error };
-    }
-    case "remove_section_frame": {
-      const r = await removeSectionFrameAction(section);
-      return r.ok ? { ok: true, text: n.done.removed } : { ok: false, error: r.error };
-    }
-    default:
-      return { ok: false, error: a.errors.badAction };
-  }
 }

@@ -26,9 +26,11 @@ import {
   type ChatRun,
   type ChatThread,
 } from "./store";
+import { guardAdviceDetailed } from "./numbers";
 import { hasProfileState, systemPrompt } from "./system";
-import { say } from "./text";
-import { isWriteTool, ToolRefusal, type Autonomy, type Card, type ChatAttachment, type ChatErrorCode, type ChatEvent, type ChatTool, type QuickId, type ViewBlock } from "./types";
+import { systemPromptNews } from "./system-news";
+import { NEWS_QUICK, say } from "./text";
+import { isWriteTool, ToolRefusal, type Autonomy, type Card, type ChatAttachment, type ChatErrorCode, type ChatEvent, type ChatTool, type AnyQuickId, type ChatKind, type ViewBlock } from "./types";
 import { withTimeout } from "./util";
 import { noteOf, wrapForModel } from "./wrap";
 
@@ -72,11 +74,24 @@ export interface TurnOutcome {
 const asBaghdad = (now: number) => new Date(now + 3 * 3_600_000).toISOString().slice(0, 16).replace("T", " ");
 const err = (message: string) => ({ content: JSON.stringify({ error: message }), note: `error: ${message.slice(0, 60)}`, blocks: [] as ViewBlock[], runId: undefined as string | undefined });
 
+/** One path ("caption", "reply.texts.default", "actions.*.text"): "*" stands for every element of a list or every key of an object. */
+function cleanPath(node: unknown, segs: string[], corpus: string): unknown {
+  if (segs.length === 0) return typeof node === "string" ? cleanOutbound(node, corpus) : node;
+  const [head, ...rest] = segs;
+  if (Array.isArray(node)) return head === "*" ? node.map((x) => cleanPath(x, rest, corpus)) : node;
+  if (node && typeof node === "object") {
+    const o = node as Record<string, unknown>;
+    if (head === "*") return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, cleanPath(v, rest, corpus)]));
+    if (head in o) return { ...o, [head]: cleanPath(o[head], rest, corpus) };
+  }
+  return node;
+}
+
 /** The model's arguments with every free-text field cleaned (links, numbers and handles the person never typed are removed). */
 function cleanTextFields(tool: { textFields?: readonly string[] }, args: unknown, corpus: string): unknown {
   if (!tool.textFields?.length || !args || typeof args !== "object") return args;
-  const out = { ...(args as Record<string, unknown>) };
-  for (const k of tool.textFields) if (typeof out[k] === "string") out[k] = cleanOutbound(out[k] as string, corpus);
+  let out: unknown = args;
+  for (const path of tool.textFields) out = cleanPath(out, path.split("."), corpus);
   return out;
 }
 
@@ -101,9 +116,10 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnOut
   const everyAttachment = attachmentsOf([...priorRows, userRow], priorRuns, actor.tenantId);
   const corpus = ownerCorpus([...priorRows.filter((r) => r.role === "user").map((r) => r.content), input.text], input.ownerFacts);
   const snap = await deps.snapshot();
+  const advisorOn = actor.kind === "shop" && hasProfileState(snap.state);
   const fileNote = input.attachments.length ? `\n[attached: ${input.attachments.map((a) => `${a.id} (${a.kind})`).join(", ")}]` : "";
   const messages: ChatMsg[] = [
-    { role: "system", content: systemPrompt({ lang: actor.lang, uiNames: snap.uiNames, state: snap.state, features: snap.features, attachments: everyAttachment, advisor: hasProfileState(snap.state), buttons: { confirm: dict(actor.lang).chat.runs.confirm, cancel: dict(actor.lang).chat.runs.cancel }, nowBaghdad: asBaghdad(started) }) },
+    { role: "system", content: (actor.kind === "news" ? systemPromptNews : systemPrompt)({ lang: actor.lang, uiNames: snap.uiNames, state: snap.state, features: snap.features, attachments: everyAttachment, advisor: advisorOn, buttons: { confirm: dict(actor.lang).chat.runs.confirm, cancel: dict(actor.lang).chat.runs.cancel }, nowBaghdad: asBaghdad(started) }) },
     ...buildHistory(priorRows, runMap),
     { role: "user", content: input.text + fileNote },
   ];
@@ -253,11 +269,19 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnOut
   if ((stop === "error" || stop === "allowance") && !didWork) {
     return { answered: false, error: stop === "allowance" ? "allowance" : "unavailable", costMicro, steps, tainted };
   }
+  // Advice must not name a number that is not in this turn's data, the account data or the owner's own words.
+  let guardCut = false;
+  if (advisorOn && finalText) {
+    const allowedText = [...messages.map((m) => (typeof m.content === "string" ? m.content : "")), corpus].join("\n");
+    const g = guardAdviceDetailed(finalText, allowedText, say("adviceNumbers", actor.lang));
+    finalText = g.text;
+    guardCut = g.cut;
+  }
   let text = finalText;
   if (stop === "cut") text = [finalText, say("turnCut", actor.lang)].filter(Boolean).join("\n\n");
   else if (stop === "error" || stop === "allowance") text = say("aiStopped", actor.lang);
   else if (!text) text = say(proposed.some((p) => p.status === "PROPOSED") ? "cardsWaiting" : "noAnswer", actor.lang);
-  const closing = await appendMessage(thread.id, { role: "assistant", content: cleanAnswer(text), tainted: readUntrusted, meta: { model, costMicro } });
+  const closing = await appendMessage(thread.id, { role: "assistant", content: cleanAnswer(text), tainted: readUntrusted, meta: { model, costMicro, ...(guardCut ? { guardCut: true } : {}) } });
   await setTaintedSeq(thread.id, readUntrusted ? closing.seq : 0);
   emit({ t: "message", message: messageToDto(closing, new Map(), deps.now())! });
   if (stop === "error" || stop === "allowance") return { answered: true, error: stop === "allowance" ? "allowance" : "unavailable", costMicro, steps, tainted };
@@ -270,12 +294,12 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnOut
  */
 export async function runQuick(
   input: Omit<TurnInput, "text" | "review" | "autonomy" | "ownerFacts" | "attachments">,
-  id: QuickId,
+  id: AnyQuickId,
   plan: { tool: string; args: Record<string, unknown> }[],
   deps: Pick<TurnDeps, "tools" | "now">,
 ): Promise<TurnOutcome> {
   const { actor, thread, emit } = input;
-  const q = (dict(actor.lang).chat as unknown as { quick: Record<QuickId, { label: string; lead: string }> }).quick[id];
+  const q = quickCopy(actor.kind, actor.lang, id);
   const toolMap = indexTools(deps.tools);
   const before = await loadMessages(thread.id, { last: 6 });
   const lastAssistant = [...before].reverse().find((r) => r.role === "assistant");
@@ -307,5 +331,16 @@ export async function runQuick(
 }
 
 /** The first line of a thread's title when the person starts with a shortcut. */
-export const quickTitle = (lang: Parameters<typeof dict>[0], id: QuickId): string =>
-  titleFrom((dict(lang).chat as unknown as { quick: Record<QuickId, { label: string }> }).quick[id].label);
+export const quickTitle = (kind: ChatKind, lang: Parameters<typeof dict>[0], id: AnyQuickId): string => titleFrom(quickCopy(kind, lang, id).label);
+
+/** The name of a shortcut button and the sentence above its answer: the shop's from the chat dictionary, the desk's from text.ts. */
+export function quickCopy(kind: ChatKind, lang: Parameters<typeof dict>[0], id: AnyQuickId): { label: string; lead: string } {
+  if (kind === "news") {
+    const c = NEWS_QUICK[id];
+    return { label: c.label[lang], lead: c.lead[lang] };
+  }
+  return (dict(lang).chat as unknown as { quick: Record<string, { label: string; lead: string }> }).quick[id];
+}
+
+/** For tests. */
+export const cleanTextFieldsForTest = cleanTextFields;

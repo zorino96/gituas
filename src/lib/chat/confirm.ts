@@ -4,7 +4,7 @@
 import { baghdadDay, takeDaily } from "@/lib/ai/slots";
 import { db } from "@/lib/db";
 import { can, type Role } from "@/lib/newsroom/roles";
-import { ACTIONS_PER_DAY, POSTS_PER_DAY } from "./budget";
+import { ACTIONS_PER_DAY, NEWS_ACTIONS_PER_DAY, NEWS_POSTS_PER_DAY, POSTS_PER_DAY } from "./budget";
 import {
   argsHashOf,
   attachmentsOf,
@@ -81,9 +81,9 @@ export async function executeClaimedRun(i: {
   const parsed = tool.schema.safeParse(run.args);
   if (!parsed.success || argsHashOf(run.args) !== run.argsHash) return fail(errorText("badrequest", actor.lang));
 
-  if ((await takeDaily(actor.tenantId, ACTIONS_METRIC, 1, ACTIONS_PER_DAY)) < 1) return fail(say("actionsLimit", actor.lang));
-  const isPost = POST_TOOLS.has(tool.name);
-  if (isPost && (await takeDaily(actor.tenantId, POSTS_METRIC, 1, POSTS_PER_DAY)) < 1) {
+  if ((await takeDaily(actor.tenantId, ACTIONS_METRIC, 1, actor.kind === "news" ? NEWS_ACTIONS_PER_DAY : ACTIONS_PER_DAY)) < 1) return fail(say("actionsLimit", actor.lang));
+  const isPost = tool.countsAsPost === true || POST_TOOLS.has(tool.name);
+  if (isPost && (await takeDaily(actor.tenantId, POSTS_METRIC, 1, actor.kind === "news" ? NEWS_POSTS_PER_DAY : POSTS_PER_DAY)) < 1) {
     await giveBack(actor.tenantId, ACTIONS_METRIC);
     return fail(say("actionsLimit", actor.lang));
   }

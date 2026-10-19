@@ -42,7 +42,7 @@ export async function getThreadAction(
   if (!thread) return { ok: false, code: "not_found" };
   // A card left RUNNING by a function that was cut off is settled now, so it does not spin for ever.
   await settleStaleRuns(thread.id, who.actor.lang).catch(() => undefined);
-  const [rows, runs, remaining] = await Promise.all([loadMessages(thread.id), runsOfThread(thread.id), remainingOf(who.actor.tenantId)]);
+  const [rows, runs, remaining] = await Promise.all([loadMessages(thread.id), runsOfThread(thread.id), remainingOf(who.actor.tenantId, who.actor.kind)]);
   const runMap = new Map(runs.map((r) => [r.id, r]));
   const now = Date.now();
   const messages = rows
@@ -79,7 +79,12 @@ export async function deleteAllThreadsAction(input: { workspaceId: string }): Pr
 export async function getChatStateAction(): Promise<{ ok: true; autonomy: Autonomy; canSetAutonomy: boolean; remaining: { day: number; month: number }; allowancePercent: number } | Fail> {
   const who = await actorFromSession();
   if (!who.ok) return { ok: false, code: who.code };
-  const [autonomy, remaining, allowance] = await Promise.all([getAutonomy(who.actor.tenantId), remainingOf(who.actor.tenantId), allowanceOf({ scope: who.actor.tenantId }).catch(() => null)]);
+  // A desk has no AI allowance to show (its chat is bounded by plan turns, not by an allowance).
+  const [autonomy, remaining, allowance] = await Promise.all([
+    getAutonomy(who.actor.tenantId),
+    remainingOf(who.actor.tenantId, who.actor.kind),
+    who.actor.kind === "news" ? Promise.resolve(null) : allowanceOf({ scope: who.actor.tenantId }).catch(() => null),
+  ]);
   // The session already means an owner or an admin (the chat is closed to anyone else).
   return { ok: true, autonomy, canSetAutonomy: true, remaining, allowancePercent: allowance?.percent ?? 0 };
 }

@@ -17,6 +17,11 @@ const ERRORS: Record<ChatErrorCode, Table> = {
   unavailable: { ckb: "AI ئێستا وەڵام نادات. دووبارە هەوڵبدەرەوە.", ar: "الذكاء الاصطناعي لا يرد الآن. حاول مجدداً.", en: "The AI is not answering now. Try again." },
   not_found: { ckb: "نەدۆزرایەوە.", ar: "غير موجود.", en: "Not found." },
   expired: { ckb: "ئەم کارتە کۆن بووە. لە چات داوای نوێ بکە.", ar: "انتهت صلاحية هذه البطاقة. اطلبها من جديد.", en: "This card has expired. Ask again in the chat." },
+  frozen: {
+    ckb: "ماوەی تاقیکردنەوە یان پلانەکە تەواو بووە، بۆیە چات ناتوانێت کار بکات. دوگمە خێراکان هێشتا کاردەکەن.",
+    ar: "انتهت فترة التجربة أو الخطة، لذا لا تعمل المحادثة الآن. الأزرار السريعة ما زالت تعمل.",
+    en: "The trial or the plan has ended, so the chat cannot work now. The quick buttons still work.",
+  },
   internal: { ckb: "هەڵەیەک ڕوویدا. دووبارە هەوڵبدەرەوە.", ar: "حدث خطأ. حاول مرة أخرى.", en: "Something went wrong. Try again." },
 };
 
@@ -53,6 +58,12 @@ const SAY = {
     ar: "بلغت حد التغييرات اليوم من المحادثة. حاول غداً.",
     en: "Today's limit of changes made from the chat is reached. Try again tomorrow.",
   },
+  /** The advice named a number that is not in the owner's own data: it is cut and this is said instead. */
+  adviceNumbers: {
+    ckb: "نامەوێت ژمارەیەک بڵێم کە لە داتای خۆتدا نییە. بۆ ژمارەی ورد بەشی «داواکاری» یان «ئامار» بکەرەوە.",
+    ar: "لا أريد ذكر رقم ليس في بياناتك. للأرقام الدقيقة افتح قسم «الطلبات» أو «الإحصائيات».",
+    en: "I would rather not quote a number that is not in your own data. For exact figures open Orders or Insights.",
+  },
   /** What is shown while the model is working. */
   thinking: { ckb: "بیر دەکەمەوە…", ar: "أفكر…", en: "Thinking…" },
   working: { ckb: "کار دەکەم…", ar: "أعمل على ذلك…", en: "Working on it…" },
@@ -65,6 +76,34 @@ const SAY = {
 } satisfies Record<string, Table>;
 
 export const say = (key: keyof typeof SAY, lang: Lang): string => SAY[key][lang];
+
+/** The news desk's shortcut buttons: the button's name and the sentence above its answer (the shop's are in the chat dictionary). */
+export const NEWS_QUICK: Record<string, { label: Table; lead: Table }> = {
+  today: {
+    label: { ckb: "ئەمڕۆ", ar: "اليوم", en: "Today" },
+    lead: { ckb: "ئەمە دۆخی ئەمڕۆی ڕۆژنامەنووسییەکەتە.", ar: "هذا وضع غرفة الأخبار اليوم.", en: "Here is your desk today." },
+  },
+  stories: {
+    label: { ckb: "هەواڵە نوێکان", ar: "الأخبار الجديدة", en: "New stories" },
+    lead: { ckb: "ئەمانە نوێترین هەواڵەکانن.", ar: "هذه أحدث الأخبار.", en: "These are the newest stories." },
+  },
+  ready: {
+    label: { ckb: "ئامادەکراوەکان", ar: "الجاهزة للنشر", en: "Ready to publish" },
+    lead: { ckb: "ئەمانە ئامادەن بۆ بڵاوکردنەوە.", ar: "هذه جاهزة للنشر.", en: "These are ready to publish." },
+  },
+  comments: {
+    label: { ckb: "کۆمێنتەکان", ar: "التعليقات", en: "Comments" },
+    lead: { ckb: "ئەمانە کۆمێنتی بێوەڵامن.", ar: "هذه التعليقات التي لم يُرد عليها.", en: "These comments have no reply yet." },
+  },
+  messages: {
+    label: { ckb: "نامەکان", ar: "الرسائل", en: "Messages" },
+    lead: { ckb: "ئەمانە نامە بێوەڵامەکانن.", ar: "هذه الرسائل التي لم يُرد عليها.", en: "These messages have no reply yet." },
+  },
+  scheduled: {
+    label: { ckb: "خشتەکراوەکان", ar: "المجدولة", en: "Scheduled" },
+    lead: { ckb: "ئەمانە خشتەکراون بۆ بڵاوکردنەوە.", ar: "هذه منشورات مجدولة.", en: "These posts are scheduled." },
+  },
+};
 
 /** What the model is told to write in when the person's own language is unclear. */
 export const LANG_NAME: Record<Lang, string> = { ckb: "Central Kurdish (Sorani, Arabic script)", ar: "Arabic", en: "English" };

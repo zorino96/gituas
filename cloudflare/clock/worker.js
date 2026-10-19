@@ -9,7 +9,8 @@
 
 const APP = "https://gituas.com";
 const REPO = "zorino96/gituas";
-const ROUTES = ["/api/cron/scheduled", "/api/cron/shop-outbox", "/api/cron/news"];
+// /api/cron/coach answers at once except on Sunday 09:00-12:00 Baghdad, when it writes ONE workspace's weekly growth note per call.
+const ROUTES = ["/api/cron/scheduled", "/api/cron/shop-outbox", "/api/cron/news", "/api/cron/coach"];
 
 async function call(path, secret) {
   try {

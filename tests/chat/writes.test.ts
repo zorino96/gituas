@@ -161,7 +161,8 @@ describe("the write tool list", () => {
   it("has the eleven older tools and the six new ones, once each, for shops only", () => {
     expect(WRITE_TOOLS.map((t) => t.name)).toEqual(EXPECTED);
     expect(new Set(WRITE_TOOLS.map((t) => t.name)).size).toBe(EXPECTED.length);
-    for (const t of WRITE_TOOLS) expect(t.kinds).toEqual(["shop"]);
+    // Four of them (answering and hiding comments, messages, cancelling a scheduled post) serve a news desk too.
+    for (const t of WRITE_TOOLS) expect(t.kinds).toEqual(["hide_comment", "reply_to_comment", "send_message", "cancel_scheduled_post"].includes(t.name) ? ["shop", "news"] : ["shop"]);
   });
 
   it("has no tool for payments, plans, connecting accounts, deleting data, tokens or passwords", () => {
@@ -184,7 +185,7 @@ describe("the write tool list", () => {
     expect(toolsFor(WRITE_TOOLS, "shop", "OWNER")).toHaveLength(EXPECTED.length);
     expect(toolsFor(WRITE_TOOLS, "shop", "ADMIN")).toHaveLength(EXPECTED.length);
     expect(toolsFor(WRITE_TOOLS, "shop", "MEMBER")).toHaveLength(0);
-    expect(toolsFor(WRITE_TOOLS, "news", "OWNER")).toHaveLength(0);
+    expect(toolsFor(WRITE_TOOLS, "news", "OWNER")).toHaveLength(4);
   });
 });
 

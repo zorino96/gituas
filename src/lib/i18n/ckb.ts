@@ -1773,6 +1773,35 @@ export const ckb = {
   wa: waCkb,
   studio: studioCkb,
   chat: chatCkb,
+
+  // The growth coach: the weekly note, the "no order recorded" card and the order tiles on Today. The texts of the rules-only
+  // note itself (a table with numbers in it) are in src/lib/coach/text.ts and use `label` from here.
+  coach: {
+    label: "خوێندنەوەی AI بۆ ژمارەکانی دووکانەکەی خۆت. نرخی زیندووی بازاڕ نییە. پێشبینی تێدا نییە.",
+    labelRules: "خوێندنەوەی ژمارەکانی دووکانەکەی خۆت بە یاسای جێگیر، بێ AI. نرخی زیندووی بازاڕ نییە. پێشبینی تێدا نییە.",
+    noteTitle: "ژمارەکانی هەفتەکەت",
+    tryTitle: "ئەمە تاقی بکەرەوە",
+    aiBadge: "AI وشەکانی نووسیوە",
+    rulesBadge: "یاسای جێگیر، بێ AI",
+    previewNote: "ئەمە خوێندنەوەیەکی خێرایە کە ئێستا کرا. تێبینیی هەفتانە یەکشەممە بەیانی دێت.",
+    noNote: "تێبینیی هەفتانە یەکشەممە بەیانی دێت.",
+    off: "تێبینیی هەفتانە هێشتا چالاک نەکراوە.",
+    askChat: "لە یاریدەدەر بپرسە",
+    leakTitle: "کڕیارانی نامە، بێ داواکاریی تۆمارکراو",
+    leakHot: "لە ٢٤ کاتژمێری ڕابردوودا نامەیان نووسیوە",
+    leakQuiet: "زیاتر لە ٢٤ کاتژمێر و کەمتر لە ٧ ڕۆژ لەمەوبەر نامەیان نووسیوە",
+    leakNote: "«بێ داواکاریی تۆمارکراو» واتە لە گیتواسدا تۆمار نەکراوە، نەک ئەوەی فرۆشتنەکە لەدەست چووبێت. لەوانەیە کڕیار بە تەلەفۆن یان بە شێوەیەکی تر کڕیبێتی.",
+    leakCta: "نامەکان بکەرەوە",
+    ordersTitle: "داواکارییەکانی ٧ ڕۆژی ڕابردوو",
+    ordersRecorded: "داواکاریی تۆمارکراو",
+    orderedNotCollected: "داواکراو، هێشتا وەرنەگیراوە",
+    orderedNotCollectedHint: "کڕیار داوایکردووە، بەڵام کاڵاکە نەگەیەندراوە و پارەکەی وەرنەگیراوە.",
+    delivered: "گەیەندراو",
+    fromComments: "لە کۆمێنتەوە",
+    fromMessages: "لە نامەوە",
+    byHand: "بە دەست تۆمارکراو",
+    ordersCta: "داواکارییەکان",
+  },
 };
 
 export type Dict = typeof ckb;

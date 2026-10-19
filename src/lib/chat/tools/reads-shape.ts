@@ -13,7 +13,8 @@ import { ordersByCity } from "@/lib/orders/stats";
 import { effectiveMode } from "@/lib/shop/autopilot-plan";
 import { needsYou } from "@/lib/shop/forms";
 import { formatMoney } from "@/lib/shop/money";
-import type { ViewBlock } from "../types";
+import { baseOf } from "../kinds";
+import type { ChatKind, ViewBlock } from "../types";
 import { baghdadIso, clip, compact, countBy, isolateLtr, majorUnits, modelText, VIEW_TEXT_MAX } from "./reads-shared";
 import { words } from "./reads-words";
 
@@ -294,7 +295,7 @@ export function scheduledForModel(row: ScheduledRow): Record<string, unknown> {
   });
 }
 
-export function scheduledView(rows: ScheduledRow[], lang: Lang, t: Dict): ViewBlock[] {
+export function scheduledView(rows: ScheduledRow[], lang: Lang, t: Dict, kind: ChatKind = "shop"): ViewBlock[] {
   const w = words(lang);
   if (!rows.length) return [{ kind: "note", text: w.noScheduled }];
   const badge: Record<string, string> = { PENDING: w.pending, RUNNING: w.running, FAILED: w.failed };
@@ -310,7 +311,7 @@ export function scheduledView(rows: ScheduledRow[], lang: Lang, t: Dict): ViewBl
           badge: badge[r.status] ?? r.status,
         };
       }),
-      href: "/app/publish",
+      href: `${baseOf(kind)}/publish`,
     },
   ];
 }
@@ -427,7 +428,7 @@ export function commentForModel(c: CommentItem): Record<string, unknown> {
   });
 }
 
-export function commentsView(rows: CommentItem[], total: number, onlyWaiting: boolean, lang: Lang, t: Dict): ViewBlock[] {
+export function commentsView(rows: CommentItem[], total: number, onlyWaiting: boolean, lang: Lang, t: Dict, kind: ChatKind = "shop"): ViewBlock[] {
   const w = words(lang);
   if (!rows.length) return [{ kind: "note", text: onlyWaiting ? w.noCommentsWaiting : w.noComments }];
   const badge: Record<CommentState, string> = { unanswered: t.comments.badgeUnanswered, answered: t.comments.badgeAnswered, hidden: t.comments.badgeHidden };
@@ -441,7 +442,7 @@ export function commentsView(rows: CommentItem[], total: number, onlyWaiting: bo
         badge: [badge[c.state], c.reason ? (t.comments.reasons as Record<string, string>)[c.reason] : ""].filter(Boolean).join(" · "),
       })),
       more: total > rows.length ? total - rows.length : undefined,
-      href: "/app/comments",
+      href: `${baseOf(kind)}/comments`,
     },
   ];
 }
@@ -457,9 +458,11 @@ export function commentsView(rows: CommentItem[], total: number, onlyWaiting: bo
 export type AccountsRead = Partial<Record<"FB" | "IG", { name: string; others: number }>>;
 
 /** The notes that tell the person which Page or account a read covered, for each platform that has several (or only the one asked for). */
-export function accountNotes(accounts: AccountsRead, screen: "comments" | "messages", only: "FB" | "IG" | undefined, lang: Lang, t: Dict): ViewBlock[] {
+export function accountNotes(accounts: AccountsRead, screen: "comments" | "messages", only: "FB" | "IG" | undefined, lang: Lang, t: Dict, kind: ChatKind = "shop"): ViewBlock[] {
   const w = words(lang);
-  const screenName = screen === "comments" ? t.nav.comments : t.nav.messages;
+  // The desk's sections have their own names (t.nr.shell.nav.items); the shop's are t.nav.
+  const names = kind === "news" ? t.nr.shell.nav.items : t.nav;
+  const screenName = screen === "comments" ? names.comments : names.messages;
   return (["FB", "IG"] as const).flatMap((p) => {
     const a = accounts[p];
     return a && (!only || only === p) ? [{ kind: "note" as const, text: w.severalAccounts(platformName(t, p), a.name, t.fmt.num(a.others), screenName) }] : [];
@@ -514,13 +517,16 @@ export function conversationItems(convs: MConversation[], flags: Record<string, 
   });
 }
 
+/** Who spoke last, for the model: the shop and its buyers, or the desk and its viewers. */
+const sides = (kind: ChatKind): { us: string; them: string } => (kind === "news" ? { us: "desk", them: "visitor" } : { us: "shop", them: "buyer" });
+
 /** `id` is the conversation id: what get_conversation and send_message take, together with `platform`. */
-export function conversationForModel(c: ConversationItem): Record<string, unknown> {
+export function conversationForModel(c: ConversationItem, kind: ChatKind = "shop"): Record<string, unknown> {
   return compact({
     id: c.id,
     platform: c.platform,
     with: modelText(c.name, 60),
-    lastFrom: c.lastFromUs ? "shop" : "buyer",
+    lastFrom: c.lastFromUs ? sides(kind).us : sides(kind).them,
     last: modelText(c.lastText),
     at: baghdadIso(c.at),
     canReply: c.canReply,
@@ -529,7 +535,7 @@ export function conversationForModel(c: ConversationItem): Record<string, unknow
   });
 }
 
-export function conversationsView(rows: ConversationItem[], total: number, onlyWaiting: boolean, lang: Lang, t: Dict): ViewBlock[] {
+export function conversationsView(rows: ConversationItem[], total: number, onlyWaiting: boolean, lang: Lang, t: Dict, kind: ChatKind = "shop"): ViewBlock[] {
   const w = words(lang);
   if (!rows.length) return [{ kind: "note", text: onlyWaiting ? w.noConversationsWaiting : w.noConversations }];
   return [
@@ -537,7 +543,7 @@ export function conversationsView(rows: ConversationItem[], total: number, onlyW
       kind: "list",
       title: t.messages.title,
       items: rows.map((c) => ({
-        title: c.name || t.messages.customer,
+        title: c.name || (kind === "news" ? t.messages.viewer : t.messages.customer),
         sub: `${c.lastFromUs ? t.messages.youPrefix : ""}${clip(c.lastText, 160) || t.common.mediaOrFile}`,
         badge:
           [
@@ -549,31 +555,33 @@ export function conversationsView(rows: ConversationItem[], total: number, onlyW
             .join(" · ") || undefined,
       })),
       more: total > rows.length ? total - rows.length : undefined,
-      href: "/app/messages",
+      href: `${baseOf(kind)}/messages`,
     },
   ];
 }
 
 /** The last messages of one conversation: who said it, what, when. */
-export function messagesForModel(c: MConversation, max = 12): Record<string, unknown>[] {
-  return c.messages.slice(-max).map((m) => compact({ from: m.fromUs ? "shop" : "buyer", text: modelText(m.text), at: baghdadIso(m.createdAt) }));
+export function messagesForModel(c: MConversation, max = 12, kind: ChatKind = "shop"): Record<string, unknown>[] {
+  const side = sides(kind);
+  return c.messages.slice(-max).map((m) => compact({ from: m.fromUs ? side.us : side.them, text: modelText(m.text), at: baghdadIso(m.createdAt) }));
 }
 
-export function conversationView(c: MConversation, lang: Lang, t: Dict): ViewBlock[] {
+export function conversationView(c: MConversation, lang: Lang, t: Dict, kind: ChatKind = "shop"): ViewBlock[] {
+  const who = kind === "news" ? t.messages.viewer : t.messages.customer;
   const messages = c.messages.slice(-12);
   if (!messages.length) return [{ kind: "note", text: t.messages.noMessages }];
   const blocks: ViewBlock[] = [
     {
       kind: "list",
-      title: [platformName(t, c.platform), c.participantName ?? t.messages.customer].join(" · "),
+      title: [platformName(t, c.platform), c.participantName ?? who].join(" · "),
       items: messages.map((m) => ({
         title: clip(m.text, VIEW_TEXT_MAX) || t.common.mediaOrFile,
-        sub: [m.fromUs ? t.messages.youPrefix.replace(/[:：]\s*$/, "") : t.messages.customer, ago(m.createdAt, t)].filter(Boolean).join(" · "),
+        sub: [m.fromUs ? t.messages.youPrefix.replace(/[:：]\s*$/, "") : who, ago(m.createdAt, t)].filter(Boolean).join(" · "),
       })),
-      href: "/app/messages",
+      href: `${baseOf(kind)}/messages`,
     },
   ];
-  if (!c.withinWindow) blocks.push({ kind: "note", tone: "warn", text: t.messages.windowClosed(t.messages.customer) });
+  if (!c.withinWindow) blocks.push({ kind: "note", tone: "warn", text: t.messages.windowClosed(who) });
   return blocks;
 }
 

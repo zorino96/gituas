@@ -59,6 +59,24 @@ describe("the knowledge sheet", () => {
     expect(k).not.toMatch(/\$\d/);
     expect(k).not.toMatch(/USD/);
   });
+
+  it("tells about the setup questions and the weekly note only while they are switched on, and promises nothing", () => {
+    delete process.env.BUSINESS_PROFILE_ENABLED;
+    const off = buildKnowledge(ALL);
+    expect(off).not.toMatch(/setup questions/);
+    expect(off).not.toMatch(/Sunday morning/);
+    process.env.BUSINESS_PROFILE_ENABLED = "1";
+    try {
+      const on = buildKnowledge(ALL);
+      expect(on).toMatch(/setup questions/);
+      expect(on).toMatch(/Sunday morning/);
+      expect(on).toMatch(/not market data and predicts nothing/);
+      expect(on).toMatch(/only the facts the owner switches on are ever told to buyers/);
+      expect(on).not.toMatch(/will (sell|grow|increase)/);
+    } finally {
+      delete process.env.BUSINESS_PROFILE_ENABLED;
+    }
+  });
 });
 
 describe("support", () => {

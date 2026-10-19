@@ -171,6 +171,7 @@ model ConversationMessage {
   @@index([platform, channelType])
   @@index([projectId])
   @@index([storeId, authorId])
+  ruleRuns          RuleRun[]
 }
 
 model Earnings {
@@ -439,6 +440,8 @@ model Tenant {
   scheduledPosts        ScheduledPost[]
   orders                Order[]
   chatThreads           ChatThread[]
+  coachNotes            CoachNote[]
+  shopRules             ShopRule[]
 }
 
 model User {
@@ -1209,6 +1212,7 @@ model Store {
 
   @@index([tenantId])
   @@index([waPhoneNumberId])
+  shopRules         ShopRule[]
 }
 
 model Product {
@@ -1534,5 +1538,82 @@ model ChatRun {
 
   @@unique([threadId, toolCallId])
   @@index([tenantId, createdAt])
+}
+
+/// The growth coach's weekly note: an AI reading of the shop's own numbers (or a rules-only text), one per workspace per week.
+model CoachNote {
+  id        String   @id @default(cuid())
+  tenantId  String
+  /// The Baghdad ISO week, e.g. 2026-W43.
+  week      String
+  /// { headline, points: [{ text, key }], tryThis: [] }
+  body      Json
+  /// The numbers the note was built from (every number in the note must be among them).
+  facts     Json
+  /// ai | rules
+  source    String
+  model     String?
+  costMicro Int?
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, week])
+}
+
+/// A rule the owner wrote in plain words in the chat, as validated JSON (RuleSpec v1, src/lib/shop/rules/spec.ts). It answers a
+/// buyer's comment or message with the owner's own fixed text, flags it for the owner, or pauses the thread; never anything else.
+model ShopRule {
+  id          String    @id @default(cuid())
+  tenantId    String
+  storeId     String
+  name        String
+  /// The owner's own sentence, kept for the list.
+  sentence    String    @default("")
+  /// ACTIVE | PAUSED | PAUSED_AUTO | ARCHIVED (a delete is soft: the log stays for 90 days)
+  status      String    @default("PAUSED")
+  version     Int       @default(1)
+  priority    Int       @default(100)
+  spec        Json
+  specHash    String
+  createdBy   String
+  activatedAt DateTime?
+  pausedReason String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  store       Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  runs        RuleRun[]
+
+  @@index([storeId, status])
+  @@index([tenantId])
+}
+
+/// One time a rule met a message: the idempotency key (a message is handled once per rule even if the pipeline runs twice) and the log.
+model RuleRun {
+  id          String              @id @default(cuid())
+  ruleId      String
+  ruleVersion Int
+  storeId     String
+  messageId   String
+  buyerKey    String?
+  /// CLAIMED | QUEUED | PENDING | DONE | SKIPPED | FAILED | DRY
+  status      String
+  /// Why nothing was sent: cap_rule_day, cap_person, private_window, no_label, voice, ...
+  reason      String?
+  /// The OWNER's keyword or intent that matched, never the buyer's text.
+  matched     String?
+  /// [{ do, channel, jobId?, text? }] (the text is the owner's own rendered text)
+  actions     Json
+  dueAt       DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  rule        ShopRule            @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  message     ConversationMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, messageId])
+  @@index([status, dueAt])
+  @@index([ruleId, createdAt])
+  @@index([ruleId, buyerKey, createdAt])
+  @@index([storeId, createdAt])
 }
 

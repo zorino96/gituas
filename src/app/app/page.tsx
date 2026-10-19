@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -14,6 +15,7 @@ import { profileEnabled } from "@/lib/shop/profile";
 import { chatEnabled } from "@/lib/chat/enabled";
 import { opensOnChat } from "./face";
 import { RememberFace } from "./remember-face";
+import { TodayCoach } from "./today-coach";
 
 export const maxDuration = 60;
 
@@ -72,6 +74,13 @@ export default async function TodayPage({ searchParams }: { searchParams: Promis
           <p className="gm-sub" style={{ margin: "4px 0 10px" }}>{t.setup.todayBody}</p>
           <Link href="/app/setup" className="gm-btn">{t.setup.todayCta}</Link>
         </div>
+      )}
+
+      {/* The growth coach (order tiles, "no order recorded", the weekly note): shop owners and admins, while BUSINESS_PROFILE_ENABLED is on. */}
+      {ws.kind === "MERCHANT" && can(ws.role, "configure") && (
+        <Suspense fallback={null}>
+          <TodayCoach tenantId={ws.id} lang={lang} />
+        </Suspense>
       )}
 
       {!anyConnected && (

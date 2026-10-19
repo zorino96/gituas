@@ -8,10 +8,13 @@ import { opusAvailable } from "@/lib/ai/models";
 import { loadAssistantState } from "@/lib/assistant/state";
 import { maxPlanOpen } from "@/lib/billing/prices";
 import { dict } from "@/lib/i18n";
+import { profileEnabled } from "@/lib/shop/profile-shared";
 import type { Actor } from "./confirm";
 import type { Snapshot } from "./loop";
+import { snapshotForNews } from "./snapshot-news";
 
 export async function snapshotFor(actor: Actor): Promise<Snapshot> {
+  if (actor.kind === "news") return snapshotForNews(actor);
   const t = dict(actor.lang);
   const conns = await loadConnections(actor.tenantId);
   const state = await loadAssistantState(actor.tenantId, {
@@ -35,6 +38,7 @@ export async function snapshotFor(actor: Actor): Promise<Snapshot> {
     insights: t.nav.insights,
     settings: t.layout.settings,
     plan_and_billing: t.billing.title,
+    ...(profileEnabled() ? { setup: t.setup.title } : {}),
   };
   const hasMax = state.shops.some((s) => s.plan === "MAX");
   return { state, uiNames, features: { max: opusAvailable() && (maxPlanOpen() || hasMax), video, pictures: imageEnabled() } };

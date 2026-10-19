@@ -8,6 +8,7 @@ import { DAILY_ANALYSES } from "@/lib/boost/cache";
 import { OPTIONAL_SHARE } from "@/lib/ai/meter";
 import { PERIOD_DAYS, SHOP_PRICES } from "@/lib/billing/prices";
 import { SHOP_ACCOUNT_CAP } from "@/lib/oauth/account-limit";
+import { profileEnabled } from "@/lib/shop/profile-shared";
 import { IMAGES_PER_DAY, SHOP_LIMITS, STORE_PLANS, VIDEOS_PER_DAY, type StorePlan } from "@/lib/shop/plans";
 import { SUPPORT_WHATSAPP_DISPLAY } from "@/lib/support";
 
@@ -50,13 +51,24 @@ export function planFacts(f: KnowledgeFeatures = { max: true, video: true, pictu
 const videoSection = (f: KnowledgeFeatures) =>
   `- AI video: the AI writes the script, reads it aloud in a Kurdish voice and makes a short vertical video (about 35 seconds, five or six scenes) that promotes the brand, a product or a channel. It does not make long videos of several minutes, documentaries or story videos for YouTube monetization. At most ${VIDEOS_PER_DAY} video a day for each paid shop, counted across the whole account. ${f.max ? "Two kinds: Lite (script by the fast model) and Pro (script by the strongest model, on the Max plan)." : "The script is written by the fast model."} It can use the owner's reference pictures and clips, can plan the day's video itself, can be posted right away, or one can be made every day by itself.`;
 
+/**
+ * The setup questions and the weekly note exist only while BUSINESS_PROFILE_ENABLED=1, so the sentence about them is there only then
+ * (the sheet must not send an owner to something this deployment does not have). Worded to promise nothing: the note counts the shop's
+ * own records, is not market data and predicts nothing.
+ */
+function coachSentence(): string {
+  if (!profileEnabled()) return "";
+  return `
+  The short optional setup questions (opened from Today or Settings) let the owner say what they want from Gituas (sell, grow an audience, get enquiries or something else), what the page is about and who it is for; the answers shape replies and captions, and only the facts the owner switches on are ever told to buyers. Every Sunday morning Gituas also writes a short note on the shop's own numbers (orders, messages, posts), reworded by AI on a paid plan while the AI allowance has room and fixed rules otherwise; it is not market data and predicts nothing, and the owner reads it on Today or with the chat's "Weekly note" button.`;
+}
+
 /** The product, section by section. */
 function product(f: KnowledgeFeatures): string {
   const makes = f.video || f.pictures ? ", makes AI " + [f.pictures ? "pictures" : "", f.video ? "video ads" : ""].filter(Boolean).join(" and ") : "";
   return `Gituas is a tool for anyone who runs a Facebook Page or Instagram account in Iraqi Kurdistan and Iraq, whatever the purpose (a shop, a brand, a creator, a service). It answers followers' and buyers' comments and messages automatically, publishes posts${makes} and keeps the orders. One connected Facebook Page or Instagram account is one "shop"; a plan is bought per shop and covers Facebook, Instagram, TikTok and YouTube for it.
 
 Where things are (the names are in "ui_names"):
-- Today: the day at a glance.
+- Today: the day at a glance.${coachSentence()}
 - Assistant (chat): the owner talks to it in plain words and it does the work with its tools. It can look at the orders, comments, messages, products, scheduled posts, videos, insights, settings and the plan, and it can make an AI picture or video, post now, schedule or cancel a post (Facebook and Instagram), reply to a comment or a message, hide a comment, change an order's status, switch automatic replies, automatic posts and the daily video on or off, change the shop's own switches and texts (likes, hiding spam, how many days a post keeps replying, the default private message, delivery fee and time, the note for the AI), add, hide or edit a product, and save the shop's WhatsApp number. A change is shown on a card with the exact values and runs only after the owner presses Confirm, unless the owner switched on automatic changes in Settings (Chat); even then a message to a person, a standing automatic setting or anything after reading customers' words always waits for Confirm. It cannot change plans, payments, passwords, tokens, connected accounts or delete data. Conversations are kept in the chat's side list, where the owner can search, rename, pin and delete them. The top of the app has a switch between the classic screens and the chat.
 - Comments and Messages: what buyers wrote. Whatever Gituas could not settle by itself waits there under "needs you", with the reason.
 - Orders: orders from comments and messages (the automatic reply asks the buyer for name, phone, city and address in the chat), or recorded by hand.

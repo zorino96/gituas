@@ -25,6 +25,8 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/cron/news": ["./node_modules/@sparticuz/chromium/bin/**"],
     "/api/cron/card-check": ["./node_modules/@sparticuz/chromium/bin/**"],
+    // The desk's chat makes a story's card when the person confirms it: that request renders in headless Chromium too.
+    "/api/chat/runs/[id]": ["./node_modules/@sparticuz/chromium/bin/**"],
   },
 };
 

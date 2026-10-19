@@ -89,6 +89,7 @@ export const chatEn: typeof chatCkb = {
     comments: { label: "Comments", lead: "These comments have no reply yet:" },
     messages: { label: "Messages", lead: "These messages are waiting for a reply:" },
     scheduled: { label: "Scheduled", lead: "These posts are scheduled:" },
+    coach: { label: "Weekly note", lead: "Here is your weekly note on your shop's numbers:" },
   },
 
   errors: {
@@ -103,6 +104,7 @@ export const chatEn: typeof chatCkb = {
     unavailable: "The AI is not answering right now. Try again.",
     not_found: "This chat was not found. It may have been deleted.",
     expired: "This card is too old. Ask again.",
+    frozen: "The trial or the plan has ended, so the chat cannot work now. The quick buttons still work.",
     internal: "Something went wrong. Try again, or message us on WhatsApp.",
     network: "The connection broke. Check your internet and try again.",
   },

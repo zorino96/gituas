@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
 
 import { chatEnabled } from "@/lib/chat/enabled";
+import { db } from "@/lib/db";
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
+import { profileEnabled } from "@/lib/shop/profile-shared";
 import { SUPPORT_WHATSAPP_DISPLAY, supportWhatsAppUrl } from "@/lib/support";
 import { loadConnections, requireWorkspace } from "../data";
 import { AssistantClient } from "./assistant-client";
@@ -21,7 +23,10 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
   if (!can(ws.role, "configure")) return <p className="gm-note warn">{d.nr.team.roles.notAllowed}</p>;
   const [conns, sp] = await Promise.all([loadConnections(ws.id), searchParams]);
   const support = { url: supportWhatsAppUrl(), display: SUPPORT_WHATSAPP_DISPLAY };
-  const connections = { facebook: !!conns.META_FACEBOOK.connected, instagram: !!conns.META_INSTAGRAM.connected };
+  // The first Facebook or Instagram connection of a shop with no store yet goes on to the setup interview (when it is switched on),
+  // the way the Connect buttons in Settings do; a count that cannot be read just keeps the old landing place.
+  const noStoreYet = profileEnabled() ? (await db.store.count({ where: { tenantId: ws.id } }).catch(() => -1)) === 0 : false;
+  const connections = { facebook: !!conns.META_FACEBOOK.connected, instagram: !!conns.META_INSTAGRAM.connected, setupFirst: noStoreYet };
 
   if (!chatEnabled()) {
     const t = d.assistant;

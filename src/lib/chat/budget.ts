@@ -15,6 +15,27 @@ export function chatCaps(aiUsd: number): { month: number; day: number } {
 /** A workspace with no shop has no allowance to count against: it gets a few turns, uncounted, to get started. */
 export const NO_SHOP_CHAT_CAPS = { month: 6, day: 3 } as const;
 
+/**
+ * A news desk has no shop, so no AI allowance to meter against: its chat is bounded by plan-based turns and the per-turn cost cap
+ * instead (the older desk assistant had 120 a month and 20 a day for everyone). Sized so that even the busiest plan's worst case is a
+ * small part of what it pays. A frozen desk (trial over, nothing paid) gets no typed turns; a trial gets a few.
+ */
+export function newsChatCaps(i: { plan: string; reason: "paid" | "trial" | "legacy" | "frozen" }): { month: number; day: number } {
+  if (i.reason === "frozen") return { month: 0, day: 0 };
+  if (i.reason === "trial") return { month: 40, day: 10 };
+  switch (i.plan) {
+    case "LITE":
+      return { month: 60, day: 12 };
+    case "AUTO":
+      return { month: 600, day: 120 };
+    case "ENTERPRISE":
+      return { month: 2_000, day: 400 };
+    default:
+      return { month: 150, day: 30 };
+  }
+}
+export const NEWS_QUICK_PER_DAY = 60;
+
 /** Shortcut buttons use no model, but they read live from Meta: a fence per day. */
 export const CHAT_QUICK_PER_DAY = 150;
 export const NO_SHOP_QUICK_PER_DAY = 30;
@@ -31,6 +52,9 @@ export const CHAT_REFUNDS_PER_DAY = 5;
 /** Confirmed changes a workspace may make in a day, and posts among them (shared with the older assistant's counters). */
 export const ACTIONS_PER_DAY = 40;
 export const POSTS_PER_DAY = 15;
+/** A news desk publishes many more stories than a shop posts: its fences are higher (the autopilot is not counted by either). */
+export const NEWS_ACTIONS_PER_DAY = 120;
+export const NEWS_POSTS_PER_DAY = 60;
 
 export const LIMITS = {
   /** Model calls in one turn. */

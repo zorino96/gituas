@@ -138,7 +138,8 @@ describe("the catalogue", () => {
     );
     for (const t of READ_TOOLS) {
       expect(t.risk).toBe("read");
-      expect(t.kinds).toEqual(["shop"]);
+      // The reads that need nothing of a shop (comments, messages, scheduled posts) serve the news desk as well.
+      expect(t.kinds).toEqual(["list_comments", "list_conversations", "get_conversation", "list_scheduled_posts"].includes(t.name) ? ["shop", "news"] : ["shop"]);
       expect(t.permission).toBe(["get_settings", "get_plan_usage"].includes(t.name) ? "configure" : "read");
       // Only what carries customers' (or visitors') words is untrusted: get_insights shows post captions, and a Page's feed holds
       // posts that visitors write on it.
