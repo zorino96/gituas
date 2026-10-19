@@ -1,3 +1,4 @@
+import { proofreadEnabled, proofreadSorani } from "@/lib/ai/proofread";
 import { completeJson, type Strength } from "@/lib/ai/provider";
 import { hasKurdishDefects } from "./kurdish-check";
 import { normalizeForMatch } from "./text";
@@ -140,7 +141,23 @@ export async function draftFor(
     { system: buildSystemPrompt(opts), user: buildUserPrompt(item, feedback, opts?.avoid), strength, free: "draft", opus: opts?.opus ?? "retry" },
     validateDraft,
   );
-  return { draft: data, model };
+  return { draft: await polishDraft(data), model };
+}
+
+/**
+ * The owner's choice (2026-10-19): Sorani is written by the model and then corrected by the proofreader. Headline, body and quote
+ * go out in parallel, each with a short wait; a correction that is refused, late or that breaks the draft's own rules leaves the
+ * draft as the model wrote it.
+ */
+export async function polishDraft(d: Draft): Promise<Draft> {
+  if (!proofreadEnabled()) return d;
+  const [headline, body, quote] = await Promise.all([
+    proofreadSorani(d.headline, { timeoutMs: 6_000 }),
+    proofreadSorani(d.body, { timeoutMs: 6_000 }),
+    d.quote ? proofreadSorani(d.quote, { timeoutMs: 6_000 }) : Promise.resolve(null),
+  ]);
+  if (!headline.changed && !body.changed && !quote?.changed) return d;
+  return validateDraft({ ...d, headline: headline.text, body: body.text, quote: quote ? quote.text : d.quote }) ?? d;
 }
 
 /** Vercel's action budget is 60s; stop trying once more than this has passed since the action started. */

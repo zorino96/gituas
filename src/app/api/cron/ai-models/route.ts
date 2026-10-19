@@ -2,6 +2,7 @@ import { modelFor } from "@/lib/ai/models";
 import { NextResponse } from "next/server";
 
 import { altConfigured, altJson, altModels } from "@/lib/ai/alt";
+import { proofreadSorani } from "@/lib/ai/proofread";
 import { completeJson, videoOrder } from "@/lib/ai/provider";
 import { deepseekConfigured, deepseekJson } from "@/lib/ai/deepseek";
 import { isAnthropicHost, kurdggConfigured, kurdggHeaders, kurdggJson } from "@/lib/ai/kurdgg";
@@ -179,7 +180,14 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const body = (await req.json().catch(() => null)) as { model?: string; system?: string; user?: string; list?: boolean; claude?: boolean; alt?: boolean; altDebug?: boolean; video?: boolean; maxTokens?: number; imageUrl?: string } | null;
+  const body = (await req.json().catch(() => null)) as { model?: string; system?: string; user?: string; list?: boolean; claude?: boolean; alt?: boolean; altDebug?: boolean; video?: boolean; proofread?: boolean; maxTokens?: number; imageUrl?: string } | null;
+  // {proofread: true, user}: the Sorani proofreader from this runtime (the text in "user" is corrected, or comes back as it was).
+  if (body?.proofread) {
+    const started = Date.now();
+    const text = (body.user ?? "").slice(0, 600);
+    const r = await proofreadSorani(text, { timeoutMs: 15_000 });
+    return NextResponse.json({ ok: true, ms: Date.now() - started, changed: r.changed, text: r.text });
+  }
   // {video: true, system, user}: the real chain for a video script (completeJson with prefer "video"), and which model answered.
   if (body?.video) {
     const started = Date.now();

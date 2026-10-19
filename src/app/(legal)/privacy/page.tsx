@@ -204,21 +204,25 @@ export default function PrivacyPage() {
       <P>We share data only with the service providers that run Gituas and Hawalnoos for us:</P>
       <UL>
         <LI>
-          <Strong>AI text processing.</Strong> Anthropic, which runs the Claude model (Haiku) we ask. We
-          send it: the text of buyer
+          <Strong>AI text processing.</Strong> The Claude model Haiku, made by Anthropic: asked through
+          kurd.gg (Pawan.Krd), an AI gateway that passes requests to it, and, when the gateway cannot
+          answer, directly through Anthropic&rsquo;s own API. We send them: the text of buyer
           comments, direct messages and WhatsApp messages, with your product names and prices, so
           they can tell what the buyer is asking and help word the reply; the content you are
           drafting; the pictures of your own products when an ad or a post is being planned; the
           questions you ask the in-app assistant, with a summary of your own settings (plan, which
           Pages are connected, what is switched on, counts) so it can answer about your shop; and,
           for news, the public headline and summary of a story. Sender phone numbers and account
-          tokens are never sent to it; we send only what each task needs. When Anthropic
+          tokens are never sent to them; we send only what each task needs. When both
           cannot give a usable answer to a request (an outage, a slow reply or an unusable one), the
           same text is sent instead to DeepSeek, an AI provider based in China, as a stand-by. AI video
           scripts are written by DeepSeek first and by Anthropic when DeepSeek cannot. If both fail, the
-          text can go to kurd.gg (Pawan.Krd), an AI gateway that passes it to free models of other
-          providers (DeepSeek, GLM, Qwen, LongCat), which may be hosted outside the European Union and the
-          United States. Pictures are never sent to DeepSeek or to those models.
+          text can go to free models of other providers (DeepSeek, GLM, Qwen, LongCat) that the same
+          gateway offers, which may be hosted outside the European Union and the United States.
+          Pictures are never sent to DeepSeek or to those models. Public Kurdish texts that Gituas
+          writes (news drafts, video scripts and shop captions) are also checked for spelling by a
+          correction service run by us on Cloudflare, which passes the text to Pawan.Krd; buyers&rsquo;
+          messages never go through it.
         </LI>
         <LI>
           <Strong>Voice messages.</Strong> When a buyer sends a voice message, its audio is sent to

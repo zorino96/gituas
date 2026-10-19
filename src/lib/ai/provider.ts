@@ -68,13 +68,32 @@ export interface JsonCall {
  * Whatever the list leaves out still runs afterwards in the ordinary order (main, DeepSeek, the other alternative models).
  */
 export const DEFAULT_VIDEO_ORDER = "deepseek,alt:oc/deepseek-v4.1-flash-free,alt:cc/claude-haiku-5-5,main,alt";
-export function videoOrder(): string[] {
+/**
+ * The order for every other call (the owner's choice, 2026-10-19): Haiku through the gateway first (his own key there), the official
+ * Anthropic API he bought when the gateway cannot, then DeepSeek, then the other alternative models. AI_ORDER changes it.
+ * A call that wants Opus skips the steps before "main" (they are Haiku), and a call with pictures skips the ones that cannot see.
+ */
+export const DEFAULT_MAIN_ORDER = "alt:cc/claude-haiku-5-5,main,deepseek,alt";
+function parseOrder(raw: string | undefined, fallback: string): string[] {
   const out: string[] = [];
-  for (const raw of (process.env.AI_VIDEO_ORDER?.trim() || DEFAULT_VIDEO_ORDER).split(",")) {
-    const step = raw.trim();
+  for (const part of (raw?.trim() || fallback).split(",")) {
+    const step = part.trim();
     if (/^(deepseek|main|alt|alt:[\w.:/@+-]{1,80})$/.test(step) && !out.includes(step)) out.push(step);
   }
   return out;
+}
+export const videoOrder = (): string[] => parseOrder(process.env.AI_VIDEO_ORDER, DEFAULT_VIDEO_ORDER);
+export const mainOrder = (): string[] => parseOrder(process.env.AI_ORDER, DEFAULT_MAIN_ORDER);
+
+// A step that failed (the network, a timeout, a provider error) is left alone for a short while, so that every call does not wait
+// for the same refusal before reaching the next one. Per server instance, like the router's cooling: the cost of a wrong guess is one call.
+const COOL_MS = 90_000;
+const coolUntil = new Map<string, number>();
+const cooling = (key: string, now = Date.now()): boolean => (coolUntil.get(key) ?? 0) > now;
+const cool = (key: string, now = Date.now()): void => void coolUntil.set(key, now + COOL_MS);
+/** For tests. */
+export function resetAiCooling(): void {
+  coolUntil.clear();
 }
 
 export interface JsonResult {
@@ -187,6 +206,7 @@ export async function completeJson<T = unknown>(
   // DeepSeek: a stand-by after the main provider has failed, or (call.prefer) the first choice with the main provider after it.
   // Counted like a Haiku call (it costs less, so the allowance is never undercounted).
   const runDeepseek = async (tries: number, reserveMs: number, announce: boolean): Promise<{ data: T; model: string } | null> => {
+    if (cooling("deepseek")) return null;
     for (let attempt = 0; attempt < tries; attempt++) {
       const timeout = Math.min(TIMEOUT[call.strength] * (careful ? OPUS_TIME : 1), remaining() - 500 - reserveMs);
       if (timeout < (attempt === 0 ? STANDBY_MIN_MS : MIN_RETRY_MS)) break;
@@ -205,6 +225,7 @@ export async function completeJson<T = unknown>(
           await spend({ in: estimateTokens(`${call.system}${call.user}`), out: Math.ceil(Math.max(call.maxTokens ?? 2000, MIN_MAX_TOKENS) / 2) }, "haiku");
         }
         errors.push(`deepseek: ${message(e)}`);
+        if (!(e instanceof DeepseekReplyError)) cool("deepseek");
         if (!retryable(e)) break;
       }
     }
@@ -215,6 +236,7 @@ export async function completeJson<T = unknown>(
   const triedAlt = new Set<string>();
   const runAlt = async (model: string, reserveMs: number): Promise<{ data: T; model: string } | null> => {
     triedAlt.add(model);
+    if (cooling(`alt:${model}`)) return null;
     const timeout = Math.min(TIMEOUT[call.strength], remaining() - 500 - reserveMs);
     if (timeout < STANDBY_MIN_MS) return null;
     try {
@@ -229,14 +251,16 @@ export async function completeJson<T = unknown>(
         await spend({ in: estimateTokens(`${call.system}${call.user}`), out: Math.ceil(Math.max(call.maxTokens ?? 2000, MIN_MAX_TOKENS) / 2) }, "haiku");
       }
       errors.push(`alt: ${message(e)}`);
+      if (!(e instanceof AltReplyError)) cool(`alt:${model}`);
     }
     return null;
   };
 
   let deepseekDone = false;
-  if (call.prefer === "video") {
-    // The owner's order for video scripts: every step before "main" gets one try, with time kept back for the main provider after it.
-    const steps = videoOrder();
+  const steps = call.prefer === "video" ? videoOrder() : mainOrder();
+  // A call that wants Opus goes to the main provider first: the steps before it (outside the video order) are Haiku.
+  if (steps.length && !(tier === "opus" && call.prefer !== "video")) {
+    // The owner's order: every step before "main" gets one try, with time kept back for the main provider after it.
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i];
       if (step === "main") break;

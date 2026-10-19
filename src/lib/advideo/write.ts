@@ -5,6 +5,7 @@
 // still made from a plain storyboard written from the facts, so a model hiccup never costs the
 // owner a video.
 
+import { polishAdRaw } from "@/lib/ai/proofread";
 import { completeJson, type JsonCall, type Meter } from "@/lib/ai/provider";
 import type { AdBrief } from "./brief";
 import type { VideoTier } from "./limits";
@@ -186,7 +187,11 @@ export async function writeAdSpec(input: WriteInput): Promise<Written> {
         timeout,
       );
       model = out.model;
-      const n = normalizeSpec(out.data, opts);
+      // The spoken lines and the caption are corrected by the Sorani proofreader first; if the corrected text breaks one of the
+      // spec's own rules (a number, a claim, the word limits) the model's own text is used.
+      const polished = await polishAdRaw(out.data, { timeoutMs: 8_000 });
+      let n = normalizeSpec(polished, opts);
+      if (!n.ok && polished !== out.data) n = normalizeSpec(out.data, opts);
       if (n.ok) {
         // The plan the owner sees is the strategist's: the director cannot rewrite why a video was made.
         const plan = input.plan ? { objective: input.plan.objective, why: input.plan.why, format: input.plan.format, priceMode: input.plan.priceMode, cta: input.plan.cta } : n.spec.plan;

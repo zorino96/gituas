@@ -4,7 +4,7 @@ vi.mock("@/lib/ai/kurdgg", async (orig) => ({ ...(await orig<typeof import("@/li
 vi.mock("@/lib/ai/meter", () => ({ chooseTier: vi.fn(), recordSpend: vi.fn() }));
 vi.mock("@/lib/ai/deepseek", async (orig) => ({ ...(await orig<typeof import("@/lib/ai/deepseek")>()), deepseekAllows: vi.fn(), deepseekJson: vi.fn() }));
 
-import { AiUnavailable, completeJson } from "@/lib/ai/provider";
+import { AiUnavailable, completeJson, resetAiCooling } from "@/lib/ai/provider";
 import * as kg from "@/lib/ai/kurdgg";
 import * as meter from "@/lib/ai/meter";
 import * as ds from "@/lib/ai/deepseek";
@@ -14,6 +14,7 @@ const call = { system: "s", user: "u", strength: "fast" as const };
 const ok = (data: unknown = { a: 1 }) => ({ data, model: "kurdgg/claude-haiku-5-5", usage: { in: 1000, out: 100 } });
 
 beforeEach(() => {
+  resetAiCooling();
   vi.resetAllMocks();
   vi.mocked(kg.kurdggConfigured).mockReturnValue(true);
 });
@@ -246,6 +247,7 @@ describe("the DeepSeek stand-by", () => {
     await expect(completeJson({ ...call, meter: { scope: "t1" } })).rejects.toBeInstanceOf(AiUnavailable);
     expect(meter.recordSpend).toHaveBeenCalledWith({ scope: "t1" }, "haiku", 300, 900);
     vi.mocked(meter.recordSpend).mockClear();
+    resetAiCooling(); // the first failure left DeepSeek cooling
     vi.mocked(ds.deepseekJson).mockRejectedValueOnce(Object.assign(new Error("timed out"), { name: "TimeoutError" }));
     await expect(completeJson({ ...call, meter: { scope: "t1" } })).rejects.toBeInstanceOf(AiUnavailable);
     expect(meter.recordSpend).toHaveBeenCalledTimes(1);

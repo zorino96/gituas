@@ -1,11 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/ai/kurdgg", async (orig) => ({ ...(await orig<typeof import("@/lib/ai/kurdgg")>()), kurdggConfigured: vi.fn(), kurdggJson: vi.fn() }));
 vi.mock("@/lib/ai/meter", () => ({ chooseTier: vi.fn(), recordSpend: vi.fn() }));
 vi.mock("@/lib/ai/deepseek", async (orig) => ({ ...(await orig<typeof import("@/lib/ai/deepseek")>()), deepseekAllows: vi.fn(), deepseekJson: vi.fn() }));
 vi.mock("@/lib/ai/alt", async (orig) => ({ ...(await orig<typeof import("@/lib/ai/alt")>()), altAllows: vi.fn(), altJson: vi.fn(), altModels: vi.fn() }));
 
-import { AiUnavailable, completeJson, videoOrder } from "@/lib/ai/provider";
+import { AiUnavailable, completeJson, mainOrder, resetAiCooling, videoOrder } from "@/lib/ai/provider";
 import * as kg from "@/lib/ai/kurdgg";
 import * as meter from "@/lib/ai/meter";
 import * as ds from "@/lib/ai/deepseek";
@@ -17,6 +17,8 @@ const dsOk = (data: unknown = { from: "deepseek" }) => ({ data, model: "deepseek
 const altOk = (model: string, data: unknown = { from: "alt" }) => ({ data, model: `alt/${model}`, usage: { in: 300, out: 40 } });
 
 beforeEach(() => {
+  vi.unstubAllEnvs();
+  resetAiCooling();
   vi.resetAllMocks();
   vi.mocked(kg.kurdggConfigured).mockReturnValue(true);
   vi.mocked(ds.deepseekAllows).mockReturnValue(true);
@@ -72,6 +74,7 @@ describe("call.prefer = video (AI video scripts)", () => {
     // when Haiku fails too: the rest of the alternative models, and the ones already tried are not repeated
     vi.mocked(alt.altJson).mockClear();
     vi.mocked(ds.deepseekJson).mockClear();
+    resetAiCooling(); // the first call left the failed steps cooling
     vi.mocked(kg.kurdggJson).mockReset().mockRejectedValue(new Error("HTTP 400 invalid_request_error"));
     await expect(completeJson({ ...call, prefer: "video" })).rejects.toBeInstanceOf(AiUnavailable);
     expect(altCalls()).toEqual(["oc/deepseek-v4.1-flash-free", "cc/claude-haiku-5-5", "oc/glm-5.3-flash-free", "oc/longcat-2.5-preview-free"]);
@@ -116,6 +119,7 @@ describe("call.prefer = video (AI video scripts)", () => {
 
 describe("the alternative models", () => {
   beforeEach(() => {
+    vi.stubEnv("AI_ORDER", "main,deepseek,alt");
     vi.mocked(alt.altAllows).mockReturnValue(true);
     vi.mocked(alt.altModels).mockReturnValue(["m1", "m2", "m3"]);
     vi.mocked(kg.kurdggJson).mockRejectedValue(new Error("HTTP 400 invalid_request_error"));
@@ -176,5 +180,81 @@ describe("a DeepSeek reply that ran into its cap", () => {
     vi.mocked(ds.deepseekJson).mockRejectedValue(new ds.DeepseekReplyError("the reply was not JSON", { in: 300, out: 3000 }, true));
     await expect(completeJson(call)).rejects.toBeInstanceOf(AiUnavailable);
     expect(ds.deepseekJson).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("the main order: Haiku through the gateway, then the official API", () => {
+  beforeEach(() => {
+    vi.mocked(alt.altAllows).mockReturnValue(true);
+    vi.mocked(alt.altModels).mockReturnValue(["oc/deepseek-v4.1-flash-free", "oc/glm-5.3-flash-free"]);
+    vi.mocked(kg.kurdggJson).mockResolvedValue(ok());
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("has the owner's default order", () => {
+    expect(mainOrder()).toEqual(["alt:cc/claude-haiku-5-5", "main", "deepseek", "alt"]);
+  });
+
+  it("asks the gateway's Haiku first, and the official API only when the gateway cannot", async () => {
+    vi.mocked(alt.altJson).mockResolvedValue(altOk("claude-haiku-5-5"));
+    expect((await completeJson(call)).model).toBe("alt/claude-haiku-5-5");
+    expect(vi.mocked(alt.altJson).mock.calls[0][2]).toBe("cc/claude-haiku-5-5");
+    expect(kg.kurdggJson).not.toHaveBeenCalled();
+    resetAiCooling();
+    vi.mocked(alt.altJson).mockReset().mockRejectedValue(new Error("HTTP 503 unknown"));
+    expect((await completeJson(call)).data).toEqual({ from: "haiku" });
+    expect(kg.kurdggJson).toHaveBeenCalledTimes(1);
+    expect(ds.deepseekJson).not.toHaveBeenCalled();
+  });
+
+  it("leaves a gateway that just failed alone for a while, so the next call goes straight to the official API", async () => {
+    vi.mocked(alt.altJson).mockRejectedValue(new Error("HTTP 503 unknown"));
+    await completeJson(call);
+    await completeJson(call);
+    await completeJson(call);
+    expect(alt.altJson).toHaveBeenCalledTimes(1);
+    expect(kg.kurdggJson).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not cool a step for a reply of the wrong shape", async () => {
+    const needsA = (d: unknown) => ((d as { a?: number })?.a ? (d as { a: number }) : null);
+    vi.mocked(alt.altJson).mockResolvedValue(altOk("claude-haiku-5-5", { wrong: true }));
+    vi.mocked(kg.kurdggJson).mockResolvedValue(ok({ a: 1 }));
+    await completeJson(call, needsA);
+    await completeJson(call, needsA);
+    expect(alt.altJson).toHaveBeenCalledTimes(2);
+  });
+
+  it("goes to the official API first for a call that wants Opus (the gateway step is Haiku)", async () => {
+    vi.mocked(meter.chooseTier).mockResolvedValue("opus");
+    vi.mocked(alt.altJson).mockResolvedValue(altOk("claude-haiku-5-5"));
+    vi.mocked(kg.kurdggJson).mockResolvedValue({ data: { from: "opus" }, model: "kurdgg/claude-opus-5-5", usage: { in: 10, out: 10 } });
+    const out = await completeJson({ ...call, tier: "opus", meter: { scope: "t1" } });
+    expect(out.data).toEqual({ from: "opus" });
+    expect(alt.altJson).not.toHaveBeenCalled();
+  });
+
+  it("goes to the official API first for a call with pictures (the gateway step cannot see)", async () => {
+    vi.mocked(alt.altAllows).mockReturnValue(false);
+    vi.mocked(ds.deepseekAllows).mockReturnValue(false);
+    const out = await completeJson({ ...call, images: ["data:image/png;base64,AAAA"] });
+    expect(out.data).toEqual({ from: "haiku" });
+    expect(alt.altJson).not.toHaveBeenCalled();
+  });
+
+  it("is the official API alone when the gateway is not configured, as before", async () => {
+    vi.mocked(alt.altAllows).mockReturnValue(false);
+    expect((await completeJson(call)).data).toEqual({ from: "haiku" });
+    expect(alt.altJson).not.toHaveBeenCalled();
+  });
+
+  it("follows AI_ORDER when it is set", async () => {
+    vi.stubEnv("AI_ORDER", "main,alt");
+    expect(mainOrder()).toEqual(["main", "alt"]);
+    vi.mocked(alt.altJson).mockResolvedValue(altOk("claude-haiku-5-5"));
+    expect((await completeJson(call)).data).toEqual({ from: "haiku" });
+    expect(alt.altJson).not.toHaveBeenCalled();
   });
 });
