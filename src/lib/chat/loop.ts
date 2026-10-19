@@ -103,7 +103,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnOut
   const snap = await deps.snapshot();
   const fileNote = input.attachments.length ? `\n[attached: ${input.attachments.map((a) => `${a.id} (${a.kind})`).join(", ")}]` : "";
   const messages: ChatMsg[] = [
-    { role: "system", content: systemPrompt({ lang: actor.lang, uiNames: snap.uiNames, state: snap.state, features: snap.features, attachments: everyAttachment, nowBaghdad: asBaghdad(started) }) },
+    { role: "system", content: systemPrompt({ lang: actor.lang, uiNames: snap.uiNames, state: snap.state, features: snap.features, attachments: everyAttachment, buttons: { confirm: dict(actor.lang).chat.runs.confirm, cancel: dict(actor.lang).chat.runs.cancel }, nowBaghdad: asBaghdad(started) }) },
     ...buildHistory(priorRows, runMap),
     { role: "user", content: input.text + fileNote },
   ];

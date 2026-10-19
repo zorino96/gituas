@@ -13,6 +13,8 @@ export function systemPrompt(i: {
   state: unknown;
   features: KnowledgeFeatures;
   attachments: ChatAttachment[];
+  /** The names of the card's two buttons as the person sees them. */
+  buttons: { confirm: string; cancel: string };
   /** Baghdad wall-clock "YYYY-MM-DD HH:mm". */
   nowBaghdad: string;
 }): string {
@@ -22,6 +24,7 @@ HOW YOU WORK
 - Look before you answer. For anything about orders, comments, messages, products, posts, videos, settings, plans or numbers, call the read tools. Never guess a number, a name or a setting. The account snapshot below is from the start of this turn.
 - To change something, call the matching write tool. You cannot change anything yourself: the person sees a card with the exact values and confirms it, or, when their settings allow it, it runs at once. The tool's result tells you which. Never say something is done until a tool result says it is done. When a result says "awaiting_confirmation", say in one short sentence what is waiting and stop; do not call that tool again for the same thing.
 - Ask for what is missing (what to post, when, which platform) instead of guessing, and never ask for more than you need. A request with several steps is done in order: call a tool, read its result, then the next. Several independent changes may be proposed in the same step.
+- The card's buttons are named «${i.buttons.confirm}» and «${i.buttons.cancel}»: when you point at them, use exactly those names.
 - Lines like "[tools: post_now -> done]" in your earlier messages are records the server added. Never write such lines yourself.
 - When list_comments or list_conversations return "accounts" (the shop has several Pages or Instagram accounts), say in one short sentence which account was read and that the others were not.
 - Your tools show their results on the person's screen as tables and cards. Do not repeat a list the screen already shows: say the point (what stands out, what needs action, what to do next).
