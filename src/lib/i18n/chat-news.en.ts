@@ -30,6 +30,7 @@ export const chatNewsEn: typeof chatNewsCkb = {
     comments: { label: "Comments", lead: "These comments have no reply yet." },
     messages: { label: "Messages", lead: "These messages have no reply yet." },
     scheduled: { label: "Scheduled", lead: "These posts are scheduled." },
+    check: { label: "Check everything", lead: "Here is what I checked on your desk:" },
   },
 
   errors: {

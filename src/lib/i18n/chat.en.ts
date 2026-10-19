@@ -6,6 +6,12 @@ const nf = new Intl.NumberFormat("en-US");
 export const chatEn: typeof chatCkb = {
   title: "Chat",
   newChat: "New chat",
+  historyNav: "Chat history",
+  history: {
+    title: "Chat history",
+    sub: "Your earlier chats. Open one to carry on.",
+    empty: "You have no chats yet. Type your first question.",
+  },
 
   frame: {
     openList: "Open the chat list",
@@ -90,6 +96,7 @@ export const chatEn: typeof chatCkb = {
     comments: { label: "Comments", lead: "These comments have no reply yet:" },
     messages: { label: "Messages", lead: "These messages are waiting for a reply:" },
     scheduled: { label: "Scheduled", lead: "These posts are scheduled:" },
+    check: { label: "Check everything", lead: "Here is what I checked in your shop:" },
     coach: { label: "Weekly note", lead: "Here is your weekly note on your shop's numbers:" },
   },
 
@@ -141,6 +148,10 @@ export const chatEn: typeof chatCkb = {
     videoWaiting: "The video is being made. It takes a few minutes…",
     videoReady: "The video is ready.",
     videoFailed: "The video could not be made.",
+    verified: "Checked after the change",
+    problem: "Not as asked",
+    fixIt: "Fix it",
+    fixPrompt: (title: string) => `Please fix the problem you found with "${title}".`,
   },
 
   views: {

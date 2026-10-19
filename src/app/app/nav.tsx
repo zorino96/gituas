@@ -9,6 +9,7 @@ import {
   CalendarClock,
   Clapperboard,
   Ellipsis,
+  History,
   Home,
   LifeBuoy,
   MessageCircle,
@@ -62,6 +63,7 @@ export function useSections(kind: Kind, studio: boolean, video: boolean, chat = 
       ? [
           s(base, t.nav.today, Home, "main", true),
           chat ? s(`${base}/assistant`, t.chat.newChat, SquarePen, "main") : s(`${base}/assistant`, t.nav.assistant, LifeBuoy, "main"),
+          ...(chat ? [s(`${base}/assistant/history`, t.chat.historyNav, History, "main")] : []),
           s(`${base}/comments`, t.nav.comments, MessagesSquare, "inbox", true),
           s(`${base}/messages`, t.nav.messages, MessageCircle, "inbox", true),
           s(`${base}/orders`, t.nav.orders, Package, "inbox", true),

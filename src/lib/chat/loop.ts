@@ -32,6 +32,7 @@ import { systemPromptNews } from "./system-news";
 import { NEWS_QUICK, say } from "./text";
 import { isWriteTool, ToolRefusal, type Autonomy, type Card, type ChatAttachment, type ChatErrorCode, type ChatEvent, type ChatTool, type AnyQuickId, type ChatKind, type ViewBlock } from "./types";
 import { withTimeout } from "./util";
+import { verifyForModel } from "./verify";
 import { noteOf, wrapForModel } from "./wrap";
 
 export interface Snapshot {
@@ -216,7 +217,18 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnOut
       proposed.push(run);
       const status = done.ok ? "done" : done.unknown ? "outcome_unknown" : "failed";
       const note = done.unknown ? "It may still have gone through. Do NOT repeat it; tell the owner to check before trying again." : undefined;
-      return { content: JSON.stringify({ status, text: done.text, ...(note ? { note } : {}), ...(done.data !== undefined ? { data: done.data } : {}) }), note: "", blocks: [], runId: run.id };
+      return {
+        content: JSON.stringify({
+          status,
+          text: done.text,
+          ...(note ? { note } : {}),
+          ...(done.data !== undefined ? { data: done.data } : {}),
+          ...(done.verify ? { verify: verifyForModel(done.verify) } : {}),
+        }),
+        note: "",
+        blocks: [],
+        runId: run.id,
+      };
     }
     proposed.push(run);
     return {

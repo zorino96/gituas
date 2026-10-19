@@ -184,6 +184,22 @@ a.ch-item:hover { background: var(--raised); }
 .ch-ok { margin: 0; font-size: 14px; font-weight: 500; color: var(--ok); line-height: 1.7; overflow-wrap: anywhere; }
 .ch-err { margin: 0; font-size: 14px; font-weight: 500; color: var(--danger); line-height: 1.7; overflow-wrap: anywhere; }
 .ch-quiet-line { margin: 0; font-size: 13px; color: var(--muted); }
+
+/* the menu's "Chat history" page: one column of links, grouped by day */
+.ch-hist { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.ch-hist-in { max-width: 752px; margin-inline: auto; padding: 20px 14px 40px; display: flex; flex-direction: column; gap: 6px; }
+.ch-hist-new { align-self: flex-start; margin-block: 6px 10px; }
+.ch-hist-group { margin: 14px 0 4px; font-size: 12px; font-weight: 700; color: var(--faint); }
+.ch-hist-rows { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.ch-hist-row { display: flex; flex-direction: column; gap: 2px; min-height: 48px; padding: 10px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); text-decoration: none; justify-content: center; }
+.ch-hist-row:hover { background: var(--raised); border-color: var(--line-strong); }
+.ch-hist-title { display: flex; align-items: center; gap: 6px; font-size: 14.5px; font-weight: 600; line-height: 1.6; overflow-wrap: anywhere; }
+.ch-hist-row small { font-size: 12px; color: var(--faint); }
+.ch-verify { margin-top: 8px; padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--ok-line); background: var(--ok-soft); display: flex; flex-direction: column; gap: 6px; }
+.ch-verify.bad { border-color: var(--warn-line); background: var(--warn-soft); }
+.ch-verify-head { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ok); }
+.ch-verify.bad .ch-verify-head { color: var(--warn); }
+.ch-verify ul { margin: 0; padding-inline-start: 18px; font-size: 13px; line-height: 1.7; color: var(--ink); overflow-wrap: anywhere; }
 .ch-run [tabindex="-1"]:focus { outline: none; }
 
 /* the strip under the last message: reserved, so the status coming and going moves nothing */

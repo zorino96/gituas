@@ -34,6 +34,7 @@ export const nrShellCkb = {
       videoSetup: "ڕێکخستنی ڤیدیۆ",
       brand: "دیزاین و لۆگۆ",
       assistant: "یاریدەدەر",
+      chatHistory: "مێژووی چات",
       team: "تیم",
       settings: "ڕێکخستن",
       guide: "ڕێنمایی",

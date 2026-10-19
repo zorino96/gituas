@@ -56,6 +56,15 @@ export async function loadAssistantState(tenantId: string, connections: Assistan
     },
   });
   const video = adVideoEnabled();
+  // The names of the Pages and Instagram accounts each group holds, so the chat can say "Facebook: The Secret File" instead of guessing.
+  const named = await Promise.resolve()
+    .then(() => db.oAuthCredential.findMany({ where: { tenantId, provider: { in: ["META_FACEBOOK", "META_INSTAGRAM"] } }, select: { provider: true, providerAccountId: true, providerAccountName: true } }))
+    .catch(() => [] as { provider: string; providerAccountId: string; providerAccountName: string | null }[]);
+  const accountName = (provider: string, id: string | null): string | null => {
+    if (!id) return null;
+    const n = named.find((c) => c.provider === provider && c.providerAccountId === id)?.providerAccountName;
+    return n ? n.replace(/\s+/g, " ").trim().slice(0, 60) || "(connected)" : "(connected)";
+  };
   // What each owner told Gituas about their work (only while the interview is switched on); their own words, no buyer data.
   const profiles = profileEnabled() ? await loadProfiles(stores.map((s) => s.id)) : null;
   const [allowance, videos, images, waiting, products, rules] = await Promise.all([
@@ -82,6 +91,9 @@ export async function loadAssistantState(tenantId: string, connections: Assistan
         paidUntil: s.planPaidUntil ? s.planPaidUntil.toISOString().slice(0, 10) : null,
         facebookPageConnected: !!s.fbPageId,
         instagramConnected: !!s.igUserId,
+        // Which Page and which Instagram account this group holds (null = none).
+        facebookPage: accountName("META_FACEBOOK", s.fbPageId),
+        instagram: s.igUserId ? (s.igUsername ? `@${s.igUsername}` : accountName("META_INSTAGRAM", s.igUserId)) : null,
         // The switch starts OFF for a new shop; "paused" means the page's access expired.
         automaticReplies: !s.automationEnabled ? "switched off by the owner" : s.pausedReason ? `paused (${s.pausedReason})` : "on",
         aiWrittenReplies: !!s.aiReplies,

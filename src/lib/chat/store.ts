@@ -9,6 +9,7 @@ import { isOwnBlobUrl } from "@/lib/merchant/caption";
 import type { Lang } from "@/lib/i18n/lang";
 import { LIMITS } from "./budget";
 import { say } from "./text";
+import { parseVerify } from "./verify/report";
 import { isAutonomy, type Autonomy, type Card, type ChatAttachment, type ChatKind, type MessageDto, type Risk, type RunDto, type RunStatus, type ThreadSummary, type ViewBlock } from "./types";
 
 export type { ChatMessage, ChatRun, ChatThread };
@@ -238,7 +239,8 @@ export async function finishRun(id: string, patch: { status: "DONE" | "FAILED"; 
 export async function settleStaleRuns(threadId: string, lang: Lang, now = Date.now()): Promise<number> {
   const r = await db.chatRun.updateMany({
     where: { threadId, status: "RUNNING", decidedAt: { lt: new Date(now - 3 * 60_000) } },
-    data: { status: "FAILED", error: say("unknownOutcome", lang), finishedAt: new Date(now) },
+    // result.unknownOutcome is the same marker confirm.ts writes when a change times out: the health check tells such a run from a plain failure by it.
+    data: { status: "FAILED", error: say("unknownOutcome", lang), result: { unknownOutcome: true }, finishedAt: new Date(now) },
   });
   return r.count;
 }
@@ -277,6 +279,7 @@ export function runToDto(r: ChatRun, now = Date.now()): RunDto {
     media: hasMedia ? { url: String(media.url), pathname: String(media.pathname), kind: media.kind === "video" ? "video" : "image", name: String(media.name ?? "") } : undefined,
     jobId: typeof result.jobId === "string" ? result.jobId : undefined,
     long: card.long === true,
+    verify: parseVerify(result.verify),
   };
 }
 

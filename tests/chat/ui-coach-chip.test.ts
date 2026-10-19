@@ -37,7 +37,7 @@ const render = (props: Record<string, unknown>, lang: "en" | "ckb" | "ar" = "en"
 
 describe("visibleQuickIds", () => {
   it("drops the weekly note's button while the weekly note is off, and keeps the others in order", () => {
-    expect(visibleQuickIds(QUICK_IDS, { coachOn: false })).toEqual(["today", "orders", "comments", "messages", "scheduled"]);
+    expect(visibleQuickIds(QUICK_IDS, { coachOn: false })).toEqual(["today", "orders", "comments", "messages", "scheduled", "check"]);
     expect(visibleQuickIds(QUICK_IDS, { coachOn: true })).toEqual([...QUICK_IDS]);
   });
 

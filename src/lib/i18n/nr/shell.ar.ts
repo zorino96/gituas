@@ -39,6 +39,7 @@ export const nrShellAr: typeof nrShellCkb = {
       videoSetup: "إعدادات الفيديو",
       brand: "التصميم والشعار",
       assistant: "المساعد",
+      chatHistory: "سجل المحادثات",
       team: "الفريق",
       settings: "الإعدادات",
       guide: "الدليل",

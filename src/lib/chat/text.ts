@@ -103,6 +103,10 @@ export const NEWS_QUICK: Record<string, { label: Table; lead: Table }> = {
     label: { ckb: "خشتەکراوەکان", ar: "المجدولة", en: "Scheduled" },
     lead: { ckb: "ئەمانە خشتەکراون بۆ بڵاوکردنەوە.", ar: "هذه منشورات مجدولة.", en: "These posts are scheduled." },
   },
+  check: {
+    label: { ckb: "هەموو شتێک بپشکنە", ar: "افحص كل شيء", en: "Check everything" },
+    lead: { ckb: "ئەمە ئەوەیە کە لە مێزی هەواڵەکەت پشکنیم:", ar: "هذا ما فحصته في مكتب الأخبار:", en: "Here is what I checked on your desk:" },
+  },
 };
 
 /** What the model is told to write in when the person's own language is unclear. */

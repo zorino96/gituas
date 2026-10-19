@@ -35,6 +35,7 @@ export const chatNewsCkb = {
     comments: { label: "کۆمێنتەکان", lead: "ئەمانە کۆمێنتی بێوەڵامن." },
     messages: { label: "نامەکان", lead: "ئەمانە نامە بێوەڵامەکانن." },
     scheduled: { label: "خشتەکراوەکان", lead: "ئەمانە خشتەکراون بۆ بڵاوکردنەوە." },
+    check: { label: "هەموو شتێک بپشکنە", lead: "ئەمە ئەوەیە کە لە مێزی هەواڵەکەت پشکنیم:" },
   },
 
   errors: {

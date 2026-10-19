@@ -47,6 +47,7 @@ vi.mock("@/lib/shop/tenant-plans", () => ({ limitsOf: vi.fn(async () => ({ aiUsd
 
 import { READ_TOOLS } from "@/lib/chat/tools/reads";
 import { NEWS_READ_TOOLS } from "@/lib/chat/tools/reads-news";
+import { HEALTH_READ_TOOLS } from "@/lib/chat/tools/reads-health";
 import { newsWords } from "@/lib/chat/tools/reads-news-words";
 import { words } from "@/lib/chat/tools/reads-words";
 import { PART_MAX, postedTo, storyState, textParts } from "@/lib/chat/tools/reads-news-shape";
@@ -70,7 +71,7 @@ const ctx = (over: Partial<ToolCtx> = {}): ToolCtx => ({
 });
 
 const tool = (name: string) => {
-  const t = [...NEWS_READ_TOOLS, ...READ_TOOLS].find((x) => x.name === name);
+  const t = [...NEWS_READ_TOOLS, ...READ_TOOLS, ...HEALTH_READ_TOOLS].find((x) => x.name === name);
   if (!t) throw new Error(`no tool ${name}`);
   return t;
 };

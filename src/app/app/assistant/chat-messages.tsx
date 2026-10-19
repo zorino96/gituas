@@ -5,9 +5,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, LoaderCircle, Sparkles, TriangleAlert } from "lucide-react";
+import { ExternalLink, LoaderCircle, ShieldCheck, Sparkles, TriangleAlert } from "lucide-react";
 
-import type { ChatAttachment, MessageDto, RunDto, ViewBlock } from "@/lib/chat/types";
+import type { ChatAttachment, MessageDto, RunDto, VerifyReport, ViewBlock } from "@/lib/chat/types";
 import { useT } from "@/lib/i18n/client";
 import { videoJobStatusAction } from "../video/actions";
 import { minutesLeft, shownStatus, splitLinks, valueDir } from "./chat-model";
@@ -239,12 +239,40 @@ function VideoWatch({ jobId }: { jobId: string }) {
   );
 }
 
+/** What reading the change back found: what matches, or what does not (with a button that asks the chat to put it right). */
+function Verified({ verify, onFix }: { verify: VerifyReport; onFix?: () => void }) {
+  const t = useT().chat.runs;
+  const bad = verify.status === "problem";
+  const lines = bad ? verify.problems : verify.checked;
+  return (
+    <div className={`ch-verify ${bad ? "bad" : "good"}`} role={bad ? "alert" : "note"}>
+      <p className="ch-verify-head">
+        {bad ? <TriangleAlert size={15} aria-hidden="true" /> : <ShieldCheck size={15} aria-hidden="true" />}
+        <b>{bad ? t.problem : t.verified}</b>
+      </p>
+      <ul>
+        {lines.map((l, i) => (
+          <li key={i}>{l}</li>
+        ))}
+      </ul>
+      {bad && onFix && (
+        <div className="ch-run-actions">
+          <button type="button" className="gm-btn small" onClick={onFix}>
+            {t.fixIt}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function RunCard({
   run,
   now,
   deciding,
   error,
   onDecide,
+  onFix,
 }: {
   run: RunDto;
   /** The time, known only in the browser (null while the page is being server-rendered). */
@@ -253,6 +281,8 @@ export function RunCard({
   deciding?: "confirm" | "cancel";
   error?: string;
   onDecide: (run: RunDto, action: "confirm" | "cancel") => void;
+  /** Asks the chat to fix what the read-back found (given only for the newest answer). */
+  onFix?: (run: RunDto) => void;
 }) {
   const t = useT().chat.runs;
   const status = deciding === "confirm" && run.status === "PROPOSED" ? "RUNNING" : now === null ? run.status : shownStatus(run, now);
@@ -323,6 +353,7 @@ export function RunCard({
             )}
             {run.resultText || t.status.DONE}
           </p>
+          {run.verify && <Verified verify={run.verify} onFix={onFix ? () => onFix(run) : undefined} />}
           {run.media && <Files files={[run.media]} large />}
           {run.jobId && <VideoWatch jobId={run.jobId} />}
         </>
@@ -353,12 +384,14 @@ export function MessageView({
   deciding,
   decideErrors,
   onDecide,
+  onFix,
 }: {
   message: MessageDto;
   now: number | null;
   deciding: Record<string, "confirm" | "cancel">;
   decideErrors: Record<string, string>;
   onDecide: (run: RunDto, action: "confirm" | "cancel") => void;
+  onFix?: (run: RunDto) => void;
 }) {
   const s = useT().chat.screen;
   if (message.role === "user") {
@@ -390,7 +423,7 @@ export function MessageView({
         ))}
         <Files files={message.attachments} large />
         {message.runs.map((r) => (
-          <RunCard key={r.id} run={r} now={now} deciding={deciding[r.id]} error={decideErrors[r.id]} onDecide={onDecide} />
+          <RunCard key={r.id} run={r} now={now} deciding={deciding[r.id]} error={decideErrors[r.id]} onDecide={onDecide} onFix={onFix} />
         ))}
       </div>
     </div>

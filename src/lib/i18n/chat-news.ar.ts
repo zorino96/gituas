@@ -31,6 +31,7 @@ export const chatNewsAr: typeof chatNewsCkb = {
     comments: { label: "التعليقات", lead: "هذه التعليقات التي لم يُرد عليها." },
     messages: { label: "الرسائل", lead: "هذه الرسائل التي لم يُرد عليها." },
     scheduled: { label: "المجدولة", lead: "هذه منشورات مجدولة." },
+    check: { label: "افحص كل شيء", lead: "هذا ما فحصته في مكتب الأخبار:" },
   },
 
   errors: {

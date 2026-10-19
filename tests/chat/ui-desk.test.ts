@@ -74,7 +74,10 @@ describe("the desk's navigation while its chat is on", () => {
     expect(items[0].key).toBe("assistant");
     expect(items[0].group).toBe("desk");
     expect(items[0].href).toBe("/newsroom/assistant");
-    expect(items.map((i) => i.key).sort()).toEqual(NAV.map((i) => i.key).sort());
+    // (its chat history is the one entry that is not a section of its own)
+    expect(items.map((i) => i.key).sort()).toEqual([...NAV.map((i) => i.key), "chatHistory"].sort());
+    expect(items[1].key).toBe("chatHistory");
+    expect(items[1].href).toBe("/newsroom/assistant/history");
     expect(items.filter((i) => i.group === "account").map((i) => i.key)).not.toContain("assistant");
   });
 

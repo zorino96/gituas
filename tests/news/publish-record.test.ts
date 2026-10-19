@@ -31,6 +31,18 @@ describe("mergeResults", () => {
     expect(mergeResults([ig], [fb("a")])).toEqual([ig, fb("a")]);
   });
 
+  it("keeps a stored success when the same place fails again, and does not store the failure beside it", () => {
+    expect(mergeResults([fb("a")], [fb("a", { ok: false, error: "x" })])).toEqual([fb("a")]);
+    expect(mergeResults([fb("a")], [fb("a", { ok: false, error: "x" }), fb("b")])).toEqual([fb("a"), fb("b")]);
+  });
+
+  it("lets a new failure replace a stored failure or a pending post of the same place", () => {
+    const pending: PublishResult = { target: "IG", ok: false, accountId: "a", error: "processing", pending: true } as PublishResult;
+    const failed: PublishResult = { target: "IG", ok: false, accountId: "a", error: "x" };
+    expect(mergeResults([pending], [failed])).toEqual([failed]);
+    expect(mergeResults([fb("a", { ok: false, error: "old" })], [fb("a", { ok: false, error: "new" })])).toEqual([fb("a", { ok: false, error: "new" })]);
+  });
+
   it("starts from nothing when nothing usable was stored", () => {
     expect(mergeResults(null, [fb("a")])).toEqual([fb("a")]);
     expect(mergeResults("junk", [fb("a")])).toEqual([fb("a")]);
@@ -57,10 +69,29 @@ describe("recordNewsPublish", () => {
     expect(countUsage).toHaveBeenCalledWith("t1", "publish");
   });
 
-  it("replaces the stored results when it is not a continuation", async () => {
-    stored({ results: [fb("old")] });
+  it("adds to the stored results when it is not a continuation: a Facebook post and a later Instagram post both stay on record", async () => {
+    const ig: PublishResult = { target: "IG", ok: true, url: "https://ig/1" };
+    stored({ publishedAt: new Date(), results: [fb("a")] });
+    await recordNewsPublish("t1", "d1", [ig]);
+    const data = (m.newsDraft.update.mock.calls[0][0] as { data: { results: unknown; publishedAt?: Date } }).data;
+    expect(data.results).toEqual([fb("a"), ig]);
+    expect(data.publishedAt).toBeUndefined();
+    // Counting is unchanged: a publish that is not a continuation is counted when something went out.
+    expect(countUsage).toHaveBeenCalledWith("t1", "publish");
+  });
+
+  it("replaces a stored result of the same place, and keeps the others", async () => {
+    stored({ results: [fb("a", { ok: false, error: "x" }), fb("b")] });
     await recordNewsPublish("t1", "d1", [fb("a")]);
+    expect((m.newsDraft.update.mock.calls[0][0] as { data: { results: unknown } }).data.results).toEqual([fb("b"), fb("a")]);
+  });
+
+  it("does not let a failed repeat erase the record of a post that went out", async () => {
+    stored({ publishedAt: new Date(), results: [fb("a")] });
+    await recordNewsPublish("t1", "d1", [fb("a", { ok: false, error: "x" })]);
     expect((m.newsDraft.update.mock.calls[0][0] as { data: { results: unknown } }).data.results).toEqual([fb("a")]);
+    expect(m.newsItem.update).not.toHaveBeenCalled();
+    expect(countUsage).not.toHaveBeenCalled();
   });
 
   it("adds a continuation's results to the stored ones and does not count the story again", async () => {

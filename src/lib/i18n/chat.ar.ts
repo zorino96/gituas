@@ -14,6 +14,12 @@ const CHATS_DELETED: Forms = { one: "محادثة واحدة", two: "محادث�
 export const chatAr: typeof chatCkb = {
   title: "المحادثة",
   newChat: "محادثة جديدة",
+  historyNav: "سجل المحادثات",
+  history: {
+    title: "سجل المحادثات",
+    sub: "محادثاتك السابقة. افتح إحداها لتتابعها.",
+    empty: "ليس لديك محادثات بعد. اكتب سؤالك الأول.",
+  },
 
   frame: {
     openList: "فتح قائمة المحادثات",
@@ -98,6 +104,7 @@ export const chatAr: typeof chatCkb = {
     comments: { label: "التعليقات", lead: "هذه التعليقات التي لم يُرد عليها بعد:" },
     messages: { label: "الرسائل", lead: "هذه الرسائل التي تنتظر ردًا:" },
     scheduled: { label: "المجدولة", lead: "هذه المنشورات المجدولة:" },
+    check: { label: "افحص كل شيء", lead: "هذا ما فحصته في متجرك:" },
     coach: { label: "ملاحظة الأسبوع", lead: "هذه ملاحظة الأسبوع عن أرقام متجرك:" },
   },
 
@@ -149,6 +156,10 @@ export const chatAr: typeof chatCkb = {
     videoWaiting: "يتم إنشاء الفيديو. يستغرق بضع دقائق…",
     videoReady: "الفيديو جاهز.",
     videoFailed: "تعذّر إنشاء الفيديو.",
+    verified: "تم التحقق بعد التغيير",
+    problem: "ليس كما طُلب",
+    fixIt: "أصلحه",
+    fixPrompt: (title: string) => `يرجى إصلاح المشكلة التي وجدتها في «${title}».`,
   },
 
   views: {

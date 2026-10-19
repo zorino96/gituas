@@ -5,6 +5,7 @@
 import type { ChatMsg } from "@/lib/ai/chat";
 import { LIMITS } from "./budget";
 import { effectiveStatus, type ChatMessage, type ChatRun } from "./store";
+import { parseVerify } from "./verify/report";
 
 const meta = (m: ChatMessage): Record<string, unknown> => (m.meta && typeof m.meta === "object" && !Array.isArray(m.meta) ? (m.meta as Record<string, unknown>) : {});
 
@@ -20,7 +21,11 @@ function noteFor(call: { id: string; name: string }, tools: Map<string, ChatMess
     const status = effectiveStatus(run);
     // The result sentence of a draft carries the AI headline, written from third-party feed text: not quoted in later turns.
     const text = call.name === "draft_story" || call.name === "improve_story" ? undefined : (run.result as { text?: unknown } | null)?.text;
-    if (status === "DONE") return `${call.name} → done${typeof text === "string" ? `: ${cut(text, 120)}` : ""}`;
+    if (status === "DONE") {
+      const v = parseVerify((run.result as { verify?: unknown } | null)?.verify);
+      const checked = !v ? "" : v.status === "ok" ? " (read back: matches)" : ` (READ BACK FOUND A PROBLEM: ${cut(v.problems.join(" "), 240)}${v.fix ? ` Fix: ${cut(v.fix, 240)}` : ""})`;
+      return `${call.name} → done${typeof text === "string" ? `: ${cut(text, 120)}` : ""}${checked}`;
+    }
     if (status === "FAILED") return `${call.name} → failed${run.error ? `: ${cut(run.error, 120)}` : ""}`;
     if (status === "PROPOSED") return `${call.name} → waiting for the person's Confirm`;
     return `${call.name} → ${status.toLowerCase()}`;

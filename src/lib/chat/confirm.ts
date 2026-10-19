@@ -4,7 +4,7 @@
 import { baghdadDay, takeDaily } from "@/lib/ai/slots";
 import { db } from "@/lib/db";
 import { can, type Role } from "@/lib/newsroom/roles";
-import { ACTIONS_PER_DAY, NEWS_ACTIONS_PER_DAY, NEWS_POSTS_PER_DAY, POSTS_PER_DAY } from "./budget";
+import { ACTIONS_PER_DAY, LIMITS, NEWS_ACTIONS_PER_DAY, NEWS_POSTS_PER_DAY, POSTS_PER_DAY } from "./budget";
 import {
   argsHashOf,
   attachmentsOf,
@@ -22,8 +22,9 @@ import {
 } from "./store";
 import { errorText, say } from "./text";
 import { withTimeout } from "./util";
+import { verifyChange } from "./verify";
 import type { Lang } from "@/lib/i18n/lang";
-import { isWriteTool, ToolRefusal, type ChatAttachment, type ChatKind, type ChatTool, type RunDecisionResponse, type ToolCtx, type WriteResult, type WriteTool } from "./types";
+import { isWriteTool, ToolRefusal, type ChatAttachment, type ChatKind, type ChatTool, type RunDecisionResponse, type ToolCtx, type VerifyReport, type WriteResult, type WriteTool } from "./types";
 
 /** Who is acting: everything here comes from the session, never from the request body. */
 export interface Actor {
@@ -55,6 +56,8 @@ export interface ExecutedRun {
   data?: unknown;
   /** The wait ended before the tool did: the change may still have been made, so nobody should repeat it blindly. */
   unknown?: boolean;
+  /** The change read back from the live data (only for a tool that has a check). */
+  verify?: VerifyReport;
 }
 
 /**
@@ -113,27 +116,37 @@ export async function executeClaimedRun(i: {
   const media = result.media ? { ...result.media } : undefined;
   // The picture's id is chosen from the thread as it is NOW (the person may have attached files while it was being made).
   const known = media ? attachmentsOf(await loadMessages(run.threadId), await runsOfThread(run.threadId), actor.tenantId) : i.attachments;
+  // The change is read back from the live data while there is room: what the tool said is not the same as what is stored.
+  const verify = await verifyChange(
+    tool,
+    toolCtx(actor, { threadId: run.threadId, attachments: i.attachments, review: i.review, deadline: i.deadline }),
+    parsed.data,
+    { text: result.text, data: result.data, runId: run.id },
+    // An automatic run happens inside a chat turn: the model still needs its own time afterwards to read the report and answer.
+    i.deadline - Date.now() - (i.how === "AUTO" ? LIMITS.minStepMs + 1_500 : 0),
+  );
   const done = await finishRun(run.id, {
     status: "DONE",
     result: {
       text: result.text,
       ...(media ? { media, attachmentId: nextAttachmentId(known) } : {}),
       ...(result.jobId ? { jobId: result.jobId } : {}),
+      ...(verify ? { verify } : {}),
     },
   });
-  await audit(i, done, true);
-  return { run: done, ok: true, text: result.text, data: result.data };
+  await audit(i, done, true, verify?.status);
+  return { run: done, ok: true, text: result.text, data: result.data, ...(verify ? { verify } : {}) };
 }
 
 /** Every change made from the chat is written down: who decided, how, what, and whether it worked. */
-async function audit(i: { actor: Actor; tool: WriteTool; how: "CONFIRMED" | "AUTO" }, run: ChatRun, ok: boolean): Promise<void> {
+async function audit(i: { actor: Actor; tool: WriteTool; how: "CONFIRMED" | "AUTO" }, run: ChatRun, ok: boolean, verified?: "ok" | "problem"): Promise<void> {
   try {
     await db.auditLog.create({
       data: {
         tenantId: i.actor.tenantId,
         actor: i.how === "AUTO" ? "AI_CLAUDE" : "USER",
         action: "chat.run",
-        metadata: { runId: run.id, threadId: run.threadId, tool: run.tool, risk: run.risk, decidedBy: i.how, autonomy: run.autonomy, tainted: run.tainted, ok, userId: i.actor.userId },
+        metadata: { runId: run.id, threadId: run.threadId, tool: run.tool, risk: run.risk, decidedBy: i.how, autonomy: run.autonomy, tainted: run.tainted, ok, ...(verified ? { verified } : {}), userId: i.actor.userId },
       },
     });
   } catch {

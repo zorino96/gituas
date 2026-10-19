@@ -128,7 +128,7 @@ describe("the chat dictionary a desk reads (the shop's, with the desk's wording 
   it("leaves the shop's own dictionary alone", () => {
     for (const lang of LANGS) {
       newsChat(lang);
-      expect(Object.keys(BASE[lang].quick).sort()).toEqual(["coach", "comments", "messages", "orders", "scheduled", "today"]);
+      expect(Object.keys(BASE[lang].quick).sort()).toEqual(["check", "coach", "comments", "messages", "orders", "scheduled", "today"]);
       expect(BASE[lang].sidebar.classic).not.toBe(newsChat(lang).sidebar.classic);
     }
   });

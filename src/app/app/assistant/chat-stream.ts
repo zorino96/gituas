@@ -2,6 +2,7 @@
 // in node. A line can be split across two chunks of the network, and a bad line must never end the whole turn.
 
 import type { ChatErrorCode, ChatEvent, MessageDto, RunDto } from "@/lib/chat/types";
+import { parseVerify } from "@/lib/chat/verify/report";
 
 const CODES = [
   "signin", "forbidden", "workspace", "badrequest", "limit_day", "limit_month", "allowance", "busy", "unavailable", "not_found", "expired", "frozen", "internal",
@@ -36,6 +37,7 @@ export function safeRun(v: unknown): RunDto | null {
     media: isObject(v.media) && typeof v.media.url === "string" ? (v.media as unknown as RunDto["media"]) : undefined,
     jobId: typeof v.jobId === "string" ? v.jobId : undefined,
     long: v.long === true,
+    verify: parseVerify(v.verify),
   };
 }
 

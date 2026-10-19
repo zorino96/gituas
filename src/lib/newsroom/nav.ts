@@ -4,7 +4,7 @@
 
 import type { GuideId } from "./guide";
 
-export type NavKey = "news" | "publish" | "videos" | "comments" | "messages" | "insights" | "sources" | "autopilot" | "videoSetup" | "brand" | "assistant" | "team" | "settings" | "guide";
+export type NavKey = "news" | "publish" | "videos" | "comments" | "messages" | "insights" | "sources" | "autopilot" | "videoSetup" | "brand" | "assistant" | "chatHistory" | "team" | "settings" | "guide";
 export type NavGroup = "desk" | "audience" | "setup" | "account";
 
 export interface NavItem {
@@ -45,7 +45,9 @@ export const NAV: readonly NavItem[] = [
 export function navFor(chatOn: boolean): readonly NavItem[] {
   const assistant = NAV.find((i) => i.key === "assistant");
   if (!chatOn || !assistant) return NAV;
-  return [{ ...assistant, group: "desk" }, ...NAV.filter((i) => i.key !== "assistant")];
+  // The chat's history sits right under it (a menu entry that is not a section of its own: the chat frame shows the same list).
+  const history: NavItem = { key: "chatHistory", href: "/newsroom/assistant/history", group: "desk", mobile: false, guide: "start" };
+  return [{ ...assistant, group: "desk" }, history, ...NAV.filter((i) => i.key !== "assistant")];
 }
 
 /** The section a path belongs to: its own href or anything below it. */

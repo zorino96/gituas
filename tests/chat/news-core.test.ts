@@ -46,7 +46,7 @@ describe("shortcuts by kind", () => {
   });
 
   it("a desk's shortcuts read only (no write tool is ever named)", () => {
-    for (const plan of Object.values(NEWS_QUICK_PLAN)) for (const step of plan) expect(step.tool).toMatch(/^(list_|get_)/);
+    for (const plan of Object.values(NEWS_QUICK_PLAN)) for (const step of plan) expect(step.tool).toMatch(/^(list_|get_|check_everything$)/);
   });
 });
 

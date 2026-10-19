@@ -13,6 +13,7 @@ export const QUICK_PLAN: Record<QuickId, { tool: string; args: Record<string, un
   comments: [{ tool: "list_comments", args: { unanswered: true, limit: 10 } }],
   messages: [{ tool: "list_conversations", args: { unanswered: true, limit: 10 } }],
   scheduled: [{ tool: "list_scheduled_posts", args: {} }],
+  check: [{ tool: "check_everything", args: {} }],
   coach: [{ tool: "get_coach_note", args: {} }],
 };
 
@@ -29,6 +30,7 @@ export const NEWS_QUICK_PLAN: Record<string, { tool: string; args: Record<string
   comments: [{ tool: "list_comments", args: { unanswered: true, limit: 10 } }],
   messages: [{ tool: "list_conversations", args: { unanswered: true, limit: 10 } }],
   scheduled: [{ tool: "list_scheduled_posts", args: {} }],
+  check: [{ tool: "check_everything", args: {} }],
 };
 
 export const quickPlanOf = (kind: ChatKind, id: string): { tool: string; args: Record<string, unknown> }[] =>

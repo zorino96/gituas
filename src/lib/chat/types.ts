@@ -92,6 +92,27 @@ export interface WriteResult {
 }
 
 /**
+ * What reading a change back from the live data found, after the change was made. Only a real read-back produces a report: a tool
+ * with no verifier has none, and nothing ever says "checked" without one.
+ */
+export interface VerifyReport {
+  /** ok: the live state matches what was asked. problem: something does not (see `problems`). */
+  status: "ok" | "problem";
+  /** What was compared and found right, in the person's language, one short plain line each. */
+  checked: string[];
+  /** What does not match, in the person's language, one plain sentence each. */
+  problems: string[];
+  /** For the model, English: what to propose to put it right (a tool and its arguments in words). Only with a problem. */
+  fix?: string;
+}
+
+/**
+ * Reads the change back. Read-only, quick (it has about six seconds), and it looks at the stored state, never at the tool's own
+ * answer alone. Returns null when there is nothing to compare. Words for the person are in `ctx.lang`.
+ */
+export type VerifyFn = (ctx: ToolCtx, args: unknown, done: { text: string; data?: unknown; runId: string }) => Promise<VerifyReport | null>;
+
+/**
  * A tool refuses (bad target, nothing to change, a feature that is off). The message goes back to the model as the tool's result, so
  * the model can ask the person or try something else. Write it for the model, in English, without any secret.
  */
@@ -186,6 +207,8 @@ export interface RunDto {
   jobId?: string;
   /** A card that takes long (a picture) is run from its own request; the screen shows a longer wait. */
   long: boolean;
+  /** The change was read back from the live data after it was made (only for tools that have a check). */
+  verify?: VerifyReport;
 }
 
 export interface MessageDto {
@@ -252,11 +275,11 @@ export interface ChatRequest {
 }
 
 /** The shop's shortcut buttons. */
-export const QUICK_IDS = ["today", "orders", "comments", "messages", "scheduled", "coach"] as const;
+export const QUICK_IDS = ["today", "orders", "comments", "messages", "scheduled", "check", "coach"] as const;
 export type QuickId = (typeof QUICK_IDS)[number];
 export const isQuickId = (v: unknown): v is QuickId => typeof v === "string" && (QUICK_IDS as readonly string[]).includes(v);
 /** The news desk's shortcut buttons. */
-export const NEWS_QUICK_IDS = ["today", "stories", "ready", "comments", "messages", "scheduled"] as const;
+export const NEWS_QUICK_IDS = ["today", "stories", "ready", "comments", "messages", "scheduled", "check"] as const;
 export type NewsQuickId = (typeof NEWS_QUICK_IDS)[number];
 /** A shortcut of either kind of workspace. */
 export type AnyQuickId = QuickId | NewsQuickId;

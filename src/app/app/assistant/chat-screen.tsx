@@ -445,6 +445,10 @@ export function ChatScreen({
   );
 
   const sendTyped = () => void send({ text: input });
+  // "Fix it" is offered on the newest answer that holds cards (the closing message of the turn comes after it and has none).
+  const lastWithRuns = state.messages.reduce((at, m, i) => (m.role === "assistant" && m.runs.length > 0 ? i : at), -1);
+  // "Fix it" on a card whose read-back found a problem: the same as the person asking for it in words.
+  const fix = (run: RunDto) => void send({ text: t.runs.fixPrompt(run.title) });
   // Retry: the words in the box, else the last message again (the box is empty when the turn failed after the server kept the message).
   const retry = () => {
     const plan = retryPlan(input, lastSent.current);
@@ -515,8 +519,16 @@ export function ChatScreen({
             </div>
           ) : (
             <div className="ch-list" role="log" aria-label={t.title}>
-              {state.messages.map((m) => (
-                <MessageView key={m.id} message={m} now={now} deciding={deciding} decideErrors={decideErrors} onDecide={decide} />
+              {state.messages.map((m, i) => (
+                <MessageView
+                  key={m.id}
+                  message={m}
+                  now={now}
+                  deciding={deciding}
+                  decideErrors={decideErrors}
+                  onDecide={decide}
+                  onFix={i === lastWithRuns && !state.streaming && !blocked && !textBlocked ? fix : undefined}
+                />
               ))}
             </div>
           )}
