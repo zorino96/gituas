@@ -52,7 +52,7 @@ export async function GET(req: Request) {
   const queued = await db.newsVideo.findMany({ where: { status: "QUEUED", tries: { lt: VIDEO_MAX_TRIES } }, orderBy: { createdAt: "asc" }, take: 2, select: { id: true } });
   for (const q of queued) {
     if (Date.now() - started > 25_000) break;
-    await prepareVideo(q.id);
+    await prepareVideo(q.id, { proofread: true });
   }
 
   const candidates = await db.newsVideo.findMany({ where: waiting, orderBy: { createdAt: "asc" }, take: PER_CALL });

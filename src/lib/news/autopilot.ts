@@ -28,7 +28,7 @@ import { RETRY_DEADLINE_MS } from "./draft";
 import { takeDaily } from "@/lib/ai/slots";
 import { draftTriesPerDay } from "./ai-budget";
 import { loadActiveFocus } from "./focus";
-import { isLate, prepareQueuedVideos, prepareVideo, queueVideoIfWanted } from "./video";
+import { isLate, prepareQueuedVideos, prepareVideo, queueVideoIfWanted, PROOFREAD_MIN_LEFT_MS } from "./video";
 import { matchesChoice, normalizeChoice } from "./taxonomy";
 import { sameStoryTooClose } from "./voice";
 import { photoForStory } from "./photos";
@@ -608,7 +608,7 @@ async function handleStory(run: Run, story: Story): Promise<"next" | "stop"> {
       draftId: saved.id,
       videoId,
     });
-    if (run.deadline - Date.now() > 25_000) await prepareVideo(videoId);
+    if (run.deadline - Date.now() > 25_000) await prepareVideo(videoId, { proofread: run.deadline - Date.now() > PROOFREAD_MIN_LEFT_MS });
     return "next";
   }
   // A post that fails ends the run: the next story would most likely fail the same way.

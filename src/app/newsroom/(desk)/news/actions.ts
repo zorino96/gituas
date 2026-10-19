@@ -721,7 +721,7 @@ export async function makeVideoAction(draftId: string, clips: string[]): Promise
   });
   await countUsage(ws.id, "video");
   // Script and voice right after the answer; the render worker picks it up within a few minutes.
-  after(() => prepareVideo(job.id).then(() => undefined));
+  after(() => prepareVideo(job.id, { proofread: true }).then(() => undefined));
   return { ok: true, video: job };
 }
 

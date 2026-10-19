@@ -16,6 +16,7 @@
 import { put } from "@vercel/blob";
 
 import { db } from "@/lib/db";
+import { polishReelSegments } from "@/lib/ai/proofread";
 import { completeJson } from "@/lib/ai/provider";
 import { countUsage, usageOf } from "@/lib/billing/limits";
 import { videoQuotaFor } from "@/lib/billing/plans";
@@ -253,7 +254,7 @@ export function soraniDate(d: Date): string {
  * QUEUED → VOICED: script by the AI, one Pawan clip per segment, clips on Blob, props saved.
  * A failure counts a try; after VIDEO_MAX_TRIES the job FAILED (the card goes out instead).
  */
-export async function prepareVideo(jobId: string): Promise<boolean> {
+export async function prepareVideo(jobId: string, opts: { proofread?: boolean } = {}): Promise<boolean> {
   const found = await db.newsVideo.findUnique({ where: { id: jobId } });
   if (!found || found.status !== "QUEUED") return false;
   if (found.tries >= VIDEO_MAX_TRIES) {
@@ -276,7 +277,10 @@ export async function prepareVideo(jobId: string): Promise<boolean> {
     if (!draft || !item || !tenant) throw new Error("draft or story missing");
     const { system, user } = reelPrompt(draft);
     // The owner's order for video scripts (DeepSeek V4.1 Flash first, Haiku after it): see videoOrder in the AI provider.
-    const script = (await completeJson({ system, user, strength: "fast", thinking: false, free: "draft", prefer: "video" }, parseReelScript)).data;
+    const written = (await completeJson({ system, user, strength: "fast", thinking: false, free: "draft", prefer: "video" }, parseReelScript)).data;
+    // The spoken sentences go through the Sorani proofreader before the voice reads them, when the caller has the 13 to 15 s it takes
+    // (a refused or late correction leaves the sentences as the model wrote them).
+    const script = opts.proofread ? { ...written, segments: await polishReelSegments(written.segments, { timeoutMs: 18_000 }) } : written;
 
     // The desk's own voice (ENTERPRISE): read once per video; without it a ready-made voice reads.
     const clone = job.voice === CUSTOM_VOICE ? await cloneVoiceFor(job.tenantId) : null;
@@ -354,6 +358,9 @@ export function ownClips(tenantId: string, clips: unknown): string[] | null {
   return out;
 }
 
+/** A run needs this much time left to wait for the proofreader as well (script 2 s, the proofreader 15 s, 4 voice clips 16 s, and a margin). */
+export const PROOFREAD_MIN_LEFT_MS = 48_000;
+
 /** Prepare this desk's queued videos while time allows. Never throws. */
 export async function prepareQueuedVideos(tenantId: string, deadline: number): Promise<void> {
   try {
@@ -361,7 +368,7 @@ export async function prepareQueuedVideos(tenantId: string, deadline: number): P
     for (const j of queued) {
       // One video takes the AI plus 3–4 voice clips: about 10–20 s.
       if (deadline - Date.now() < 25_000) break;
-      await prepareVideo(j.id);
+      await prepareVideo(j.id, { proofread: deadline - Date.now() > PROOFREAD_MIN_LEFT_MS });
     }
   } catch (e) {
     console.error("[video] prepare run failed:", e instanceof Error ? e.message : "unknown error");
