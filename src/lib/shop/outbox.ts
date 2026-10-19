@@ -118,6 +118,16 @@ export async function runJob(jobId: string, opts: { immediate?: boolean } = {}):
     await db.outboxJob.update({ where: { id: job.id }, data: { nextAttemptAt: new Date(Date.now() + HOUR), lastError: r.error } });
     return;
   }
+  // A text over the platform's length limit can never be sent. It is FAILED at once (never retried), with a short code the owner's log
+  // can show, and the message goes to the owner's "needs you" list when it was an answer: the buyer got nothing. The owner's words are
+  // never cut to fit.
+  if (r.failure === "too_long") {
+    await db.outboxJob.update({ where: { id: job.id }, data: { status: "FAILED", attempts: { increment: 1 }, lastError: "too_long" } });
+    if (job.kind === "PRIVATE_REPLY" || job.kind === "DM_ANSWER") {
+      await db.conversationMessage.update({ where: { id: job.messageId }, data: { outcome: "FLAGGED", outcomeReason: "needs_you" } }).catch(() => undefined);
+    }
+    return;
+  }
   if (!retryable(r.failure)) {
     await db.outboxJob.update({ where: { id: job.id }, data: { status: "SKIPPED", attempts: { increment: 1 }, lastError: `${r.failure}: ${r.error}`.slice(0, 300) } });
     return;

@@ -119,7 +119,7 @@ interface ToolCommon<S extends z.ZodTypeAny> {
 export interface ReadToolDef<S extends z.ZodTypeAny> extends ToolCommon<S> {
   risk: "read";
   /** The result carries text written by customers or other third parties: it is wrapped as data and the turn is held to Confirm. */
-  untrusted?: boolean;
+  untrusted?: boolean | ((ctx: ToolCtx) => boolean);
   run(ctx: ToolCtx, args: z.output<S>): Promise<ReadResult>;
 }
 
@@ -245,8 +245,8 @@ export interface ChatRequest {
   /** Files attached to this message. */
   attachments?: ChatAttachment[];
   review?: boolean;
-  /** A shortcut that needs no AI: the chat runs the read tools itself and costs nothing. */
-  quick?: QuickId;
+  /** A shortcut that needs no AI: the chat runs the read tools itself and costs nothing (the buttons of a shop or of a desk). */
+  quick?: AnyQuickId;
   /** The workspace the screen was opened for (a tab left behind is refused). */
   workspaceId: string;
 }

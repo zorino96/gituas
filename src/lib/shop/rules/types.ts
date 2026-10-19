@@ -43,6 +43,11 @@ export type ActionKind = (typeof ACTION_KINDS)[number];
 
 /** Longest text the owner may set as a fixed reply, in characters (not UTF-16 units). */
 export const MAX_TEXT = 900;
+/**
+ * Longest message Instagram accepts, in UTF-8 BYTES, not characters. A Sorani or Arabic letter is 2 bytes, so 900 characters of
+ * Sorani can be about 1,700 bytes. A rule that can run on Instagram refuses any reply text over this; the others only get a warning.
+ */
+export const MAX_TEXT_BYTES = 1000;
 /** How many rules in one shop may be ACTIVE at once. */
 export const MAX_ACTIVE_RULES = 10;
 /** A hidden ceiling per sender: rule replies to one person in an hour, over all rules. A bot on the other side is stopped here. */
@@ -64,7 +69,7 @@ export type NoMatchReason = (typeof NO_MATCH_REASONS)[number];
 /** Why a rule whose trigger matched did not act (all of it, or only its reply). */
 export const SKIP_REASONS = [
   "order_in_progress", "cap_rule_day", "cap_person", "cap_sender_hour", "reply_needs_label", "never_answered", "order_flow",
-  "low_confidence", "limited", "private_window", "private_reply_used", "product_card", "reply_taken", "pause_needs_reply",
+  "low_confidence", "limited", "private_window", "private_reply_used", "product_card", "reply_taken", "pause_needs_reply", "opt_out",
 ] as const;
 export type SkipReason = (typeof SKIP_REASONS)[number];
 
@@ -76,7 +81,7 @@ export const LINT_CODES = [
   "trigger_empty", "keyword_contradiction", "intent_type_conflict", "platform_channel", "keyword_short", "keyword_common",
   "self_trigger", "too_many_rules", "duplicate", "examples_fail", "reply_on_order", "backtest_too_broad",
   "keyword_contains_short", "overlap", "same_text", "text_link", "text_phone", "text_price", "card_replaced",
-  "language_script_mismatch", "single_language_text", "pause_is_lasting", "backtest_broad",
+  "language_script_mismatch", "single_language_text", "pause_is_lasting", "backtest_broad", "text_long_bytes",
 ] as const;
 export type LintCode = (typeof LINT_CODES)[number];
 

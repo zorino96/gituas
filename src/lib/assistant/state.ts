@@ -8,6 +8,7 @@ import { imagesLeft } from "@/lib/ai/image-left";
 import { allowanceOf, OPTIONAL_SHARE } from "@/lib/ai/meter";
 import { db } from "@/lib/db";
 import { interviewDone, loadProfiles, profileEnabled, type Profile } from "@/lib/shop/profile";
+import { rulesEnabled } from "@/lib/shop/rules/enabled";
 
 export interface AssistantConnections {
   facebook: { connected: boolean; name?: string };
@@ -57,13 +58,17 @@ export async function loadAssistantState(tenantId: string, connections: Assistan
   const video = adVideoEnabled();
   // What each owner told Gituas about their work (only while the interview is switched on); their own words, no buyer data.
   const profiles = profileEnabled() ? await loadProfiles(stores.map((s) => s.id)) : null;
-  const [allowance, videos, images, waiting, products] = await Promise.all([
+  const [allowance, videos, images, waiting, products, rules] = await Promise.all([
     allowanceOf({ scope: tenantId }).catch(() => null),
     video ? workspaceVideos(tenantId).catch(() => null) : null,
     imageEnabled() ? imagesLeft(tenantId).catch(() => null) : null,
     db.conversationMessage.count({ where: { store: { tenantId }, outcome: "FLAGGED", createdAt: { gt: new Date(now - 7 * DAY) } } }).catch(() => null),
     // Names only: so the chat can say which product a post or a video is about.
     db.product.findMany({ where: { active: true, store: { tenantId } }, orderBy: { updatedAt: "desc" }, take: 30, select: { name: true } }).catch(() => []),
+    // Counts of the owner's automatic rules, only while they are switched on (one grouped query; a failure leaves the line out).
+    rulesEnabled()
+      ? db.shopRule.groupBy({ by: ["status"], where: { tenantId, status: { in: ["ACTIVE", "PAUSED", "PAUSED_AUTO"] } }, _count: { _all: true } }).catch(() => null)
+      : null,
   ]);
   return {
     today: new Date(now).toISOString().slice(0, 10),
@@ -92,6 +97,7 @@ export async function loadAssistantState(tenantId: string, connections: Assistan
     aiVideos: videos ? { leftThisMonthFastModel: videos.LITE.left, leftThisMonthStrongModel: videos.PRO.left, madeToday: videos.today.used, perDay: videos.today.max } : undefined,
     aiPicturesLeft: images ?? undefined,
     messagesWaitingForOwnerThisWeek: waiting,
+    automaticRules: rules ? { active: rules.filter((r) => r.status === "ACTIVE").reduce((n, r) => n + r._count._all, 0), paused: rules.filter((r) => r.status !== "ACTIVE").reduce((n, r) => n + r._count._all, 0) } : undefined,
     productNames: products.map((p) => p.name.slice(0, 80)),
   };
 }

@@ -29,7 +29,7 @@ export async function TodayCoach({ tenantId, lang }: { tenantId: string; lang: L
     <div style={{ marginBottom: 14 }}>
       {showTiles && tiles && (
         <>
-          <p className="gm-sec">{t.coach.ordersTitle}</p>
+          <p className="gm-sec">{t.coach.ordersHeading}</p>
           <div className="gm-stats" style={{ marginBottom: 14 }}>
             <Link href="/app/orders" className="gm-stat">
               <span className="gm-stat-icon" aria-hidden="true"><ShoppingBag /></span>

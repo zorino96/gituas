@@ -26,18 +26,21 @@ import { isAutonomy, type Autonomy, type ChatErrorCode, type MessageDto, type Th
 
 type Fail = { ok: false; code: ChatErrorCode };
 
-export async function listThreadsAction(input?: { q?: string }): Promise<{ ok: true; threads: ThreadSummary[] } | Fail> {
+export async function listThreadsAction(input?: { q?: string; /** The workspace the screen was opened for. */ workspaceId?: string }): Promise<{ ok: true; threads: ThreadSummary[] } | Fail> {
   const who = await actorFromSession();
   if (!who.ok) return { ok: false, code: who.code };
+  // A tab left open after the person switched workspace in another tab must not show the other workspace's chats.
+  if (typeof input?.workspaceId === "string" && input.workspaceId !== who.actor.tenantId) return { ok: false, code: "workspace" };
   const threads = await listThreads({ tenantId: who.actor.tenantId, userId: who.actor.userId }, { q: typeof input?.q === "string" ? input.q : undefined });
   return { ok: true, threads };
 }
 
 export async function getThreadAction(
-  input: { id: string },
+  input: { id: string; workspaceId?: string },
 ): Promise<{ ok: true; thread: ThreadSummary; messages: MessageDto[]; remaining: { day: number; month: number }; /** A turn of this thread is still running on the server. */ busy: boolean } | Fail> {
   const who = await actorFromSession();
   if (!who.ok) return { ok: false, code: who.code };
+  if (typeof input?.workspaceId === "string" && input.workspaceId !== who.actor.tenantId) return { ok: false, code: "workspace" };
   const thread = await getOwnThread(String(input?.id ?? ""), { tenantId: who.actor.tenantId, userId: who.actor.userId });
   if (!thread) return { ok: false, code: "not_found" };
   // A card left RUNNING by a function that was cut off is settled now, so it does not spin for ever.

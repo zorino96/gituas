@@ -75,6 +75,7 @@ export async function runShop(ctx: ToolCtx, tool: ToolName, args: object): Promi
     args: args as Record<string, unknown>,
     attachments: attachmentsOf(ctx),
     review: ctx.review,
+    igDeadlineMs: Math.max(15_000, Math.min(30_000, ctx.deadline - Date.now() - 20_000)),
   });
   if (!r.result.ok) return { ok: false, text: r.result.error };
   const done = r.result;

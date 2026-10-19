@@ -261,6 +261,18 @@ describe("lintRule: other warnings", () => {
     expect(codes(lintRule(spec({ actions: [{ do: "flag_owner" }, { do: "pause_thread" }] }))).warnings).toEqual(["pause_is_lasting"]);
   });
 
+  it("warns about a text over Instagram's 1000 bytes on a rule that is not on Instagram, with the biggest size (the schema refuses it on Instagram)", () => {
+    const facebookOnly = { trigger: { channel: "comment", platforms: ["META_FACEBOOK"], keywords: { any: ["info"] } } };
+    const long = "ب".repeat(600); // 600 letters, 1,200 bytes: within the 900-character limit
+    const r = lintRule(spec({ ...facebookOnly, ...reply(long) }));
+    expect(r.ok).toBe(true);
+    expect(r.warnings).toEqual([{ code: "text_long_bytes", level: "warning", params: { bytes: 1200 } }]);
+    // exactly 1000 bytes is fine, and so is a short text
+    expect(codes(lintRule(spec({ ...facebookOnly, ...reply("ب".repeat(500)) }))).warnings).toEqual([]);
+    // the biggest of several texts is the one reported
+    expect(lintRule(spec({ ...facebookOnly, ...reply("short", { ar: "ب".repeat(700), ckb: "ب".repeat(600) }) })).warnings[0].params).toEqual({ bytes: 1400 });
+  });
+
   it("warnings do not stop a rule", () => {
     const r = lintRule(spec(reply("Call 07501234567")));
     expect(r.ok).toBe(true);

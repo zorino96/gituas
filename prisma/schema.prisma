@@ -171,6 +171,7 @@ model ConversationMessage {
   @@index([platform, channelType])
   @@index([projectId])
   @@index([storeId, authorId])
+  @@index([storeId, createdAt])
   ruleRuns          RuleRun[]
 }
 

@@ -781,8 +781,12 @@ function videoPart(p: NewsSettingsProps, lang: Lang, nw: NewsWords, t: Dict, bas
   return { data, view };
 }
 
-function brandPart(p: NewsSettingsProps, nw: NewsWords, w: ReturnType<typeof words>, t: Dict, base: string): Part {
+/** The most the desk's design prompt may hold (saveDesignPromptAction cuts at the same number). */
+export const DESIGN_PROMPT_MAX = 1_200;
+
+function brandPart(p: NewsSettingsProps, nw: NewsWords, w: ReturnType<typeof words>, t: Dict, base: string, detail: boolean): Part {
   const k = p.kit;
+  const prompt = stripInvisible(p.designPrompt ?? "").trim();
   const data = compact({
     colours: { primary: k.primary, accent: k.accent, text: k.text },
     headlineFont: k.headingFont,
@@ -791,7 +795,9 @@ function brandPart(p: NewsSettingsProps, nw: NewsWords, w: ReturnType<typeof wor
     headlinePosition: k.frameText,
     logoCorner: k.logoCorner,
     sectionFrames: p.sectionFrames.map((f) => ({ section: f.section, headlinePosition: f.frameText, note: f.note ? clip(f.note, 120) : undefined, hasReference: !!f.referencePath })),
-    designPrompt: p.designPrompt ? clip(p.designPrompt, 300) : undefined,
+    // set_design_prompt REPLACES the whole text, so the model must read all of it (up to 1200 characters) before it writes a new one:
+    // in parts that the wrapper's 300-character cut leaves alone (join them with a space). The short "all" answer holds the size only.
+    ...(prompt ? (detail ? { designPromptParts: textParts(prompt) } : { designPromptChars: [...prompt].length, designPromptNote: "read it with get_desk_settings area brand" }) : {}),
     writingStyleNote: p.voiceNote ? clip(p.voiceNote, 300) : undefined,
     sourcePictures: p.sourceImages,
     aiPictures: p.aiPictures,
@@ -812,7 +818,8 @@ function brandPart(p: NewsSettingsProps, nw: NewsWords, w: ReturnType<typeof wor
         { label: s.frameTextLabel, value: (s.frameText as Record<string, string>)[k.frameText] ?? k.frameText },
         { label: s.bdFrameLogo, value: corner },
         { label: s.frames.sec, value: t.fmt.num(p.sectionFrames.length) },
-        ...(p.designPrompt ? [{ label: s.frames.promptLabel, value: clip(p.designPrompt, 300) }] : []),
+        // The person owns this text and reads all of it.
+        ...(prompt ? [{ label: s.frames.promptLabel, value: clip(prompt, DESIGN_PROMPT_MAX) }] : []),
         ...(p.voiceNote ? [{ label: s.voiceSec, value: clip(p.voiceNote, 300) }] : []),
         { label: s.bdSourceImg, value: p.sourceImages ? w.on : w.off },
         { label: s.bdAiPic, value: p.aiPictures ? w.on : w.off },
@@ -884,7 +891,7 @@ export function settingsFor(p: NewsSettingsProps, x: SettingsExtra, area: Settin
     filter: () => filterPart(p, nw, w, t, base),
     autopilot: () => autopilotPart(p, nw, t, base),
     video: () => videoPart(p, lang, nw, t, base),
-    brand: () => brandPart(p, nw, w, t, base),
+    brand: () => brandPart(p, nw, w, t, base, detail),
     accounts: () => accountsPart(p, x, nw, w, t, base),
     library: () => libraryPart(p, detail, t, base),
   };

@@ -18,9 +18,12 @@ import { parsePrice } from "@/lib/shop/forms";
 import { clip, inShop, pinOf, platformName, productNotFound, refuse, shopFor } from "./writes-common";
 import { newsCardGuard, newsRunGuard } from "./writes-news-common";
 import { NW } from "./writes-news-words";
+import { whatsappCard, whatsappSend } from "./writes-wa";
 import { LABEL, NEW } from "./writes-words";
 
 const platform = z.enum(["FB", "IG"]).describe("FB = Facebook, IG = Instagram");
+/** Private messages also go out on WhatsApp (a shop only): comments do not. */
+const messagePlatform = z.enum(["FB", "IG", "WA"]).describe("FB = Messenger, IG = Instagram DM, WA = WhatsApp (shops only)");
 
 /** The order statuses of the Order model, in the order the Orders screen lists them. */
 const ORDER_STATUSES = ["NEW", "CONFIRMED", "SENT", "DELIVERED", "RETURNED", "CANCELLED"] as const;
@@ -44,8 +47,8 @@ const SCHEMA = {
     text: z.string().trim().min(1).max(REPLY_LIMIT.FB).describe("The public reply, as the owner would write it"),
   }),
   send_message: z.object({
-    platform,
-    conversation: z.string().trim().min(1).max(200).describe("The conversation's id exactly as list_conversations or get_conversation gives it"),
+    platform: messagePlatform,
+    conversation: z.string().trim().min(1).max(200).describe("The conversation's id exactly as list_conversations or get_conversation gives it (with that item's platform)"),
     text: z.string().trim().min(1).max(1000),
   }),
   cancel_scheduled_post: z.object({
@@ -240,7 +243,8 @@ const replyToComment = defineWrite({
   name: "reply_to_comment",
   description:
     "Publicly reply to a comment as the shop or the news desk. platform: FB or IG. comment: the comment's id exactly as list_comments gives it. " +
-    "text: the reply, in the language of the comment, as the owner would write it (up to 2200 characters on Instagram and 8000 on Facebook). Everyone can read it.",
+    "text: the reply, in the language of the comment, as the owner would write it (up to 2200 characters on Instagram and 8000 on Facebook). Everyone can read it. " +
+    "Any run of ten or more digits is taken for a phone number and removed from the text unless the person typed it themselves: write a big amount with a word (1.5 billion IQD), not in full digits.",
   schema: SCHEMA.reply_to_comment,
   kinds: ["shop", "news"],
   permission: "engage",
@@ -273,8 +277,10 @@ const replyToComment = defineWrite({
 const sendMessage = defineWrite({
   name: "send_message",
   description:
-    "Send a private message in an existing conversation, as the shop or the news desk. platform: FB (Messenger) or IG (Instagram DM). conversation: the conversation's id exactly as list_conversations or get_conversation gives it. " +
-    "text: up to 1000 characters. Meta allows this only within 24 hours of the customer's last message; outside that window the tool is refused. WhatsApp is not supported.",
+    "Send a private message in an existing conversation, as the shop or the news desk. platform: FB (Messenger), IG (Instagram DM) or WA (WhatsApp, shops only). conversation: the conversation's id exactly as list_conversations or get_conversation gives it, with that item's platform. " +
+    "text: up to 1000 characters. Any run of ten or more digits is taken for a phone number and removed from the text unless the person typed it themselves: write a big amount with a word (1.5 billion IQD). " +
+    "Meta and WhatsApp allow this only within 24 hours of the customer's last message; outside that window the tool is refused. On WhatsApp this is free text only: message templates are not part of the chat, " +
+    "a customer who wrote STOP is never written to, and once it is sent the shop's automatic replies stay out of that chat for good (nothing in the app switches them back on).",
   schema: SCHEMA.send_message,
   kinds: ["shop", "news"],
   permission: "engage",
@@ -283,6 +289,7 @@ const sendMessage = defineWrite({
   label: (lang) => LABEL.conversation[lang],
   async card(ctx, args) {
     await deskCard(ctx);
+    if (args.platform === "WA") return whatsappCard(ctx, args);
     const { conv, accountName } = await findConversation(ctx, args.platform, args.conversation);
     const last = [...conv.messages].reverse().find((m) => !m.fromUs);
     const lines = [
@@ -297,6 +304,7 @@ const sendMessage = defineWrite({
   execute: async (ctx, args) =>
     (await deskRun(ctx)) ??
     guarded(ctx, async () => {
+      if (args.platform === "WA") return whatsappSend(ctx, args);
       const { recipient, accountId } = await findConversation(ctx, args.platform, args.conversation);
       const r = await sendMessageAction(args.platform, recipient, args.text, accountId);
       return fromAction(r, NEW.done.sent[ctx.lang]);

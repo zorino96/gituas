@@ -54,6 +54,7 @@ export const chatEn: typeof chatCkb = {
     jumpLatest: "Jump to latest",
     dropHere: "Drop a picture or video here",
     retry: "Try again",
+    reload: "Reload the page",
     openLink: "Open",
     imageOf: "Attached picture",
   },

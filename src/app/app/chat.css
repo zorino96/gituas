@@ -222,6 +222,7 @@ a.ch-item:hover { background: var(--raised); }
 .ch-review { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding-inline: 4px; color: var(--muted); font-size: 12px; line-height: 1.45; cursor: pointer; }
 .ch-review input { flex: none; width: 15px; height: 15px; margin: 0; accent-color: var(--ink); }
 .ch-review span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ch-bar .ch-send { margin-inline-start: auto; } /* stays at the end when the review switch (a shop's) is not there to fill the row */
 .ch-send { flex: none; width: 38px; height: 38px; display: inline-grid; place-items: center; border: 0; border-radius: 50%; background: var(--ink); color: var(--ground); cursor: pointer; transition: opacity 0.15s; }
 .ch-send:disabled { background: var(--sunken); color: var(--faint); cursor: not-allowed; }
 .ch-foot { margin: 6px 0 0; text-align: center; font-size: 12px; line-height: 1.6; color: var(--faint); }

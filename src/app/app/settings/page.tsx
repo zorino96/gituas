@@ -5,7 +5,8 @@ import { currentWorkspace, loadAccountLists, loadConnections, requireWorkspace }
 import { can } from "@/lib/newsroom/roles";
 import { profileEnabled } from "@/lib/shop/profile";
 import { isUnlimited } from "@/lib/shop/redeem";
-import { chatEnabled } from "@/lib/chat/enabled";
+import { chatEnabled, newsChatEnabled } from "@/lib/chat/enabled";
+import { loadDeskAccess } from "@/app/newsroom/desk-access";
 import { getChatStateAction } from "../assistant/chat-actions";
 import { SettingsClient } from "./settings-client";
 
@@ -37,10 +38,24 @@ export default async function SettingsPage({
   // The test-code card is for the workspace owner only.
   const redeem = can(ws.role, "team") ? { unlimited: await isUnlimited(ws.id) } : null;
 
-  // The Chat card (how far the chat may act by itself, delete my chats) is for the shop's owner and admins, while the chat is on.
-  const chatState = ws.kind === "MERCHANT" && chatEnabled() && can(ws.role, "configure") ? await getChatStateAction().catch(() => null) : null;
+  // The Chat card (how far the chat may act by itself, delete my chats) is for the owner and admins of a shop, or of a news desk
+  // once the desk's chat is on.
+  const desk = ws.kind === "NEWS";
+  const chatOn = desk ? newsChatEnabled() : chatEnabled();
+  const chatState = chatOn && can(ws.role, "configure") ? await getChatStateAction().catch(() => null) : null;
+  // A desk whose trial or plan has ended: its chat can only read, and the card says so.
+  const frozen = desk && chatState?.ok ? (await loadDeskAccess(ws.id).catch(() => null))?.active === false : false;
   const chat = chatState?.ok
-    ? { workspaceId: ws.id, autonomy: chatState.autonomy, canSetAutonomy: chatState.canSetAutonomy, remaining: chatState.remaining, allowancePercent: chatState.allowancePercent }
+    ? {
+        workspaceId: ws.id,
+        kind: desk ? ("news" as const) : ("shop" as const),
+        autonomy: chatState.autonomy,
+        canSetAutonomy: chatState.canSetAutonomy,
+        remaining: chatState.remaining,
+        // A desk's chat is bounded by plan turns, not by an AI allowance: there is no percentage to show.
+        allowancePercent: desk ? null : chatState.allowancePercent,
+        frozen,
+      }
     : null;
 
   return (

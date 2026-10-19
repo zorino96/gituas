@@ -18,7 +18,8 @@ function noteFor(call: { id: string; name: string }, tools: Map<string, ChatMess
     const run = runs.get(runId);
     if (!run) return `${call.name} → proposed`;
     const status = effectiveStatus(run);
-    const text = (run.result as { text?: unknown } | null)?.text;
+    // The result sentence of a draft carries the AI headline, written from third-party feed text: not quoted in later turns.
+    const text = call.name === "draft_story" || call.name === "improve_story" ? undefined : (run.result as { text?: unknown } | null)?.text;
     if (status === "DONE") return `${call.name} → done${typeof text === "string" ? `: ${cut(text, 120)}` : ""}`;
     if (status === "FAILED") return `${call.name} → failed${run.error ? `: ${cut(run.error, 120)}` : ""}`;
     if (status === "PROPOSED") return `${call.name} → waiting for the person's Confirm`;

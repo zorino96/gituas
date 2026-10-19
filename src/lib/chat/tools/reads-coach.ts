@@ -50,7 +50,7 @@ export function noteView(n: ReadNote, lang: Lang): ViewBlock[] {
         { label: w.buyerMessages, value: `${t.fmt.num(f.messages.dm)} (${t.fmt.num(f.messages.dmBefore)})` },
         { label: w.comments, value: `${t.fmt.num(f.messages.comments)} (${t.fmt.num(f.messages.commentsBefore)})` },
         { label: t.home.waitingMessages, value: t.fmt.num(f.waiting) },
-        { label: t.home.postsThisWeek, value: t.fmt.num(f.posts.published) },
+        { label: t.coach.postsPerPlatform, value: t.fmt.num(f.posts.published) },
       ],
     },
     { kind: "list", title: `${t.coach.noteTitle} · ${isolateLtr(n.week)}`, items: n.body.points.map((p) => ({ title: p.text })) },

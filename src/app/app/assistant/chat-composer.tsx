@@ -6,7 +6,7 @@
 import { useLayoutEffect, useRef, type RefObject } from "react";
 import { ArrowUp, Paperclip, Square, X } from "lucide-react";
 
-import { QUICK_IDS, type QuickId } from "@/lib/chat/types";
+import { QUICK_IDS } from "@/lib/chat/types";
 import { useT } from "@/lib/i18n/client";
 import { ACCEPT, MAX_FILES, pastedFiles } from "./chat-files";
 import type { ChatUploads } from "./use-chat-uploads";
@@ -19,6 +19,8 @@ export function Composer({
   onSend,
   onStop,
   onQuick,
+  quickIds = QUICK_IDS,
+  showReview = true,
   streaming,
   textBlocked,
   uploads,
@@ -31,7 +33,12 @@ export function Composer({
   onChange: (v: string) => void;
   onSend: () => void;
   onStop: () => void;
-  onQuick: (id: QuickId) => void;
+  /** A shortcut was pressed. The ids are the workspace's own (the shop's or the news desk's); the server checks them again. */
+  onQuick: (id: string) => void;
+  /** The shortcut buttons to show, in order. The shop's by default. */
+  quickIds?: readonly string[];
+  /** The "let Gituas review my idea first" switch: it only matters for the shop's pictures and videos, so a news desk hides it. */
+  showReview?: boolean;
   streaming: boolean;
   /** The day's (or month's) chat turns are used: the quick buttons still work, typed messages do not. Holds the words to show. */
   textBlocked: string | null;
@@ -43,7 +50,8 @@ export function Composer({
 }) {
   const all = useT();
   const c = all.chat.composer;
-  const q = all.chat.quick;
+  // Read by id: the desk's shortcuts (stories, ready) are not in the shop's typed list.
+  const q: Record<string, { label: string } | undefined> = all.chat.quick;
   const picker = useRef<HTMLInputElement>(null);
   const busy = streaming || uploads.uploading;
   const canSend = !busy && !textBlocked && value.trim().length > 0;
@@ -65,9 +73,9 @@ export function Composer({
       }}
     >
       <div className="ch-quick" role="group" aria-label={c.quickGroup} title={c.quickHint}>
-        {QUICK_IDS.map((id) => (
+        {quickIds.map((id) => (
           <button key={id} type="button" className="ch-chip" disabled={busy} onClick={() => onQuick(id)}>
-            {q[id].label}
+            {q[id]?.label ?? id}
           </button>
         ))}
       </div>
@@ -144,10 +152,12 @@ export function Composer({
               if (picked.length) void uploads.add(picked);
             }}
           />
-          <label className="ch-review" title={all.publish.ai.reviewHelp}>
-            <input type="checkbox" checked={review} disabled={streaming} onChange={(e) => onReview(e.target.checked)} />
-            <span>{all.publish.ai.reviewLabel}</span>
-          </label>
+          {showReview && (
+            <label className="ch-review" title={all.publish.ai.reviewHelp}>
+              <input type="checkbox" checked={review} disabled={streaming} onChange={(e) => onReview(e.target.checked)} />
+              <span>{all.publish.ai.reviewLabel}</span>
+            </label>
+          )}
           {streaming ? (
             <button type="button" className="ch-send stop" aria-label={c.stop} title={c.stop} onClick={onStop}>
               <Square size={14} fill="currentColor" aria-hidden="true" />

@@ -60,7 +60,7 @@ export function SettingsClient({
   setupStores?: { id: string; name: string }[];
   /** The test-code card (null = not shown: only the owner sees it). */
   redeem?: { unlimited: boolean } | null;
-  /** The Chat card (null = not shown: a news desk, the chat switched off, or a role that may not use it). */
+  /** The Chat card (null = not shown: the chat switched off for this kind of workspace, or a role that may not use it). */
   chat?: ChatCardState | null;
 }) {
   const base = useBase();
@@ -119,7 +119,7 @@ export function SettingsClient({
 
       <LanguageCard />
 
-      {chat && !desk && (
+      {chat && (
         <>
           <p className="gm-sec">{t.chat.settings.sec}</p>
           <ChatCard initial={chat} />

@@ -5,7 +5,9 @@
 import { setupNewsDesk } from "@/app/app/data";
 import { db } from "@/lib/db";
 import type { Lang } from "@/lib/i18n/lang";
+import { toolSpecs, toolsFor } from "./registry";
 import { loadMessages, runsOfThread } from "./store";
+import { ALL_TOOLS } from "./tools";
 import { executeChatRequest } from "./turn";
 import type { ChatEvent, ChatKind } from "./types";
 
@@ -40,6 +42,10 @@ export async function chatProbe(text: string, lang: Lang = "en", kind: ChatKind 
       toolErrors: rows.filter((m) => m.role === "tool" && m.content.startsWith('{"error"')).map((m) => m.content.slice(0, 160)),
       runs: runs.map((r) => ({ tool: r.tool, risk: r.risk, status: r.status })),
       models: [...new Set(rows.map((m) => (m.meta as { model?: string } | null)?.model).filter(Boolean))],
+      // At the assumed prices (see DESIGN.md): what the turn cost, and how many model calls it took.
+      costMicro: (answers.at(-1)?.meta as { costMicro?: number } | null)?.costMicro ?? null,
+      modelCalls: rows.filter((m) => m.role === "assistant").length,
+      toolSpecChars: JSON.stringify(toolSpecs(toolsFor(ALL_TOOLS, kind, "OWNER"))).length,
       answer: answers.at(-1)?.content.slice(0, 400) ?? null,
     };
   } finally {

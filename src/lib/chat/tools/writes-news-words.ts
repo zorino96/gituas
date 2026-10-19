@@ -164,6 +164,14 @@ export const NW = {
     "انتهت التجربة أو الخطة لهذا المكتب، لذلك يمكن القراءة فقط. اختر خطة لإجراء تغييرات.",
     "This desk's trial or plan has ended, so it can only read. Choose a plan to make changes.",
   ),
+  /** A scheduled post carries the story's current card: a new text or a new card would make that post fail when its time comes. */
+  scheduledHolds: say(
+    (when: string) =>
+      `ئەم هەواڵە پۆستێکی خشتەکراوی هەیە بۆ ${when} (بە کاتی بەغدا). ئەگەر دەق یان کارتەکەی بگۆڕدرێت ئەو پۆستە سەرناکەوێت. سەرەتا پۆستە خشتەکراوەکە هەڵبوەشێنەوە، پاشان دووبارە هەوڵ بدەرەوە.`,
+    (when: string) =>
+      `لهذا الخبر منشور مجدول في ${when} (بتوقيت بغداد). تغيير نصه أو بطاقته سيجعل ذلك المنشور يفشل. ألغِ المنشور المجدول أولاً ثم حاول مرة أخرى.`,
+    (when: string) => `This story has a post scheduled for ${when} (Baghdad time). Changing its text or card would make that post fail. Cancel the scheduled post first, then try again.`,
+  ),
   cardFailed: words("کارتەکە دروست نەبوو. دووبارە هەوڵ بدەرەوە.", "تعذّر إنشاء البطاقة. حاول مرة أخرى.", "The card could not be made. Try again."),
   cardChanged: words(
     "ڕەشنووسەکە لە کاتی دروستکردنی کارتەکەدا گۆڕا، بۆیە کارتەکە بەکارنەهات. دووبارە هەوڵ بدەرەوە.",

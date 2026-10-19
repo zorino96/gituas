@@ -2,7 +2,9 @@
 
 import { createContext, useContext, useMemo } from "react";
 
+import type { ChatKind } from "@/lib/chat/types";
 import { ar } from "./ar";
+import { newsChat } from "./chat-news";
 import { ckb, type Dict } from "./ckb";
 import { en } from "./en";
 import { dirOf, type Lang } from "./lang";
@@ -21,6 +23,17 @@ const Ctx = createContext<Value>({ lang: "ckb", t: ckb });
  */
 export function LangProvider({ lang, children }: { lang: Lang; children: React.ReactNode }) {
   const value = useMemo<Value>(() => ({ lang, t: lang === "ar" ? ar : lang === "en" ? en : ckb }), [lang]);
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+/**
+ * The chat's words for one kind of workspace. The shop reads the dictionary's own `chat`; a news desk reads the same text with its
+ * own wording laid over it (chat-news.*.ts), so the chat components keep reading `useT().chat` and need no second copy of anything.
+ * Put it around everything the chat draws: the frame, the screen, and the Settings > Chat card.
+ */
+export function ChatCopyProvider({ kind, children }: { kind: ChatKind; children: React.ReactNode }) {
+  const { lang, t } = useContext(Ctx);
+  const value = useMemo<Value>(() => (kind === "news" ? { lang, t: { ...t, chat: newsChat(lang) } } : { lang, t }), [kind, lang, t]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

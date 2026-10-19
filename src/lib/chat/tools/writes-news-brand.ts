@@ -332,7 +332,9 @@ const designSectionFrame = defineNews({
 const setDesignPrompt = defineNews({
   name: "set_design_prompt",
   description:
-    "Save, in the desk's own words, how its graphics look (colours, shapes, mood); the AI follows it for every frame it designs from now on. An empty text clears it. At most 1200 characters.",
+    "Save, in the desk's own words, how its graphics look (colours, shapes, mood); the AI follows it for every frame it designs from now on. An empty text clears it. At most 1200 characters. " +
+    "It REPLACES the whole text. To add to it or change a part, first call get_desk_settings with area brand: designPromptParts is the complete current text in parts (join them with a space; the DESK NOW snapshot shows only its first 300 characters), then send the complete new text. " +
+    "The card shows the whole earlier text next to the new one.",
   schema: SCHEMAS.set_design_prompt,
   permission: "configure",
   risk: "low",

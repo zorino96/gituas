@@ -81,7 +81,7 @@ export const say = (key: keyof typeof SAY, lang: Lang): string => SAY[key][lang]
 export const NEWS_QUICK: Record<string, { label: Table; lead: Table }> = {
   today: {
     label: { ckb: "ئەمڕۆ", ar: "اليوم", en: "Today" },
-    lead: { ckb: "ئەمە دۆخی ئەمڕۆی ڕۆژنامەنووسییەکەتە.", ar: "هذا وضع غرفة الأخبار اليوم.", en: "Here is your desk today." },
+    lead: { ckb: "ئەمە دۆخی ئەمڕۆی مێزی هەواڵەکەتە.", ar: "هذا وضع مكتب الأخبار اليوم.", en: "Here is your desk today." },
   },
   stories: {
     label: { ckb: "هەواڵە نوێکان", ar: "الأخبار الجديدة", en: "New stories" },

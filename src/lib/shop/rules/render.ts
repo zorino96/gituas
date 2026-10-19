@@ -296,6 +296,11 @@ const REASON: Record<ReasonCode, Tri> = {
     "الإيقاف يحدث مع رد القاعدة فقط، ولم يُرسل الرد.",
     "The pause goes together with the rule's reply, and the reply was not sent.",
   ),
+  opt_out: tri(
+    "نامەکە داوا دەکات نامەی بۆ نەنێردرێت، بۆیە یاسا وەڵامی ناداتەوە؛ بۆ خۆت دەمێنێتەوە.",
+    "الرسالة تطلب التوقف عن مراسلة صاحبها، لذلك لا ترد القاعدة عليها؛ تبقى لك.",
+    "The message asks us to stop writing to them, so a rule does not answer it; it stays with you.",
+  ),
 };
 
 /** The sentence for a reason code in the log. */
@@ -431,6 +436,11 @@ const LINT: Record<LintCode, Say> = {
     (p) => `ئەم یاسایە لە ${num(s(p, "share"), "ckb")}% ی نامە کۆنەکانی دووکانەکەت دەگونجێت؛ ڕەنگە زۆر گشتی بێت.`,
     (p) => `تنطبق هذه القاعدة على ${num(s(p, "share"), "ar")}% من رسائل متجرك السابقة؛ قد تكون عامة أكثر من اللازم.`,
     (p) => `This rule matches ${s(p, "share")}% of your shop's past messages; it may be too broad.`,
+  ),
+  text_long_bytes: says(
+    (p) => `یەکێک لە نووسینەکانی وەڵام ${num(s(p, "bytes"), "ckb")} بایتە، لە ${num(1000, "ckb")} بایت زیاترە (هەر پیتێکی سۆرانی یان عەرەبی ${num(2, "ckb")} بایتە). ئینستاگرام ڕەتی دەکاتەوە؛ فەیسبووک و واتساپ وەریدەگرن.`,
+    (p) => `أحد نصوص الرد حجمه ${num(s(p, "bytes"), "ar")} بايتًا، أي أكثر من ${num(1000, "ar")} بايت (الحرف العربي أو الكردي بايتان). سيرفضه إنستغرام، أما فيسبوك وواتساب فيقبلانه.`,
+    (p) => `One reply text is ${s(p, "bytes")} bytes, over 1,000 (a Sorani or Arabic letter is 2 bytes). Instagram would reject it; Facebook and WhatsApp accept it.`,
   ),
 };
 

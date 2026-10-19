@@ -10,7 +10,9 @@ import { ExternalLink, LoaderCircle, Sparkles, TriangleAlert } from "lucide-reac
 import type { ChatAttachment, MessageDto, RunDto, ViewBlock } from "@/lib/chat/types";
 import { useT } from "@/lib/i18n/client";
 import { videoJobStatusAction } from "../video/actions";
-import { minutesLeft, safeHref, shownStatus, splitLinks, valueDir } from "./chat-model";
+import { minutesLeft, shownStatus, splitLinks, valueDir } from "./chat-model";
+import { safeHrefFor } from "./chat-frame-model";
+import { useChatShell } from "./chat-shell";
 
 export function Avatar() {
   return (
@@ -39,7 +41,8 @@ function RichText({ text }: { text: string }) {
 
 function BlockLink({ href }: { href?: string }) {
   const t = useT().chat.views;
-  const safe = safeHref(href);
+  const { kind } = useChatShell();
+  const safe = safeHrefFor(kind, href);
   if (!safe) return null;
   return safe.external ? (
     <a className="ch-block-link" href={safe.href} target="_blank" rel="noopener noreferrer">
@@ -55,6 +58,7 @@ function BlockLink({ href }: { href?: string }) {
 
 function BlockView({ block }: { block: ViewBlock }) {
   const t = useT().chat.views;
+  const { kind } = useChatShell();
   if (block.kind === "note") {
     return (
       <p className={`ch-note ${block.tone === "warn" ? "warn" : ""}`} dir="auto" role={block.tone === "warn" ? "note" : undefined}>
@@ -122,7 +126,7 @@ function BlockView({ block }: { block: ViewBlock }) {
       {heading}
       <ul className="ch-items">
         {block.items.map((item, i) => {
-          const safe = safeHref(item.href);
+          const safe = safeHrefFor(kind, item.href);
           const body = (
             <>
               <span className="ch-item-main" dir="auto">

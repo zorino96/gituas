@@ -1,27 +1,41 @@
 "use client";
 
 // Settings > Chat: how far the chat may act without a card (owner and admins), and "delete all my chats".
+// The same card serves a shop and a news desk: a desk reads the desk's wording, shows no AI allowance (its chat is bounded by plan turns,
+// not by an allowance), and says so when its trial or plan has ended and the chat can only read.
 
 import { useId, useState, useTransition } from "react";
 
 import { AUTONOMY_LEVELS, type Autonomy } from "@/lib/chat/types";
-import { useT } from "@/lib/i18n/client";
+import { newsChatText } from "@/lib/i18n/chat-news";
+import { ChatCopyProvider, useLang, useT } from "@/lib/i18n/client";
 import { deleteAllThreadsAction, setAutonomyAction } from "../assistant/chat-actions";
 import "../chat.css";
 
 export interface ChatCardState {
   /** The workspace this screen was opened for: both actions below refuse a tab that was left on another workspace. */
   workspaceId: string;
+  /** Which kind of workspace this is (the wording and the numbers differ). A shop when left out. */
+  kind?: "shop" | "news";
   autonomy: Autonomy;
   /** Only the owner and admins may change it. */
   canSetAutonomy: boolean;
   remaining: { day: number; month: number };
-  /** How much of this month's AI allowance is used, 0 to 100. */
-  allowancePercent: number;
+  /** How much of this month's AI allowance is used, 0 to 100. Null for a news desk, which has no allowance to show. */
+  allowancePercent: number | null;
+  /** A news desk whose trial or plan has ended: the chat can only read. */
+  frozen?: boolean;
 }
 
 export function ChatCard({ initial }: { initial: ChatCardState }) {
+  const body = <ChatCardBody initial={initial} />;
+  // The desk's wording is laid over the shop's for everything inside the card.
+  return initial.kind === "news" ? <ChatCopyProvider kind="news">{body}</ChatCopyProvider> : body;
+}
+
+function ChatCardBody({ initial }: { initial: ChatCardState }) {
   const t = useT().chat;
+  const lang = useLang();
   const s = t.settings;
   const [autonomy, setAutonomy] = useState<Autonomy>(initial.autonomy);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
@@ -82,9 +96,16 @@ export function ChatCard({ initial }: { initial: ChatCardState }) {
       </fieldset>
       {!initial.canSetAutonomy && <p className="gm-hint">{s.ownerOnly}</p>}
 
-      <p className="gm-hint" role="status">
-        {t.composer.left(initial.remaining.day, initial.remaining.month)} · {s.allowanceUsed(initial.allowancePercent)}
-      </p>
+      {initial.frozen ? (
+        <p className="gm-note warn" role="status">
+          {newsChatText(lang).settings.frozenNote}
+        </p>
+      ) : (
+        <p className="gm-hint" role="status">
+          {t.composer.left(initial.remaining.day, initial.remaining.month)}
+          {initial.allowancePercent !== null && <> · {s.allowanceUsed(initial.allowancePercent)}</>}
+        </p>
+      )}
       <p className="gm-hint">{s.retention}</p>
       {note && (
         <p className={note.ok ? "gm-ok" : "gm-err"} role={note.ok ? "status" : "alert"} style={{ margin: 0 }}>

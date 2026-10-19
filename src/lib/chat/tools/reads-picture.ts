@@ -73,7 +73,8 @@ export function pictureForModel(f: CoachFacts): Record<string, unknown> {
       commentsWeekBefore: f.messages.commentsBefore,
       waitingForOwner: f.waiting,
     },
-    posts: { publishedThisWeek: f.posts.published, ofThemByAutopilot: f.posts.byAutopilot },
+    // Two different units, named as such: one count per platform a post reached, one per post. They are not parts of one whole.
+    posts: { publicationsThisWeekCountedPerPlatform: f.posts.published, autopilotPostsThisWeekCountedOncePerPost: f.posts.byAutopilot },
     owner: Object.keys(owner).length ? owner : undefined,
     notes: [
       "These are the shop's own numbers from Gituas, not market data. Predict nothing and promise nothing.",
@@ -81,6 +82,7 @@ export function pictureForModel(f: CoachFacts): Record<string, unknown> {
       "'No order recorded' is not a lost sale: the buyer may have ordered another way.",
       "A percentage is only given when its base is big enough; otherwise quote the counts.",
       "If the numbers cannot speak to the owner's goal, say what is missing.",
+      "Publications are counted once per platform a post reached (a post on Facebook and Instagram is two); the autopilot number counts posts. Do not subtract or compare them as parts of one whole.",
     ],
   });
 }
@@ -105,7 +107,7 @@ export function pictureView(f: CoachFacts, lang: Lang): ViewBlock[] {
         ...(value.length ? [{ label: w.orderedValue, value: value.join(t.fmt.listSep) }] : []),
         { label: t.orders.week.cancelled, value: t.fmt.num(o.cancelled) },
         { label: t.home.waitingMessages, value: t.fmt.num(f.waiting) },
-        { label: t.home.postsThisWeek, value: t.fmt.num(f.posts.published) },
+        { label: t.coach.postsPerPlatform, value: t.fmt.num(f.posts.published) },
       ],
       href: "/app/orders",
     },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { canonicalJson, normalise, parseRuleSpec, RuleSpec, specHash, type RuleSpecT } from "@/lib/shop/rules/spec";
+import { canonicalJson, normalise, parseRuleSpec, replyTextBytes, RuleSpec, specHash, type RuleSpecT } from "@/lib/shop/rules/spec";
 import { evaluateExamples } from "@/lib/shop/rules/preview";
 
 const cp = (...codes: number[]) => String.fromCodePoint(...codes);
@@ -160,8 +160,10 @@ describe("RuleSpec v1: the owner's fixed texts", () => {
 
   it("applies the limit to every language, and counts an emoji as one character", () => {
     expect(parseRuleSpec({ ...INFO_RULE, ...withText("b".repeat(901), "ar") }).ok).toBe(false);
-    expect(parseRuleSpec({ ...INFO_RULE, ...withText("😍".repeat(900)) }).ok).toBe(true);
-    expect(parseRuleSpec({ ...INFO_RULE, ...withText("😍".repeat(901)) }).ok).toBe(false);
+    // (on Facebook only: Instagram counts bytes, which is the next describe)
+    const facebook = { trigger: { ...INFO_RULE.trigger, platforms: ["META_FACEBOOK"] } };
+    expect(parseRuleSpec({ ...INFO_RULE, ...facebook, ...withText("😍".repeat(900)) }).ok).toBe(true);
+    expect(parseRuleSpec({ ...INFO_RULE, ...facebook, ...withText("😍".repeat(901)) }).ok).toBe(false);
   });
 
   it("rejects an empty text, a blank text, and a language the shop does not speak", () => {
@@ -188,6 +190,60 @@ describe("RuleSpec v1: the owner's fixed texts", () => {
     expect(parseRuleSpec({ ...INFO_RULE, actions: [{ do: "flag_owner", note: "n".repeat(200) }] }).ok).toBe(true);
     expect(parseRuleSpec({ ...INFO_RULE, actions: [{ do: "flag_owner", note: "n".repeat(201) }] }).ok).toBe(false);
     expect(parseRuleSpec({ ...INFO_RULE, name: "n".repeat(81) }).ok).toBe(false);
+  });
+});
+
+describe("RuleSpec v1: Instagram counts bytes, not characters", () => {
+  // A Sorani or Arabic letter is 2 bytes in UTF-8, an emoji 4. Instagram refuses a message over 1,000 bytes; the 900-character limit alone
+  // would let a 600-letter Sorani text (1,200 bytes) through to a send that can never work.
+  const letters = (n: number) => "ب".repeat(n);
+  const reply = (texts: Record<string, string>, platforms: string[]) =>
+    parseRuleSpec({ ...INFO_RULE, trigger: { ...INFO_RULE.trigger, platforms }, actions: [{ do: "reply", texts }] });
+
+  it("accepts a text of exactly 1000 bytes on Instagram and refuses one of 1002, naming the text and the reason", () => {
+    expect(reply({ default: letters(500) }, ["META_INSTAGRAM"]).ok).toBe(true);
+    const r = reply({ default: letters(501) }, ["META_INSTAGRAM"]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.issues.join("\n")).toMatch(/actions\.0\.texts\.default: over 1000 bytes: Instagram rejects/);
+  });
+
+  it("counts an emoji as 4 bytes", () => {
+    expect(reply({ default: "😍".repeat(250) }, ["META_INSTAGRAM"]).ok).toBe(true);
+    expect(reply({ default: "😍".repeat(251) }, ["META_INSTAGRAM"]).ok).toBe(false);
+  });
+
+  it("applies to the text of every language", () => {
+    const r = reply({ default: "short", ar: letters(600), ckb: letters(100) }, ["META_INSTAGRAM"]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.issues).toHaveLength(1);
+      expect(r.issues[0]).toMatch(/^actions\.0\.texts\.ar: over 1000 bytes/);
+    }
+  });
+
+  it("applies when Instagram is one of several platforms, and to a private message rule as well", () => {
+    expect(reply({ default: letters(600) }, ["META_FACEBOOK", "META_INSTAGRAM"]).ok).toBe(false);
+    const dm = parseRuleSpec({ ...INFO_RULE, trigger: { channel: "dm", platforms: ["META_INSTAGRAM"], keywords: INFO_RULE.trigger.keywords }, actions: [{ do: "reply", texts: { default: letters(600) } }] });
+    expect(dm.ok).toBe(false);
+  });
+
+  it("leaves a rule that cannot run on Instagram to the 900-character limit alone", () => {
+    expect(reply({ default: letters(600) }, ["META_FACEBOOK"]).ok).toBe(true);
+    expect(reply({ default: letters(900) }, ["META_FACEBOOK"]).ok).toBe(true);
+    expect(reply({ default: letters(901) }, ["META_FACEBOOK"]).ok).toBe(false);
+    const wa = parseRuleSpec({ ...INFO_RULE, trigger: { channel: "dm", platforms: ["WHATSAPP"], keywords: INFO_RULE.trigger.keywords }, actions: [{ do: "reply", texts: { default: letters(600) } }] });
+    expect(wa.ok).toBe(true);
+  });
+
+  it("counts the text as it will be stored (NFC, Unix line ends), and never changes the owner's words to fit", () => {
+    // 499 letters (998 bytes), a Windows line end, "a": 1,000 bytes once the line end is one byte (as stored), 1,001 if the CR were counted
+    expect(reply({ default: `${letters(499)}\r\na` }, ["META_INSTAGRAM"]).ok).toBe(true);
+    expect(reply({ default: `${letters(499)}\r\nab` }, ["META_INSTAGRAM"]).ok).toBe(false);
+  });
+
+  it("the bytes of a text are also known on their own, for the warning on rules that are not on Instagram", () => {
+    expect(replyTextBytes(letters(500))).toBe(1000);
+    expect(replyTextBytes("ab\r\ncd")).toBe(5);
   });
 });
 

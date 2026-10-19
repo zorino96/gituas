@@ -37,6 +37,17 @@ export const NAV: readonly NavItem[] = [
   { key: "guide", href: "/newsroom/guide", group: "account", mobile: false, guide: "start" },
 ];
 
+/**
+ * The sections as the sidebar and the phone sheet list them. With the desk's chat on, the Assistant (the chat) is where most work
+ * starts, so it is the first entry of the main group; with it off it keeps its old place in "account" and opens the older assistant.
+ * The phone bar's four tabs are not touched (they are pinned by tests/newsroom/nav.test.ts).
+ */
+export function navFor(chatOn: boolean): readonly NavItem[] {
+  const assistant = NAV.find((i) => i.key === "assistant");
+  if (!chatOn || !assistant) return NAV;
+  return [{ ...assistant, group: "desk" }, ...NAV.filter((i) => i.key !== "assistant")];
+}
+
 /** The section a path belongs to: its own href or anything below it. */
 export function activeItem(path: string): NavItem | undefined {
   return NAV.find((i) => path === i.href || path.startsWith(`${i.href}/`));

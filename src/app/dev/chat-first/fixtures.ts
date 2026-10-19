@@ -5,11 +5,15 @@ import type { ChatApi } from "@/app/app/assistant/chat-shell";
 import type { ChatTransport } from "@/app/app/assistant/chat-transport";
 import type { ChatEvent, ChatRequest, MessageDto, RunDecisionResponse, RunDto, ThreadSummary, ViewBlock } from "@/lib/chat/types";
 import type { Lang } from "@/lib/i18n/lang";
+import { NEWS_PICTURE, NEWS_WORDS } from "./fixtures-news";
 
-export type Scenario = "thread" | "runs" | "long" | "empty" | "connect" | "classic" | "classic-off" | "settings";
-export const SCENARIOS: readonly Scenario[] = ["thread", "runs", "long", "empty", "connect", "classic", "classic-off", "settings"];
+export type Scenario = "thread" | "runs" | "long" | "empty" | "connect" | "classic" | "classic-off" | "settings" | "frozen";
+export const SCENARIOS: readonly Scenario[] = ["thread", "runs", "long", "empty", "connect", "classic", "classic-off", "settings", "frozen"];
 
-interface Words {
+/** Which workspace the preview pretends to be: a shop (the default) or a news desk (?kind=news). */
+export type DevKind = "shop" | "news";
+
+export interface Words {
   shop: string;
   title: string;
   userOrders: string;
@@ -190,7 +194,9 @@ const en: Words = {
 };
 
 const WORDS: Record<Lang, Words> = { ckb, ar, en };
-export const shopName = (lang: Lang) => WORDS[lang].shop;
+const wordsOf = (lang: Lang, kind: DevKind): Words => (kind === "news" ? NEWS_WORDS : WORDS)[lang];
+/** The name of the pretend shop, or of the pretend desk. */
+export const shopName = (lang: Lang, kind: DevKind = "shop") => wordsOf(lang, kind).shop;
 
 const T0 = Date.now();
 const iso = (minutesAgo: number) => new Date(T0 - minutesAgo * 60_000).toISOString();
@@ -224,9 +230,10 @@ function msg(id: string, seq: number, role: "user" | "assistant", text: string, 
   return { id, seq, role, text, blocks: [], runs: [], followups: [], attachments: [], createdAt: iso(60 - seq), ...over };
 }
 
-export function fixtureThread(lang: Lang, scenario: Scenario): { thread: ThreadSummary | null; messages: MessageDto[] } {
-  const w = WORDS[lang];
-  if (scenario === "empty" || scenario === "connect" || scenario === "classic" || scenario === "classic-off" || scenario === "settings") return { thread: null, messages: [] };
+export function fixtureThread(lang: Lang, scenario: Scenario, kind: DevKind = "shop"): { thread: ThreadSummary | null; messages: MessageDto[] } {
+  const w = wordsOf(lang, kind);
+  const picture = kind === "news" ? NEWS_PICTURE : PICTURE;
+  if (scenario === "empty" || scenario === "connect" || scenario === "classic" || scenario === "classic-off" || scenario === "settings" || scenario === "frozen") return { thread: null, messages: [] };
   const thread: ThreadSummary = { id: "t-demo", title: w.title, pinned: false, lastMessageAt: iso(1) };
 
   if (scenario === "long") {
@@ -243,7 +250,7 @@ export function fixtureThread(lang: Lang, scenario: Scenario): { thread: ThreadS
       run("r-running", w, { status: "RUNNING", decidedBy: "CONFIRMED", title: w.titles.picture, risk: "money", tool: "make_picture", long: true }),
       run("r-done", w, { status: "DONE", decidedBy: "CONFIRMED", resultText: w.results.done }),
       run("r-auto", w, { status: "DONE", decidedBy: "AUTO", title: w.titles.setting, risk: "standing", tool: "set_auto_replies", lines: [{ label: w.titles.setting, value: "ON" }], resultText: w.results.auto }),
-      run("r-picture", w, { status: "DONE", decidedBy: "CONFIRMED", title: w.titles.picture, risk: "money", tool: "make_picture", lines: [], resultText: w.results.done, media: PICTURE, long: true }),
+      run("r-picture", w, { status: "DONE", decidedBy: "CONFIRMED", title: w.titles.picture, risk: "money", tool: "make_picture", lines: [], resultText: w.results.done, media: picture, long: true }),
       run("r-failed", w, { status: "FAILED", decidedBy: "CONFIRMED", title: w.titles.failed, tool: "post_now", error: w.results.failed }),
       run("r-cancelled", w, { status: "CANCELLED" }),
       run("r-expired", w, { status: "EXPIRED", expiresAt: iso(30) }),
@@ -258,7 +265,7 @@ export function fixtureThread(lang: Lang, scenario: Scenario): { thread: ThreadS
     messages: [
       msg("m1", 1, "user", w.userOrders),
       msg("m2", 2, "assistant", w.replyOrders, { blocks: [w.stats, w.table] }),
-      msg("m3", 3, "user", w.userPost, { attachments: [{ id: "a1", url: PICTURE.url, pathname: PICTURE.pathname, kind: "image", name: PICTURE.name }] }),
+      msg("m3", 3, "user", w.userPost, { attachments: [{ id: "a1", url: picture.url, pathname: picture.pathname, kind: "image", name: picture.name }] }),
       msg("m4", 4, "assistant", w.replyPost, { runs: [run("r-open", w)] }),
       msg("m5", 5, "assistant", "", { blocks: [w.list] }),
     ],
@@ -268,21 +275,30 @@ export function fixtureThread(lang: Lang, scenario: Scenario): { thread: ThreadS
 // ---------------------------------------------------------------------------------------------------------------------
 // The pretend server.
 
-export function fixtureThreads(lang: Lang): ThreadSummary[] {
-  const titles = WORDS[lang].threads;
+export function fixtureThreads(lang: Lang, kind: DevKind = "shop"): ThreadSummary[] {
+  const titles = wordsOf(lang, kind).threads;
   // Pinned two, today a few, then spread back over months, so every group of the sidebar has rows.
   const ages = [5, 40, 90, 300, 1500, 1700, 2900, 4400, 5800, 8700, 11000, 14500, 20000, 28000, 40000, 55000, 75000, 99000, 130000, 160000];
   return titles.map((title, i) => ({ id: `t-${i}`, title, pinned: i === 4 || i === 7, lastMessageAt: iso(ages[i] ?? 200000) }));
 }
 
-export function fixtureApi(lang: Lang): ChatApi {
-  let threads = [{ id: "t-demo", title: WORDS[lang].title, pinned: false, lastMessageAt: iso(1) }, ...fixtureThreads(lang)];
+/**
+ * The title the pretend server gives a new chat a few seconds after its first answer (the real one is written by the AI, title.ts). The
+ * history list returns it from then on, so the screen's second read of the list (about four seconds after the first answer) shows it.
+ */
+const betterTitles = new Map<string, string>();
+
+export function fixtureApi(lang: Lang, kind: DevKind = "shop"): ChatApi {
+  let threads = [{ id: "t-demo", title: wordsOf(lang, kind).title, pinned: false, lastMessageAt: iso(1) }, ...fixtureThreads(lang, kind)];
   const wait = () => new Promise((r) => setTimeout(r, 250));
   return {
     async list(input) {
       await wait();
       const q = input?.q?.trim().toLowerCase();
-      return { ok: true, threads: q ? threads.filter((t) => t.title.toLowerCase().includes(q)) : threads };
+      // A chat made in this preview joins the list the first time the server is asked after its first answer, with the better title.
+      const made = [...betterTitles].filter(([id]) => !threads.some((t) => t.id === id)).map(([id, title]) => ({ id, title, pinned: false, lastMessageAt: new Date().toISOString() }));
+      const all = [...made, ...threads];
+      return { ok: true, threads: q ? all.filter((t) => t.title.toLowerCase().includes(q)) : all };
     },
     async rename({ id, title }) {
       threads = threads.map((t) => (t.id === id ? { ...t, title } : t));
@@ -309,8 +325,8 @@ const sleep = (ms: number, signal?: AbortSignal) =>
   });
 
 /** Answers the way /api/chat does: newline-delimited events, with the pauses of a real turn. A message with "limit" is refused (turns used up), "busy" is refused, "fail" breaks after the message was kept. */
-export function fakeTransport(lang: Lang): ChatTransport {
-  const w = WORDS[lang];
+export function fakeTransport(lang: Lang, kind: DevKind = "shop"): ChatTransport {
+  const w = wordsOf(lang, kind);
   let seq = 100;
   return {
     async send(req: ChatRequest, signal: AbortSignal) {
@@ -321,6 +337,7 @@ export function fakeTransport(lang: Lang): ChatTransport {
         if (/busy/i.test(req.text)) return emit({ t: "error", code: "busy", message: "" });
         const threadId = req.threadId ?? "t-new";
         emit({ t: "thread", id: threadId, title: req.threadId ? w.title : req.text.slice(0, 40), isNew: !req.threadId });
+        if (!req.threadId) setTimeout(() => betterTitles.set(threadId, `(AI title) ${req.text.slice(0, 24)}`), 1500);
         emit({ t: "message", message: msg(`u${++seq}`, ++seq, "user", req.text, { attachments: req.attachments ?? [] }) });
         // The turn broke after the message was kept: the message stays.
         if (/fail/i.test(req.text)) {

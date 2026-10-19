@@ -1,13 +1,16 @@
 import "@/app/app/app.css";
 import "./newsroom.css";
 import { gmFontVars } from "@/app/app/fonts";
+import { deleteThreadAction, listThreadsAction, pinThreadAction, renameThreadAction } from "@/app/app/assistant/chat-actions";
 import { listWorkspaces, type Workspace } from "@/app/app/data";
 import { newsroomAccess } from "@/lib/billing/trial";
+import { newsChatEnabled } from "@/lib/chat/enabled";
 import { db } from "@/lib/db";
 import { dict, dirOf, getLang } from "@/lib/i18n";
 import { LangProvider } from "@/lib/i18n/client";
-import { BottomNav, HelpLink, SideNav } from "./desk-nav";
-import { DeskSwitcher } from "./desk-switcher";
+import { can } from "@/lib/newsroom/roles";
+import { SUPPORT_WHATSAPP_DISPLAY, supportWhatsAppUrl } from "@/lib/support";
+import { DeskFrame } from "./desk-frame";
 
 /**
  * The newsroom's root element: the shop's design system, re-tokened by .nr.
@@ -52,31 +55,32 @@ async function TrialBanner({ tenantId }: { tenantId: string }) {
   return null;
 }
 
-/** A signed-in channel's frame: sidebar on desktop, top bar with the "?" guide link, phone bar. */
+/**
+ * A signed-in channel's frame (DeskFrame, a client component): the desk's sidebar, top bar with the "?" guide link and phone bar, or, on
+ * the chat routes while the desk's chat is on, the chat frame. This part only gathers what the frames need.
+ */
 export async function DeskShell({ ws, children }: { ws: Workspace; children: React.ReactNode }) {
   const desks = (await listWorkspaces()).filter((w) => w.kind === "NEWS" && w.kindChosen);
   const roles = dict(await getLang()).nr.team.roles.label;
+  // The chat is for the people who may configure the desk, while NEWS_CHAT_ENABLED is on (a client component cannot read the env).
+  const chat =
+    newsChatEnabled() && can(ws.role, "configure")
+      ? {
+          api: { list: listThreadsAction, rename: renameThreadAction, pin: pinThreadAction, remove: deleteThreadAction },
+          support: { url: supportWhatsAppUrl(), display: SUPPORT_WHATSAPP_DISPLAY },
+        }
+      : null;
   return (
     <NewsroomRoot>
-      <SideNav />
-      <div className="gm-shell">
-        <header className="nr-top">
-          <DeskSwitcher
-            currentId={ws.id}
-            currentName={ws.name}
-            desks={desks.map((d) => ({ id: d.id, name: d.name, role: roles[d.role] }))}
-          />
-          <div className="gm-row" style={{ gap: 8 }}>
-            <span className="gm-badge ghost">{roles[ws.role]}</span>
-            <HelpLink />
-          </div>
-        </header>
-        <main className="gm-main">
-          <TrialBanner tenantId={ws.id} />
-          {children}
-        </main>
-      </div>
-      <BottomNav />
+      <DeskFrame
+        workspace={{ id: ws.id, name: ws.name }}
+        desks={desks.map((d) => ({ id: d.id, name: d.name, role: roles[d.role] }))}
+        roleLabel={roles[ws.role]}
+        banner={<TrialBanner tenantId={ws.id} />}
+        chat={chat}
+      >
+        {children}
+      </DeskFrame>
     </NewsroomRoot>
   );
 }

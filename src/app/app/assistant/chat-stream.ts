@@ -3,9 +3,13 @@
 
 import type { ChatErrorCode, ChatEvent, MessageDto, RunDto } from "@/lib/chat/types";
 
-const CODES: readonly ChatErrorCode[] = [
-  "signin", "forbidden", "workspace", "badrequest", "limit_day", "limit_month", "allowance", "busy", "unavailable", "not_found", "expired", "internal",
-];
+const CODES = [
+  "signin", "forbidden", "workspace", "badrequest", "limit_day", "limit_month", "allowance", "busy", "unavailable", "not_found", "expired", "frozen", "internal",
+] as const satisfies readonly ChatErrorCode[];
+// Compile-time check: a code added to ChatErrorCode and not listed above is a type error here, so a code the server sends can never
+// again be turned into "internal" by this parser (a desk whose trial ended read "Something went wrong" and was offered a useless Retry).
+const ALL_CODES_LISTED: [Exclude<ChatErrorCode, (typeof CODES)[number]>] extends [never] ? true : never = true;
+void ALL_CODES_LISTED;
 export const isChatErrorCode = (v: unknown): v is ChatErrorCode => typeof v === "string" && (CODES as readonly string[]).includes(v);
 
 const RUN_STATUSES = ["PROPOSED", "RUNNING", "DONE", "FAILED", "CANCELLED", "EXPIRED"] as const;

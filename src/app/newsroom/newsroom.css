@@ -68,6 +68,17 @@ a.nr-brand:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px
 .nr-sheet-body { display: flex; flex-direction: column; gap: 14px; padding: 16px 12px calc(env(safe-area-inset-bottom, 0px) + 16px); }
 .nr-sheet-head { display: flex; align-items: center; justify-content: space-between; }
 
+/* ---------- the chat frame inside the desk (chat.css draws the frame; the desk adds its switcher and its trial note) ---------- */
+/* the desk's name, and the way to another desk, sit under the brand as a quiet field */
+.nr .ch-desk { padding: 0 2px; }
+.nr .ch-desk .nr-switch { display: block; }
+.nr .ch-desk .nr-switch > summary { margin: 0; padding: 7px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.nr .ch-desk .nr-switch > summary:hover { background: var(--ground); }
+.nr .ch-desk .nr-desk { justify-content: space-between; }
+.nr .ch-desk .nr-desk-name { font-size: 14px; font-weight: 600; }
+.nr .ch-desk .nr-switch-menu { inset-inline: 0; min-width: 0; max-width: none; }
+.nr .ch-side-foot .nr-trial { margin: 0 0 6px; padding: 10px 12px; font-size: 12.5px; line-height: 1.7; }
+
 @media (min-width: 960px) {
   /* line the top bar's contents up with the centred content column below it */
   .nr-top { padding: 12px max(32px, calc((100% - 1116px) / 2)); }

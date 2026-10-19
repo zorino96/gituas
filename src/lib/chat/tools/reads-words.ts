@@ -47,6 +47,14 @@ export interface Words {
   metaFailed: string;
   repliesCount: (n: string) => string;
   someOldChatsHidden: (n: string) => string;
+  // WhatsApp chats (the shop's WhatsApp screen holds them, not Meta's Messages)
+  notConnectedWa: string;
+  waTooSlow: string;
+  waFailed: string;
+  /** A badge on a WhatsApp chat whose buyer wrote STOP. */
+  askedToStop: string;
+  /** A badge on a WhatsApp chat the owner answered on the phone (the app stored no message for it). */
+  answeredOnPhone: string;
   /** A read covered the newest Page or account of a platform only: which one, how many others are connected, and where to switch. */
   severalAccounts: (platform: string, account: string, others: string, screen: string) => string;
   // scheduled posts
@@ -137,6 +145,11 @@ const ckb: Words = {
   metaFailed: "نەتوانرا لە مێتاوە بخوێنرێتەوە. دووبارە هەوڵ بدەرەوە.",
   repliesCount: (n) => `${n} وەڵام`,
   someOldChatsHidden: (n) => `${n} گفتوگۆی کۆن نەخوێنرانەوە.`,
+  notConnectedWa: "واتسئەپ پەیوەست نەکراوە. لە بەشی واتسئەپ پەیوەستی بکە.",
+  waTooSlow: "خوێندنەوەی گفتوگۆکانی واتسئەپ درەنگی کرد و کات نەما. دووبارە هەوڵ بدەرەوە.",
+  waFailed: "نەتوانرا گفتوگۆکانی واتسئەپ بخوێنرێنەوە. دووبارە هەوڵ بدەرەوە.",
+  askedToStop: "STOP ی نووسیوە",
+  answeredOnPhone: "لە مۆبایلەوە وەڵام دراوەتەوە",
   severalAccounts: (platform, account, others, screen) => `${platform}: تەنها نوێترین هەژمار خوێندرایەوە، «${account}». هەژماری دیکەی پەیوەست: ${others}. لە بەشی «${screen}» دەتوانیت بیانگۆڕیت.`,
   noScheduled: "هیچ پۆستێکی خشتەکراو نییە.",
   pending: "چاوەڕێیە",
@@ -219,6 +232,11 @@ const ar: Words = {
   metaFailed: "تعذّرت القراءة من ميتا. حاول مرة أخرى.",
   repliesCount: (n) => `${n} ردود`,
   someOldChatsHidden: (n) => `تعذّرت قراءة ${n} من المحادثات القديمة.`,
+  notConnectedWa: "واتساب غير مرتبط. اربطه من شاشة واتساب.",
+  waTooSlow: "تأخرت قراءة محادثات واتساب ولم يبقَ وقت. حاول مرة أخرى.",
+  waFailed: "تعذّرت قراءة محادثات واتساب. حاول مرة أخرى.",
+  askedToStop: "كتب STOP",
+  answeredOnPhone: "تم الرد من الهاتف",
   severalAccounts: (platform, account, others, screen) => `${platform}: قُرئ الحساب الأحدث فقط، «${account}». عدد الحسابات الأخرى المرتبطة: ${others}. بدّل بينها من شاشة «${screen}».`,
   noScheduled: "لا توجد منشورات مجدولة.",
   pending: "بالانتظار",
@@ -301,6 +319,11 @@ const en: Words = {
   metaFailed: "Could not read from Meta. Try again.",
   repliesCount: (n) => `${n} replies`,
   someOldChatsHidden: (n) => `${n} older conversations could not be read.`,
+  notConnectedWa: "WhatsApp is not connected. Connect it on the WhatsApp screen.",
+  waTooSlow: "Reading the WhatsApp chats took too long and there was no time left. Try again.",
+  waFailed: "Could not read the WhatsApp chats. Try again.",
+  askedToStop: "Wrote STOP",
+  answeredOnPhone: "Answered on the phone",
   severalAccounts: (platform, account, others, screen) => `${platform}: only the newest account was read, “${account}”. Other connected accounts: ${others}. Switch between them in the ${screen} screen.`,
   noScheduled: "Nothing is scheduled.",
   pending: "Waiting",

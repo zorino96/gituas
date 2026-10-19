@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import { ArrowDown, MessageCircle, Sparkles } from "lucide-react";
 
-import type { ChatAttachment, ChatErrorCode, ChatEvent, ChatRequest, MessageDto, QuickId, RunDto, ThreadSummary } from "@/lib/chat/types";
+import { quickIdsOf, type ChatAttachment, type ChatErrorCode, type ChatEvent, type ChatRequest, type MessageDto, type QuickId, type RunDto, type ThreadSummary } from "@/lib/chat/types";
 import { useT } from "@/lib/i18n/client";
 import {
   chatReducer,
@@ -26,12 +26,13 @@ import {
 import { readEvents } from "./chat-stream";
 import { httpTransport, type ChatTransport } from "./chat-transport";
 import { Composer, MAX_CHARS } from "./chat-composer";
+import { visibleQuickIds, workspaceMismatch } from "./chat-frame-model";
 import { ConnectCard } from "./chat-connect";
 import { MessageView } from "./chat-messages";
-import { useChatShell } from "./chat-shell";
+import { ReloadNote, useChatShell } from "./chat-shell";
 import { isUploadable, useChatUploads, type PutFile } from "./use-chat-uploads";
 
-type GetThread = (input: { id: string }) => Promise<
+type GetThread = (input: { id: string; /** The workspace this screen was opened for. */ workspaceId?: string }) => Promise<
   { ok: true; thread: ThreadSummary; messages: MessageDto[]; remaining: { day: number; month: number }; /** A turn of this chat is still running on the server. */ busy: boolean } | { ok: false; code: ChatErrorCode }
 >;
 
@@ -52,12 +53,22 @@ export interface ChatScreenProps {
   transport?: ChatTransport;
   /** The dev preview brings its own upload. */
   put?: PutFile;
-  /** The address a new chat takes once the server gave it an id; null leaves the address alone (the dev preview). */
+  /** The address a new chat takes once the server gave it an id; null leaves the address alone (the dev preview). Left out, the frame's. */
   urlFor?: ((id: string) => string) | null;
+  /** The shortcut buttons, in order. Left out: the frame's kind of workspace decides (the shop's six, or the news desk's six). */
+  quickIds?: readonly string[];
+  /**
+   * The weekly note is switched on (BUSINESS_PROFILE_ENABLED, read by the server page: this screen runs in the browser and cannot read it).
+   * Left out or false, the "Weekly note" button is not drawn, so a shop that has not got the feature never sees a button that leads nowhere.
+   */
+  coachOn?: boolean;
+  /** The "review my idea first" switch. Left out: shown in a shop, hidden in a news desk (it only matters for pictures and videos). */
+  showReview?: boolean;
+  /** A news desk whose trial or plan has ended: typed messages are paused (the shortcuts, which only look, still work). */
+  frozen?: boolean;
 }
 
 const REVIEW_KEY = "gm-ai-review";
-const defaultUrlFor = (id: string) => `/app/assistant/${id}`;
 
 /** The time, in the browser only. It ticks while a card waits for its Confirm, so "5 min left" stays true. */
 function useNow(active: boolean): number | null {
@@ -88,12 +99,19 @@ export function ChatScreen({
   busy: openedBusy = false,
   transport = httpTransport,
   put,
-  urlFor = defaultUrlFor,
+  urlFor,
+  quickIds: ownQuickIds,
+  coachOn = false,
+  showReview: ownShowReview,
+  frozen = false,
 }: ChatScreenProps) {
   const all = useT();
   const t = all.chat;
   const shell = useChatShell();
-  const { setTitle, upsertThread, touch } = shell;
+  const { setTitle, upsertThread, touch, refreshLater } = shell;
+  const threadUrl = urlFor === undefined ? shell.hrefs.thread : urlFor;
+  const quickIds = visibleQuickIds(ownQuickIds ?? quickIdsOf(shell.kind), { coachOn });
+  const showReview = ownShowReview ?? shell.kind === "shop";
   const [state, dispatch] = useReducer(chatReducer, undefined, () => initialChatState({ threadId: thread?.id ?? null, title: thread?.title ?? "", messages: initialMessages, remaining }));
   const [input, setInput] = useState("");
   const [review, setReview] = useState(true);
@@ -104,6 +122,8 @@ export function ChatScreen({
   // Catching up with the server: after a Stop, a lost connection, or a reload while the answer was still being written.
   const [needSync, setNeedSync] = useState(false);
   const [stopped, setStopped] = useState(false);
+  // This tab belongs to another workspace than the one the session is in now (the person switched in another tab): nothing is sent from it.
+  const [wsGone, setWsGone] = useState(false);
   // The server's first paint cannot know where the end of the conversation is: it is shown once the screen has scrolled there.
   const [placed, setPlaced] = useState(false);
   const uploads = useChatUploads(workspaceId, put);
@@ -130,6 +150,13 @@ export function ChatScreen({
   decidingRef.current = deciding;
   const uploadsRef = useRef(uploads);
   uploadsRef.current = uploads;
+
+  // The frame (brand, switcher, history) comes from the layout and stays while the page changes: if the page was drawn for another
+  // workspace than the frame, or the server answered "workspace", this screen only offers the reload.
+  const ownStale = workspaceMismatch(shell.workspaceId, workspaceId) || wsGone || state.error?.code === "workspace";
+  const blocked = ownStale || shell.stale;
+  const blockedRef = useRef(blocked);
+  blockedRef.current = blocked;
 
   const waitingCard = state.messages.some((m) => m.runs.some((r) => r.status === "PROPOSED"));
   const now = useNow(waitingCard);
@@ -256,13 +283,14 @@ export function ChatScreen({
     const look = async () => {
       let r: Awaited<ReturnType<GetThread>> | null = null;
       try {
-        r = await getThread({ id });
+        r = await getThread({ id, workspaceId });
       } catch {
         /* the next look asks again */
       }
       if (!alive) return;
       // The chat is gone (deleted in another tab) or no longer this person's: nothing to wait for.
       if (r && !r.ok) {
+        if (r.code === "workspace") setWsGone(true);
         setNeedSync(false);
         return;
       }
@@ -282,18 +310,20 @@ export function ChatScreen({
       alive = false;
       clearTimeout(timer);
     };
-  }, [getThread, state.threadId, state.streaming, busyDeciding, needSync, running]);
+  }, [getThread, workspaceId, state.threadId, state.streaming, busyDeciding, needSync, running]);
 
   // ---- sending ----
   const send = useCallback(
     // `files`: send exactly these (Retry sending the last message again); else the files waiting in the tray.
-    async (opts: { text: string; quick?: QuickId; files?: ChatAttachment[] }) => {
-      if (stateRef.current.streaming || sendingRef.current) return;
+    async (opts: { text: string; quick?: string; files?: ChatAttachment[] }) => {
+      if (stateRef.current.streaming || sendingRef.current || blockedRef.current) return;
       const text = opts.text.trim().slice(0, MAX_CHARS);
       if (!text) return;
       sendingRef.current = true;
       const attachments = opts.quick ? [] : opts.files ?? uploadsRef.current.files;
-      lastSent.current = { text, ...(opts.quick ? { quick: opts.quick } : {}), files: attachments };
+      // types.ts still types a shortcut as the shop's list; the server checks the id against the workspace's own kind (isQuickIdFor).
+      const quick = opts.quick as QuickId | undefined;
+      lastSent.current = { text, ...(quick ? { quick } : {}), files: attachments };
       expectUsers.current = keptUserMessages(stateRef.current.messages) + 1;
       const mine = ++epoch.current;
       const ctrl = new AbortController();
@@ -311,25 +341,32 @@ export function ChatScreen({
         text,
         ...(attachments.length ? { attachments } : {}),
         review,
-        ...(opts.quick ? { quick: opts.quick } : {}),
+        ...(quick ? { quick } : {}),
         workspaceId,
       };
 
+      // A new chat is titled by the AI a few seconds after its first answer: the history is read once more then.
+      let newChat = false;
       const handle = (ev: ChatEvent) => {
         if (epoch.current !== mine) return;
         dispatch({ type: "event", event: ev });
         if (ev.t === "thread") {
           liveThread.current = ev.id;
           if (ev.isNew) {
+            newChat = true;
             upsertThread({ id: ev.id, title: ev.title, pinned: false, lastMessageAt: new Date().toISOString() });
             // The new chat gets its own address without leaving this screen (a page change would cut the stream).
-            if (urlFor) window.history.replaceState(null, "", urlFor(ev.id));
+            if (threadUrl) window.history.replaceState(null, "", threadUrl(ev.id));
           } else touch(ev.id);
         } else if (ev.t === "error" && ev.code === "not_found") {
           // The chat was deleted (in another tab): the next message starts a new one.
           liveThread.current = null;
         } else if (ev.t === "done") {
-          if (liveThread.current) touch(liveThread.current);
+          if (liveThread.current) {
+            touch(liveThread.current);
+            if (newChat) refreshLater(liveThread.current);
+          }
+          newChat = false;
           focusIfDesktop(field.current);
         }
       };
@@ -367,12 +404,16 @@ export function ChatScreen({
         if (abortRef.current === ctrl) abortRef.current = null;
       }
     },
-    [review, workspaceId, transport, urlFor, upsertThread, touch],
+    [review, workspaceId, transport, threadUrl, upsertThread, touch, refreshLater],
   );
 
   const decide = useCallback(
     async (run: RunDto, action: "confirm" | "cancel") => {
       if (decidingRef.current[run.id]) return;
+      if (blockedRef.current) {
+        setDecideErrors((e) => ({ ...e, [run.id]: t.errors.workspace }));
+        return;
+      }
       setDeciding((d) => ({ ...d, [run.id]: action }));
       setDecideErrors(({ [run.id]: _gone, ...rest }) => rest);
       try {
@@ -386,6 +427,7 @@ export function ChatScreen({
           if (r.run) dispatch({ type: "event", event: { t: "run", run: r.run } });
           // A card that was decided already (in another tab, or by a double press) shows its own state; there is nothing to say about it.
           // The wording for a message that was not sent ("badrequest") is never put under a card.
+          if (r.code === "workspace") setWsGone(true);
           if (!r.run || r.run.status === "PROPOSED") {
             const text = r.code === "badrequest" ? t.runs.decideFailed : (t.errors[r.code] ?? t.runs.decideFailed);
             setDecideErrors((e) => ({ ...e, [run.id]: text }));
@@ -443,7 +485,9 @@ export function ChatScreen({
 
   const { error } = state;
   const limit = state.remaining;
-  const textBlocked = limit ? (limit.day <= 0 ? t.composer.lastOnes : limit.month <= 0 ? t.errors.limit_month : null) : null;
+  // A frozen desk has no turns at all: it is told why (not that "today's chats are used up").
+  const textBlocked = frozen ? t.errors.frozen : limit ? (limit.day <= 0 ? t.composer.lastOnes : limit.month <= 0 ? t.errors.limit_month : null) : null;
+  const quickLabels: Record<string, { label: string } | undefined> = t.quick;
   const waiting = state.streaming || (needSync && !stopped);
   // While the screen is still waiting for a turn the server may be finishing, only the words in the box can be sent again.
   const retryable = !!error && ["network", "unavailable", "internal", "busy"].includes(error.code) && !!retryPlan(input, needSync ? null : lastSent.current);
@@ -463,7 +507,7 @@ export function ChatScreen({
               <p className="ch-sub">{t.empty.sub}</p>
               <div className="ch-examples">
                 {t.empty.examples.map((q) => (
-                  <button key={q} type="button" className="ch-example" disabled={state.streaming || !!textBlocked} onClick={() => void send({ text: q })}>
+                  <button key={q} type="button" className="ch-example" disabled={state.streaming || blocked || !!textBlocked} onClick={() => void send({ text: q })}>
                     {q}
                   </button>
                 ))}
@@ -491,7 +535,7 @@ export function ChatScreen({
                 </>
               )}
             </p>
-            {error && (
+            {error && error.code !== "workspace" && (
               <div className="ch-error" role="alert">
                 <p>{errorText(error.code, t.errors)}</p>
                 <div className="ch-error-actions">
@@ -527,27 +571,34 @@ export function ChatScreen({
               {t.screen.jumpLatest}
             </button>
           )}
-          <Composer
-            value={input}
-            onChange={setInput}
-            onSend={sendTyped}
-            onStop={stop}
-            onQuick={(id) => void send({ text: t.quick[id].label, quick: id })}
-            streaming={state.streaming}
-            textBlocked={textBlocked}
-            uploads={uploads}
-            review={review}
-            onReview={(v) => {
-              setReview(v);
-              try {
-                window.localStorage.setItem(REVIEW_KEY, v ? "1" : "0");
-              } catch {
-                /* not remembered */
-              }
-            }}
-            remaining={state.remaining}
-            fieldRef={field}
-          />
+          {blocked ? (
+            // The frame draws the note itself when it is the one that found out; the screen draws it when only its own page is out of date.
+            shell.stale ? null : <ReloadNote />
+          ) : (
+            <Composer
+              value={input}
+              onChange={setInput}
+              onSend={sendTyped}
+              onStop={stop}
+              onQuick={(id) => void send({ text: quickLabels[id]?.label ?? id, quick: id })}
+              quickIds={quickIds}
+              showReview={showReview}
+              streaming={state.streaming}
+              textBlocked={textBlocked}
+              uploads={uploads}
+              review={review}
+              onReview={(v) => {
+                setReview(v);
+                try {
+                  window.localStorage.setItem(REVIEW_KEY, v ? "1" : "0");
+                } catch {
+                  /* not remembered */
+                }
+              }}
+              remaining={state.remaining}
+              fieldRef={field}
+            />
+          )}
         </div>
       </div>
 

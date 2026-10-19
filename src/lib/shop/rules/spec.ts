@@ -8,7 +8,7 @@ import { z } from "zod";
 import { classifyByRules } from "../classify-rules";
 import { fold } from "./fold";
 import {
-  ALL_INTENTS, ALL_TYPES, KEYWORD_MODES, MAX_TEXT, PLATFORMS, RULE_INTENTS, RULE_TYPES, SHOP_LANGS,
+  ALL_INTENTS, ALL_TYPES, KEYWORD_MODES, MAX_TEXT, MAX_TEXT_BYTES, PLATFORMS, RULE_INTENTS, RULE_TYPES, SHOP_LANGS,
   type RulePlatform, type ActionKind,
 } from "./types";
 
@@ -17,6 +17,9 @@ const HIDDEN_OR_CONTROL = /[\u{0}-\u{8}\u{B}\u{C}\u{E}-\u{1F}\u{7F}-\u{9F}\u{AD}
 
 /** Length in characters as a person counts them (an emoji is one), not in UTF-16 units. */
 const chars = (s: string): number => Array.from(s).length;
+
+/** Length in UTF-8 bytes: what Instagram counts (a Sorani or Arabic letter is 2 bytes, an emoji 4). */
+const utf8Bytes = (s: string): number => new TextEncoder().encode(s).length;
 
 const text = (max: number) =>
   z
@@ -30,12 +33,12 @@ const keyword = text(40)
   .refine((s) => !/[\r\n]/.test(s), { message: "a keyword is one line" })
   .refine((s) => fold(s) !== "", { message: "needs a letter, a number or an emoji" });
 
-const variant = text(MAX_TEXT).optional().describe("Optional text for buyers who write in this language. At most 900 characters.");
+const variant = text(MAX_TEXT).optional().describe("Optional text for buyers who write in this language. At most 900 characters; on Instagram at most 1000 bytes (a Sorani or Arabic letter is 2 bytes).");
 
 const Texts = z
   .object({
     /** Used when the buyer's language has no text of its own. */
-    default: text(MAX_TEXT).describe("The owner's own fixed words, used when there is no text for the buyer's language. At most 900 characters."),
+    default: text(MAX_TEXT).describe("The owner's own fixed words, used when there is no text for the buyer's language. At most 900 characters; on Instagram at most 1000 bytes (a Sorani or Arabic letter is 2 bytes)."),
     ckb: variant,
     kmr: variant,
     ar: variant,
@@ -128,6 +131,20 @@ export const RuleSpec = z
       add(["trigger", "platforms"], "WhatsApp has no comments: use channel dm");
     }
     if (hasReply && spec.trigger.viaVoice) add(["trigger", "viaVoice"], "a reply is never sent to a voice note: speech recognition can mishear");
+
+    // Instagram rejects a message over 1,000 BYTES, so a long Sorani or Arabic text never arrives and nobody is told. A rule that can
+    // run on Instagram therefore refuses such a text at once (the check is on the text as it will be stored and sent). The owner's
+    // words are never cut short here: the owner is asked to shorten them.
+    if (spec.trigger.platforms.includes("META_INSTAGRAM")) {
+      spec.actions.forEach((a, i) => {
+        if (a.do !== "reply") return;
+        for (const [key, value] of Object.entries(a.texts)) {
+          if (typeof value === "string" && utf8Bytes(canonicalText(value)) > MAX_TEXT_BYTES) {
+            add(["actions", i, "texts", key], `over ${MAX_TEXT_BYTES} bytes: Instagram rejects a message over ${MAX_TEXT_BYTES} bytes and a Sorani or Arabic letter is 2 bytes, so keep this text under about 450 letters (shorter if it has emoji)`);
+          }
+        }
+      });
+    }
 
     if (!spec.examples.some((e) => e.match)) add(["examples"], "needs at least one example that should match");
     if (!spec.examples.some((e) => !e.match)) add(["examples"], "needs at least one example that should NOT match");
@@ -274,6 +291,11 @@ export function canonicalJson(value: unknown): string {
 /** sha256 (hex) of the canonical JSON of the normalised spec. Re-saving the same rule gives the same hash. */
 export function specHash(spec: RuleSpecT): string {
   return createHash("sha256").update(canonicalJson(normalise(spec))).digest("hex");
+}
+
+/** A reply text as Instagram counts it: its UTF-8 bytes, after the same tidying the stored text gets. */
+export function replyTextBytes(value: string): number {
+  return utf8Bytes(canonicalText(value));
 }
 
 /** Platforms a trigger can run on for its channel: WhatsApp has no comments. */

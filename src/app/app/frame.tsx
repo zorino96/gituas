@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 import { Settings } from "lucide-react";
 
 import { useT } from "@/lib/i18n/client";
+import { isChatPathFor } from "./assistant/chat-frame-model";
 import { ChatFrame, type ChatApi } from "./assistant/chat-shell";
 import { ModeSwitch } from "./mode-switch";
 import { SideNav, Tabs } from "./nav";
@@ -18,7 +19,8 @@ export interface ChatFrameConfig {
   support: { url: string; display: string };
 }
 
-export const isChatPath = (path: string): boolean => path === "/app/assistant" || path.startsWith("/app/assistant/");
+// The news desk has the same switch in src/app/newsroom/desk-frame.tsx, under /newsroom.
+export const isChatPath = (path: string): boolean => isChatPathFor("/app", path);
 
 export function AppFrame({
   kind,

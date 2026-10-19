@@ -54,6 +54,7 @@ export const chatCkb = {
     jumpLatest: "بچۆ بۆ کۆتایی",
     dropHere: "وێنە یان ڤیدیۆ لێرە بهێڵەرەوە",
     retry: "دووبارە هەوڵ بدەرەوە",
+    reload: "لاپەڕەکە نوێ بکەرەوە",
     openLink: "کردنەوە",
     imageOf: "وێنەی هاوپێچکراو",
   },

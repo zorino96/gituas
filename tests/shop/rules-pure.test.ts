@@ -6,7 +6,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { rulesDryRun, rulesEnabled } from "@/lib/shop/rules/enabled";
 
 const DIR = "src/lib/shop/rules";
-const files = readdirSync(DIR).filter((f) => f.endsWith(".ts"));
+const all = readdirSync(DIR).filter((f) => f.endsWith(".ts"));
+// The three files that connect the rules to the database and to the buyer pipeline are the only ones allowed to reach them.
+// Everything else in the folder stays pure: it is what the preview, the lint and the tests run without a database.
+const BRIDGE = ["db.ts", "log.ts", "pipeline-hook.ts"];
+const files = all.filter((f) => !BRIDGE.includes(f));
 const source = (f: string) => readFileSync(join(DIR, f), "utf8");
 
 describe("the rules library is pure", () => {
@@ -30,8 +34,16 @@ describe("the rules library is pure", () => {
     }
   });
 
+  it("keeps the bridge to the database in exactly three files, which never call a model or the network", () => {
+    expect(all.filter((f) => BRIDGE.includes(f)).sort()).toEqual([...BRIDGE].sort());
+    for (const f of BRIDGE) {
+      const code = source(f).replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+      expect(code, f).not.toMatch(/\bfetch\s*\(|completeJson|XMLHttpRequest|WebSocket|process\.env/);
+    }
+  });
+
   it("holds no invisible, bidi or control character: they are written as escapes", () => {
-    for (const f of files) {
+    for (const f of all) {
       source(f).split("\n").forEach((line, i) => {
         for (const ch of line) {
           if (/[\p{Cf}\p{Cc}\p{Zl}\p{Zp}]/u.test(ch) && ch !== "\t" && ch !== "\r") {

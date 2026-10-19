@@ -79,6 +79,28 @@ describe("the knowledge sheet", () => {
   });
 });
 
+describe("the owner's automatic rules", () => {
+  it("are told about only while they are switched on, and described as they really behave", () => {
+    delete process.env.SHOP_RULES_ENABLED;
+    expect(buildKnowledge(ALL)).not.toMatch(/Automatic rules/);
+    process.env.SHOP_RULES_ENABLED = "1";
+    try {
+      const on = buildKnowledge(ALL);
+      expect(on).toMatch(/Automatic rules: the owner can ask the chat for a rule/);
+      // honest about what a rule is and is not
+      expect(on).toMatch(/owner's own fixed text/);
+      expect(on).toMatch(/A rule uses no AI of its own: no AI writes its text/);
+      expect(on).toMatch(/never answers orders, complaints, abuse or spam/);
+      expect(on).toMatch(/works only while automatic replies are on/);
+      expect(on).toMatch(/cannot wait for a timer, pause a conversation, write first or write to many people/);
+      expect(on).toMatch(/starts it only after Confirm/);
+      expect(on).not.toMatch(/will (sell|grow|increase)/);
+    } finally {
+      delete process.env.SHOP_RULES_ENABLED;
+    }
+  });
+});
+
 describe("support", () => {
   it("is the number the owner gave, as a wa.me link", () => {
     expect(SUPPORT_WHATSAPP).toBe("9647710106009");

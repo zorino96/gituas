@@ -75,23 +75,23 @@ const asBaghdad = (now: number) => new Date(now + 3 * 3_600_000).toISOString().s
 const err = (message: string) => ({ content: JSON.stringify({ error: message }), note: `error: ${message.slice(0, 60)}`, blocks: [] as ViewBlock[], runId: undefined as string | undefined });
 
 /** One path ("caption", "reply.texts.default", "actions.*.text"): "*" stands for every element of a list or every key of an object. */
-function cleanPath(node: unknown, segs: string[], corpus: string): unknown {
-  if (segs.length === 0) return typeof node === "string" ? cleanOutbound(node, corpus) : node;
+function cleanPath(node: unknown, segs: string[], corpus: string, keepAmounts: boolean): unknown {
+  if (segs.length === 0) return typeof node === "string" ? cleanOutbound(node, corpus, { keepAmounts }) : node;
   const [head, ...rest] = segs;
-  if (Array.isArray(node)) return head === "*" ? node.map((x) => cleanPath(x, rest, corpus)) : node;
+  if (Array.isArray(node)) return head === "*" ? node.map((x) => cleanPath(x, rest, corpus, keepAmounts)) : node;
   if (node && typeof node === "object") {
     const o = node as Record<string, unknown>;
-    if (head === "*") return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, cleanPath(v, rest, corpus)]));
-    if (head in o) return { ...o, [head]: cleanPath(o[head], rest, corpus) };
+    if (head === "*") return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, cleanPath(v, rest, corpus, keepAmounts)]));
+    if (head in o) return { ...o, [head]: cleanPath(o[head], rest, corpus, keepAmounts) };
   }
   return node;
 }
 
 /** The model's arguments with every free-text field cleaned (links, numbers and handles the person never typed are removed). */
-function cleanTextFields(tool: { textFields?: readonly string[] }, args: unknown, corpus: string): unknown {
+function cleanTextFields(tool: { textFields?: readonly string[] }, args: unknown, corpus: string, keepAmounts = false): unknown {
   if (!tool.textFields?.length || !args || typeof args !== "object") return args;
   let out: unknown = args;
-  for (const path of tool.textFields) out = cleanPath(out, path.split("."), corpus);
+  for (const path of tool.textFields) out = cleanPath(out, path.split("."), corpus, keepAmounts);
   return out;
 }
 
@@ -117,6 +117,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnOut
   const corpus = ownerCorpus([...priorRows.filter((r) => r.role === "user").map((r) => r.content), input.text], input.ownerFacts);
   const snap = await deps.snapshot();
   const advisorOn = actor.kind === "shop" && hasProfileState(snap.state);
+  const snapshotText = JSON.stringify(snap.state);
   const fileNote = input.attachments.length ? `\n[attached: ${input.attachments.map((a) => `${a.id} (${a.kind})`).join(", ")}]` : "";
   const messages: ChatMsg[] = [
     { role: "system", content: (actor.kind === "news" ? systemPromptNews : systemPrompt)({ lang: actor.lang, uiNames: snap.uiNames, state: snap.state, features: snap.features, attachments: everyAttachment, advisor: advisorOn, buttons: { confirm: dict(actor.lang).chat.runs.confirm, cancel: dict(actor.lang).chat.runs.cancel }, nowBaghdad: asBaghdad(started) }) },
@@ -124,6 +125,9 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnOut
     { role: "user", content: input.text + fileNote },
   ];
   const ctx = toolCtx(actor, { threadId: thread.id, attachments: everyAttachment, review: input.review, deadline });
+
+  /** What an advice answer may take its numbers from: this turn's tool results, the account snapshot and what the owner wrote. */
+  const allowedAdviceText = () => [...messages.filter((m) => m.role === "tool").map((m) => (typeof m.content === "string" ? m.content : "")), snapshotText, corpus].join("\n");
 
   const proposed: ChatRun[] = [];
   let costMicro = 0;
@@ -152,9 +156,10 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnOut
       try {
         const left = Math.min(LIMITS.readTimeoutMs, deadline - deps.now() - 1_500);
         const res = await withTimeout(tool.run({ ...ctx, deadline: deps.now() + left }, parsed.data), left);
-        if (tool.untrusted) tainted = readUntrusted = true;
+        const untrusted = typeof tool.untrusted === "function" ? tool.untrusted(ctx) : !!tool.untrusted;
+        if (untrusted) tainted = readUntrusted = true;
         didWork = true;
-        return { content: wrapForModel(res.data, { untrusted: !!tool.untrusted }), note: noteOf(res.data), blocks: res.view ?? [] };
+        return { content: wrapForModel(res.data, { untrusted }), note: noteOf(res.data), blocks: res.view ?? [] };
       } catch (e) {
         if (e instanceof ToolRefusal) return err(e.message);
         if (e instanceof Error && e.name === "TimeoutError") return err("the lookup took too long; try a narrower request");
@@ -164,9 +169,11 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnOut
     }
 
     // A change. The free-text fields are cleaned first, and the cleaned arguments must still fit the tool's schema.
-    const cleaned = tool.schema.safeParse(cleanTextFields(tool, parsed.data, corpus));
+    const cleaned = tool.schema.safeParse(cleanTextFields(tool, parsed.data, corpus, actor.kind === "news"));
     if (!cleaned.success) return err("after removing links, phone numbers and handles that the owner did not write, a text field became empty or too short; ask the owner for the missing value");
     const args = cleaned.data as Record<string, unknown>;
+    // Something the owner did not write (a link, a number, a handle) was taken out of the text: the model must say so.
+    const textEdited = JSON.stringify(args) !== JSON.stringify(parsed.data);
     const risk = riskOf(tool, args);
     let card: Card;
     try {
@@ -213,7 +220,12 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnOut
     }
     proposed.push(run);
     return {
-      content: JSON.stringify({ status: "awaiting_confirmation", run: run.id, note: "The person sees a card with these values and must press Confirm. Do not say it is done." }),
+      content: JSON.stringify({
+        status: "awaiting_confirmation",
+        run: run.id,
+        note: "The person sees a card with these values and must press Confirm. Do not say it is done.",
+        ...(textEdited ? { edited: "Links, numbers or handles that the owner did not write were removed from the text. Tell the owner, and ask for the exact wording if it was needed." } : {}),
+      }),
       note: "",
       blocks: [],
       runId: run.id,
@@ -244,7 +256,8 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnOut
     }
     // Every call the model made must get a result back, but only a few are honoured in one step.
     messages.push({ role: "assistant", content: r.text || null, tool_calls: calls.map((c) => ({ id: c.id, type: "function" as const, function: { name: c.name, arguments: c.args } })) });
-    const asst = await appendMessage(thread.id, { role: "assistant", content: cleanAnswer(r.text), toolCalls: calls, meta: { model: r.model } });
+    const spoken = advisorOn && r.text ? guardAdviceDetailed(r.text, allowedAdviceText(), say("adviceNumbers", actor.lang)).text : r.text;
+    const asst = await appendMessage(thread.id, { role: "assistant", content: cleanAnswer(spoken), toolCalls: calls, meta: { model: r.model } });
     const blocks: ViewBlock[] = [];
     const runIds: string[] = [];
     for (const [i, c] of calls.entries()) {
@@ -272,8 +285,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnOut
   // Advice must not name a number that is not in this turn's data, the account data or the owner's own words.
   let guardCut = false;
   if (advisorOn && finalText) {
-    const allowedText = [...messages.map((m) => (typeof m.content === "string" ? m.content : "")), corpus].join("\n");
-    const g = guardAdviceDetailed(finalText, allowedText, say("adviceNumbers", actor.lang));
+    const g = guardAdviceDetailed(finalText, allowedAdviceText(), say("adviceNumbers", actor.lang));
     finalText = g.text;
     guardCut = g.cut;
   }
@@ -317,7 +329,7 @@ export async function runQuick(
     emit({ t: "status", text: tool.label(actor.lang) });
     try {
       const res = await withTimeout(tool.run({ ...ctx, deadline: Math.min(deadline, deps.now() + LIMITS.readTimeoutMs) }, parsed.data), LIMITS.readTimeoutMs);
-      if (tool.untrusted) hold = true;
+      if (typeof tool.untrusted === "function" ? tool.untrusted(ctx) : tool.untrusted) hold = true;
       blocks.push(...(res.view ?? []));
     } catch {
       // a lookup that fails leaves its block out; the others still show

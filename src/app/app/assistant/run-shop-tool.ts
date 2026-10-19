@@ -127,6 +127,8 @@ export interface ShopToolInput {
   attachments: ChatAttachment[];
   /** "Let Gituas review my idea first": the same switch as in Publish and in the Video section. */
   review: boolean;
+  /** How long an Instagram post may be waited for (ms): the chat gives the confirm request's remaining time, the classic screen none. */
+  igDeadlineMs?: number;
 }
 
 /** Runs one confirmed shop tool. The caller has checked the session, the role, the card's one-time claim and the daily caps. */
@@ -192,7 +194,7 @@ async function perform(input: ShopToolInput, conns: Connections, shop: Extract<A
         const r = await schedulePublishAction(post, String(args.when));
         return r.ok ? { ok: true, text: a.done.scheduled(String(args.when).replace("T", " ")) } : { ok: false, error: r.error };
       }
-      const r = await publishAction(post);
+      const r = await publishAction(input.igDeadlineMs && targets.includes("IG") ? { ...post, igDeadlineMs: input.igDeadlineMs } : post);
       if (!r.ok) return { ok: false, error: r.error };
       const went = r.results.some((o) => o.ok || o.pending);
       const lines = r.results.map((o) => `${o.target === "FB" ? "Facebook" : o.target === "IG" ? "Instagram" : o.target}: ${o.ok || o.pending ? a.done.okMark : a.done.failMark}`);

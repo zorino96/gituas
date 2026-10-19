@@ -287,6 +287,16 @@ export default function PrivacyPage() {
         </LI>
       </UL>
       <P>
+        <Strong>Automatic rules.</Strong> The rules you set up in the chat are your own fixed texts. They
+        are matched against buyers&rsquo; messages by plain rules on our own servers, using the words you
+        listed and the labels Gituas already works out for automatic replies (see the AI text
+        processing above); a rule adds no AI reading of its own, and no AI model writes a
+        rule&rsquo;s reply. A rule&rsquo;s log keeps
+        the rule, the word of yours that matched, what was done and the sender&rsquo;s platform ID (to
+        keep the daily limits), never the buyer&rsquo;s words. It is deleted after 90 days, or with the
+        message it belongs to.
+      </P>
+      <P>
         We may also disclose information if required by law or to protect the rights, safety, and
         security of our users and the service. We never sell personal data.
       </P>

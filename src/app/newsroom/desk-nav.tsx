@@ -28,9 +28,10 @@ import {
 
 import { Pending } from "@/app/app/nav";
 import { useT } from "@/lib/i18n/client";
-import { activeItem, NAV, NAV_GROUPS, type NavKey } from "@/lib/newsroom/nav";
+import { activeItem, NAV, NAV_GROUPS, navFor, type NavKey } from "@/lib/newsroom/nav";
 
-const ICONS: Record<NavKey, LucideIcon> = {
+/** One icon per section: the sidebar, the phone sheet and the chat frame's list all draw from here. */
+export const NAV_ICONS: Record<NavKey, LucideIcon> = {
   news: Newspaper,
   publish: SquarePlus,
   videos: Video,
@@ -61,16 +62,17 @@ function Brand() {
   );
 }
 
-function NavLinks({ onNavigate }: { onNavigate?: (href: string) => void }) {
+function NavLinks({ chat, onNavigate }: { chat: boolean; onNavigate?: (href: string) => void }) {
   const current = activeItem(usePathname());
   const t = useT().nr.shell.nav;
+  const items = navFor(chat);
   return (
     <>
       {NAV_GROUPS.map((g) => (
         <div key={g.key} className="gm-navgroup">
           <p className="gm-navlabel">{t.groups[g.key]}</p>
-          {NAV.filter((i) => i.group === g.key).map((i) => {
-            const Icon = ICONS[i.key];
+          {items.filter((i) => i.group === g.key).map((i) => {
+            const Icon = NAV_ICONS[i.key];
             const on = current?.key === i.key;
             return (
               <Link key={i.key} href={i.href} className="gm-navlink" aria-current={on ? "page" : undefined} onClick={() => onNavigate?.(i.href)}>
@@ -96,8 +98,8 @@ function SignOutButton() {
   );
 }
 
-/** Desktop sidebar (hidden under 960px by CSS). */
-export function SideNav() {
+/** Desktop sidebar (hidden under 960px by CSS). `chat`: the desk's chat is on, so the Assistant leads the first group. */
+export function SideNav({ chat = false }: { chat?: boolean }) {
   const t = useT().nr.shell.nav;
   return (
     <aside className="gm-side">
@@ -105,7 +107,7 @@ export function SideNav() {
         <Brand />
       </div>
       <nav aria-label={t.sideLabel} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-        <NavLinks />
+        <NavLinks chat={chat} />
       </nav>
       <div className="gm-side-foot">
         <SignOutButton />
@@ -115,7 +117,7 @@ export function SideNav() {
 }
 
 /** Phone bar: four sections plus "more", which opens every section in a sheet (hidden from 960px by CSS). */
-export function BottomNav() {
+export function BottomNav({ chat = false }: { chat?: boolean }) {
   const path = usePathname();
   const current = activeItem(path);
   const t = useT().nr.shell.nav;
@@ -139,7 +141,7 @@ export function BottomNav() {
       <div className="gm-tabs">
         <nav aria-label={t.barLabel}>
           {NAV.filter((i) => i.mobile).map((i) => {
-            const Icon = ICONS[i.key];
+            const Icon = NAV_ICONS[i.key];
             const on = current?.key === i.key;
             return (
               <Link key={i.key} href={i.href} className="gm-tab" aria-current={on ? "page" : undefined}>
@@ -175,7 +177,7 @@ export function BottomNav() {
             </button>
           </div>
           <nav aria-label={t.all} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <NavLinks onNavigate={(href) => href === path && setOpenAt(null)} />
+            <NavLinks chat={chat} onNavigate={(href) => href === path && setOpenAt(null)} />
           </nav>
           <div className="gm-side-foot">
             <SignOutButton />

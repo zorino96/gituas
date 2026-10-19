@@ -1,3 +1,4 @@
+import { coachEnabled } from "@/lib/coach/enabled";
 import { redirect } from "next/navigation";
 
 import { chatEnabled } from "@/lib/chat/enabled";
@@ -28,6 +29,7 @@ export default async function ChatThreadPage({ params }: { params: Promise<{ id:
   }
   return (
     <ChatScreen
+      coachOn={coachEnabled()}
       // Another chat is another screen: nothing of the one before may stay in its state.
       key={r.thread.id}
       workspaceId={ws.id}

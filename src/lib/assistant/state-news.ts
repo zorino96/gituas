@@ -5,7 +5,7 @@ import { imageEnabled } from "@/lib/ai/image";
 import { db } from "@/lib/db";
 import { FRAME_SECTIONS } from "@/lib/news/frames-shared";
 
-const PROMPT_SHOWN = 300;
+const PROMPT_SHOWN = 1200;
 
 export async function loadNewsAssistantState(tenantId: string, names: { desk: string; sections: Record<string, string> }) {
   const [kit, frames, settings, photos] = await Promise.all([

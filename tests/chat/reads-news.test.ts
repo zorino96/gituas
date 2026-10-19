@@ -808,7 +808,7 @@ describe("get_desk_settings", () => {
       headlinePosition: "bottom",
       logoCorner: "off",
       sectionFrames: [{ section: "sports", headlinePosition: "top", note: "green", hasReference: false }],
-      designPrompt: "deep blue, thin gold lines",
+      designPromptParts: ["deep blue, thin gold lines"],
       writingStyleNote: "Short sentences.",
       aiPictures: true,
       aiFrameDesignAvailable: true,
@@ -818,6 +818,42 @@ describe("get_desk_settings", () => {
     // The brand answer holds no file path and no address of a file.
     expect(json(await get("brand"))).not.toContain("merchant/t1");
     expect(json(lib)).not.toContain("blob.example");
+  });
+
+  it("hands over the whole design prompt, up to 1200 characters, in parts that the wrapper keeps, so a replacement never starts from a cut copy", async () => {
+    const long = Array.from({ length: 160 }, (_, i) => `shade${i}`).join(" ").slice(0, 1_200).replace(/\s+\S*$/, "");
+    expect(long.length).toBeGreaterThan(900);
+    props.loadNewsProps.mockResolvedValue({ ...settingsProps(), designPrompt: long });
+    data.loadAccountLists.mockResolvedValue({ META_FACEBOOK: [], META_INSTAGRAM: [], TIKTOK: [], YOUTUBE: [] });
+    data.loadConnections.mockResolvedValue(notConnected);
+    db.newsSource.count.mockResolvedValue(0);
+    const r = await call("get_desk_settings", { area: "brand" });
+    const parts = (r.data as { brand: { designPromptParts: string[]; designPrompt?: unknown } }).brand.designPromptParts;
+    expect(parts.length).toBeGreaterThan(3);
+    expect((r.data as { brand: Record<string, unknown> }).brand.designPrompt).toBeUndefined();
+    // what the model really reads, after the wrapper has cut every string to 300 characters
+    const seen = JSON.parse(wrapForModel(r.data, { untrusted: false })) as { brand: { designPromptParts: string[] } };
+    expect(seen.brand.designPromptParts.join(" ")).toBe(long);
+    // the person's screen shows all of it too
+    expect(json(r.view)).toContain(long.slice(-40));
+  });
+
+  it("gives only the length of the design prompt in the short answer for all areas", async () => {
+    setup();
+    const d = ((await call("get_desk_settings")).data as { brand: Record<string, unknown> }).brand;
+    expect(d.designPromptChars).toBe("deep blue, thin gold lines".length);
+    expect(d.designPromptParts).toBeUndefined();
+    expect(json(d)).not.toContain("thin gold");
+  });
+
+  it("has no design prompt line for a desk that has none", async () => {
+    props.loadNewsProps.mockResolvedValue({ ...settingsProps(), designPrompt: "" });
+    data.loadAccountLists.mockResolvedValue({ META_FACEBOOK: [], META_INSTAGRAM: [], TIKTOK: [], YOUTUBE: [] });
+    data.loadConnections.mockResolvedValue(notConnected);
+    db.newsSource.count.mockResolvedValue(0);
+    const brand = ((await call("get_desk_settings", { area: "brand" })).data as { brand: Record<string, unknown> }).brand;
+    expect(brand.designPromptParts).toBeUndefined();
+    expect(brand.designPromptChars).toBeUndefined();
   });
 
   it("answers all areas in short by default, and in the person's language", async () => {

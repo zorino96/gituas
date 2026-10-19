@@ -9,7 +9,8 @@ const db = vi.hoisted(() => ({
   product: { findMany: vi.fn(), count: vi.fn() },
   scheduledPost: { findMany: vi.fn() },
   adVideo: { findMany: vi.fn() },
-  store: { findMany: vi.fn() },
+  // findFirst: the WhatsApp number's store (list_conversations looks for WhatsApp chats next to Meta's); no WhatsApp number here, so it answers nothing.
+  store: { findMany: vi.fn(), findFirst: vi.fn() },
   tenant: { findUnique: vi.fn() },
   postAutomation: { count: vi.fn() },
   outboxJob: { count: vi.fn() },
@@ -143,7 +144,10 @@ describe("the catalogue", () => {
       expect(t.permission).toBe(["get_settings", "get_plan_usage"].includes(t.name) ? "configure" : "read");
       // Only what carries customers' (or visitors') words is untrusted: get_insights shows post captions, and a Page's feed holds
       // posts that visitors write on it.
-      expect(!!t.untrusted).toBe(["list_orders", "get_order", "list_comments", "list_conversations", "get_conversation", "get_insights"].includes(t.name));
+      // (list_scheduled_posts is untrusted only on a news desk, whose captions are written from feeds: a function of the context.)
+      const untrustedForShop = typeof t.untrusted === "function" ? t.untrusted({ kind: "shop" } as never) : !!t.untrusted;
+      expect(untrustedForShop).toBe(["list_orders", "get_order", "list_comments", "list_conversations", "get_conversation", "get_insights"].includes(t.name));
+      if (t.name === "list_scheduled_posts") expect(typeof t.untrusted === "function" && t.untrusted({ kind: "news" } as never)).toBe(true);
     }
   });
 
@@ -230,6 +234,50 @@ describe("what the model may read", () => {
     // Digits in any script, and full-width digits, count as well.
     expect(scrubContacts("٠٧٥٠/١٢٣٤٥٦٧")).toBe("[number]");
     expect(scrubContacts("call ０７５０１２３４５６７")).toBe("call [number]");
+  });
+
+  it("takes out a number whose groups are joined by any kind of dash, a dot, a bullet, an underscore, an asterisk or the Arabic comma", () => {
+    // Built from code points, so no look-alike character is written into this file.
+    const d = (cp: number) => `0750${String.fromCodePoint(cp)}123${String.fromCodePoint(cp)}4567`;
+    for (const cp of [0x2010, 0x2011, 0x2012, 0x2013, 0x2014, 0x2015, 0x2212, 0xfe63, 0xb7, 0x2022, 0x2219, 0x22c5, 0x5f, 0x2a, 0x60c]) {
+      expect(scrubContacts(d(cp)), cp.toString(16)).toBe("[number]");
+      expect(scrubContacts(`call ${d(cp)} now`), cp.toString(16)).toBe("call [number] now");
+    }
+    expect(scrubContacts(`0750 ${String.fromCodePoint(0x2013)} 123 ${String.fromCodePoint(0x2013)} 4567`)).toBe("[number]");
+    expect(scrubContacts(`+964${String.fromCodePoint(0x2011)}750${String.fromCodePoint(0x2011)}123${String.fromCodePoint(0x2011)}4567`)).toBe("[number]");
+    // Digits in another script, with the Arabic comma between the groups.
+    expect(scrubContacts("٠٧٥٠،١٢٣،٤٥٦٧")).toBe("[number]");
+    // The joiners that Arabic-script text is written with are kept in text, so a number split by one is still a number.
+    const ZWNJ = String.fromCodePoint(0x200c);
+    const ZWJ = String.fromCodePoint(0x200d);
+    expect(scrubContacts(`0750${ZWNJ}123${ZWNJ}4567`)).toBe("[number]");
+    expect(scrubContacts(`0750${ZWJ}1234567`)).toBe("[number]");
+    expect(scrubContacts(`0750${ZWNJ} 123${ZWJ} 4567`)).toBe("[number]");
+    // ...and a word written with one is not damaged.
+    expect(scrubContacts(`کتێب${ZWNJ}ەکان`)).toBe(`کتێب${ZWNJ}ەکان`);
+  });
+
+  it("takes out an address whatever letters it holds", () => {
+    expect(scrubContacts("write ahmed\u{e9}@example.com please")).toBe("write [email] please");
+    expect(scrubContacts("ئیمەیل: دانا@example.com")).toBe("ئیمەیل: [email]");
+    expect(scrubContacts("a.b+c@sub.example.co.uk")).toBe("[email]");
+  });
+
+  it("leaves prices, sizes, quantities, times and dates alone, whichever dash or comma they use", () => {
+    const en = String.fromCodePoint(0x2013);
+    const em = String.fromCodePoint(0x2014);
+    const minus = String.fromCodePoint(0x2212);
+    const arComma = String.fromCodePoint(0x60c);
+    expect(scrubContacts("open 10:30 - 12:45")).toBe("open 10:30 - 12:45");
+    expect(scrubContacts(`open 08:00 ${en} 20:00 daily`)).toBe(`open 08:00 ${en} 20:00 daily`);
+    expect(scrubContacts("open ٠٨:٠٠ - ٢٠:٠٠")).toBe("open ٠٨:٠٠ - ٢٠:٠٠");
+    for (const date of [`2026${en}10${en}19`, `2026${em}10${em}19`, `2026${minus}10${minus}19`, `19${en}10${en}2026`, "2026_10_19", "١٩/١٠/٢٠٢٦"]) {
+      expect(scrubContacts(`deliver on ${date} please`), date).toBe(`deliver on ${date} please`);
+    }
+    // The Arabic comma groups thousands as well as the plain one, and the list of sizes keeps its spaces.
+    expect(scrubContacts(`it costs 25${arComma}000${arComma}000 IQD`)).toBe(`it costs 25${arComma}000${arComma}000 IQD`);
+    expect(scrubContacts(`sizes 38${arComma} 39${arComma} 40${arComma} 41${arComma} 42`)).toBe(`sizes 38${arComma} 39${arComma} 40${arComma} 41${arComma} 42`);
+    expect(scrubContacts("sizes 38, 39, 40, 41, 42 and 5 * 6 * 7")).toBe("sizes 38, 39, 40, 41, 42 and 5 * 6 * 7");
   });
 
   it("leaves prices, sizes, quantities and dates alone", () => {

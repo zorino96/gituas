@@ -204,7 +204,7 @@ describe("backtestRule: the shop's stored messages, labels already on them", () 
     expect(b.byReason).toEqual({ no_keyword: 2 });
   });
 
-  it("reads the labels from the stored columns, and treats a missing one as no label", () => {
+  it("reads the labels from the stored columns; a message nothing has labelled is labelled by the free classifier, as a preview does", () => {
     const messages = [
       stored("1", "info", { type: null, intent: null, language: null, confidence: null }),
       stored("2", "info", { type: "COMPLAINT" }),
@@ -214,9 +214,45 @@ describe("backtestRule: the shop's stored messages, labels already on them", () 
       stored("6", "info"),
     ];
     const b = backtestRule(INFO_RULE, messages);
-    expect(b.matched).toBe(1);
+    // 1, 4, 5 have no usable label: a keyword rule does not depend on labels, so they are judged as ordinary messages and the rule acts
+    expect(b.matched).toBe(4);
     expect(b.triggered).toBe(6);
-    expect(b.byReason).toEqual({ reply_needs_label: 3, never_answered: 1, order_flow: 1 });
+    expect(b.unjudged).toBe(0);
+    expect(b.byReason).toEqual({ never_answered: 1, order_flow: 1 });
+  });
+
+  it("a shop that never switched automatic replies on has only unlabelled messages: a rule that matches all of them is still too broad", () => {
+    const unlabelled = Array.from({ length: 50 }, (_, i) => stored(`u${i}`, `info about item ${i}`, { type: null, intent: null, language: null, confidence: null }));
+    const b = backtestRule(INFO_RULE, unlabelled);
+    expect(b.considered).toBe(50);
+    expect(b.matched).toBe(50);
+    expect(b.share).toBe(1);
+    expect(b.byReason).toEqual({});
+    expect(backtestIssue(b)).toMatchObject({ code: "backtest_too_broad", level: "problem", params: { share: 100 } });
+  });
+
+  it("uses the free classifier for an unlabelled message, so a rule that reads the topic is judged on it", () => {
+    const bare = { type: null, intent: null, language: null, confidence: null };
+    const b = backtestRule(PRICE_RULE, [stored("1", "چەندە؟", bare), stored("2", "price?", bare), stored("3", "so beautiful", bare)]);
+    expect(b.matched).toBe(2);
+    // "so beautiful" has no label anywhere and this rule reads the topic: it is left out, not counted as "would not act"
+    expect(b.considered).toBe(2);
+    expect(b.unjudged).toBe(1);
+    expect(b.byReason).toEqual({});
+  });
+
+  it("leaves out, and counts apart, a message that cannot be judged: nothing labelled it, the classifier cannot, and the rule needs a label", () => {
+    const bare = { type: null, intent: null, language: null, confidence: null };
+    const cannot = "zzzz qqqq 12345";
+    expect(classifyByRules(cannot)).toBeNull();
+    const b = backtestRule(PRICE_RULE, [stored("1", cannot, bare), stored("2", "please tell me more about yourself", bare), stored("3", "price?", bare)]);
+    expect(b.total).toBe(3);
+    expect(b.unjudged).toBe(2);
+    expect(b.considered).toBe(1);
+    expect(b.matched).toBe(1);
+    // a message that could not be judged is not "the rule would not act"
+    expect(b.byReason).toEqual({});
+    expect(backtestRule(PRICE_RULE, [stored("1", cannot, bare)])).toMatchObject({ considered: 0, unjudged: 1, share: 0 });
   });
 
   it("does not take a voice note for a rule that is not for voice notes", () => {
@@ -226,7 +262,7 @@ describe("backtestRule: the shop's stored messages, labels already on them", () 
   });
 
   it("works on an empty list", () => {
-    expect(backtestRule(INFO_RULE, [])).toMatchObject({ total: 0, considered: 0, matched: 0, share: 0, examples: [] });
+    expect(backtestRule(INFO_RULE, [])).toMatchObject({ total: 0, considered: 0, unjudged: 0, matched: 0, share: 0, examples: [] });
   });
 
   it("returns buyers' words only in examples, as the owner's screen needs them", () => {
@@ -236,7 +272,7 @@ describe("backtestRule: the shop's stored messages, labels already on them", () 
 });
 
 describe("backtestIssue: too broad for the shop's real messages", () => {
-  const result = (considered: number, matched: number) => ({ total: considered, considered, triggered: matched, matched, share: considered ? matched / considered : 0, examples: [], byReason: {} });
+  const result = (considered: number, matched: number) => ({ total: considered, considered, unjudged: 0, triggered: matched, matched, share: considered ? matched / considered : 0, examples: [], byReason: {} });
 
   it("says nothing on a small sample", () => {
     expect(backtestIssue(result(9, 9))).toBeNull();

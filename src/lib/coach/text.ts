@@ -304,27 +304,78 @@ export function renderRules(facts: CoachFacts, lang: NoteLang): NoteBody {
 // ---------------------------------------------------------------------------------------------------------------------
 // What a note may never say
 
-/** Prediction, promise, guarantee; the three languages. */
+/** Prediction, promise, guarantee; English. */
 const PREDICTION_EN = /\b(will|won't|wouldn't|you'll|it'll|they'll|going to|gonna|guarantee[ds]?|guaranteeing|promise[ds]?|predict\w*|forecast\w*|expect\w*|certain\w*|definitely|surely|for sure|sure to|bound to|projected|projection)\b/i;
+/** A promise in the present tense: "posting more often brings more orders", "this helps you sell more", "replying fast boosts your sales". */
+const PROMISE_EN =
+  /\b(?:brings?|bringing|leads? to|results? in|resulted? in)\s+(?:you\s+)?(?:many\s+)?(?:more|extra|better|higher|new)\b|\b(?:helps?|helping)\s+you\s+(?:to\s+)?(?:sell|get|win|earn|grow|reach|make)\s+(?:more|better|higher)\b|\b(?:boosts?|increases?|raises?|doubles?)\s+(?:your\s+)?(?:sales|orders|revenue|buyers|followers|profit)\b/i;
 /** Judging what an account is for, or how its owner is doing. */
 const JUDGEMENT_EN =
   /\b(not (really )?(for|meant for|made for|suited to) (selling|business)|(isn't|is not|aren't|are not) (for|meant for|made for) (selling|business)|doesn't sell|does not sell|waste of|wasting|pointless|useless|worthless|failing|failure|failed|you should (stop|quit|give up|not use)|stop using|give up|bad (at|business|seller|shop)|good (job|work|seller|shop)|great (job|work|shop)|well done|doing (very )?(well|badly|great|poorly|terrible|terribly))\b/i;
 
+// Arabic and Sorani. Both lists are matched on text made comparable (foldBan): diacritics, the stretching letter and invisible
+// characters out, and the letters that are written in more than one way (alif with or without hamza, the two yehs, the two kafs, the
+// heh and Sorani ae, ta marbuta) made one. The lists below are written naturally; fragments are folded the same way when they are
+// compared. They are a net, not a promise: a blocklist can never be complete, so a native-speaker review of both lists is wanted
+// (see the review request that goes with this change).
+
+/** Words that begin a future or a promise in Arabic ("will", "you will get", "I promise"); matched at the start of a word, with one of the joining letters (wa, fa, li, bi) allowed before. */
+const WORDS_AR = [
+  // future: "will increase / rise / grow / help / bring / get / earn / reach / improve / see"
+  "سوف", "سيزيد", "ستزيد", "سيزداد", "ستزداد", "سيرتفع", "سترتفع", "سينمو", "ستنمو", "سيتضاعف", "ستتضاعف", "سيضاعف", "ستضاعف", "سيتحسن", "ستتحسن",
+  "سيساعد", "ستساعد", "سيؤدي", "ستؤدي", "سيجلب", "ستجلب", "سيجذب", "ستجذب", "سيحقق", "ستحقق", "سينجح", "ستنجح", "سيصبح", "ستصبح",
+  "سيبيع", "ستبيع", "سيربح", "ستربح", "سيكسب", "ستكسب", "ستجني", "ستحصد", "سيحصل", "ستحصل", "سيصل", "ستصل", "ستتمكن", "سيتمكن", "سترى", "ستلاحظ",
+  "سينخفض", "ستنخفض", "سيقل", "ستقل", "سيعود", "ستعود",
+  // promise and certainty
+  "أعدك", "اعدك", "نعدك", "وعد", "ضمان", "نضمن", "أضمن", "اضمن", "مضمون", "مؤكد", "بالتأكيد", "بكل تأكيد", "من المؤكد", "حتما", "حتماً", "لا شك", "بلا شك", "دون شك", "بدون شك", "يقينا", "يقيناً",
+  // prediction
+  "تنبؤ", "نتوقع", "أتوقع", "اتوقع", "توقعات", "توقع",
+  // a promise in the present tense
+  "تبيع أكثر", "تبيع المزيد", "تحصل على المزيد", "تحصل على طلبات", "يجلب لك", "يزيد مبيعاتك", "يزيد طلباتك", "يزيد من مبيعاتك", "يزيد من طلباتك", "يساعدك على البيع", "يساعدك في البيع",
+];
+/** Other Arabic phrases (judgements), matched anywhere. */
 const FRAGMENTS_AR = [
-  "سوف", "سيزيد", "ستزيد", "سيرتفع", "سترتفع", "ستبيع", "سيبيع", "سينمو", "ستنمو", "سيحقق", "ستحقق", "ضمان", "نضمن", "أضمن", "مضمون",
-  "تنبؤ", "نتوقع", "أتوقع", "توقعات", "توقّع", "بالتأكيد", "حتماً", "حتمًا", "حتما", "يقيناً",
   "لا يصلح للبيع", "غير مخصص للبيع", "لا يبيع", "فاشل", "فشل", "ضياع للوقت", "مضيعة", "أحسنت", "عمل رائع", "عمل ممتاز", "أداء ممتاز", "أداء سيئ",
 ];
+/** Sorani: matched anywhere. Mostly whole forms of a verb ("will receive", "will increase", "helps you", "can sell more"), a promise or a judgement. */
 const FRAGMENTS_CKB = [
-  "گەرەنتی", "دڵنیام", "دڵنیایی", "بێگومان", "پێشبینی", "دەفرۆشرێت", "زیاد دەبێت", "زیاد دەبن", "بەرز دەبێتەوە", "دابەزێت", "دەبێتە",
+  // prediction, promise, certainty
+  "گەرەنتی", "دڵنیام", "دڵنیایی", "دڵنیابە", "دڵنیا بە", "بێگومان", "حەتمەن", "بەڵێن", "پێشبینی",
+  // "will be / will go up / will go down / becomes"
+  "دەفرۆشرێت", "زیاد دەبێت", "زیاد دەبن", "زیاتر دەبێت", "زیاتر دەبن", "باشتر دەبێت", "باشتر دەبن", "باشتر دەبیت", "کەمتر دەبێت", "کەمتر دەبن", "زۆرتر دەبێت", "بەرزتر دەبێت", "بەرز دەبێتەوە", "دابەزێت", "دەبێتە", "دەگەیتە",
+  // "increases / you will receive / you will sell more / you can sell more / helps you"
+  "زیاد دەکات", "زیاد دەکەن", "زیاد دەکەیت", "وەردەگریت", "وەردەگرێت", "زیاتر دەفرۆشیت", "زیاتر دەفرۆشێت", "دەتوانیت زیاتر بفرۆشیت", "یارمەتیت دەدات", "یارمەتیتان دەدات",
+  // judgement
   "سەرکەوتوو دەبیت", "شکست", "بێسوود", "بۆ فرۆشتن نییە", "بۆ فرۆشتن نین", "کاتت بەفیڕۆ", "باش کارت کردووە", "کارێکی نایاب", "کارێکی باش", "خراپ کارت",
 ];
 
+// Built from code points so that no invisible character is ever written into this source file.
+const BAN_DROP = /[\u{64b}-\u{65f}\u{670}\u{640}\u{200b}-\u{200f}\u{202a}-\u{202e}\u{2060}\u{feff}]/gu;
+/** Text made comparable for the Arabic and Sorani lists. */
+export function foldBan(text: string): string {
+  return text
+    .normalize("NFKC")
+    .replace(BAN_DROP, "")
+    .replace(/[أإآٱ]/g, "ا")
+    .replace(/[يىی]/g, "ی")
+    .replace(/[كک]/g, "ک")
+    .replace(/[هەةہھ]/g, "ە")
+    .replace(/\s+/g, " ");
+}
+
+const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const WORDS_AR_RE = new RegExp(`(?<![\\p{L}\\p{M}])(?:[وفلب]?(?:ال)?)(?:${WORDS_AR.map((w) => escapeRe(foldBan(w))).join("|")})`, "u");
+const FOLDED_AR = FRAGMENTS_AR.map(foldBan);
+const FOLDED_CKB = FRAGMENTS_CKB.map(foldBan);
+
 /** The first phrase a note may not contain, or null when the text is clean. */
 export function bannedPhrase(text: string): string | null {
-  const en = PREDICTION_EN.exec(text) ?? JUDGEMENT_EN.exec(text);
+  const en = PREDICTION_EN.exec(text) ?? PROMISE_EN.exec(text) ?? JUDGEMENT_EN.exec(text);
   if (en) return en[0];
-  for (const frag of [...FRAGMENTS_AR, ...FRAGMENTS_CKB]) if (text.includes(frag)) return frag;
+  const folded = foldBan(text);
+  const word = WORDS_AR_RE.exec(folded);
+  if (word) return word[0];
+  for (const frag of [...FOLDED_AR, ...FOLDED_CKB]) if (folded.includes(frag)) return frag;
   return null;
 }
 

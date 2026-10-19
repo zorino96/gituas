@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { ChatEvent } from "@/lib/chat/types";
-import { createNdjsonParser, readEvents, safeMessage, toChatEvent } from "@/app/app/assistant/chat-stream";
+import type { ChatErrorCode, ChatEvent } from "@/lib/chat/types";
+import { codeFromResponse } from "@/app/app/assistant/chat-model";
+import { createNdjsonParser, isChatErrorCode, readEvents, safeMessage, toChatEvent } from "@/app/app/assistant/chat-stream";
 
 const msg = (over: Record<string, unknown> = {}) => ({
   id: "m1", seq: 2, role: "assistant", text: "hi", blocks: [], runs: [], followups: [], attachments: [], createdAt: "2026-10-19T10:00:00.000Z", ...over,
@@ -129,5 +130,31 @@ describe("readEvents", () => {
     const pending = readEvents(stream, () => undefined, ctrl.signal);
     ctrl.abort();
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  });
+});
+
+describe("the error codes the parser knows", () => {
+  // A Record over the union: a code added to ChatErrorCode and not here is a type error (tsc), and one not in the parser fails below.
+  const ALL: Record<ChatErrorCode, true> = {
+    signin: true, forbidden: true, workspace: true, badrequest: true, limit_day: true, limit_month: true, allowance: true, busy: true,
+    unavailable: true, not_found: true, expired: true, frozen: true, internal: true,
+  };
+
+  it("knows every code the server can send, so none is turned into 'internal'", () => {
+    for (const code of Object.keys(ALL)) {
+      expect(isChatErrorCode(code), code).toBe(true);
+      expect(toChatEvent({ t: "error", code, message: "x" }), code).toMatchObject({ t: "error", code });
+      expect(codeFromResponse(200, { code }), code).toBe(code);
+    }
+  });
+
+  it("keeps 'frozen': a desk whose trial ended is told so, not 'something went wrong'", () => {
+    expect(toChatEvent({ t: "error", code: "frozen", message: "" })).toEqual({ t: "error", code: "frozen", message: "" });
+    expect(codeFromResponse(200, { code: "frozen" })).toBe("frozen");
+  });
+
+  it("still turns a code it does not know into 'internal'", () => {
+    expect(toChatEvent({ t: "error", code: "made_up", message: "" })).toMatchObject({ code: "internal" });
+    expect(isChatErrorCode("made_up")).toBe(false);
   });
 });

@@ -21,6 +21,7 @@ vi.mock("@/lib/i18n", async () => {
 import { PICTURE_TOOLS, pictureForModel } from "@/lib/chat/tools/reads-picture";
 import type { ToolCtx } from "@/lib/chat/types";
 import { MAX_RESULT_CHARS, wrapForModel } from "@/lib/chat/wrap";
+import { guardAdviceDetailed } from "@/lib/chat/numbers";
 import { collectFacts } from "@/lib/coach/facts";
 import { FREE_TEXT_COLUMNS, SECRETS, busyFacts, seedShopDb } from "../coach/fixtures";
 
@@ -89,7 +90,8 @@ describe("what it returns", () => {
     expect(d.productInterest[0]).toMatchObject({ product: "Red bag", asked: 12, ordered: 5, bargained: 2, bargainSharePercent: 14 });
     expect(d.buyers.topCities).toEqual(["Erbil", "Duhok"]);
     expect(d.messages).toEqual({ buyerMessagesThisWeek: 55, buyerMessagesWeekBefore: 40, commentsThisWeek: 120, commentsWeekBefore: 100, waitingForOwner: 4 });
-    expect(d.posts).toEqual({ publishedThisWeek: 3, ofThemByAutopilot: 2 });
+    // The units are in the names: one publication per platform a post reached, one count per post for the autopilot.
+    expect(d.posts).toEqual({ publicationsThisWeekCountedPerPlatform: 3, autopilotPostsThisWeekCountedOncePerPost: 2 });
   });
 
   it("reminds the model what the numbers are and are not", async () => {
@@ -205,6 +207,12 @@ describe("what the person sees", () => {
     expect(blocks[0]).toMatchObject({ kind: "stats", title: "Orders in the last 7 days" });
   });
 
+  it("labels the post count for what it is: once for each platform, not the label of Today's own count", async () => {
+    const stats = ((await run()).view ?? [])[0] as { items: { label: string; value: string }[] };
+    expect(stats.items.map((i) => i.label)).toContain("Posts published (counted once per platform)");
+    expect(stats.items.map((i) => i.label)).not.toContain("Posts this week");
+  });
+
   it("says so in a note when nothing was counted", async () => {
     db.order.findMany.mockResolvedValue([]);
     db.conversationMessage.findMany.mockResolvedValue([]);
@@ -213,6 +221,19 @@ describe("what the person sees", () => {
     const r = await run();
     expect(r.view).toHaveLength(1);
     expect(r.view?.[0]).toMatchObject({ kind: "note" });
+  });
+});
+
+describe("the model's answer about it passes the number guard", () => {
+  it("lets a correct sentence about the busiest hours through: the hours in the data are three numbers, not one", async () => {
+    const f = await collectFacts("t1", NOW);
+    f.buyers.hours = [20, 21, 22];
+    const allowed = wrapForModel(pictureForModel(f), { untrusted: false });
+    const fallback = "I would rather not quote a number that is not in your own data.";
+    const answer = "Your buyers write most around 21:00 and 22:00. Post just before that.";
+    expect(guardAdviceDetailed(answer, allowed, fallback)).toEqual({ text: answer, cut: false, dropped: [] });
+    // and an hour the data does not have is still cut
+    expect(guardAdviceDetailed("Your buyers write most around 23:00. Post just before that.", allowed, fallback).dropped).toEqual(["Your buyers write most around 23:00."]);
   });
 });
 

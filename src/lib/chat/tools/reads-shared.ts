@@ -25,18 +25,26 @@ export function clip(text: string | null | undefined, max: number): string {
   return chars.length > max ? `${chars.slice(0, Math.max(0, max - 1)).join("")}…` : chars.join("");
 }
 
-// The text is matched in a folded copy (see substitute): digits there are ASCII whatever script the buyer wrote them in.
+// The text is matched in a folded copy (see substitute), by the same folding the output cleaner uses (guard.ts: foldForMatch):
+// compatibility forms folded and digits ASCII whatever script the buyer wrote them in.
 //
-// What counts as a phone number: eight digits or more in a run, with up to five spaces, dots, dashes or brackets between two digits, or
-// a slash (spaces around it allowed) or a comma (no space) between them. The run may touch letters ("shop07501234567"). It does not
-// start inside a longer number. Dates ("2026-10-19", "19/10/2026") are left alone, and so is anything shorter (a price, a size).
-// A comma with a space after it ("38, 39, 40, 41") is a list, not part of a number.
-const SEPARATOR = String.raw`(?:[\s().\-]{0,5}|\s{0,3}\/\s{0,3}|,)`;
-const DATE_START = String.raw`(?!\d{4}[-/.]\d{1,2}[-/.]\d{1,2}(?!\d)|\d{1,2}[-/.]\d{1,2}[-/.]\d{4}(?!\d))`;
-const PHONE = new RegExp(String.raw`(?<![0-9])${DATE_START}\+?[0-9](?:${SEPARATOR}[0-9]){7,}`, "g");
-const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
-/** 25,000,000 or 1,250,000.50: a price written with thousands separators, not a number to call. */
-const GROUPED_PRICE = /^\+?\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?$/;
+// What counts as a phone number: eight digits or more in a run, with up to five separators between two digits, or a slash (spaces
+// around it allowed) or a comma (no space) between them. A separator is a space, a dot, a bracket, a dash of ANY kind (hyphen, en and
+// em dash, non-breaking hyphen, minus sign), a middle dot or bullet, an underscore, an asterisk, or a zero-width (non-)joiner (guard.ts
+// keeps those in text because Arabic script is written with them). The bare comma may be the Arabic comma too. The run may touch
+// letters ("shop07501234567"). It does not start inside a longer number. Dates ("2026-10-19", "19/10/2026", with any dash) are left
+// alone, and so is anything shorter (a price, a size). A comma with a space after it ("38, 39, 40, 41") is a list, not part of a
+// number, and a time range ("10:30 - 12:45") has no separator the run can cross. Written with code point escapes so that no unusual
+// character is typed into this file.
+const SEP_CHARS = String.raw`\s().\p{Pd}\u{2212}\u{b7}\u{2022}\u{2027}\u{2219}\u{22c5}\u{30fb}_*\u{200c}\u{200d}`;
+const SEPARATOR = String.raw`(?:[${SEP_CHARS}]{0,5}|\s{0,3}\/\s{0,3}|[,\u{60c}])`;
+const DATE_SEP = String.raw`[\p{Pd}\u{2212}/._]`;
+const DATE_START = String.raw`(?!(?:19|20)\d{2}${DATE_SEP}\d{1,2}${DATE_SEP}\d{1,2}(?!\d)|\d{1,2}${DATE_SEP}\d{1,2}${DATE_SEP}(?:19|20)\d{2}(?!\d))`;
+const PHONE = new RegExp(String.raw`(?<![0-9])${DATE_START}\+?[0-9](?:${SEPARATOR}[0-9]){7,}`, "gu");
+// Letters and digits of any script, as in the output cleaner: "ahmedé@example.com" is an address too.
+const EMAIL = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/gu;
+/** 25,000,000 or 1,250,000.50 (the comma may be the Arabic one): a price written with thousands separators, not a number to call. */
+const GROUPED_PRICE = /^\+?\d{1,3}(?:[,\u{60c}]\d{3})+(?:\.\d{1,2})?$/u;
 
 /**
  * Cuts every match of `re` out of `text`, finding them in the folded copy of the text (same length, so a match is cut out of the

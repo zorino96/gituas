@@ -62,6 +62,7 @@ export const chatAr: typeof chatCkb = {
     jumpLatest: "انتقل إلى الأحدث",
     dropHere: "أسقط الصورة أو الفيديو هنا",
     retry: "حاول مرة أخرى",
+    reload: "أعد تحميل الصفحة",
     openLink: "فتح",
     imageOf: "صورة مرفقة",
   },

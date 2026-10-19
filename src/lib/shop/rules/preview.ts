@@ -168,8 +168,13 @@ export interface StoredMessage {
 export interface BacktestResult {
   /** Messages given. */
   total: number;
-  /** Of the rule's channel and platforms: the ones it could ever see. */
+  /** Of the rule's channel and platforms and with a label (stored, or given by the free classifier): the ones it was judged on. */
   considered: number;
+  /**
+   * Messages of the rule's channel and platforms that could not be judged: nothing stored a label on them, the free classifier cannot
+   * label them, and the rule depends on labels. They are not counted as "the rule would not act": they are left out.
+   */
+  unjudged: number;
   /** The trigger matched. */
   triggered: number;
   /** The rule would have acted. */
@@ -194,17 +199,29 @@ function storedLabel(m: StoredMessage): Classification | null {
 
 /**
  * How many of the shop's stored messages the rule would have acted on, from the labels already stored (no model call).
- * `maxExamples` messages are returned as examples.
+ * A message nothing has labelled yet (a shop whose automatic replies were off, a post beyond its slots) is labelled with the free
+ * classifier, as a preview does; when that cannot label it either, the rule is judged on it only if it does not depend on labels,
+ * otherwise the message is left out (`unjudged`), never counted as "the rule would not act". `maxExamples` messages are returned.
  */
-export function backtestRule(spec: RuleSpecT, messages: readonly StoredMessage[], opts: { maxExamples?: number; ctx?: PreviewContext } = {}): BacktestResult {
+export function backtestRule(
+  spec: RuleSpecT,
+  messages: readonly StoredMessage[],
+  opts: { maxExamples?: number; ctx?: PreviewContext; classify?: Classifier } = {},
+): BacktestResult {
   const max = opts.maxExamples ?? 5;
+  const classify = opts.classify ?? classifyByRules;
   const rule = pseudoRule(spec);
-  const out: BacktestResult = { total: messages.length, considered: 0, triggered: 0, matched: 0, share: 0, examples: [], byReason: {} };
+  const out: BacktestResult = { total: messages.length, considered: 0, unjudged: 0, triggered: 0, matched: 0, share: 0, examples: [], byReason: {} };
   for (const m of messages) {
     if (m.channel && m.channel !== spec.trigger.channel) continue;
     if (m.platform && !spec.trigger.platforms.includes(m.platform)) continue;
+    const label = storedLabel(m) ?? labelFor(spec, m.text, undefined, classify).c;
+    if (!label) {
+      out.unjudged++;
+      continue;
+    }
     out.considered++;
-    const input = pickInput(spec, m.text, storedLabel(m), { ...opts.ctx, viaVoice: m.viaVoice ?? opts.ctx?.viaVoice ?? false });
+    const input = pickInput(spec, m.text, label, { ...opts.ctx, viaVoice: m.viaVoice ?? opts.ctx?.viaVoice ?? false });
     if (m.platform) input.platform = m.platform;
     const t = pickRule(input, [rule]).trace[0];
     if (t.outcome !== "no_match") out.triggered++;

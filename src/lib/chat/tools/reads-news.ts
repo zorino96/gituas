@@ -243,7 +243,7 @@ const get_desk_insights = defineRead({
 const get_desk_settings = defineRead({
   name: "get_desk_settings",
   description:
-    "Reads the desk's current settings. area is sources (keywords, topics kept, the catalog sources with their `id`, and the own RSS feeds with theirs), filter (keywords or news by prompt, with the prompts), autopilot (mode, platforms, limits, quiet hours), video (auto video), brand (colours, font, logo, frames, design prompt, writing style, picture options), accounts (the connected Pages and accounts with the `id` that publishing takes) or library (the photos and footage with their ids), or all (the default, in short). Use it before proposing a change, so the change card shows the right values.",
+    "Reads the desk's current settings. area is sources (keywords, topics kept, the catalog sources with their `id`, and the own RSS feeds with theirs), filter (keywords or news by prompt, with the prompts), autopilot (mode, platforms, limits, quiet hours), video (auto video), brand (colours, font, logo, frames, design prompt, writing style, picture options), accounts (the connected Pages and accounts with the `id` that publishing takes) or library (the photos and footage with their ids), or all (the default, in short). Use it before proposing a change, so the change card shows the right values. In the brand area the design prompt comes in full as designPromptParts (join the parts with a space); the short all answer has only its length.",
   schema: z.object({ area: z.enum([...SETTINGS_AREAS, "all"]).default("all") }).strict(),
   kinds: NEWS,
   permission: "configure",

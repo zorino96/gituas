@@ -18,6 +18,7 @@ import { dailyCap, SHOP_LIMITS, type StorePlan } from "./plans";
 import { decideComment, decideDm, limitDecision, MIN_CONFIDENCE } from "./policy";
 import { runJob } from "./outbox";
 import { aiVaryUsed, countAiVary } from "./quota";
+import { commentDecisionWithRule, dmActionsWithRule, finishRules, ownerRule, type RuleCarry } from "./rules/pipeline-hook";
 import { smartTry } from "./smart-glue";
 import { varySample } from "./vary";
 
@@ -52,19 +53,28 @@ type Loaded = NonNullable<Awaited<ReturnType<typeof load>>>;
 type Msg = Loaded & { store: NonNullable<Loaded["store"]> };
 type Store = Msg["store"];
 
+/** Labels a buyer's message. The real one is classifyText; a test passes its own, so that no model is asked. */
+export type Classify = typeof classifyText;
+
 /**
- * Handle one stored comment or DM: gate → classify → decide → compose →
+ * Handle one stored comment or DM: gate → classify → decide → (the owner's rules) → compose →
  * outbox → send. Idempotent: a message with an outcome is never processed
  * again, and jobs are unique per (message, kind).
  */
-export async function processMessage(messageId: string, opts: { delay?: boolean } = {}): Promise<void> {
+export async function processMessage(messageId: string, opts: { delay?: boolean; classify?: Classify } = {}): Promise<void> {
   const msg = await load(messageId);
   // Only what buyers sent: the shop's own manual sends and templates are stored too, and must never be "answered".
   if (!msg?.store || msg.outcome || msg.direction !== "INBOUND") return;
-  const jobIds = msg.channelType === "DM" ? await planDm(msg as Msg) : await planComment(msg as Msg);
-  if (!jobIds.length) return;
-  if (opts.delay) await sleep(jitterMs());
-  for (const id of jobIds) await runJob(id, { immediate: true });
+  const classify = opts.classify ?? classifyText;
+  // What the owner's rules decided travels with the message, so it can be settled after the jobs ran.
+  const carry: RuleCarry = {};
+  const jobIds = msg.channelType === "DM" ? await planDm(msg as Msg, classify, carry) : await planComment(msg as Msg, classify, carry);
+  if (jobIds.length) {
+    if (opts.delay) await sleep(jitterMs());
+    for (const id of jobIds) await runJob(id, { immediate: true });
+  }
+  // A rule that only flagged the message has no job; its log row is settled (and a pause applied) here all the same.
+  if (carry.tail) await finishRules(carry.tail);
 }
 
 /** A message the AI could not label: said plainly when it is the month's allowance that ran out, so the owner knows why it waits. */
@@ -161,7 +171,7 @@ async function ensurePost(store: Store, platform: MetaPlatform, postId: string, 
   });
 }
 
-async function planComment(msg: Msg): Promise<string[]> {
+async function planComment(msg: Msg, classify: Classify, carry: RuleCarry): Promise<string[]> {
   const store = msg.store;
   const now = new Date();
   const platform = msg.platform as MetaPlatform;
@@ -203,13 +213,14 @@ async function planComment(msg: Msg): Promise<string[]> {
   const limited = !g.ok;
 
   const product = await loadProduct(post.productId);
-  const c = await classifyText(msg.content ?? "", { channel: "comment", productName: product?.name, ai: aiFor(store) });
+  const c = await classify(msg.content ?? "", { channel: "comment", productName: product?.name, ai: aiFor(store) });
   if (!c) {
     await finish(msg.id, "FLAGGED", await unlabelledReason(store));
     return [];
   }
   const templateId = post.templateId ?? store.defaultTemplateId;
   const template = templateId ? await db.automationTemplate.findUnique({ where: { id: templateId } }) : null;
+  const canPrivateReply = now.getTime() - msg.createdAt.getTime() < PRIVATE_REPLY_WINDOW;
   const full = decideComment(c, {
     hasProduct: !!product && product.variants.length > 0,
     hasDefaultDm: !!store.defaultDm?.trim(),
@@ -217,9 +228,19 @@ async function planComment(msg: Msg): Promise<string[]> {
     autoHideSpam: store.autoHideSpam,
     isFacebook: platform === "META_FACEBOOK",
     whatsappAlways: template?.whatsappAlways ?? false,
-    canPrivateReply: now.getTime() - msg.createdAt.getTime() < PRIVATE_REPLY_WINDOW,
+    canPrivateReply,
   });
-  const decision = limited ? limitDecision(full) : full;
+  const base = limited ? limitDecision(full) : full;
+
+  // The owner's rules (SHOP_RULES_ENABLED): their fixed text for this kind of comment replaces our reply; a flag goes to "needs you".
+  // ownerRule never throws: any failure is "no rule" and everything below is exactly what it was before rules existed.
+  const rule = await ownerRule({
+    channel: "comment", tenantId: store.tenantId, storeId: store.id, messageId: msg.id, platform, buyerKey: msg.authorId, threadKey: commentId,
+    text: msg.content ?? "", viaVoice: false, c, canPrivateReply, limited,
+    hasProductCard: base.actions.some((a) => a.kind === "PRIVATE_REPLY" && a.content === "card"), orderInProgress: false,
+  });
+  carry.tail = rule.tail;
+  const decision = rule.reply ? commentDecisionWithRule(base, rule.reply) : base;
 
   const pub = decision.actions.find((a) => a.kind === "PUBLIC_REPLY");
   const priv = decision.actions.find((a) => a.kind === "PRIVATE_REPLY");
@@ -227,12 +248,12 @@ async function planComment(msg: Msg): Promise<string[]> {
   // Smart replies: the assistant writes the first message (and the public line) in the owner's words. The fixed
   // texts below are what goes out when they are off, over the month's allowance, or the writing fails the guard.
   // They are asked for first, so the wording variation (one more AI call) is not paid for a line that is replaced.
-  let defaultDm = store.defaultDm;
+  let defaultDm = rule.reply?.text ?? store.defaultDm;
   // The assistant said the team has to confirm something: the comment goes to the owner's "needs you" pile.
   let smartNeedsOwner = false;
   let smartDm: string | null = null;
   let smartPublic: string | null = null;
-  if (store.aiReplies && priv?.kind === "PRIVATE_REPLY") {
+  if (store.aiReplies && priv?.kind === "PRIVATE_REPLY" && !rule.reply) {
     const link = product && priv.whatsapp ? waUrl(store.tenant, waText(product, c.language)) : null;
     const s = await smartTry({ store, kind: "dm_first", lang: c.language, message: msg.content ?? "", product, waLink: link });
     if (s) {
@@ -270,14 +291,14 @@ async function planComment(msg: Msg): Promise<string[]> {
 
   const specs = buildCommentJobs({ decision, platform, commentId, authorName: msg.authorHandle, publicText, card, defaultDm });
   const ids = await createJobs(store.id, msg.id, specs);
-  if (limited && !decision.flag && !specs.length) {
+  if (limited && !decision.flag && !specs.length && !rule.flag) {
     await finish(msg.id, "SKIPPED", "author_limit", { commentType: c.type, intent: c.intent, language: c.language, confidence: c.confidence });
     // No second reply for this buyer today, but an order is still an order.
     if (c.type === "ORDER" && c.confidence >= MIN_CONFIDENCE) await openOrder(msg, product);
     return [];
   }
   const replied = specs.some((s) => s.kind === "PUBLIC_REPLY" || s.kind === "PRIVATE_REPLY");
-  await finish(msg.id, replied ? "AUTO_REPLIED" : "FLAGGED", decision.flag ?? (replied ? (smartNeedsOwner ? "needs_you" : null) : "no_action"), {
+  await finish(msg.id, replied ? "AUTO_REPLIED" : "FLAGGED", rule.flag ? "needs_you" : decision.flag ?? (replied ? (smartNeedsOwner ? "needs_you" : null) : "no_action"), {
     commentType: c.type, intent: c.intent, language: c.language, confidence: c.confidence, boundProductId: product?.id ?? null,
   });
   // A buyer asking to order is an order whatever the shop answered, even when it only flagged the comment for the merchant.
@@ -313,7 +334,7 @@ async function whatsappProduct(storeId: string, senderId: string, text: string, 
   return loadProduct(last?.boundProductId ?? null);
 }
 
-async function planDm(msg: Msg): Promise<string[]> {
+async function planDm(msg: Msg, classify: Classify, carry: RuleCarry): Promise<string[]> {
   const store = msg.store;
   const now = new Date();
   const platform = msg.platform as ShopPlatform;
@@ -353,11 +374,20 @@ async function planDm(msg: Msg): Promise<string[]> {
 
   const product = whatsapp ? await whatsappProduct(store.id, senderId, text, now) : await boundProduct(store.id, senderId, now);
   const photosSent = product ? await db.outboxJob.count({ where: { id: `dmphotos_${store.id}_${senderId}_${product.id}` } }) : 0;
-  const c = text ? await classifyText(text, { channel: "dm", productName: product?.name, ai: aiFor(store) }) : null;
+  const c = text ? await classify(text, { channel: "dm", productName: product?.name, ai: aiFor(store) }) : null;
   const decision = decideDm(c, { boundProduct: !!product, firstReply: photosSent === 0, hasPhotos: (product?.photos.length ?? 0) > 0 });
   const ordering = c?.type === "ORDER" && c.confidence >= MIN_CONFIDENCE;
   const city = cityIn(text);
   const orderId = ordering ? await openOrder(msg, product, { city, deliveryFeeMinor: feeFor(store, city) }) : null;
+
+  // The owner's rules (SHOP_RULES_ENABLED): after the order being collected had its turn, so a buyer giving an address is never
+  // interrupted. Their fixed text replaces our answer; a flag goes to "needs you". Never throws: any failure is "no rule".
+  const rule = await ownerRule({
+    channel: "dm", tenantId: store.tenantId, storeId: store.id, messageId: msg.id, platform, buyerKey: senderId, threadKey: senderId,
+    text, viaVoice: (msg.content ?? "").trimStart().startsWith("[audio]"), c, canPrivateReply: true, limited: false,
+    hasProductCard: decision.actions.some((a) => a.kind === "DM_ANSWER"), orderInProgress: !!collecting,
+  });
+  carry.tail = rule.tail;
 
   let answer: string | null = null;
   const ans = decision.actions.find((a) => a.kind === "DM_ANSWER");
@@ -380,20 +410,22 @@ async function planDm(msg: Msg): Promise<string[]> {
     const wa = ans.whatsapp && !whatsapp ? waUrl(store.tenant, waText(product, c.language)) : null;
     answer = answerText(ans.intent, product, store, c.language, wa, city);
   }
-  if (answer && product && c && product.variants.length && !inStockOf(product).length) {
+  // The rule's text is the whole answer: no sold-out alternative is added to it, no AI writes over it, no nudge follows it.
+  if (rule.reply) answer = rule.reply.text;
+  if (!rule.reply && answer && product && c && product.variants.length && !inStockOf(product).length) {
     const alt = await alternativeProduct(store.id, product.id);
     if (alt) answer = `${answer}\n\n${alternativeLine(alt, c.language)}`;
   }
   // Smart replies: where the fixed answers cannot (a question they do not cover, a haggle, a message with no
   // product yet) the assistant answers in the owner's words, within the guards. An order being collected keeps
   // its own step-by-step answers.
-  let actions = decision.actions;
+  let actions = rule.reply ? dmActionsWithRule(decision.actions, c?.intent ?? "none") : decision.actions;
   let smartFlag: string | null | undefined;
   // A sender who already got many answers this hour (a bot on the other side, a flood) is left to the fixed rules.
-  const recentAnswers = store.aiReplies && text
+  const recentAnswers = store.aiReplies && text && !rule.reply
     ? await db.outboxJob.count({ where: { storeId: store.id, recipientId: senderId, kind: { in: ["DM_ANSWER", "PRIVATE_REPLY"] }, createdAt: { gt: new Date(now.getTime() - 3_600_000) } } })
     : 0;
-  if (store.aiReplies && recentAnswers < 8 && text && c && c.confidence >= MIN_CONFIDENCE && SMART_TYPES.includes(c.type) && !(ordering && orderId && answer)) {
+  if (store.aiReplies && !rule.reply && recentAnswers < 8 && text && c && c.confidence >= MIN_CONFIDENCE && SMART_TYPES.includes(c.type) && !(ordering && orderId && answer)) {
     const link = !whatsapp && product ? waUrl(store.tenant, waText(product, c.language)) : null;
     // A voice note reaches here as its transcript ("[audio] <words>" is what is stored): speech recognition can mishear.
     const viaVoice = (msg.content ?? "").trimStart().startsWith("[audio]");
@@ -411,9 +443,12 @@ async function planDm(msg: Msg): Promise<string[]> {
   const specs = buildDmJobs({ actions, recipientId: senderId, photos: product?.photos ?? [], answerText: answer });
   let flag = smartFlag !== undefined ? smartFlag : decision.flag ?? (ans && !answer ? "needs_you" : null);
   if (!c && text && flag === "unclear") flag = await unlabelledReason(store);
+  // A rule that answered settles the message (unless it also asked for the owner); a rule that flagged puts it on the owner's pile.
+  if (rule.reply) flag = rule.flag ? "needs_you" : null;
+  else if (rule.flag) flag = "needs_you";
   const ids = await createJobs(store.id, msg.id, specs, product?.id ?? null);
   // Answered a question but no order yet: one nudge in 20 h, cancelled if the buyer writes or orders first.
-  if (answer && product && c?.type === "QUESTION" && !(await db.order.count({ where: { storeId: store.id, buyerKey: senderId, status: { in: ["NEW", "CONFIRMED"] } } }))) {
+  if (!rule.reply && answer && product && c?.type === "QUESTION" && !(await db.order.count({ where: { storeId: store.id, buyerKey: senderId, status: { in: ["NEW", "CONFIRMED"] } } }))) {
     await db.outboxJob.create({
       data: { storeId: store.id, messageId: msg.id, kind: "DM_FOLLOWUP", payload: { recipientId: senderId, message: { text: followupText(product.name, c.language) } }, recipientId: senderId, nextAttemptAt: new Date(now.getTime() + FOLLOWUP_MS) },
     }).catch((e: { code?: string }) => { if (e.code !== "P2002") throw e; });

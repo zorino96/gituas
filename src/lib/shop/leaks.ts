@@ -14,6 +14,8 @@ export const HOT_MS = 24 * HOUR;
 export const WINDOW_MS = 7 * DAY;
 /** The most message rows read; more than this and the counts are shown as "at least". */
 export const ROW_CAP = 4_000;
+/** Buyers looked up for an order or a hand-answered thread in one query. Every buyer of the window is looked up, in as many queries as it takes. */
+export const LOOKUP_CHUNK = 1_000;
 
 export interface LeakRow {
   storeId: string | null;
@@ -58,6 +60,13 @@ export function classifyLeaks(rows: readonly LeakRow[], ordered: ReadonlySet<str
   return { hot, quiet };
 }
 
+/** `list` cut into pieces of at most `size`. */
+export function chunked<T>(list: readonly T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+  return out;
+}
+
 /**
  * The leak counts of a workspace. Direct messages only (a comment is public and an order from it is opened on its own); spam and
  * abuse and rows marked as history are left out, and so is a thread the owner took over by hand. Never throws: null when unreadable.
@@ -80,14 +89,26 @@ export async function loadLeaks(tenantId: string, now = Date.now()): Promise<Lea
       // No text column is read: only who (an opaque id), when, and whether a product was bound.
       select: { storeId: true, authorId: true, createdAt: true, boundProductId: true },
     });
-    const ids = [...new Set(rows.map((r) => r.authorId).filter((id): id is string => !!id))].slice(0, 2_000);
+    const ids = [...new Set(rows.map((r) => r.authorId).filter((id): id is string => !!id))];
     if (!ids.length) return { hot: 0, quiet: 0, capped: false };
-    const [orders, pauses] = await Promise.all([
-      db.order.findMany({ where: { tenantId, buyerKey: { in: ids }, createdAt: { gt: since } }, select: { buyerKey: true } }),
-      db.threadPause.findMany({ where: { tenantId, threadKey: { in: ids } }, select: { threadKey: true } }),
+    // Every buyer is checked: one left unchecked would be counted as "no order recorded" whatever they did. The lookups go in chunks of
+    // LOOKUP_CHUNK ids, one chunk after the other (the two tables side by side), so a busy shop never sends one huge list.
+    const ordered = new Set<string>();
+    const handled = new Set<string>();
+    await Promise.all([
+      (async () => {
+        for (const part of chunked(ids, LOOKUP_CHUNK)) {
+          const orders = await db.order.findMany({ where: { tenantId, buyerKey: { in: part }, createdAt: { gt: since } }, select: { buyerKey: true } });
+          for (const o of orders) if (o.buyerKey) ordered.add(o.buyerKey);
+        }
+      })(),
+      (async () => {
+        for (const part of chunked(ids, LOOKUP_CHUNK)) {
+          const pauses = await db.threadPause.findMany({ where: { tenantId, threadKey: { in: part } }, select: { threadKey: true } });
+          for (const p of pauses) handled.add(p.threadKey);
+        }
+      })(),
     ]);
-    const ordered = new Set(orders.map((o) => o.buyerKey).filter((k): k is string => !!k));
-    const handled = new Set(pauses.map((p) => p.threadKey));
     return { ...classifyLeaks(rows, ordered, handled, now), capped: rows.length >= ROW_CAP };
   } catch (e) {
     console.error("[leaks] read failed:", e instanceof Error ? e.name : "unknown error");

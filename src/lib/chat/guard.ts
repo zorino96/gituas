@@ -28,7 +28,7 @@ export function decide(i: { risk: Risk; autonomy: Autonomy; tainted: boolean; lo
 
 /** Control characters, zero-width and bidirectional-override characters: nothing a person types on purpose in a caption. */
 // Built from code points so that no invisible character is ever written into this source file.
-const INVISIBLE_RANGES: [number, number][] = [[0, 8], [0x0b, 0x0c], [0x0e, 0x1f], [0x7f, 0x7f], [0xad, 0xad], [0x34f, 0x34f], [0x61c, 0x61c], [0x180e, 0x180e], [0x200b, 0x200f], [0x202a, 0x202e], [0x2060, 0x2060], [0x2066, 0x2069], [0xfeff, 0xfeff]];
+const INVISIBLE_RANGES: [number, number][] = [[0, 8], [0x0b, 0x0c], [0x0e, 0x1f], [0x7f, 0x7f], [0xad, 0xad], [0x34f, 0x34f], [0x61c, 0x61c], [0x180e, 0x180e], [0x200b, 0x200b], [0x200e, 0x200f], [0x202a, 0x202e], [0x2060, 0x2060], [0x2066, 0x2069], [0xfeff, 0xfeff]];
 const unicodeEscape = (n: number) => `${String.fromCharCode(92)}u${n.toString(16).padStart(4, "0")}`;
 const INVISIBLE = new RegExp(`[${INVISIBLE_RANGES.map(([a, b]) => (a === b ? unicodeEscape(a) : `${unicodeEscape(a)}-${unicodeEscape(b)}`)).join("")}]`, "g");
 
@@ -55,6 +55,10 @@ const HANDLE_RE = /(?<![\p{L}\p{N}_.])@[\p{L}\p{N}_.]{2,}/gu;
 /** A run of digits with up to three separators of any kind between them (spaces, dots, dashes, slashes, commas, brackets). */
 const PHONE_RE = /(?<![0-9])[+(]?[0-9](?:[^\p{L}\p{N}]{0,3}[0-9]){6,}(?![0-9])/gu;
 /** 2026-10-19, 19/10/2026, 2026-10-19 19:00: a date is not a phone number. */
+/** 1,500,000 or 1.500.000.000: digits in groups of three. */
+const GROUPED_AMOUNT = /^\d{1,3}(?:[,.]\d{3}){2,}$/;
+/** 08:00 - 20:00 and 9:30: opening hours are not phone numbers. */
+const TIME_RANGE = /^\d{1,2}:\d{2}(?:\s*[-–—]\s*\d{1,2}:\d{2})*$/;
 const DATE_LIKE = /^(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{4})(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?$/;
 
 /**
@@ -93,7 +97,7 @@ function substitute(text: string, re: RegExp, replace: (original: string, folded
  * evil.example" into what the model writes can then not reach a post or a reply. The rest of the text is left exactly as it was
  * (its own digits and letters included); whitespace left by a removal is folded.
  */
-export function cleanOutbound(text: string, corpus: string): string {
+export function cleanOutbound(text: string, corpus: string, opts: { keepAmounts?: boolean } = {}): string {
   // Hidden characters out, and the usual disguises of a dot ("[.]", "(dot)") turned back into one so that the domain is seen.
   let t = stripInvisible(text).replace(/\s*[\[(]\s*(?:\.|dot)\s*[\])]\s*/gi, ".");
   const typed = (piece: string) => corpus.includes(foldForMatch(piece).toLowerCase());
@@ -108,7 +112,9 @@ export function cleanOutbound(text: string, corpus: string): string {
   const corpusDigits = digitsOnly(corpus);
   t = substitute(t, PHONE_RE, (orig, found) => {
     const d = digitsOnly(found);
-    if (corpusDigits.includes(d) || DATE_LIKE.test(found.trim())) return orig;
+    if (corpusDigits.includes(d) || DATE_LIKE.test(found.trim()) || TIME_RANGE.test(found.trim())) return orig;
+    // A news desk writes big sums ("1,500,000,000 IQD"): a grouped amount that is not phone-shaped (no leading 0 or +, not 964...) stays.
+    if (opts.keepAmounts && GROUPED_AMOUNT.test(found.trim()) && !/^[+0]/.test(found.trim()) && !d.startsWith("964")) return orig;
     // A number with a leading 0 or + and at least 7 digits, or any run of 10 digits or more, is a phone number; a price such as
     // 1,250,000 (7 digits, no leading zero) is not.
     return d.length >= 10 || (d.length >= 7 && /^[+(]?\s*(?:\+|0)/.test(found.trim())) ? "" : orig;

@@ -9,6 +9,7 @@ import { OPTIONAL_SHARE } from "@/lib/ai/meter";
 import { PERIOD_DAYS, SHOP_PRICES } from "@/lib/billing/prices";
 import { SHOP_ACCOUNT_CAP } from "@/lib/oauth/account-limit";
 import { profileEnabled } from "@/lib/shop/profile-shared";
+import { rulesEnabled } from "@/lib/shop/rules/enabled";
 import { IMAGES_PER_DAY, SHOP_LIMITS, STORE_PLANS, VIDEOS_PER_DAY, type StorePlan } from "@/lib/shop/plans";
 import { SUPPORT_WHATSAPP_DISPLAY } from "@/lib/support";
 
@@ -62,6 +63,16 @@ function coachSentence(): string {
   The short optional setup questions (opened from Today or Settings) let the owner say what they want from Gituas (sell, grow an audience, get enquiries or something else), what the page is about and who it is for; the answers shape replies and captions, and only the facts the owner switches on are ever told to buyers. Every Sunday morning Gituas also writes a short note on the shop's own numbers (orders, messages, posts), reworded by AI on a paid plan while the AI allowance has room and fixed rules otherwise; it is not market data and predicts nothing, and the owner reads it on Today or with the chat's "Weekly note" button.`;
 }
 
+/**
+ * The owner's automatic rules exist only while SHOP_RULES_ENABLED=1, so the sentence about them is there only then (the sheet must not
+ * promise a feature this deployment does not have). Worded as the rules really behave: the owner's own fixed text, no AI, limited.
+ */
+function rulesSentence(): string {
+  if (!rulesEnabled()) return "";
+  return `
+  Automatic rules: the owner can ask the chat for a rule in plain words, such as "when someone comments info, send them the delivery details". A rule looks for the words the owner lists, or for the kind or topic of the message that Gituas already works out, and then sends the owner's own fixed text to the person who wrote (a private reply to a comment, or an answer in the chat) and/or puts the message under "needs you". A rule uses no AI of its own: no AI writes its text, and it only compares the message with the owner's words and with the labels Gituas already works out for automatic replies. It answers each person once within the limits shown on its card, never answers orders, complaints, abuse or spam, never answers a message that asks Gituas to stop writing, and works only while automatic replies are on. Where Gituas answers with the product card (a post or chat that has a product), a reply rule stays silent and the card goes out, unless the owner chooses that the rule's text is sent instead of the card; the chat asks which. On Instagram a rule's text may be at most 1,000 bytes (about 450 Sorani or Arabic letters), because Instagram rejects a longer message; a text that long is never cut short, the owner shortens it. With several shops the rule is made for the shop the owner names. It cannot wait for a timer, pause a conversation, write first or write to many people. The chat shows the rule on a card with examples and starts it only after Confirm; it can be paused or deleted by asking.`;
+}
+
 /** The product, section by section. */
 function product(f: KnowledgeFeatures): string {
   const makes = f.video || f.pictures ? ", makes AI " + [f.pictures ? "pictures" : "", f.video ? "video ads" : ""].filter(Boolean).join(" and ") : "";
@@ -76,7 +87,7 @@ Where things are (the names are in "ui_names"):
 - Publish: write one post and choose Facebook, Instagram, TikTok, YouTube. Instagram and TikTok need a picture or video; YouTube needs a video; a text-only post goes to Facebook only. Facebook, Instagram and YouTube can be scheduled (from 10 minutes to 60 days ahead); TikTok is always posted at once. It suggests a caption and hashtags${f.pictures ? ", and can make an AI picture from an idea and reference pictures" : ""}${f.video ? " or an AI video" : ""}. Choosing a product tags the post, so the first comment already gets that product's card. One post goes to at most 5 accounts of a platform (TikTok 1).
 ${f.video ? videoSection(f) : ""}
 ${f.pictures || f.video ? `- "Gituas review": a switch under the idea box when making an AI picture or video. It rewrites the owner's idea with the brand's name, tagline and products in view, and shows what was asked. Switched off, the owner's words go through exactly as typed. If the review cannot be done, nothing is made or counted.` : ""}
-- Auto replies: automatic replies START OFF; the owner switches them on there. For each post the owner picks a product (and a reply template; a default private message can stand in when a post has no product). Products are opened from "Products" on this page: name, JPEG photos, price per variant, in stock.
+- Auto replies: automatic replies START OFF; the owner switches them on there. For each post the owner picks a product (and a reply template; a default private message can stand in when a post has no product). Products are opened from "Products" on this page: name, JPEG photos, price per variant, in stock.${rulesSentence()}
 - Auto posts: the owner chooses Off, Prepare only or Post automatically, and 1 to 3 posts a day. Gituas picks the hours from when buyers message the most (otherwise 13:00, 20:00 and 22:00, Baghdad time). It needs a product that is in stock, has a photo the owner uploaded (JPEG) and was not posted in the last 7 days; best sellers first; the caption gets the price and city hashtags. Posting by itself goes to Facebook and Instagram on paid plans; on the Free plan it only prepares the latest post, which the owner opens in Publish. TikTok can take the prepared picture post after one tap by the owner; YouTube needs a video, so it cannot.
 - Boost: advice on whom to target for the whole shop and post by post, from what each post already brought, to paste into Meta's Ads Manager. Gituas does not run or pay for ads.
 - Insights: followers and reach, which posts got comments, WhatsApp taps, the last 28 days of buyer messages, comments and orders, and per-product questions and orders with suggestions.

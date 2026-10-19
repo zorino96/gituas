@@ -5,6 +5,7 @@
 // What a rule can never do, whatever its owner wrote:
 //   - answer a message the classifier could not label, or labelled COMPLAINT, ABUSE or SPAM, or ORDER (Gituas collects orders itself);
 //   - interrupt an order that is being collected, or answer a voice note;
+//   - answer a message that tells the shop to stop writing (opt_out);
 //   - answer twice: ONE reply per message, however many rules match;
 //   - reply where Meta does not allow it (the private-reply window, one private reply per comment);
 //   - exceed its own daily limits, or send one person more than a few rule replies in an hour.
@@ -13,6 +14,7 @@
 import type { Classification } from "../policy";
 import { MIN_CONFIDENCE } from "../policy";
 import { conditionCount, matchTrigger, needsLabel, prepareText } from "./match";
+import { isStopRequest } from "./optout";
 import type { RuleSpecT, RuleTexts } from "./spec";
 import { actionsOf } from "./spec";
 import {
@@ -146,8 +148,10 @@ export function pickText(texts: RuleTexts, lang: Lang | null | undefined): { tex
   return { text: texts.default, textLang: "default" };
 }
 
-/** The first thing that forbids a rule to answer this message in words, or null. */
-function replyBlock(rule: RuleRecord, input: PickInput): ReasonCode | null {
+/** The first thing that forbids a rule to answer this message in words, or null. `optedOut`: the message asks the shop to stop writing. */
+function replyBlock(rule: RuleRecord, input: PickInput, optedOut: boolean): ReasonCode | null {
+  // A person who asked not to be written to gets no canned text, whatever label or word matched (a flag for the owner still works).
+  if (optedOut) return "opt_out";
   const c = input.c;
   if (!c) return "reply_needs_label";
   if (NEVER_ANSWERED.includes(c.type)) return "never_answered";
@@ -169,6 +173,8 @@ export function pickRule(input: PickInput, rules: readonly RuleRecord[]): PickRe
   const result: PickResult = { reply: null, flag: false, flagNotes: [], pause: false, fired: [], waiting: [], trace: [] };
   const text = prepareText(input.text);
   const notes = new Set<string>();
+  // Looked at once, and only when some matching rule is about to reply.
+  let optedOut: boolean | undefined;
 
   for (const rule of orderRules(rules)) {
     const { spec } = rule;
@@ -205,7 +211,7 @@ export function pickRule(input: PickInput, rules: readonly RuleRecord[]): PickRe
     const reasons: ReasonCode[] = [];
 
     if (reply) {
-      const block = replyBlock(rule, input);
+      const block = replyBlock(rule, input, (optedOut ??= isStopRequest(text)));
       if (block) reasons.push(block);
       else if (result.reply) reasons.push("reply_taken");
       else {

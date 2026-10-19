@@ -1,3 +1,4 @@
+import { coachEnabled } from "@/lib/coach/enabled";
 import { redirect } from "next/navigation";
 
 import { chatEnabled } from "@/lib/chat/enabled";
@@ -43,6 +44,7 @@ export default async function AssistantPage({ searchParams }: { searchParams: Pr
   const state = await getChatStateAction().catch(() => null);
   return (
     <ChatScreen
+      coachOn={coachEnabled()}
       workspaceId={ws.id}
       thread={null}
       initialMessages={[]}

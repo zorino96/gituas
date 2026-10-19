@@ -34,6 +34,7 @@ import {
 } from "./store";
 import { errorText } from "./text";
 import { titleFor } from "./title";
+import { coachEnabled } from "@/lib/coach/enabled";
 import { ALL_TOOLS } from "./tools";
 import { isQuickIdFor, type AnyQuickId, type ChatAttachment, type ChatErrorCode, type ChatEvent, type ChatKind, type ChatTool } from "./types";
 
@@ -112,6 +113,8 @@ export async function executeChatRequest(actor: Actor, rawBody: unknown, emit: (
   if (body.workspaceId !== actor.tenantId) return fail("workspace");
   const quick: AnyQuickId | undefined = isQuickIdFor(actor.kind, body.quick) ? body.quick : undefined;
   if (body.quick !== undefined && !quick) return fail("badrequest");
+  // The weekly note's shortcut works only while the growth coach is switched on.
+  if (quick === "coach" && !coachEnabled()) return fail("badrequest");
   const text = body.text.replace(/\u0000/g, "").trim().slice(0, LIMITS.userTextChars);
   if (!quick && !text) return fail("badrequest");
 

@@ -122,6 +122,7 @@ import { indexTools, riskOf, toolSpecs, toolsFor } from "@/lib/chat/registry";
 import { WRITE_TOOLS } from "@/lib/chat/tools/writes";
 import { NEW_WRITE_TOOLS } from "@/lib/chat/tools/writes-new";
 import { NEWS_WRITE_TOOLS } from "@/lib/chat/tools/writes-news";
+import { igBudgetMs } from "@/lib/chat/tools/writes-news-story";
 import { NW } from "@/lib/chat/tools/writes-news-words";
 import { ToolRefusal, type Card, type ToolCtx, type WriteResult, type WriteTool } from "@/lib/chat/types";
 
@@ -492,6 +493,16 @@ describe("risk, long and posts", () => {
 
   it("counts a publish or a schedule against the day's posts, and nothing else", () => {
     expect(ALL.filter((t) => t.countsAsPost).map((t) => t.name).sort()).toEqual(["publish_story", "schedule_story"]);
+  });
+});
+
+describe("figures in a reply on a desk", () => {
+  it("keeps the cleaning on the replies and messages (they are outbound and always a card) and tells the model about long figures", () => {
+    for (const name of ["reply_to_comment", "send_message"]) {
+      expect(tool(name).textFields, name).toEqual(["text"]);
+      expect(tool(name).description, name).toMatch(/ten or more digits/);
+      expect(tool(name).description, name).toMatch(/1\.5 billion IQD/);
+    }
   });
 });
 
@@ -873,8 +884,8 @@ describe("schedule_story", () => {
   it("refuses a time that is too soon or too far, a story already waiting for its time, and one already published there", async () => {
     expect(await refusal(cardOf("schedule_story", { story: "s1", targets: ["FB"], when: "2020-01-01T10:00" }))).toMatch(/Baghdad time/);
     expect(await refusal(cardOf("schedule_story", { story: "s1", targets: ["FB"], when: "2090-01-01T10:00" }))).toMatch(/Baghdad time/);
-    db.scheduledPost.findMany.mockResolvedValue([{ id: "sp3", runAt: new Date(), input: { newsDraftId: "d1" } }]);
-    expect(await refusal(cardOf("schedule_story", SAMPLE.schedule_story))).toMatch(/already scheduled \(scheduled post sp3\)/);
+    db.scheduledPost.findMany.mockResolvedValue([{ id: "sp3", runAt: new Date("2026-10-20T06:00:00Z"), status: "PENDING", input: { newsDraftId: "d1", targets: ["FB"] } }]);
+    expect(await refusal(cardOf("schedule_story", SAMPLE.schedule_story))).toMatch(/already scheduled for Facebook \(scheduled post sp3, 2026-10-20 09:00 Baghdad time\)/);
     db.scheduledPost.findMany.mockResolvedValue([]);
     db.newsItem.findFirst.mockResolvedValue(itemOf({ draft: draftOf({ results: [{ target: "FB", ok: true }] }) }));
     expect(await refusal(cardOf("schedule_story", SAMPLE.schedule_story))).toMatch(/already published/);
@@ -886,6 +897,170 @@ describe("schedule_story", () => {
     expect(s.safeParse({ story: "s1", targets: ["FB"], when: "tomorrow" }).success).toBe(false);
     expect(s.safeParse({ story: "s1", targets: ["TT"], when: "2030-10-25T10:00" }).success).toBe(false);
     expect(s.safeParse({ story: "s1", targets: [], when: "2030-10-25T10:00" }).success).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// A story and its scheduled posts
+
+/** A scheduled post as the database returns it for a story. */
+const waitingRow = (over: Record<string, unknown> = {}, input: Record<string, unknown> = {}) => ({
+  id: "sp7",
+  runAt: new Date("2026-10-20T06:00:00Z"),
+  status: "PENDING",
+  input: { caption: "x", targets: ["FB"], media: { url: "https://abc.public.blob.vercel-storage.com/merchant/t1/news-card-1.jpg", pathname: "merchant/t1/news-card-1.jpg", type: "IMAGE" }, newsDraftId: "d1", ...input },
+  ...over,
+});
+
+describe("publish_story and a scheduled post of the same story", () => {
+  const outcome = { target: "FB", ok: true };
+
+  it("is refused when the story is waiting for its time at the same place, and names the scheduled post and its time", async () => {
+    db.scheduledPost.findMany.mockResolvedValue([waitingRow()]);
+    const why = await refusal(cardOf("publish_story", SAMPLE.publish_story));
+    expect(why).toMatch(/already scheduled for Facebook \(scheduled post sp7, 2026-10-20 09:00 Baghdad time\)/);
+    expect(why).toMatch(/cancel_scheduled_post/);
+    // the run refuses too: a post may have been scheduled while the card waited for Confirm
+    expect(await run("publish_story", SAMPLE.publish_story)).toEqual({ ok: false, text: NW.stale.en });
+    expect(shared.publishAction).not.toHaveBeenCalled();
+  });
+
+  it("asks the database for this draft's pending and running rows only, with no cap on the rows", async () => {
+    await cardOf("publish_story", SAMPLE.publish_story);
+    const q = db.scheduledPost.findMany.mock.calls[0][0];
+    expect(q.where).toEqual({ tenantId: "t1", status: { in: ["PENDING", "RUNNING"] }, input: { path: ["newsDraftId"], equals: "d1" } });
+    expect(q.take).toBeUndefined();
+  });
+
+  it("ignores a row of another story, whatever the database returned", async () => {
+    db.scheduledPost.findMany.mockResolvedValue([waitingRow({ id: "sp8" }, { newsDraftId: "d2" })]);
+    expect((await cardOf("publish_story", SAMPLE.publish_story)).title).toBe("Publish a story");
+  });
+
+  it("tells a post being made by the scheduler right now from one that is waiting", async () => {
+    db.scheduledPost.findMany.mockResolvedValue([waitingRow({ status: "RUNNING" })]);
+    expect(await refusal(cardOf("publish_story", SAMPLE.publish_story))).toMatch(/being posted to Facebook by the scheduler right now/);
+  });
+
+  it("lets the story go to another platform, or to another Page, than the scheduled post", async () => {
+    db.scheduledPost.findMany.mockResolvedValue([waitingRow()]);
+    expect((await cardOf("publish_story", { story: "s1", targets: ["IG"] })).title).toBe("Publish a story");
+    world.pages.FB = [
+      { id: "111", name: "Page A", avatarUrl: null },
+      { id: "333", name: "Page B", avatarUrl: null },
+    ];
+    // the autopilot's later-Page row names its Page; the other Page is free, the same Page is not
+    db.scheduledPost.findMany.mockResolvedValue([waitingRow({}, { accounts: { FB: ["333"] }, stagger: true })]);
+    expect((await cardOf("publish_story", { story: "s1", targets: ["FB"], accounts: ["111"] })).title).toBe("Publish a story");
+    expect(await refusal(cardOf("publish_story", { story: "s1", targets: ["FB"], accounts: ["333"] }))).toMatch(/already scheduled for Facebook/);
+    // a row that names no Page goes to the default one, which may be either
+    db.scheduledPost.findMany.mockResolvedValue([waitingRow()]);
+    expect(await refusal(cardOf("publish_story", { story: "s1", targets: ["FB"], accounts: ["333"] }))).toMatch(/already scheduled for Facebook/);
+  });
+
+  it("reads a row that does not say where it goes as going everywhere", async () => {
+    db.scheduledPost.findMany.mockResolvedValue([waitingRow({}, { targets: undefined })]);
+    expect(await refusal(cardOf("publish_story", { story: "s1", targets: ["IG"] }))).toMatch(/already scheduled for Instagram/);
+  });
+
+  it("gives Instagram a bounded wait inside the Confirm request, so a slow Instagram is parked instead of outliving it", async () => {
+    shared.publishAction.mockResolvedValue({ ok: true, results: [outcome, { target: "IG", ok: false, pending: true, error: "processing" }] });
+    const ctx = ctxOf({ deadline: Date.now() + 57_000 });
+    await tool("publish_story").execute(ctx, parse("publish_story", { story: "s1", targets: ["FB", "IG"] }));
+    const sent = shared.publishAction.mock.calls[0][0];
+    expect(sent.igDeadlineMs).toBeGreaterThanOrEqual(15_000);
+    expect(sent.igDeadlineMs).toBeLessThanOrEqual(30_000);
+    // Facebook alone has no Instagram part to bound
+    await tool("publish_story").execute(ctx, parse("publish_story", { story: "s1", targets: ["FB"] }));
+    expect("igDeadlineMs" in shared.publishAction.mock.calls[1][0]).toBe(false);
+  });
+
+  it("keeps the wait between 15 and 30 seconds and leaves about 20 seconds of the request for the rest", () => {
+    const now = 1_000_000;
+    expect(igBudgetMs(now + 57_000, now)).toBe(30_000);
+    expect(igBudgetMs(now + 45_000, now)).toBe(25_000);
+    expect(igBudgetMs(now + 30_000, now)).toBe(15_000);
+    expect(igBudgetMs(now + 1_000, now)).toBe(15_000);
+    expect(igBudgetMs(now - 5_000, now)).toBe(15_000);
+  });
+});
+
+describe("schedule_story and a scheduled post of the same story", () => {
+  it("lets one story wait for Facebook at one time and Instagram at another, and refuses the same place twice", async () => {
+    shared.schedulePublishAction.mockResolvedValue({ ok: true, id: "sp9", runAt: "2030-10-25T07:00:00.000Z" });
+    db.scheduledPost.findMany.mockResolvedValue([waitingRow()]);
+    const ig = await run("schedule_story", { story: "s1", targets: ["IG"], when: LATER });
+    expect(ig.ok).toBe(true);
+    expect(shared.schedulePublishAction).toHaveBeenCalledWith(expect.objectContaining({ targets: ["IG"] }), LATER);
+    expect(await refusal(cardOf("schedule_story", { story: "s1", targets: ["FB", "IG"], when: LATER }))).toMatch(/already scheduled for Facebook/);
+  });
+
+  it("finds the earlier post however many are waiting on the desk (the database filters, nothing is cut at 100)", async () => {
+    await cardOf("schedule_story", SAMPLE.schedule_story);
+    expect(db.scheduledPost.findMany.mock.calls[0][0].take).toBeUndefined();
+    expect(db.scheduledPost.findMany.mock.calls[0][0].where.input).toEqual({ path: ["newsDraftId"], equals: "d1" });
+  });
+
+  it("refuses a story whose other place is still being posted by the scheduler", async () => {
+    db.scheduledPost.findMany.mockResolvedValue([waitingRow({ status: "RUNNING" })]);
+    expect(await refusal(cardOf("schedule_story", SAMPLE.schedule_story))).toMatch(/being posted to Facebook by the scheduler/);
+  });
+});
+
+describe("changing a story that has a scheduled post", () => {
+  const held = () => db.scheduledPost.findMany.mockResolvedValue([waitingRow()]);
+  const NAMES: [string, Record<string, unknown>][] = [
+    ["edit_draft", { story: "s1", headline: "Budget agreed by the council" }],
+    ["draft_story", { story: "s1" }],
+    ["improve_story", { story: "s1" }],
+    ["make_story_card", { story: "s1" }],
+  ];
+
+  it("refuses an edit, a rewrite, an improvement and a new card on the card, and says to cancel the schedule first", async () => {
+    held();
+    for (const [name, args] of NAMES) {
+      const why = await refusal(cardOf(name, args));
+      expect(why, name).toMatch(/post scheduled for 2026-10-20 09:00 Baghdad time \(scheduled post sp7\)/);
+      expect(why, name).toMatch(/cancel the scheduled post first/);
+    }
+  });
+
+  it("refuses the run too, in the person's language, and calls no action", async () => {
+    held();
+    for (const [name, args] of NAMES) {
+      for (const lang of ["ckb", "ar", "en"] as const) {
+        expect(await run(name, args, ctxOf({ lang })), `${name}/${lang}`).toEqual({ ok: false, text: NW.scheduledHolds[lang]("2026-10-20 09:00") });
+      }
+    }
+    expect(actions.saveNewsDraftAction).not.toHaveBeenCalled();
+    expect(actions.draftNewsAction).not.toHaveBeenCalled();
+    expect(shared.renderAndStoreCard).not.toHaveBeenCalled();
+  });
+
+  it("asks only for PENDING posts of this story", async () => {
+    await cardOf("edit_draft", { story: "s1", headline: "Budget agreed by the council" });
+    expect(db.scheduledPost.findMany.mock.calls[0][0].where).toEqual({ tenantId: "t1", status: { in: ["PENDING"] }, input: { path: ["newsDraftId"], equals: "d1" } });
+  });
+
+  it("does not stop a story whose scheduled post is a video (it does not carry the card), or one with no draft yet", async () => {
+    db.scheduledPost.findMany.mockResolvedValue([waitingRow({}, { media: { url: "https://abc.public.blob.vercel-storage.com/merchant/t1/v.mp4", pathname: "merchant/t1/v.mp4", type: "VIDEO" } })]);
+    for (const [name, args] of NAMES) expect((await cardOf(name, args)).title, name).toBeTruthy();
+    db.scheduledPost.findMany.mockClear();
+    held();
+    db.newsItem.findFirst.mockResolvedValue(itemOf({ draft: null }));
+    expect((await cardOf("edit_draft", { story: "s1", headline: "A headline and", body: "A body, both written by hand about something else entirely." })).title).toBeTruthy();
+    expect(db.scheduledPost.findMany).not.toHaveBeenCalled();
+  });
+
+  it("does not stop making the story's video, which leaves the card alone", async () => {
+    held();
+    expect((await cardOf("make_story_video", { story: "s1" })).title).toBeTruthy();
+  });
+
+  it("tells the model, in the descriptions, to cancel the scheduled post first", () => {
+    for (const [name] of NAMES) expect(tool(name).description, name).toMatch(/scheduled post/);
+    expect(tool("publish_story").description).toMatch(/cancel_scheduled_post/);
+    expect(tool("schedule_story").description).toMatch(/cancel_scheduled_post/);
   });
 });
 
@@ -1300,6 +1475,16 @@ describe("the frame tools", () => {
     expect(lineOf(kept, "Reference graphic")).toBe(NW.keptReference.en);
     await run("design_section_frame", { section: "economy" });
     expect(actions.designSectionFrameAction).toHaveBeenLastCalledWith({ section: "economy", referencePath: "merchant/t1/ref.png", note: "calm", frameText: "middle" });
+  });
+
+  it("shows the whole earlier design prompt next to the new one, however long it is, and tells the model to read it first", async () => {
+    const was = Array.from({ length: 110 }, (_, i) => `tone${i}`).join(" ").slice(0, 700).replace(/\s+\S*$/, "");
+    expect(was.length).toBeGreaterThan(600);
+    db.newsSettings.findUnique.mockResolvedValue(settingsOf({ designPrompt: was }));
+    const card = await cardOf("set_design_prompt", { text: `${was} with gold accents` });
+    expect(lineOf(card, "Your words about your graphics")).toBe(`${was} with gold accents (was ${was})`);
+    expect(tool("set_design_prompt").description).toMatch(/REPLACES the whole text/);
+    expect(tool("set_design_prompt").description).toMatch(/get_desk_settings/);
   });
 
   it("refuse when the AI is off, the day's frames are used, the reference is not a picture, and never design the main frame", async () => {

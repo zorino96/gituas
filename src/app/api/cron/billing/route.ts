@@ -5,6 +5,7 @@ import { pruneChats } from "@/lib/chat/store";
 import { pruneNewsItems } from "@/lib/news/cleanup";
 import { refreshStaleAudiences } from "@/lib/orders/ai-audience";
 import { youtubeUpkeep } from "@/lib/publishers/youtube-upkeep";
+import { pruneRuleRuns } from "@/lib/shop/rules/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,5 +22,7 @@ export async function GET(req: Request) {
   const newsItemsPruned = await pruneNewsItems().catch(() => -1);
   const audiences = await refreshStaleAudiences().catch(() => -1);
   const chats = await pruneChats().catch(() => null);
-  return NextResponse.json({ billing, youtube, newsItemsPruned, audiences, chats });
+  // The owner rules' log keeps 90 days (a deleted rule's log included).
+  const ruleRunsPruned = await pruneRuleRuns().catch(() => -1);
+  return NextResponse.json({ billing, youtube, newsItemsPruned, audiences, chats, ruleRunsPruned });
 }

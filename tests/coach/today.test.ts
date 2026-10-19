@@ -67,8 +67,11 @@ describe("Today's growth coach", () => {
 
   it("labels the order tiles honestly: ordered, not collected, never sales or earnings", async () => {
     const html = await render("en");
-    expect(html).toContain("Orders in the last 7 days");
-    expect(html).toContain("Ordered, not collected");
+    // The heading names no window; each tile names its own (7 days, 30 days, 7 days).
+    expect(html).not.toContain("Orders in the last 7 days");
+    expect(html).toContain("Orders recorded, last 7 days");
+    expect(html).toContain("Ordered, not collected (last 30 days)");
+    expect(html).toContain("Delivered orders updated in the last 7 days");
     expect(html).toContain("125,000 IQD");
     expect(html).toContain("not delivered and the money is not collected yet");
     expect(html).toContain("From comments 2");

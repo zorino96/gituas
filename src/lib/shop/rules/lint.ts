@@ -6,8 +6,8 @@ import { classifyByRules } from "../classify-rules";
 import { asciiDigits, fold, isEmojiToken, scriptsOf, skeletonLength, tokens } from "./fold";
 import { compileKeyword, matchKeywords, matchTrigger } from "./match";
 import { evaluateExamples } from "./preview";
-import { actionsOf, specHash, type RuleSpecT } from "./spec";
-import { MAX_ACTIVE_RULES, MIN_KEYWORD_LETTERS, SHOP_LANGS, type LintIssue } from "./types";
+import { actionsOf, replyTextBytes, specHash, type RuleSpecT } from "./spec";
+import { MAX_ACTIVE_RULES, MAX_TEXT_BYTES, MIN_KEYWORD_LETTERS, SHOP_LANGS, type LintIssue } from "./types";
 
 /** Another ACTIVE rule of the same shop (never the rule being linted). */
 export interface OtherRule {
@@ -166,6 +166,11 @@ export function lintRule(spec: RuleSpecT, others: readonly OtherRule[] = [], con
     if (found.links.size) warn("text_link", { items: show(found.links) });
     if (found.phones.size) warn("text_phone", { items: show(found.phones) });
     if (found.prices.size) warn("text_price", { items: show(found.prices) });
+
+    // Instagram rejects a message over 1,000 bytes. A rule that can run there is refused by the schema already; this is for the rest
+    // (Facebook, WhatsApp), where the text is fine now but would not be if the owner ever moved the rule to Instagram.
+    const biggest = Math.max(...texts.map((x) => replyTextBytes(x.text)));
+    if (biggest > MAX_TEXT_BYTES) warn("text_long_bytes", { bytes: biggest });
 
     if (t.productCard === "replace") warn("card_replaced");
   }

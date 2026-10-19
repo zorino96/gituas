@@ -226,4 +226,11 @@ describe("the pieces", () => {
     expect(JSON.stringify(blocks[1])).toContain("2026-W43");
     expect(noteForModel(note!).figures).toBeTruthy();
   });
+
+  it("noteView labels the post count as counted once for each platform", async () => {
+    const note = await latestNote("t1", "en");
+    const labels = (noteView(note!, "en")[0] as { items: { label: string }[] }).items.map((i) => i.label);
+    expect(labels).toContain("Posts published (counted once per platform)");
+    expect(labels).not.toContain("Posts this week");
+  });
 });

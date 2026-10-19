@@ -1,5 +1,5 @@
 /** What a failed Graph call means for the outbox. */
-export type MetaFailure = "token" | "rate" | "window" | "gone" | "duplicate" | "other";
+export type MetaFailure = "token" | "rate" | "window" | "gone" | "duplicate" | "too_long" | "other";
 
 export const MAX_ATTEMPTS = 5;
 
@@ -15,6 +15,9 @@ export function classifyMetaError(status: number, body: unknown): MetaFailure {
   if (e.code === 10900 || /already (been )?replied|only one/.test(msg)) return "duplicate";
   if (e.error_subcode === 2534022 || e.error_subcode === 2018278 || /allowed window|24 hour|outside of/.test(msg)) return "window";
   if (e.error_subcode === 33 || /does not exist|cannot be loaded/.test(msg)) return "gone";
+  // Instagram refuses a message over 1,000 bytes ("(#100) Length of param message[text] must be less than or equal to 1000"). The same
+  // text can never go through, so it is final: retrying it five times would only delay the owner finding out.
+  if ((e.code === 100 && /length of param|must be less than|too long|too many (bytes|characters)/.test(msg)) || /message is too long|text is too long/.test(msg)) return "too_long";
   return "other";
 }
 

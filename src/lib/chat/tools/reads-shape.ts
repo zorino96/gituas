@@ -19,7 +19,8 @@ import { baghdadIso, clip, compact, countBy, isolateLtr, majorUnits, modelText, 
 import { words } from "./reads-words";
 
 const statusName = (t: Dict, s: string): string => (t.orders.status as Record<string, string>)[s] ?? s;
-const platformName = (t: Dict, p: string): string => (t.platform as Record<string, string>)[p] ?? p;
+// WhatsApp is not one of the dictionary's social platforms: its name is the WhatsApp screen's.
+const platformName = (t: Dict, p: string): string => (t.platform as Record<string, string>)[p] ?? (p === "WA" ? t.wa.nav : p);
 const phoneShown = (phone: string | null): string => (phone ? isolateLtr(`+${phone}`) : "—");
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -483,14 +484,26 @@ export function accountsForModel(accounts: AccountsRead, only: "FB" | "IG" | und
 // Conversations
 
 export interface ConversationItem {
+  /** For WhatsApp an opaque reference ("wa_..."), never the buyer's number. */
   id: string;
-  platform: Platform;
+  /** "WA" is WhatsApp (reads-wa-shape.ts). */
+  platform: Platform | "WA";
   name: string;
   lastText: string;
+  /** WhatsApp only: the last line worded for the person (media labels in their language); lastText is the model's. */
+  lastView?: string;
   lastFromUs: boolean;
   at?: string;
-  /** Meta only lets a business answer within 24 hours of the buyer's last message. */
+  /** Meta only lets a business answer within 24 hours of the buyer's last message (WhatsApp: the same, and not after a STOP). */
   canReply: boolean;
+  /** WhatsApp only: the buyer's newest message is a STOP. */
+  stop?: boolean;
+  /** WhatsApp only: the owner answered this chat on the phone (the bot was paused after the buyer's last line), so it is not waiting. */
+  answeredOnPhone?: boolean;
+  /** WhatsApp only: when the 24 hours end (Baghdad time), while they are still running. */
+  windowEndsAt?: string;
+  /** WhatsApp only: the buyer's number. For the person's view; conversationForModel never reads it. */
+  phone?: string;
   /** Why the assistant left the chat for the person: "needs_you" or "unclear". */
   flag?: string;
   /** The buyer has an open order. */
@@ -530,6 +543,9 @@ export function conversationForModel(c: ConversationItem, kind: ChatKind = "shop
     last: modelText(c.lastText),
     at: baghdadIso(c.at),
     canReply: c.canReply,
+    askedToStop: c.stop || undefined,
+    answeredOnPhone: c.answeredOnPhone || undefined,
+    windowClosesAt: c.windowEndsAt,
     needsYou: c.flag,
     openOrder: c.orderOpen || undefined,
   });
@@ -543,19 +559,22 @@ export function conversationsView(rows: ConversationItem[], total: number, onlyW
       kind: "list",
       title: t.messages.title,
       items: rows.map((c) => ({
-        title: c.name || (kind === "news" ? t.messages.viewer : t.messages.customer),
-        sub: `${c.lastFromUs ? t.messages.youPrefix : ""}${clip(c.lastText, 160) || t.common.mediaOrFile}`,
+        // A WhatsApp chat has no page to open: the person tells chats apart by name and number (their own data, on their own screen).
+        title: c.phone ? [c.name, isolateLtr(`+${c.phone}`)].filter(Boolean).join(" · ") : c.name || (kind === "news" ? t.messages.viewer : t.messages.customer),
+        sub: `${c.lastFromUs ? t.messages.youPrefix : ""}${clip(c.lastView ?? c.lastText, 160) || t.common.mediaOrFile}`,
         badge:
           [
             platformName(t, c.platform),
             c.flag === "needs_you" ? t.messages.needsYou : c.flag === "unclear" ? t.messages.tabs.unclear : "",
-            c.canReply ? "" : t.messages.outsideWindow,
+            c.stop ? w.askedToStop : c.canReply ? "" : t.messages.outsideWindow,
+            c.answeredOnPhone ? w.answeredOnPhone : "",
           ]
             .filter(Boolean)
             .join(" · ") || undefined,
       })),
       more: total > rows.length ? total - rows.length : undefined,
-      href: `${baseOf(kind)}/messages`,
+      // Without WhatsApp chats the list belongs to the Messages screen, as before; chats of WhatsApp live on their own screen.
+      href: rows.length && rows.every((c) => c.platform === "WA") ? `${baseOf(kind)}/whatsapp` : `${baseOf(kind)}/messages`,
     },
   ];
 }

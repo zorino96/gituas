@@ -1,7 +1,9 @@
 // The weekly note: once per workspace per week, on Sunday morning (the cron route decides when). The numbers are counted by the
 // database (facts.ts) and written as fixed rules (text.ts); a paid workspace whose AI allowance has room also gets ONE Haiku call that
-// rewords the same note in plainer language. The call cannot add a number, a prediction or a judgement: whatever it writes is checked
-// line by line, a line that fails is dropped, and if nothing survives the rules' own note is the note.
+// rewords the same note in plainer language. The call is not trusted to add a number, a prediction or a judgement: whatever it writes is
+// checked line by line, a line that fails is dropped, and if nothing survives the rules' own note is the note. The numbers are checked
+// against the facts exactly; predictions, promises and judgements are caught by a list of phrases in Sorani, Arabic and English
+// (text.ts, bannedPhrase), which is a net and not a proof: the instructions below still tell the model not to write them.
 //
 // Cost: one optional-lane call a week for a paid workspace (the optional lane stops at 70 percent of the allowance, so the call can never
 // take what buyers' messages need), nothing at all for a Free workspace. The cost of the call is stored with the note.

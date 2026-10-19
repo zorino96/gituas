@@ -52,6 +52,10 @@ export interface CoachFacts {
   messages: { dm: number; dmBefore: number; comments: number; commentsBefore: number };
   /** Buyer messages the assistant left for the owner this week ("needs you"). */
   waiting: number;
+  /**
+   * `published`: publications this week, ONE PER PLATFORM a post reached (a post on Facebook and Instagram is two). `byAutopilot`: posts
+   * the autopilot made this week, ONE PER POST. Two units: the second is not a part of the first (a model reads them with names that say so).
+   */
   posts: { published: number; byAutopilot: number };
   /** Where and when buyers are, over the last 28 days. */
   buyers: { cities: string[]; hours: number[]; messages: number; orders: number };

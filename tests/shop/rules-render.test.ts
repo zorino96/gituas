@@ -205,7 +205,7 @@ describe("the sentences of the log (reasons)", () => {
 });
 
 describe("the sentences of the lint", () => {
-  const params = { word: "info", other: "rule one", shared: "info", langs: "ar,en", items: "0750 | 5000 IQD", share: 45, count: 2, text: "an example", max: 10 };
+  const params = { word: "info", other: "rule one", shared: "info", langs: "ar,en", items: "0750 | 5000 IQD", share: 45, count: 2, text: "an example", max: 10, bytes: 1200 };
 
   it("has a sentence for every lint code, and no more", () => {
     expect([...LINT_TEXT_CODES].sort()).toEqual([...LINT_CODES].sort());
@@ -233,6 +233,9 @@ describe("the sentences of the lint", () => {
     expect(lintText({ code: "backtest_too_broad", level: "problem", params }, "ckb")).toContain("٤٥%");
     expect(lintText({ code: "examples_fail", level: "problem", params }, "en")).toContain("2, for example “an example”");
     expect(lintText({ code: "text_phone", level: "warning", params }, "en")).toContain("(0750 | 5000 IQD)");
+    expect(lintText({ code: "text_long_bytes", level: "warning", params }, "en")).toContain("is 1200 bytes, over 1,000");
+    expect(lintText({ code: "text_long_bytes", level: "warning", params }, "ckb")).toContain("١٢٠٠");
+    expect(lintText({ code: "text_long_bytes", level: "warning", params }, "ar")).toContain("١٢٠٠");
   });
 
   it("names the languages of an untranslated text in the person's language", () => {

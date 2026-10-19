@@ -840,7 +840,8 @@ describe("send_message", () => {
     shop.conversations = [aConversation({ participantId: undefined })];
     expect(await refusal(cardOf("send_message", { platform: "FB", conversation: "conv1", text: "hi" }))).toMatch(/no recipient/);
     expect(() => parse("send_message", { platform: "FB", conversation: "conv1", text: "x".repeat(1001) })).toThrow();
-    expect(() => parse("send_message", { platform: "WA", conversation: "conv1", text: "hi" })).toThrow();
+    // WhatsApp is a platform of send_message now (see tests/chat/wa-write.test.ts); TikTok is not.
+    expect(() => parse("send_message", { platform: "TT", conversation: "conv1", text: "hi" })).toThrow();
   });
 });
 

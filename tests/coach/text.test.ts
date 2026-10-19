@@ -247,6 +247,52 @@ describe("the phrases a note may never hold", () => {
     it(`bans: ${t}`, () => expect(bannedPhrase(t)).not.toBeNull());
   }
 
+  // Predictions and promises that do not use the forms above: the future, "you will get", "it helps you sell more", "I promise".
+  const moreBad = {
+    en: ["Posting more often brings more orders", "This helps you sell more", "Replying fast boosts your sales", "Free delivery leads to more orders"],
+    ar: [
+      "سيزداد عدد طلباتك إذا نشرت أكثر",
+      "ستحصل على طلبات أكثر إذا ردّيت بسرعة",
+      "هذا سيساعدك على البيع أكثر",
+      "وستحصل على المزيد من المشترين",
+      "أعدك بنتائج أفضل",
+      "سيجلب لك هذا مشترين جددا",
+      "ستَحصُل على طلبات",
+      "التوقعات جيدة هذا الأسبوع",
+      "من المؤكد أن المبيعات ستتحسن",
+      "تبيع أكثر عندما تنشر صورا",
+    ],
+    ckb: [
+      "بە ئەم کارە فرۆشتنت زیاد دەکات",
+      "ئەگەر پۆستی زیاتر بکەیت، داواکاری زیاتر وەردەگریت",
+      "دەتوانیت زیاتر بفرۆشیت",
+      "ئەمە یارمەتیت دەدات زیاتر بفرۆشیت",
+      "داهاتووی ئەم دووکانە باشتر دەبێت",
+      "بەڵێنت پێ دەدەم",
+      "حەتمەن سوودی هەیە",
+      "دڵنیابە کە کڕیار زیاد دەکات",
+      // the same words typed with the Arabic heh, yeh and kaf
+      "ئەگەر پۆستی زیاتر بکەیت، داواکاری زیاتر وهردهگریت",
+      "هەر ڕۆژێک پۆست بکەیت فرۆشتنت زیاد دهكات",
+    ],
+  };
+  for (const [lang, list] of Object.entries(moreBad)) {
+    for (const t of list) it(`bans (${lang}): ${t}`, () => expect(bannedPhrase(t), t).not.toBeNull());
+  }
+
+  // Words that look like the banned ones and are not: an appointment, the number six, a car, "we prepare", "make sure".
+  const moreFine = [
+    "Replies sent within an hour are marked on the list",
+    "موعد النشر مناسب لمشتريك",
+    "ستة طلبات وصلت هذا الأسبوع",
+    "نعدّ لك ملخص الأسبوع",
+    "تأكد من الرد على الرسائل المنتظرة",
+    "سيارة التوصيل جاهزة",
+    "وەڵامی نامەکان بدەرەوە",
+    "کاتی گونجاو بۆ نامەکان بپشکنە",
+  ];
+  for (const t of moreFine) it(`allows: ${t}`, () => expect(bannedPhrase(t), t).toBeNull());
+
   const fine = [
     "Orders are up on last week",
     "14 orders were recorded this week, 10 the week before",

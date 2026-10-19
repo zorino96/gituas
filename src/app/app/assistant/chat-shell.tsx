@@ -18,22 +18,31 @@ import {
 } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Check, ChevronDown, LifeBuoy, Menu, MessageCircle, Pencil, Pin, PinOff, Search, Settings, SquarePen, Trash2, X, Ellipsis } from "lucide-react";
+import { Check, ChevronDown, LifeBuoy, Menu, MessageCircle, Pencil, Pin, PinOff, Search, Settings, SquarePen, Trash2, X, Ellipsis, type LucideIcon } from "lucide-react";
 
-import type { ChatErrorCode, ThreadSummary } from "@/lib/chat/types";
+import type { ChatErrorCode, ChatKind, ThreadSummary } from "@/lib/chat/types";
 import { useLang, useT } from "@/lib/i18n/client";
 import { LANGS, type Lang } from "@/lib/i18n/lang";
 import { classicHref, rememberFace } from "../face";
 import { setLangAction } from "../lang-actions";
 import { Pending, useSections } from "../nav";
 import { groupThreads, menuTarget, upsertThread, type GroupKey } from "./chat-model";
+import { activeThreadId, chatKindOf, headerTitleAfterRefresh, listForWorkspace, TITLE_REFRESH_MS } from "./chat-frame-model";
 import "../chat.css";
 
 type Fail = { ok: false; code: ChatErrorCode };
 
+/** One entry of the sidebar's list of the workspace's other screens. */
+export interface ChatSection {
+  href: string;
+  label: string;
+  Icon: LucideIcon;
+}
+
 /** What the frame needs from the server. In the app these are the server actions of chat-actions.ts; the dev preview brings its own. */
 export interface ChatApi {
-  list(input?: { q?: string }): Promise<{ ok: true; threads: ThreadSummary[] } | Fail>;
+  /** `workspaceId` is the workspace the frame was opened for: the answer is "workspace" when the session has moved to another one. */
+  list(input?: { q?: string; workspaceId?: string }): Promise<{ ok: true; threads: ThreadSummary[] } | Fail>;
   rename(input: { id: string; title: string }): Promise<{ ok: boolean }>;
   pin(input: { id: string; pinned: boolean }): Promise<{ ok: boolean }>;
   remove(input: { id: string }): Promise<{ ok: boolean }>;
@@ -48,18 +57,38 @@ export interface ChatShellValue {
   newChatSignal: number;
   /** The title the header shows ("" = a new chat, null = not known yet). */
   setTitle(title: string | null): void;
+  /** Which kind of workspace this frame serves: the screen takes its shortcuts, its links and its review switch from it. */
+  kind: ChatKind;
+  /** Where chats live; a new chat gets its address from here. */
+  hrefs: ChatHrefs;
+  /** Reads the history again about `ms` from now (a new chat's better title is written a few seconds after its first answer). */
+  refreshLater(threadId: string, ms?: number): void;
+  /** The workspace this frame was opened for (null: no frame, as in a test). A screen made for another workspace must not act. */
+  workspaceId: string | null;
+  /** The server said this tab's workspace is no longer the one the person is working in (they switched in another tab). */
+  stale: boolean;
 }
 
-const NOOP: ChatShellValue = { upsertThread: () => undefined, touch: () => undefined, newChatSignal: 0, setTitle: () => undefined };
-const Ctx = createContext<ChatShellValue>(NOOP);
-export const useChatShell = (): ChatShellValue => useContext(Ctx);
-
-/** Where a new chat and a stored chat live. The dev preview points them at itself. */
+/** Where a new chat and a stored chat live. The dev preview points them at itself; the news desk's are under /newsroom. */
 export interface ChatHrefs {
   newChat: string;
   thread: (id: string) => string;
 }
 const APP_HREFS: ChatHrefs = { newChat: "/app/assistant", thread: (id) => `/app/assistant/${id}` };
+
+const NOOP: ChatShellValue = {
+  upsertThread: () => undefined,
+  touch: () => undefined,
+  newChatSignal: 0,
+  setTitle: () => undefined,
+  kind: "shop",
+  hrefs: APP_HREFS,
+  refreshLater: () => undefined,
+  workspaceId: null,
+  stale: false,
+};
+const Ctx = createContext<ChatShellValue>(NOOP);
+export const useChatShell = (): ChatShellValue => useContext(Ctx);
 
 function useMedia(query: string): boolean {
   return useSyncExternalStore(
@@ -107,6 +136,24 @@ function useKeyboardFit(ref: RefObject<HTMLElement | null>) {
   }, [ref]);
 }
 
+/**
+ * "This screen belongs to another workspace you were in. Reload the page." with the button that does it. Drawn by the frame once a call
+ * answers "workspace", and by the screen in place of its composer when its page and its frame were made for different workspaces.
+ */
+export function ReloadNote() {
+  const c = useT().chat;
+  return (
+    <div className="ch-error" role="alert" style={{ margin: "10px 14px" }}>
+      <p>{c.errors.workspace}</p>
+      <div className="ch-error-actions">
+        <button type="button" className="gm-btn quiet small" onClick={() => window.location.reload()}>
+          {c.screen.reload}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // The list the last visit saw, so coming back from a classic screen does not start from an empty sidebar. Per tab, per workspace.
 let cache: { workspaceId: string; threads: ThreadSummary[] } | null = null;
 
@@ -120,6 +167,13 @@ export function ChatFrame({
   support,
   onLang,
   hrefs = APP_HREFS,
+  brand,
+  sections,
+  settings,
+  face = true,
+  headEnd,
+  sideTop,
+  sideNote,
   children,
 }: {
   api: ChatApi;
@@ -132,6 +186,20 @@ export function ChatFrame({
   /** The language switch; the app's own sets the cookie and refreshes, the dev preview changes its address. */
   onLang?: (lang: Lang) => void;
   hrefs?: ChatHrefs;
+  /** The sidebar's brand block (its mark and name); the shop's own when left out. */
+  brand?: ReactNode;
+  /** The other screens of the workspace, for the sidebar's list; the shop's sections when left out. */
+  sections?: ChatSection[];
+  /** The Settings link at the foot of the sidebar; the shop's when left out. */
+  settings?: { href: string; label: string };
+  /** Whether being here is remembered as the app's face (the shop opens on it next time); the news desk has no such face. */
+  face?: boolean;
+  /** Something at the inline-end of the header (the desk's "?" guide link). */
+  headEnd?: ReactNode;
+  /** Something under the brand (the desk switcher). */
+  sideTop?: ReactNode;
+  /** A note at the top of the foot (the desk's trial or frozen note). */
+  sideNote?: ReactNode;
   children: ReactNode;
 }) {
   const t = useT();
@@ -145,10 +213,17 @@ export function ChatFrame({
   const [load, setLoad] = useState<"loading" | "ready" | "error">(cache?.workspaceId === workspaceId ? "ready" : "loading");
   const [open, setOpen] = useState(false);
   const [signal, setSignal] = useState(0);
+  // Set when a call says the session's workspace is not the one this frame was opened for (the person switched in another tab).
+  const [stale, setStale] = useState(false);
   // null until the screen says which chat it is, so a first paint never shows the wrong name.
   const [title, setTitle] = useState<string | null>(null);
   const desktop = useMedia("(min-width: 960px)");
-  const activeId = /^\/app\/assistant\/([^/?#]+)/.exec(path)?.[1] ?? null;
+  const chatKind = chatKindOf(kind);
+  const activeId = activeThreadId(path, hrefs.thread);
+  // What the timers below need to know when they fire, not when they were set.
+  const live = useRef({ activeId });
+  live.current = { activeId };
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
 
   // Closing the drawer by Escape, its X or the shade puts the keyboard back on the menu button; a link inside it moves on instead.
   const restoreFocus = useRef(false);
@@ -162,7 +237,16 @@ export function ChatFrame({
   }, [open]);
 
   useKeyboardFit(frame);
-  useEffect(() => rememberFace("chat"), []);
+  useEffect(() => {
+    if (face) rememberFace("chat");
+  }, [face]);
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      for (const timer of pending) clearTimeout(timer);
+      pending.clear();
+    };
+  }, []);
   // The drawer is for phones: a wide window shows the sidebar for good, and a link inside the drawer closes it.
   useEffect(() => {
     if (desktop) setOpen(false);
@@ -178,20 +262,25 @@ export function ChatFrame({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, closeDrawer]);
 
-  const refresh = useCallback(async () => {
+  // Every history read names the workspace the frame was opened for; "workspace" in answer means the tab is out of date.
+  const frameApi = useMemo<ChatApi>(() => ({ ...api, list: listForWorkspace(api.list, workspaceId, () => setStale(true)) }), [api, workspaceId]);
+
+  const refresh = useCallback(async (): Promise<ThreadSummary[] | null> => {
     try {
-      const r = await api.list();
+      const r = await frameApi.list();
       if (!r.ok) {
         setLoad((s) => (s === "ready" ? s : "error"));
-        return;
+        return null;
       }
       cache = { workspaceId, threads: r.threads };
       setThreads(r.threads);
       setLoad("ready");
+      return r.threads;
     } catch {
       setLoad((s) => (s === "ready" ? s : "error"));
+      return null;
     }
-  }, [api, workspaceId]);
+  }, [frameApi, workspaceId]);
   useEffect(() => void refresh(), [refresh]);
   // Chats made on another device or tab show up when the person comes back to this one (at most every half minute).
   useEffect(() => {
@@ -220,14 +309,33 @@ export function ChatFrame({
     [workspaceId],
   );
 
+  // Once, a few seconds after a new chat's first answer: the better title the server wrote is drawn in the history and, when that chat
+  // is still the one open, in the header (a list read that fails changes nothing; the list is also read again when the window is focused).
+  const refreshLater = useCallback(
+    (threadId: string, ms: number = TITLE_REFRESH_MS) => {
+      const timer = setTimeout(async () => {
+        timers.current.delete(timer);
+        const list = await refresh();
+        if (list) setTitle((current) => headerTitleAfterRefresh(current, list, threadId, live.current.activeId));
+      }, ms);
+      timers.current.add(timer);
+    },
+    [refresh],
+  );
+
   const value = useMemo<ChatShellValue>(
     () => ({
       upsertThread: (thread) => remember((list) => upsertThread(list, thread)),
       touch: (id) => remember((list) => list.map((x) => (x.id === id ? { ...x, lastMessageAt: new Date().toISOString() } : x))),
       newChatSignal: signal,
       setTitle,
+      kind: chatKind,
+      hrefs,
+      refreshLater,
+      workspaceId,
+      stale,
     }),
-    [remember, signal],
+    [remember, signal, chatKind, hrefs, refreshLater, workspaceId, stale],
   );
 
   const newChat = () => {
@@ -244,7 +352,7 @@ export function ChatFrame({
           modal={open && !desktop}
           onClose={closeDrawer}
           closeRef={closeButton}
-          api={api}
+          api={frameApi}
           threads={threads}
           load={load}
           retry={() => {
@@ -262,6 +370,11 @@ export function ChatFrame({
           video={video}
           support={support}
           onLang={onLang}
+          brand={brand}
+          sections={sections}
+          settings={settings}
+          sideTop={sideTop}
+          sideNote={sideNote}
         />
         <main className="ch-main" inert={open && !desktop}>
           <header className="ch-head">
@@ -282,7 +395,9 @@ export function ChatFrame({
             <Link href={hrefs.newChat} className="ch-iconbtn ch-only-phone" aria-label={c.newChat} title={c.newChat} onClick={newChat}>
               <SquarePen size={19} aria-hidden="true" />
             </Link>
+            {headEnd}
           </header>
+          {stale && <ReloadNote />}
           {children}
         </main>
       </div>
@@ -310,6 +425,11 @@ function Sidebar({
   video,
   support,
   onLang,
+  brand,
+  sections: ownSections,
+  settings,
+  sideTop,
+  sideNote,
 }: {
   open: boolean;
   modal: boolean;
@@ -330,6 +450,11 @@ function Sidebar({
   video: boolean;
   support: { url: string; display: string };
   onLang?: (lang: Lang) => void;
+  brand?: ReactNode;
+  sections?: ChatSection[];
+  settings?: { href: string; label: string };
+  sideTop?: ReactNode;
+  sideNote?: ReactNode;
 }) {
   const t = useT();
   const c = t.chat;
@@ -341,7 +466,9 @@ function Sidebar({
   const [searching, setSearching] = useState(false);
   const [classicOpen, setClassicOpen] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
-  const sections = useSections(kind, studio, video, true).filter((x) => x.href !== APP_HREFS.newChat);
+  const shopSections = useSections(kind, studio, video, true);
+  // The entry that opens a new chat is the "New chat" button above, so it is not repeated in the list.
+  const sections = (ownSections ?? shopSections).filter((x) => x.href !== APP_HREFS.newChat && x.href !== hrefs.newChat);
   // Rendered after mount: "now" decides the groups, and the server's clock is not the browser's.
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => setNow(Date.now()), [threads]);
@@ -440,15 +567,20 @@ function Sidebar({
     <aside id="ch-side" className={`ch-side${open ? " open" : ""}`} {...(modal ? { role: "dialog", "aria-modal": true, "aria-label": c.frame.chats } : {})}>
       <div className="ch-side-top">
         <div className="gm-side-brand ch-brand">
-          <span className="gm-mark" aria-hidden="true" />
-          <div>
-            <p className="kufi">{t.brand}</p>
-            <small>{workspace}</small>
-          </div>
+          {brand ?? (
+            <>
+              <span className="gm-mark" aria-hidden="true" />
+              <div>
+                <p className="kufi">{t.brand}</p>
+                <small>{workspace}</small>
+              </div>
+            </>
+          )}
           <button ref={closeRef} type="button" className="ch-iconbtn ch-only-phone ch-close" aria-label={c.frame.closeList} onClick={onClose}>
             <X size={19} aria-hidden="true" />
           </button>
         </div>
+        {sideTop}
         <Link href={hrefs.newChat} className="ch-new" onClick={onNewChat}>
           <SquarePen size={18} aria-hidden="true" />
           {c.newChat}
@@ -529,6 +661,7 @@ function Sidebar({
       </nav>
 
       <div className="ch-side-foot">
+        {sideNote}
         <button type="button" className="gm-navlink" aria-expanded={classicOpen} aria-controls="ch-classic" onClick={() => setClassicOpen((v) => !v)}>
           <LifeBuoy aria-hidden="true" strokeWidth={1.8} />
           {s.classic}
@@ -546,9 +679,9 @@ function Sidebar({
             ))}
           </nav>
         )}
-        <Link href="/app/settings" className="gm-navlink">
+        <Link href={settings?.href ?? "/app/settings"} className="gm-navlink">
           <Settings aria-hidden="true" strokeWidth={1.8} />
-          {t.layout.settings}
+          {settings?.label ?? t.layout.settings}
           <Pending />
         </Link>
         <a href={support.url} target="_blank" rel="noreferrer" className="gm-navlink">

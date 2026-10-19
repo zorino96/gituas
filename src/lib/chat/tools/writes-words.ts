@@ -50,6 +50,15 @@ export const NEW = {
     "لم يعد ذلك ممكناً: تغيّر الوضع بعد إنشاء البطاقة. تحقق واطلب من جديد.",
     "This can no longer be done: things changed after the card was made. Check and ask again.",
   ),
+  /**
+   * On the card of a WhatsApp message: the screen's send action pauses the bot in that chat once the owner has answered by hand, and
+   * that pause is for good (it has no end date and nothing in the app removes it), so the card says it cannot be switched back on.
+   */
+  waBotPaused: words(
+    "دوای ناردن، بۆتەکە بۆ هەمیشە لەم گفتوگۆیەدا بێدەنگ دەبێت و ناتوانرێت لە گفتوگۆکە یان لە ئەپەکەوە دووبارە چالاک بکرێتەوە.",
+    "بعد الإرسال سيتوقف البوت عن الرد في هذه المحادثة نهائياً، ولا يمكن إعادة تشغيله من المحادثة ولا من التطبيق.",
+    "After this is sent, the bot stays out of this chat for good: it cannot be switched back on from the chat or from the app.",
+  ),
   alreadyAnswered: words("ئەم کۆمێنتە پێشتر وەڵامی دووکانەکەی هەیە.", "لهذا التعليق رد سابق من المتجر.", "This comment already has a reply from the shop."),
   done: {
     orderStatus: say(

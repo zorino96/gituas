@@ -23,6 +23,7 @@ import { captionFor, checkDraft, LIMITS } from "@/lib/news/rules";
 import { CARD_KINDS, type CardKind } from "@/lib/news/types";
 import { ownClips } from "@/lib/news/video";
 import { planOf } from "./news-common";
+import { baghdadIso } from "./reads-shared";
 import { attachmentsOf, clip, refuse } from "./writes-common";
 import {
   accountRef,
@@ -58,6 +59,83 @@ const MAX_DISMISS = 10;
 /** What the rules of the desk say about a draft, worded for the model (English). */
 const rulesOf = (draft: { headline: string; body: string }, item: { title: string; snippet: string }): string[] =>
   checkDraft(draft, item, dict("en").nr.news).map((p) => p.message);
+
+// ---------------------------------------------------------------------------------------------------------------------
+// A story's scheduled posts. Two things go wrong without a look at them: a story posted now that is also waiting for its time goes
+// out twice, and a story whose text or card changes makes the waiting post fail (it carries the card it was scheduled with).
+
+/** One scheduled post of a story that has not finished: waiting for its time, or being published right now. */
+interface Waiting {
+  id: string;
+  runAt: Date;
+  status: string;
+  /** Where it goes. Null when the row does not say, which counts as everywhere. */
+  targets: string[] | null;
+  /** The accounts it goes to, per platform. A platform with no list goes to the default connection. */
+  accounts: Partial<Record<Platform, string[]>>;
+  /** It posts the story's picture card. A post of the story's video does not depend on the card or the text. */
+  usesCard: boolean;
+}
+
+/** The scheduled posts of this desk that carry this draft (the JSON path filter does the work in the database, so no row is missed to a cap). */
+async function waitingFor(ctx: ToolCtx, draftId: string, statuses: readonly ("PENDING" | "RUNNING")[]): Promise<Waiting[]> {
+  const rows = await db.scheduledPost.findMany({
+    where: { tenantId: ctx.tenantId, status: { in: [...statuses] }, input: { path: ["newsDraftId"], equals: draftId } },
+    orderBy: { runAt: "asc" },
+    select: { id: true, runAt: true, status: true, input: true },
+  });
+  return rows.flatMap((r): Waiting[] => {
+    const i = (r.input ?? {}) as { newsDraftId?: unknown; targets?: unknown; accounts?: unknown; media?: unknown };
+    // Checked again here: the filter is the database's, the match is ours.
+    if (i.newsDraftId !== draftId) return [];
+    const accounts: Waiting["accounts"] = {};
+    if (i.accounts && typeof i.accounts === "object") {
+      for (const p of ["FB", "IG"] as const) {
+        const list = (i.accounts as Record<string, unknown>)[p];
+        if (Array.isArray(list)) accounts[p] = list.filter((x): x is string => typeof x === "string");
+      }
+    }
+    const media = i.media && typeof i.media === "object" ? (i.media as { type?: unknown }) : null;
+    return [
+      {
+        id: r.id,
+        runAt: r.runAt,
+        status: String(r.status),
+        targets: Array.isArray(i.targets) ? i.targets.filter((x): x is string => typeof x === "string") : null,
+        accounts,
+        usesCard: media?.type !== "VIDEO",
+      },
+    ];
+  });
+}
+
+/** The place a scheduled post shares with a new post, or null. Same platform AND the same account; a side that names no account may be any. */
+function sharedPlace(w: Waiting, targets: readonly Platform[], chosen: Partial<Record<Platform, string[]>>): Platform | null {
+  for (const p of targets) {
+    if (w.targets && !w.targets.includes(p)) continue;
+    const theirs = w.accounts[p] ?? [];
+    const mine = chosen[p] ?? [];
+    if (!theirs.length || !mine.length || theirs.some((id) => mine.includes(id))) return p;
+  }
+  return null;
+}
+
+/** "2026-10-20 19:30": a moment in Baghdad time, for a sentence. */
+const whenOf = (d: Date): string => (baghdadIso(d) ?? "").slice(0, 16).replace("T", " ");
+
+/** The scheduled post that waits for this draft's card, if any. Editing, rewriting or re-carding the story would make it fail. */
+async function cardWaiting(ctx: ToolCtx, draftId: string | undefined): Promise<Waiting | null> {
+  if (!draftId) return null;
+  return (await waitingFor(ctx, draftId, ["PENDING"])).find((w) => w.usesCard) ?? null;
+}
+
+/** The refusal of a card for a change that would break a scheduled post (English, for the model). */
+function holdsCard(w: Waiting): never {
+  return refuse(
+    `This story has a post scheduled for ${whenOf(w.runAt)} Baghdad time (scheduled post ${w.id}). It carries the story's current card, so changing the draft or making a new card would make that post fail when its time comes. ` +
+      "Do not change the story. Tell the person, and ask whether to cancel the scheduled post first (cancel_scheduled_post asks them to confirm); after that the story can be changed, given a new card and scheduled again.",
+  );
+}
 
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -108,9 +186,11 @@ function draftTool(kind: "draft" | "improve"): WriteTool {
     description:
       kind === "improve"
         ? "Rewrite a story's EXISTING draft with the stronger AI writer (better wording). story: the story's id exactly as list_stories or get_story gives it. " +
-          "It REPLACES the draft's text and removes its card (make_story_card must be run again). It uses one of the desk's few monthly improvements and takes up to a minute: run it on its own."
+          "It REPLACES the draft's text and removes its card (make_story_card must be run again). A story with a scheduled post is refused: the person cancels the scheduled post first. " +
+          "It uses one of the desk's few monthly improvements and takes up to a minute: run it on its own."
         : "Write the draft (headline, body and card kind) of a story with the AI, from the story's facts and the desk's own voice. story: the story's id exactly as list_stories or get_story gives it. " +
-          "If the story already has a draft this REPLACES it and removes its card. It uses one of the desk's monthly drafts and takes up to a minute: run it on its own.",
+          "If the story already has a draft this REPLACES it and removes its card; a story with a scheduled post is then refused (the person cancels the scheduled post first). " +
+          "It uses one of the desk's monthly drafts and takes up to a minute: run it on its own.",
     schema: z.object({ story: storyId }),
     permission: "draft",
     risk: "money",
@@ -120,6 +200,8 @@ function draftTool(kind: "draft" | "improve"): WriteTool {
       const item = await storyOf(ctx, args.story);
       if (item.status === "DISMISSED") return refuse("That story was dismissed; it cannot be drafted.");
       if (kind === "improve" && !item.draft) return refuse("The story has no draft to improve yet. Use draft_story first.");
+      const held = await cardWaiting(ctx, item.draft?.id);
+      if (held) return holdsCard(held);
       const q = await quotaOf(ctx.tenantId, metric);
       if (q.used >= q.limit) return refuse(`This month's limit of ${q.limit} ${kind === "improve" ? "improvements" : "drafts"} is used on the ${q.plan} plan.`);
       const lines = [line(NW.f.story[ctx.lang], clip(item.title, 200)), line(NW.f.source[ctx.lang], clip(item.sourceName, 60))];
@@ -129,6 +211,9 @@ function draftTool(kind: "draft" | "improve"): WriteTool {
       return { title: (kind === "improve" ? NW.title.improve : NW.title.draft)[ctx.lang], lines };
     },
     async execute(ctx, args) {
+      // A post may have been scheduled while the card waited for Confirm.
+      const held = await cardWaiting(ctx, (await storyOf(ctx, args.story)).draft?.id);
+      if (held) return { ok: false, text: NW.scheduledHolds[ctx.lang](whenOf(held.runAt)) };
       const r = await draftNewsAction(args.story, strength);
       if (!r.ok) return { ok: false, text: r.error };
       return { ok: true, text: NW.done.drafted[ctx.lang](clip(r.draft.headline, 120)), data: { story: args.story } };
@@ -191,13 +276,16 @@ const editDraft = defineNews({
   description:
     `Change the text of a story's draft by hand: headline (at most ${LIMITS.headline} characters), body (at most ${LIMITS.body}), cardKind (STANDARD, BREAKING, STAT or QUOTE), stat, quote, speaker. ` +
     "Fields you leave out stay exactly as they are. story: the story's id from list_stories or get_story. The text must be the desk's own wording from the story's facts, never copied from the source, " +
-    "with no figures or names that the story does not give, and no links, e-mail addresses, @handles or phone numbers. Saving removes the draft's card, so make_story_card must be run again.",
+    "with no figures or names that the story does not give, and no links, e-mail addresses, @handles or phone numbers. Saving removes the draft's card, so make_story_card must be run again; " +
+    "a story with a scheduled post is refused (the person cancels the scheduled post first).",
   schema: EDIT,
   permission: "draft",
   risk: "low",
   label: (lang) => NW.label.edit[lang],
   async card(ctx, args) {
     const { item, before, after, changed, hadCard, draft } = await planEdit(ctx, args);
+    const held = await cardWaiting(ctx, draft?.id);
+    if (held) return holdsCard(held);
     const t = dict(ctx.lang).nr.news.editor;
     const names: Record<(typeof EDIT_KEYS)[number], string> = { headline: t.headline, body: t.body, cardKind: NW.f.cardKind[ctx.lang], stat: t.stat, quote: t.quote, speaker: t.speaker };
     const show = (k: (typeof EDIT_KEYS)[number], v: string | null) => (k === "cardKind" ? ((t.kinds as Record<string, string>)[v ?? ""] ?? v ?? "") : (v ?? ""));
@@ -215,6 +303,8 @@ const editDraft = defineNews({
   // Read again here: the draft is merged with what it is now, not with what it was when the card was made.
   async execute(ctx, args) {
     const { item, after, draft } = await planEdit(ctx, args);
+    const held = await cardWaiting(ctx, draft?.id);
+    if (held) return { ok: false, text: NW.scheduledHolds[ctx.lang](whenOf(held.runAt)) };
     const r = await saveNewsDraftAction(item.id, { ...after, photoPath: draft?.photoPath ?? null });
     return r.ok ? { ok: true, text: NW.done.edited[ctx.lang], data: { story: item.id } } : { ok: false, text: r.error };
   },
@@ -237,7 +327,7 @@ const makeStoryCard = defineNews({
   name: "make_story_card",
   description:
     "Make the picture card (a JPEG with the headline, photo and the desk's frame) of a story's draft. story: the story's id from list_stories or get_story. " +
-    "A story must have a card before publish_story or schedule_story. It replaces an earlier card and takes up to 40 seconds. Run it on its own, never together with another tool.",
+    "A story must have a card before publish_story or schedule_story. It replaces an earlier card and takes up to 40 seconds; a story with a scheduled post is refused (the person cancels the scheduled post first). Run it on its own, never together with another tool.",
   schema: z.object({ story: storyId }),
   permission: "draft",
   risk: "low",
@@ -245,6 +335,8 @@ const makeStoryCard = defineNews({
   label: (lang) => NW.label.card[lang],
   async card(ctx, args) {
     const { item, draft } = await draftToCard(ctx, args.story);
+    const held = await cardWaiting(ctx, draft.id);
+    if (held) return holdsCard(held);
     const kinds = dict(ctx.lang).nr.news.editor.kinds as Record<string, string>;
     const lines = [line(NW.f.story[ctx.lang], clip(item.title, 160)), line(NW.f.headline[ctx.lang], draft.headline), line(NW.f.cardKind[ctx.lang], kinds[draft.cardKind] ?? draft.cardKind)];
     lines.push(line(NW.f.photo[ctx.lang], draft.photoPath ? NW.photoOwn[ctx.lang] : NW.photoAuto[ctx.lang]));
@@ -253,6 +345,8 @@ const makeStoryCard = defineNews({
   },
   async execute(ctx, args) {
     const { draft } = await draftToCard(ctx, args.story);
+    const held = await cardWaiting(ctx, draft.id);
+    if (held) return { ok: false, text: NW.scheduledHolds[ctx.lang](whenOf(held.runAt)) };
     try {
       // The headless Chromium renderer is big and only this tool needs it: loaded here, not at the top of the module.
       const { renderAndStoreCard } = await import("@/lib/cards/server-render");
@@ -274,7 +368,18 @@ interface PostArgs {
   accounts?: string[];
 }
 
-async function postPlan(ctx: ToolCtx, args: PostArgs) {
+/**
+ * What Instagram may take inside a Confirm request. The request has about 57 s, and what runs after Instagram (parking a post that is
+ * still processing, the audit rows, the story's bookkeeping, the answer) needs the rest. Without a limit a slow Instagram outlives
+ * the request: Facebook is live, the story is not recorded as published, and "publish it" would post it twice. With one, an unfinished
+ * Instagram post is parked and finished by the every-minute job, and the answer says it is still processing.
+ */
+const IG_MIN_MS = 15_000;
+const IG_MAX_MS = 30_000;
+const IG_AFTER_MS = 20_000;
+export const igBudgetMs = (deadline: number, now = Date.now()): number => Math.max(IG_MIN_MS, Math.min(IG_MAX_MS, deadline - now - IG_AFTER_MS));
+
+async function postPlan(ctx: ToolCtx, args: PostArgs, mode: "publish" | "schedule") {
   const targets = [...new Set(args.targets)];
   const item = await storyOf(ctx, args.story);
   if (item.status === "DISMISSED") return refuse("That story was dismissed; it cannot be published.");
@@ -305,6 +410,21 @@ async function postPlan(ctx: ToolCtx, args: PostArgs) {
     const ids = chosen[p] ?? [];
     const hit = results.find((r) => r && (r.ok === true || r.pending === true) && r.target === p && (!r.accountId || !ids.length || ids.includes(r.accountId)));
     if (hit) return refuse(`This story was already published to ${platformLabel(p)} (or is being published there). Publishing it again would post it twice; the person can do that from the Publish screen if they really want to.`);
+  }
+  // The same story waiting for its time (or being posted by the scheduler right now) at the same place would go out twice. Another
+  // platform or another account is another place.
+  for (const w of await waitingFor(ctx, draft.id, ["PENDING", "RUNNING"])) {
+    const p = sharedPlace(w, targets, chosen);
+    if (!p) continue;
+    const where = `scheduled post ${w.id}, ${whenOf(w.runAt)} Baghdad time`;
+    if (w.status === "RUNNING") {
+      return refuse(`This story is being posted to ${platformLabel(p)} by the scheduler right now (${where}). Do not post it again; tell the person to check ${platformLabel(p)} in a minute.`);
+    }
+    return refuse(
+      mode === "publish"
+        ? `This story is already scheduled for ${platformLabel(p)} (${where}). Publishing it now would post it twice. If the person wants it out now instead, cancel the scheduled post first with cancel_scheduled_post (they confirm that), then publish.`
+        : `This story is already scheduled for ${platformLabel(p)} (${where}). Scheduling it again would post it twice. Cancel the earlier scheduled post with cancel_scheduled_post first if the time should change.`,
+    );
   }
   // An Instagram post that Instagram is still processing is finished by the every-minute job: a second one would be a duplicate.
   if (targets.includes("IG") && (await db.igPending.findFirst({ where: { tenantId: ctx.tenantId, draftId: draft.id, status: { in: ["WAITING", "PUBLISHING", "UNKNOWN"] } }, select: { id: true } }))) {
@@ -343,7 +463,7 @@ const publishStory = defineNews({
   description:
     "Publish a story's card to Facebook and/or Instagram right now. story: the story's id from list_stories or get_story. targets: [\"FB\"], [\"IG\"] or both. " +
     "The story needs a draft that passes the desk's rules AND a card (make_story_card first, as a separate step). The post text is the draft's headline and body. " +
-    "If the desk has several Pages on a platform, accounts must name the one(s) to post to. A story is not posted twice to the same place. " +
+    "If the desk has several Pages on a platform, accounts must name the one(s) to post to. A story is not posted twice to the same place: one that already went there, or that has a scheduled post there, is refused (the person cancels the scheduled post first with cancel_scheduled_post). " +
     "It is public, counts against the day's posts and the month's published stories, and takes up to a minute (Instagram is slow): run it on its own, never together with another tool.",
   schema: z.object(POST_ARGS),
   permission: "publish",
@@ -352,7 +472,7 @@ const publishStory = defineNews({
   countsAsPost: true,
   label: (lang) => NW.label.publish[lang],
   async card(ctx, args) {
-    const plan = await postPlan(ctx, args);
+    const plan = await postPlan(ctx, args, "publish");
     return {
       title: NW.title.publish[ctx.lang],
       lines: [
@@ -365,8 +485,8 @@ const publishStory = defineNews({
     };
   },
   async execute(ctx, args) {
-    const plan = await postPlan(ctx, args);
-    const r = await publishAction(plan.input);
+    const plan = await postPlan(ctx, args, "publish");
+    const r = await publishAction({ ...plan.input, ...(plan.targets.includes("IG") ? { igDeadlineMs: igBudgetMs(ctx.deadline) } : {}) });
     if (!r.ok) return { ok: false, text: r.error };
     const text = r.results.map((x) => outcomeLine(ctx, x)).join("\n");
     // A platform that is still processing (Instagram) will be published within minutes by itself: that is a post, not a failure.
@@ -378,7 +498,8 @@ const scheduleStory = defineNews({
   name: "schedule_story",
   description:
     "Schedule a story's card to be published later to Facebook and/or Instagram. story, targets and accounts as in publish_story (the story needs a draft that passes the rules and a card). " +
-    "when: the Baghdad time, \"YYYY-MM-DDTHH:mm\", between 10 minutes and 60 days from now. A story already scheduled is not scheduled twice; cancel the earlier one with cancel_scheduled_post first.",
+    "when: the Baghdad time, \"YYYY-MM-DDTHH:mm\", between 10 minutes and 60 days from now. A story already scheduled for the same place (the same platform and Page) is not scheduled twice; cancel the earlier one with cancel_scheduled_post first. " +
+    "Another platform or another Page is another place, so one story can be scheduled for Facebook at one time and Instagram at another, in two separate calls.",
   schema: z.object({ ...POST_ARGS, when: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/).describe("Baghdad time, YYYY-MM-DDTHH:mm") }),
   permission: "publish",
   risk: "public",
@@ -408,12 +529,8 @@ const scheduleStory = defineNews({
 async function schedulePlan(ctx: ToolCtx, args: PostArgs & { when: string }) {
   const problem = scheduleProblem(args.targets, baghdadLocalToUtc(args.when), new Date(), dict("en").actions.publish);
   if (problem) return refuse(`${problem} (The time is Baghdad time, between 10 minutes and 60 days from now.)`);
-  const plan = await postPlan(ctx, args);
-  // The same draft already waiting for its time would be posted twice.
-  const pending = await db.scheduledPost.findMany({ where: { tenantId: ctx.tenantId, status: "PENDING" }, orderBy: { runAt: "asc" }, take: 100, select: { id: true, runAt: true, input: true } });
-  const again = pending.find((p) => (p.input as { newsDraftId?: unknown } | null)?.newsDraftId === plan.draft.id);
-  if (again) return refuse(`This story is already scheduled (scheduled post ${again.id}). Cancel it with cancel_scheduled_post first if the time should change.`);
-  return plan;
+  // Whether the story is already waiting for its time at the same place is checked inside postPlan, with publish_story's own check.
+  return postPlan(ctx, args, "schedule");
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
