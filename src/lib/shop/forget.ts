@@ -1,6 +1,7 @@
 // Deleting what we stored from one connected account, when it is disconnected or the platform asks
 // us to delete a user's data (Meta Platform Terms 3(d)(i); our privacy policy promises it).
 
+import { purgeBuyerData } from "@/lib/chat/store";
 import { db } from "@/lib/db";
 
 export type MessagePlatform = "META_FACEBOOK" | "META_INSTAGRAM" | "WHATSAPP";
@@ -21,5 +22,7 @@ export async function forgetStoredMessages(tenantId: string, platform: MessagePl
   }
   const left = await db.oAuthCredential.count({ where: { tenantId, provider: platform === "WHATSAPP" ? "META_WHATSAPP" : platform } });
   if (!left) count += (await db.conversationMessage.deleteMany({ where: { platform, project: { tenantId } } })).count;
+  // What the chat kept of customers' words (tool results, the tables shown with answers) goes with them.
+  await purgeBuyerData(tenantId).catch(() => undefined);
   return count;
 }

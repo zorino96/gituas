@@ -225,6 +225,21 @@ export default function PrivacyPage() {
           messages never go through it.
         </LI>
         <LI>
+          <Strong>The chat.</Strong> When you ask the chat about your orders, comments or messages, it
+          looks them up for that question and sends what it found (buyers&rsquo; names, their comments
+          and messages, order items and notes; never phone numbers, addresses, account tokens or
+          passwords) to the AI providers above, so it can answer you. While a conversation contains
+          buyers&rsquo; words it is not sent to the free models of other providers. The chat keeps your
+          conversations (your questions, its answers, and the tables and cards shown with them) so you
+          can come back to them. They are private to the person who wrote them. What a lookup found
+          about buyers is blanked after one day, the tables shown with answers are removed after 30
+          days, and a conversation nobody touched for 180 days is deleted. You can delete one
+          conversation or all of them in the chat, and disconnecting an account removes what the chat
+          kept from its messages. Every change the chat makes for you is recorded with who confirmed it
+          and when, and the chat never makes a change that you have not confirmed unless you switched
+          that on in Settings.
+        </LI>
+        <LI>
           <Strong>Voice messages.</Strong> When a buyer sends a voice message, its audio is sent to
           Pawan.Krd (Kurdish speech recognition) to turn it into text, so the shop and its assistant
           can read it. Gituas keeps only that text, not the audio.

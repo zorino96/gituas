@@ -19,6 +19,7 @@ import {
   Settings,
   ShoppingBag,
   Sparkles,
+  SquarePen,
   SquarePlus,
   Target,
   X,
@@ -26,11 +27,12 @@ import {
 } from "lucide-react";
 
 import { useT } from "@/lib/i18n/client";
+import { classicHref } from "./face";
 
 type Kind = "MERCHANT" | "NEWS";
 type Group = "main" | "inbox" | "create" | "automate" | "grow";
 
-interface Section {
+export interface Section {
   href: string;
   label: string;
   Icon: LucideIcon;
@@ -46,8 +48,11 @@ function baseFor(kind: Kind): "/app" | "/newsroom" {
   return kind === "NEWS" ? "/newsroom" : "/app";
 }
 
-/** The sections, in order, each marked active when the current path is inside it. */
-function useSections(kind: Kind, studio: boolean, video: boolean): Section[] {
+/**
+ * The sections, in order, each marked active when the current path is inside it. `chat`: the chat is on, so the entry that opens
+ * /app/assistant is "New chat" (the chat's own frame, with its history, takes over from there).
+ */
+export function useSections(kind: Kind, studio: boolean, video: boolean, chat = false): Section[] {
   const path = usePathname();
   const t = useT();
   const base = baseFor(kind);
@@ -56,7 +61,7 @@ function useSections(kind: Kind, studio: boolean, video: boolean): Section[] {
     kind === "MERCHANT"
       ? [
           s(base, t.nav.today, Home, "main", true),
-          s(`${base}/assistant`, t.nav.assistant, LifeBuoy, "main"),
+          chat ? s(`${base}/assistant`, t.chat.newChat, SquarePen, "main") : s(`${base}/assistant`, t.nav.assistant, LifeBuoy, "main"),
           s(`${base}/comments`, t.nav.comments, MessagesSquare, "inbox", true),
           s(`${base}/messages`, t.nav.messages, MessageCircle, "inbox", true),
           s(`${base}/orders`, t.nav.orders, Package, "inbox", true),
@@ -85,10 +90,10 @@ function useSections(kind: Kind, studio: boolean, video: boolean): Section[] {
  * used every day, then "More" with everything else. Eleven tabs on a phone were unreadable.
  * `studio`: show the Studio only once it can make pictures (src/lib/studio/ready.ts).
  */
-export function Tabs({ kind, studio = false, video = false }: { kind: Kind; studio?: boolean; video?: boolean }) {
+export function Tabs({ kind, studio = false, video = false, chat = false }: { kind: Kind; studio?: boolean; video?: boolean; chat?: boolean }) {
   const t = useT();
   const path = usePathname();
-  const sections = useSections(kind, studio, video);
+  const sections = useSections(kind, studio, video, chat);
   const [open, setOpen] = useState(false);
   const primary = sections.filter((s) => s.primary);
   const rest = sections.filter((s) => !s.primary);
@@ -104,7 +109,7 @@ export function Tabs({ kind, studio = false, video = false }: { kind: Kind; stud
       <div className="gm-tabs">
         <nav aria-label={t.nav.label}>
           {primary.map(({ href, label, Icon, active }) => (
-            <Link key={href} href={href} className="gm-tab" aria-current={active ? "page" : undefined}>
+            <Link key={href} href={classicHref(href)} className="gm-tab" aria-current={active ? "page" : undefined}>
               <Icon aria-hidden="true" strokeWidth={active ? 2.2 : 1.8} />
               {label}
               <Pending />
@@ -142,10 +147,10 @@ export function Tabs({ kind, studio = false, video = false }: { kind: Kind; stud
 }
 
 /** Desktop sidebar (hidden under 960px by CSS): brand and shop name, the sections in groups, settings at the bottom. */
-export function SideNav({ kind, workspace, studio = false, video = false }: { kind: Kind; workspace: string; studio?: boolean; video?: boolean }) {
+export function SideNav({ kind, workspace, studio = false, video = false, chat = false }: { kind: Kind; workspace: string; studio?: boolean; video?: boolean; chat?: boolean }) {
   const t = useT();
   const path = usePathname();
-  const sections = useSections(kind, studio, video);
+  const sections = useSections(kind, studio, video, chat);
   const settingsHref = `${baseFor(kind)}/settings`;
   const onSettings = path.startsWith(settingsHref);
   const groups: { group: Group; label: string | null }[] = [
@@ -173,7 +178,7 @@ export function SideNav({ kind, workspace, studio = false, video = false }: { ki
             <div key={group} className="gm-navgroup">
               {label && kind === "MERCHANT" && <p className="gm-navlabel">{label}</p>}
               {items.map(({ href, label: text, Icon, active }) => (
-                <Link key={href} href={href} className="gm-navlink" aria-current={active ? "page" : undefined}>
+                <Link key={href} href={classicHref(href)} className="gm-navlink" aria-current={active ? "page" : undefined}>
                   <Icon aria-hidden="true" strokeWidth={active ? 2.2 : 1.8} />
                   {text}
                   <Pending />

@@ -11,14 +11,19 @@ import { ago } from "./format";
 import { promoUntil } from "@/lib/billing/promo";
 import { db } from "@/lib/db";
 import { profileEnabled } from "@/lib/shop/profile";
+import { chatEnabled } from "@/lib/chat/enabled";
+import { opensOnChat } from "./face";
+import { RememberFace } from "./remember-face";
 
 export const maxDuration = 60;
 
-export default async function TodayPage() {
+export default async function TodayPage({ searchParams }: { searchParams: Promise<{ ui?: string | string[] }> }) {
   const t = dict(await getLang());
   const ws = await requireWorkspace();
-  // The app opens on the face the person last used: the chat, when they switched to it.
-  if (ws.kind === "MERCHANT" && can(ws.role, "configure") && (await cookies()).get("gm_ui")?.value === "chat") redirect("/app/assistant");
+  const { ui } = await searchParams;
+  // The app opens on the face the person last used: the chat, when they were in it. The classic "Today" link carries ?ui=classic,
+  // which always gets out of the chat (and writes the choice down); a switched-off chat never takes anyone anywhere.
+  if (opensOnChat({ merchant: ws.kind === "MERCHANT", canConfigure: can(ws.role, "configure"), chatOn: chatEnabled(), cookie: (await cookies()).get("gm_ui")?.value, ui })) redirect("/app/assistant");
   const conns = await loadConnections(ws.id);
   const anyConnected = conns.META_FACEBOOK.connected || conns.META_INSTAGRAM.connected;
 
@@ -51,6 +56,7 @@ export default async function TodayPage() {
 
   return (
     <div>
+      {(Array.isArray(ui) ? ui[0] : ui) === "classic" && <RememberFace face="classic" />}
       <h2 className="gm-title kufi">{t.home.title}</h2>
       <p className="gm-sub">{t.home.sub}</p>
 

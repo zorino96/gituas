@@ -20,25 +20,15 @@ import { opusAvailable } from "@/lib/ai/models";
 import { maxPlanOpen } from "@/lib/billing/prices";
 import { db } from "@/lib/db";
 import { dict, getLang } from "@/lib/i18n";
-import { isJpegPath, isOwnBlobUrl } from "@/lib/merchant/caption";
 import { can } from "@/lib/newsroom/roles";
+import type { ChatAttachment as SharedAttachment } from "@/lib/chat/types";
 import { limitsOf } from "@/lib/shop/tenant-plans";
 import { randomUUID } from "node:crypto";
-import { publishAction, saveWhatsAppAction } from "../actions";
-import { archiveProductAction, saveProductAction, saveStoreSettingsAction } from "../automation/actions";
-import { generateAiImageAction } from "../publish/ai-image-action";
-import { schedulePublishAction } from "../publish/schedule-actions";
-import { createVideoAction, saveVideoAutoAction } from "../video/actions";
-import { currentWorkspace, loadAccountLists, loadConnections } from "../data";
+import { currentWorkspace, loadConnections } from "../data";
+import { cleanAttachments, resolveShop, runShopTool, type ToolResult as ShopToolResult } from "./run-shop-tool";
 
-/** A file the owner attached in the chat, as the screen keeps it. The address is checked here, never trusted. */
-export interface ChatAttachment {
-  id: string;
-  url: string;
-  pathname: string;
-  kind: "image" | "video";
-  name: string;
-}
+/** A file the owner attached in the chat, as the screen keeps it. The address is checked in run-shop-tool.ts, never trusted. */
+export type ChatAttachment = SharedAttachment;
 
 export type AssistantResult =
   | {
@@ -51,56 +41,7 @@ export type AssistantResult =
   /** `contact`: the person is offered the support number with the message. */
   | { ok: false; error: string; contact: boolean };
 
-export type ToolResult =
-  | {
-      ok: true;
-      text: string;
-      /** A picture made: the screen keeps it as an attachment, ready for "post it". */
-      media?: { url: string; pathname: string; kind: "image" | "video"; name: string };
-      /** A video being made: the screen asks after it. */
-      jobId?: string;
-    }
-  | { ok: false; error: string };
-
-const ID = /^a\d{1,2}$/;
-
-/** Only the workspace's own uploads count as attachments. */
-function cleanAttachments(raw: unknown, tenantId: string): ChatAttachment[] {
-  if (!Array.isArray(raw)) return [];
-  const out: ChatAttachment[] = [];
-  for (const x of raw.slice(0, 10)) {
-    const a = x as Partial<ChatAttachment> | null;
-    if (!a || typeof a.id !== "string" || !ID.test(a.id) || typeof a.url !== "string" || typeof a.pathname !== "string") continue;
-    if (a.kind !== "image" && a.kind !== "video") continue;
-    if (!isOwnBlobUrl(a.url, tenantId) || !a.pathname.startsWith(`merchant/${tenantId}/`) || a.pathname.includes("..")) continue;
-    out.push({ id: a.id, url: a.url, pathname: a.pathname, kind: a.kind, name: String(a.name ?? "").slice(0, 80) });
-  }
-  return out;
-}
-
-/**
- * The shop an action is for, and the product it names: the product's shop when a product is named (by its exact name,
- * or a name that only one product contains), else the shop of the connected account, else the oldest. Used both when
- * a card is made (so it can show the shop) and when it runs.
- */
-async function resolveShop(tenantId: string, connectedIds: string[], productHint: unknown) {
-  const [stores, products] = await Promise.all([
-    db.store.findMany({ where: { tenantId }, orderBy: { createdAt: "asc" }, take: 15, select: { id: true, name: true, igUsername: true, fbPageId: true, igUserId: true } }),
-    db.product.findMany({ where: { active: true, store: { tenantId } }, select: { id: true, name: true, storeId: true }, take: 300 }),
-  ]);
-  let store = stores.find((s) => (!!s.fbPageId && connectedIds.includes(s.fbPageId)) || (!!s.igUserId && connectedIds.includes(s.igUserId))) ?? stores[0];
-  if (!store) return { ok: false as const, why: "noShop" as const };
-  let productId: string | null = null;
-  if (typeof productHint === "string" && productHint.trim()) {
-    const want = productHint.trim().toLowerCase();
-    const exact = products.filter((p) => p.name.trim().toLowerCase() === want);
-    const loose = exact.length ? exact : products.filter((p) => p.name.toLowerCase().includes(want));
-    if (loose.length !== 1) return { ok: false as const, why: "productNotFound" as const };
-    productId = loose[0].id;
-    store = stores.find((s) => s.id === loose[0].storeId) ?? store;
-  }
-  return { ok: true as const, store, productId, shopName: store.name || (store.igUsername ? `@${store.igUsername}` : "") };
-}
+export type ToolResult = ShopToolResult;
 
 const baghdadNow = () => new Date(Date.now() + 3 * 3_600_000).toISOString().slice(0, 16).replace("T", " ");
 
@@ -273,112 +214,8 @@ export async function runToolAction(input: {
 
   if (ws.kind === "NEWS") return runDeskTool(ws.id, proposal.tool, proposal.args as Record<string, unknown>, atts, t);
 
-  // The shop the action is for (the same rule as the card used to show it).
-  const conns = await loadConnections(ws.id);
-  const connectedIds = [conns.META_FACEBOOK.accountId, conns.META_INSTAGRAM.accountId].filter((id): id is string => !!id);
-  const args = proposal.args as Record<string, unknown>;
-  const shop = await resolveShop(ws.id, connectedIds, args.product);
-  if (!shop.ok) return { ok: false, error: a.errors[shop.why] };
-  const { store, productId } = shop;
-  const att = (id: unknown) => atts.find((x) => x.id === id);
-  const tier = (await limitsOf(ws.id)).videos.PRO > 0 ? "PRO" : "LITE";
-  const connected = { FB: !!conns.META_FACEBOOK.connected, IG: !!conns.META_INSTAGRAM.connected };
-
-  switch (proposal.tool) {
-    case "make_picture": {
-      if (!imageEnabled()) return { ok: false, error: a.errors.featureOff };
-      const refUrls = ((args.references as string[]) ?? []).map((id) => att(id)).filter((x) => x?.kind === "image").map((x) => x!.url);
-      const r = await generateAiImageAction({ idea: String(args.idea), productId, refUrls, shape: args.shape === "portrait" ? "portrait" : "square", review: input.review !== false });
-      if (!r.ok) return { ok: false, error: r.error };
-      const how = r.reviewed ? t.publish.ai.reviewedNote(r.summary) : t.publish.ai.sentAsWritten;
-      return { ok: true, text: `${a.done.picture}\n${how}`, media: { url: r.media.url, pathname: r.media.pathname, kind: "image", name: a.done.pictureName } };
-    }
-    case "make_video": {
-      if (!adVideoEnabled()) return { ok: false, error: a.errors.featureOff };
-      const r = await createVideoAction(store.id, { tier, topic: String(args.idea), productId, voice: "shilan", publish: false, targets: [], review: input.review !== false });
-      if (!r.ok) return { ok: false, error: r.error };
-      const how = r.reviewed ? `\n${t.publish.ai.reviewedNote(r.reviewed.summary)}` : "";
-      return { ok: true, text: `${a.done.videoStarted}${how}`, jobId: r.id };
-    }
-    case "post_now":
-    case "schedule_post": {
-      const targets = args.targets as ("FB" | "IG")[];
-      for (const tg of targets) if (!connected[tg]) return { ok: false, error: a.errors.notConnected(tg === "FB" ? "Facebook" : "Instagram") };
-      // With several Pages (or Instagram accounts) the person chooses which, in Publish: nothing is guessed here.
-      const lists = await loadAccountLists(ws.id);
-      if ((targets.includes("FB") && lists.META_FACEBOOK.length > 1) || (targets.includes("IG") && lists.META_INSTAGRAM.length > 1)) return { ok: false, error: a.errors.severalAccounts };
-      const m = args.media ? att(args.media) : undefined;
-      if (args.media && !m) return { ok: false, error: a.errors.badAction };
-      if (m && m.kind === "image" && targets.includes("IG") && !isJpegPath(m.pathname)) return { ok: false, error: a.errors.needJpeg };
-      const post = {
-        caption: String(args.caption ?? ""),
-        targets,
-        ...(m ? { media: { url: m.url, pathname: m.pathname, type: m.kind === "image" ? ("IMAGE" as const) : ("VIDEO" as const) } } : {}),
-        ...(productId ? { productId } : {}),
-      };
-      if (proposal.tool === "schedule_post") {
-        const r = await schedulePublishAction(post, String(args.when));
-        return r.ok ? { ok: true, text: a.done.scheduled(String(args.when).replace("T", " ")) } : { ok: false, error: r.error };
-      }
-      const r = await publishAction(post);
-      if (!r.ok) return { ok: false, error: r.error };
-      const went = r.results.some((o) => o.ok || o.pending);
-      const lines = r.results.map((o) => `${o.target === "FB" ? "Facebook" : o.target === "IG" ? "Instagram" : o.target}: ${o.ok || o.pending ? a.done.okMark : a.done.failMark}`);
-      return went ? { ok: true, text: `${a.done.posted}\n${lines.join("\n")}` } : { ok: false, error: `${a.done.postFailed}\n${lines.join("\n")}` };
-    }
-    case "set_auto_replies": {
-      const r = await saveStoreSettingsAction(store.id, { automationEnabled: !!args.on });
-      return r.ok ? { ok: true, text: args.on ? a.done.repliesOn : a.done.repliesOff } : { ok: false, error: r.error };
-    }
-    case "set_autopilot": {
-      const r = await saveStoreSettingsAction(store.id, { autoMode: String(args.mode), ...(typeof args.perDay === "number" ? { autoPerDay: args.perDay } : {}) });
-      return r.ok ? { ok: true, text: a.done.setting } : { ok: false, error: r.error };
-    }
-    case "set_shop_options": {
-      const r = await saveStoreSettingsAction(store.id, {
-        ...(typeof args.likeComments === "boolean" ? { likeComments: args.likeComments } : {}),
-        ...(typeof args.autoHideSpam === "boolean" ? { autoHideSpam: args.autoHideSpam } : {}),
-        ...(typeof args.aiReplies === "boolean" ? { aiReplies: args.aiReplies } : {}),
-        ...(typeof args.expiryDays === "number" ? { expiryDays: args.expiryDays } : {}),
-        ...(typeof args.defaultDm === "string" ? { defaultDm: args.defaultDm } : {}),
-        ...(typeof args.deliveryFee === "string" ? { deliveryFee: args.deliveryFee } : {}),
-        ...(typeof args.deliveryTime === "string" ? { deliveryTime: args.deliveryTime } : {}),
-        ...(typeof args.aiBrief === "string" ? { aiBrief: args.aiBrief } : {}),
-      });
-      return r.ok ? { ok: true, text: a.done.setting } : { ok: false, error: r.error };
-    }
-    case "add_product": {
-      const photos = ((args.photos as string[]) ?? []).map((id) => att(id)).filter((x) => x?.kind === "image").map((x) => x!.url);
-      const r = await saveProductAction(store.id, null, {
-        name: String(args.name),
-        description: String(args.description ?? ""),
-        photos,
-        variants: [{ label: "", price: String(args.price), currency: "IQD", inStock: args.inStock !== false }],
-      });
-      return r.ok ? { ok: true, text: a.done.productAdded } : { ok: false, error: r.error };
-    }
-    case "archive_product": {
-      if (!productId) return { ok: false, error: a.errors.productNotFound };
-      const r = await archiveProductAction(store.id, productId);
-      return r.ok ? { ok: true, text: a.done.productHidden } : { ok: false, error: r.error };
-    }
-    case "set_whatsapp_number": {
-      const r = await saveWhatsAppAction(String(args.number));
-      return r.ok ? { ok: true, text: a.done.numberSaved } : { ok: false, error: r.error };
-    }
-    case "set_daily_video": {
-      if (!adVideoEnabled()) return { ok: false, error: a.errors.featureOff };
-      // What the card did not show is left as it was: the hour and the kind of video already chosen stay.
-      const cur = await db.store.findUnique({ where: { id: store.id }, select: { videoAutoHour: true, videoAutoTier: true } });
-      const keepTier = cur?.videoAutoTier === "LITE" || cur?.videoAutoTier === "PRO" ? cur.videoAutoTier : tier;
-      const keepHour = typeof cur?.videoAutoHour === "number" ? cur.videoAutoHour : 19;
-      const r = await saveVideoAutoAction(store.id, { mode: String(args.mode), tier: keepTier, hour: typeof args.hour === "number" ? args.hour : keepHour });
-      return r.ok ? { ok: true, text: a.done.setting } : { ok: false, error: r.error };
-    }
-    default:
-      // A tool of the newsroom, in a shop: not on its list.
-      return { ok: false, error: a.errors.badAction };
-  }
+  // The shop's tools live in run-shop-tool.ts (the chat's write tools run them too).
+  return runShopTool({ tenantId: ws.id, t, tool: proposal.tool, args: proposal.args, attachments: atts, review: input.review !== false });
 }
 
 /**

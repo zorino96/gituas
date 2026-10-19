@@ -2,6 +2,7 @@ import { num } from "./num";
 import { nrNewsCkb } from "./nr/news.ckb";
 import { nrShellCkb } from "./nr/shell.ckb";
 import { nrTeamCkb } from "./nr/team.ckb";
+import { chatCkb } from "./chat.ckb";
 import { waCkb } from "./wa.ckb";
 import { studioCkb } from "./studio.ckb";
 
@@ -1771,6 +1772,7 @@ export const ckb = {
   nr: { shell: nrShellCkb, news: nrNewsCkb, team: nrTeamCkb },
   wa: waCkb,
   studio: studioCkb,
+  chat: chatCkb,
 };
 
 export type Dict = typeof ckb;

@@ -5,6 +5,8 @@ import { currentWorkspace, loadAccountLists, loadConnections, requireWorkspace }
 import { can } from "@/lib/newsroom/roles";
 import { profileEnabled } from "@/lib/shop/profile";
 import { isUnlimited } from "@/lib/shop/redeem";
+import { chatEnabled } from "@/lib/chat/enabled";
+import { getChatStateAction } from "../assistant/chat-actions";
 import { SettingsClient } from "./settings-client";
 
 export default async function SettingsPage({
@@ -35,9 +37,16 @@ export default async function SettingsPage({
   // The test-code card is for the workspace owner only.
   const redeem = can(ws.role, "team") ? { unlimited: await isUnlimited(ws.id) } : null;
 
+  // The Chat card (how far the chat may act by itself, delete my chats) is for the shop's owner and admins, while the chat is on.
+  const chatState = ws.kind === "MERCHANT" && chatEnabled() && can(ws.role, "configure") ? await getChatStateAction().catch(() => null) : null;
+  const chat = chatState?.ok
+    ? { workspaceId: ws.id, autonomy: chatState.autonomy, canSetAutonomy: chatState.canSetAutonomy, remaining: chatState.remaining, allowancePercent: chatState.allowancePercent }
+    : null;
+
   return (
     <SettingsClient
       redeem={redeem}
+      chat={chat}
       setupPending={setupPending}
       setupStores={setupStores.map((s) => ({ id: s.id, name: s.name || (s.igUsername ? `@${s.igUsername}` : "") }))}
       slug={ws.slug}

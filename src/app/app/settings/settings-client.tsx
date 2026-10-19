@@ -8,6 +8,7 @@ import { normalizePhone } from "@/lib/merchant/phone";
 import { useBase } from "../use-base";
 import { disconnectAccountAction, saveWhatsAppAction } from "../actions";
 import { useT } from "@/lib/i18n/client";
+import { ChatCard, type ChatCardState } from "./chat-card";
 import { LanguageCard } from "./language-card";
 import { PasswordCard } from "./password-card";
 import { RedeemCard } from "./redeem-card";
@@ -43,6 +44,7 @@ export function SettingsClient({
   setupPending = false,
   setupStores = [],
   redeem = null,
+  chat = null,
 }: {
   account: { email: string | null; hasPassword: boolean };
   slug: string;
@@ -58,6 +60,8 @@ export function SettingsClient({
   setupStores?: { id: string; name: string }[];
   /** The test-code card (null = not shown: only the owner sees it). */
   redeem?: { unlimited: boolean } | null;
+  /** The Chat card (null = not shown: a news desk, the chat switched off, or a role that may not use it). */
+  chat?: ChatCardState | null;
 }) {
   const base = useBase();
   const t = useT();
@@ -114,6 +118,13 @@ export function SettingsClient({
       {connectError && <p className="gm-err">{connectErrors[connectError] ?? s.connectFailed}</p>}
 
       <LanguageCard />
+
+      {chat && !desk && (
+        <>
+          <p className="gm-sec">{t.chat.settings.sec}</p>
+          <ChatCard initial={chat} />
+        </>
+      )}
 
       {desk && (
         <>

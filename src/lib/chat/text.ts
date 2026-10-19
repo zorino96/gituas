@@ -1,0 +1,70 @@
+// The few sentences the SERVER says in the person's language (the screen has its own dictionary for everything else).
+
+import type { Lang } from "@/lib/i18n/lang";
+import type { ChatErrorCode } from "./types";
+
+type Table = Record<Lang, string>;
+
+const ERRORS: Record<ChatErrorCode, Table> = {
+  signin: { ckb: "تکایە دووبارە بچۆرە ژوورەوە.", ar: "سجّل الدخول من جديد.", en: "Please sign in again." },
+  forbidden: { ckb: "ئەم چاتە تەنها بۆ خاوەن و بەڕێوەبەرە.", ar: "هذه المحادثة للمالك والمدير فقط.", en: "Chat is for owners and admins." },
+  workspace: { ckb: "ئەم پەڕەیە بۆ شوێنی کاری تر کراوەتەوە. نوێی بکەرەوە.", ar: "الصفحة مفتوحة لمساحة عمل أخرى. أعد التحميل.", en: "This page is open for another workspace. Reload it." },
+  badrequest: { ckb: "داواکارییەکە دروست نەبوو.", ar: "الطلب غير صالح.", en: "That request was not valid." },
+  limit_day: { ckb: "ژمارەی چاتی ئەمڕۆت تەواو بوو. سبەینێ دووبارە هەوڵبدەرەوە.", ar: "انتهت محادثات اليوم. حاول غداً.", en: "Today's chat turns are used up. Try again tomorrow." },
+  limit_month: { ckb: "ژمارەی چاتی ئەم مانگەت تەواو بوو.", ar: "انتهت محادثات هذا الشهر.", en: "This month's chat turns are used up." },
+  allowance: { ckb: "بڕی AI ی ئەم مانگە تەواو بووە.", ar: "نفدت حصة الذكاء الاصطناعي لهذا الشهر.", en: "This month's AI allowance is used up." },
+  busy: { ckb: "وەڵامی پێشوو هێشتا تەواو نەبووە. کەمێک چاوەڕێ بکە.", ar: "الرد السابق لم ينتهِ بعد. انتظر قليلاً.", en: "The last answer is still running. Wait a moment." },
+  unavailable: { ckb: "AI ئێستا وەڵام نادات. دووبارە هەوڵبدەرەوە.", ar: "الذكاء الاصطناعي لا يرد الآن. حاول مجدداً.", en: "The AI is not answering now. Try again." },
+  not_found: { ckb: "نەدۆزرایەوە.", ar: "غير موجود.", en: "Not found." },
+  expired: { ckb: "ئەم کارتە کۆن بووە. لە چات داوای نوێ بکە.", ar: "انتهت صلاحية هذه البطاقة. اطلبها من جديد.", en: "This card has expired. Ask again in the chat." },
+  internal: { ckb: "هەڵەیەک ڕوویدا. دووبارە هەوڵبدەرەوە.", ar: "حدث خطأ. حاول مرة أخرى.", en: "Something went wrong. Try again." },
+};
+
+export const errorText = (code: ChatErrorCode, lang: Lang): string => ERRORS[code][lang];
+
+const SAY = {
+  /** The turn ran out of steps or time before the model finished. */
+  turnCut: {
+    ckb: "لێرەدا وەستام تا زۆر نەخایەنێت. بڵێ «بەردەوامبە» تا تەواوی بکەم.",
+    ar: "توقفت هنا حتى لا يطول الأمر. اكتب «أكمل» لأكمل.",
+    en: "I stopped here so it would not run long. Say “continue” and I will finish.",
+  },
+  /** The AI stopped answering in the middle of a turn; what was done is above. */
+  aiStopped: {
+    ckb: "AI وەڵامی نەدایەوە. ئەوەی تا ئێستا کراوە لە سەرەوە دیارە.",
+    ar: "توقف الذكاء الاصطناعي عن الرد. ما تم حتى الآن ظاهر أعلاه.",
+    en: "The AI stopped answering. What was done so far is shown above.",
+  },
+  /** The model finished with no words. */
+  noAnswer: {
+    ckb: "نەمتوانی وەڵامێک بنووسم. دووبارە هەوڵبدەرەوە.",
+    ar: "لم أستطع كتابة رد. حاول مرة أخرى.",
+    en: "I could not write an answer. Please try again.",
+  },
+  /** A change took longer than the request could wait: it may still have been made, so it must not be repeated blindly. */
+  unknownOutcome: {
+    ckb: "ئەمە زۆر خایاند و لەوانەیە ئەنجام درابێت. پێش ئەوەی دووبارە هەوڵبدەیتەوە، فەیسبووک و ئینستاگرام یان وێنەکانت بپشکنە.",
+    ar: "استغرق الأمر وقتاً طويلاً وقد يكون قد تم. تحقق من فيسبوك وإنستغرام أو من صورك قبل أن تعيد المحاولة.",
+    en: "It took too long and may still have gone through. Check Facebook, Instagram or your pictures before trying again.",
+  },
+  /** The day's number of changes (or posts) made from the chat is used up. */
+  actionsLimit: {
+    ckb: "سنووری گۆڕانکارییەکانی ئەمڕۆ لە چاتەوە تەواو بوو. سبەینێ دووبارە هەوڵبدەرەوە.",
+    ar: "بلغت حد التغييرات اليوم من المحادثة. حاول غداً.",
+    en: "Today's limit of changes made from the chat is reached. Try again tomorrow.",
+  },
+  /** What is shown while the model is working. */
+  thinking: { ckb: "بیر دەکەمەوە…", ar: "أفكر…", en: "Thinking…" },
+  working: { ckb: "کار دەکەم…", ar: "أعمل على ذلك…", en: "Working on it…" },
+  /** A card is waiting and the model said nothing more. */
+  cardsWaiting: {
+    ckb: "ئامادەم. کارتەکە بپشکنە و پشتڕاستی بکەرەوە.",
+    ar: "جاهز. راجع البطاقة وأكّدها.",
+    en: "Ready. Check the card and confirm it.",
+  },
+} satisfies Record<string, Table>;
+
+export const say = (key: keyof typeof SAY, lang: Lang): string => SAY[key][lang];
+
+/** What the model is told to write in when the person's own language is unclear. */
+export const LANG_NAME: Record<Lang, string> = { ckb: "Central Kurdish (Sorani, Arabic script)", ar: "Arabic", en: "English" };

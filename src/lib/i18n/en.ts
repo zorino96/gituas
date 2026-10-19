@@ -2,6 +2,7 @@ import type { Dict } from "./ckb";
 import { nrNewsEn } from "./nr/news.en";
 import { nrShellEn } from "./nr/shell.en";
 import { nrTeamEn } from "./nr/team.en";
+import { chatEn } from "./chat.en";
 import { waEn } from "./wa.en";
 import { studioEn } from "./studio.en";
 
@@ -1732,5 +1733,6 @@ export const en: Dict = {
 
   nr: { shell: nrShellEn, news: nrNewsEn, team: nrTeamEn },
   wa: waEn,
+  chat: chatEn,
   studio: studioEn,
 };

@@ -212,34 +212,36 @@ export async function fetchPageConversations(tenantId: string, limit = 10): Prom
     const list = await listRes.json();
     if (!listRes.ok) return fail("FB conversations", listRes.status, list);
 
-    const convos: FbConversation[] = [];
-    for (const c of (list?.data ?? []) as { id: string; updated_time?: string }[]) {
-      let messages: FbConversation["messages"] = [];
-      let participantId: string | undefined;
-      let participantName: string | undefined;
-      try {
-        const mRes = await fetch(
-          `${FB_V}/${c.id}/messages?fields=id,message,from{id,name},created_time&limit=8&access_token=${t}`,
-        );
-        const m = await mRes.json();
-        if (mRes.ok) {
-          const rows = (m?.data ?? []) as { id: string; message?: string; from?: { id?: string; name?: string }; created_time?: string }[];
-          messages = rows
-            .map((x) => ({ id: x.id, text: x.message, fromPage: x.from?.id === cred.pageId, createdTime: x.created_time }))
-            .reverse();
-          const other = rows.find((x) => x.from?.id && x.from.id !== cred.pageId)?.from;
-          participantId = other?.id;
-          participantName = other?.name;
+    // The threads are read side by side, not one after the other: ten serial Graph calls took longer than the chat's card may.
+    const convos: FbConversation[] = await Promise.all(
+      ((list?.data ?? []) as { id: string; updated_time?: string }[]).map(async (c): Promise<FbConversation> => {
+        let messages: FbConversation["messages"] = [];
+        let participantId: string | undefined;
+        let participantName: string | undefined;
+        try {
+          const mRes = await fetch(
+            `${FB_V}/${c.id}/messages?fields=id,message,from{id,name},created_time&limit=8&access_token=${t}`,
+          );
+          const m = await mRes.json();
+          if (mRes.ok) {
+            const rows = (m?.data ?? []) as { id: string; message?: string; from?: { id?: string; name?: string }; created_time?: string }[];
+            messages = rows
+              .map((x) => ({ id: x.id, text: x.message, fromPage: x.from?.id === cred.pageId, createdTime: x.created_time }))
+              .reverse();
+            const other = rows.find((x) => x.from?.id && x.from.id !== cred.pageId)?.from;
+            participantId = other?.id;
+            participantName = other?.name;
+          }
+        } catch {
+          /* leave thread without messages/participant */
         }
-      } catch {
-        /* leave thread without messages/participant */
-      }
-      const lastInbound = [...messages].reverse().find((mm) => !mm.fromPage);
-      const withinWindow = lastInbound?.createdTime
-        ? Date.now() - new Date(lastInbound.createdTime).getTime() < REPLY_WINDOW_MS
-        : false;
-      convos.push({ id: c.id, updatedTime: c.updated_time, participantId, participantName, messages, withinWindow });
-    }
+        const lastInbound = [...messages].reverse().find((mm) => !mm.fromPage);
+        const withinWindow = lastInbound?.createdTime
+          ? Date.now() - new Date(lastInbound.createdTime).getTime() < REPLY_WINDOW_MS
+          : false;
+        return { id: c.id, updatedTime: c.updated_time, participantId, participantName, messages, withinWindow };
+      }),
+    );
     convos.sort((a, b) => new Date(b.updatedTime ?? 0).getTime() - new Date(a.updatedTime ?? 0).getTime());
     return { ok: true, data: convos };
   });

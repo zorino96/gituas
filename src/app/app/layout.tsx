@@ -1,13 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Settings } from "lucide-react";
 
 import "./app.css";
 import { claimKind, currentWorkspace, listWorkspaces } from "./data";
 import { gmFontVars } from "./fonts";
-import { SideNav, Tabs } from "./nav";
-import { ModeSwitch } from "./mode-switch";
+import { AppFrame } from "./frame";
+import { deleteThreadAction, listThreadsAction, pinThreadAction, renameThreadAction } from "./assistant/chat-actions";
 import { adVideoEnabled } from "@/lib/advideo/enabled";
 import { studioReadyFor } from "@/lib/studio/ready";
 import { switchWorkspaceAction } from "@/app/newsroom/desk-actions";
@@ -15,6 +14,9 @@ import { NEWSROOM_ORIGIN } from "@/lib/hosts";
 import { createShopAction } from "./shop-actions";
 import { dict, dirOf, getLang, type Lang } from "@/lib/i18n";
 import { LangProvider } from "@/lib/i18n/client";
+import { chatEnabled } from "@/lib/chat/enabled";
+import { can } from "@/lib/newsroom/roles";
+import { SUPPORT_WHATSAPP_DISPLAY, supportWhatsAppUrl } from "@/lib/support";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = dict(await getLang());
@@ -84,26 +86,20 @@ async function Shell({ lang, children }: { lang: Lang; children: React.ReactNode
     );
   }
 
+  // The chat has its own frame (history sidebar, composer) on /app/assistant; it is for the people who may configure the shop.
+  const chat =
+    chatEnabled() && can(ws.role, "configure")
+      ? {
+          api: { list: listThreadsAction, rename: renameThreadAction, pin: pinThreadAction, remove: deleteThreadAction },
+          support: { url: supportWhatsAppUrl(), display: SUPPORT_WHATSAPP_DISPLAY },
+        }
+      : null;
+
   return (
     <div className={`gm ${gmFontVars}`} dir={dirOf(lang)} lang={lang}>
-      <SideNav kind={ws.kind} workspace={ws.name} studio={studioReadyFor(ws.id)} video={adVideoEnabled()} />
-      <div className="gm-shell">
-        <header className="gm-head">
-          <div>
-            <h1 className="kufi">{ws.name}</h1>
-            <small>{t.brand}</small>
-          </div>
-          <div className="gm-row" style={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <ModeSwitch />
-            <Link href="/app/settings" className="gm-btn quiet small">
-              <Settings size={15} aria-hidden="true" />
-              {t.layout.settings}
-            </Link>
-          </div>
-        </header>
-        <main className="gm-main">{children}</main>
-      </div>
-      <Tabs kind={ws.kind} studio={studioReadyFor(ws.id)} video={adVideoEnabled()} />
+      <AppFrame kind={ws.kind} workspace={ws.name} workspaceId={ws.id} studio={studioReadyFor(ws.id)} video={adVideoEnabled()} chat={chat}>
+        {children}
+      </AppFrame>
     </div>
   );
 }

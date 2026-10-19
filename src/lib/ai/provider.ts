@@ -96,6 +96,10 @@ export function resetAiCooling(): void {
   coolUntil.clear();
 }
 
+/** The chat step (./chat.ts) leaves a failed provider alone for the same 90 s as the JSON steps do. */
+export const stepCooling = cooling;
+export const coolStep = cool;
+
 export interface JsonResult {
   data: unknown;
   model: string;

@@ -398,6 +398,9 @@ model Tenant {
   onboardingDismissedAt DateTime?
   /// A code the owner minted was redeemed on this workspace: every store of it (and every store connected later) is on UNLIMITED.
   unlimited             Boolean           @default(false)
+  /// How far the chat may act without a card: ASK (every change waits for Confirm), LOW (small reversible changes run), ALL (also
+  /// pictures, videos and posts within the daily caps). Never for messages to people, standing orders, or a turn that read customer text.
+  chatAutonomy          String            @default("ASK")
   aiDailyCap            Int?
   stripeCustomerId      String?           @unique
   stripeSubscriptionId  String?           @unique
@@ -435,6 +438,7 @@ model Tenant {
   invoices              Invoice[]
   scheduledPosts        ScheduledPost[]
   orders                Order[]
+  chatThreads           ChatThread[]
 }
 
 model User {
@@ -454,6 +458,7 @@ model User {
   memberships    Membership[]
   sessions       Session[]
   tenants        Tenant[]
+  chatThreads ChatThread[]
 }
 
 model VerificationToken {
@@ -1451,3 +1456,83 @@ model AdVideo {
   @@index([tenantId, createdAt])
   @@index([status, updatedAt])
 }
+
+/// One conversation in the chat. Private to the person who started it; deleted with the workspace or the person.
+model ChatThread {
+  id            String        @id @default(cuid())
+  tenantId      String
+  userId        String
+  /// shop | news
+  kind          String        @default("shop")
+  title         String        @default("")
+  pinned        Boolean       @default(false)
+  /// The seq of the last assistant message of a turn that read customer-written text: the turn after it also waits for Confirm.
+  taintedSeq    Int           @default(0)
+  /// The next message number (kept on the thread so two turns in parallel cannot take the same one).
+  nextSeq       Int           @default(1)
+  lastMessageAt DateTime      @default(now())
+  /// A turn is running until this time: a second turn of the same thread is refused meanwhile (cleared when the turn ends).
+  busyUntil     DateTime?
+  createdAt     DateTime      @default(now())
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages      ChatMessage[]
+  runs          ChatRun[]
+
+  @@index([tenantId, userId, lastMessageAt])
+}
+
+model ChatMessage {
+  id         String     @id @default(cuid())
+  threadId   String
+  seq        Int
+  /// user | assistant | tool
+  role       String
+  content    String     @default("")
+  /// An assistant message: the tool calls the model made, [{id, name, args}].
+  toolCalls  Json?
+  /// A tool message: the call it answers.
+  toolCallId String?
+  /// What the owner sees besides the text: view blocks, run ids, follow-up chips, attachments, the model and the cost.
+  meta       Json?
+  /// The turn this message belongs to read customer-written text.
+  tainted    Boolean    @default(false)
+  createdAt  DateTime   @default(now())
+  thread     ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, seq])
+}
+
+/// A change the model wants to make, held HERE (not in the browser): what was proposed, what the card showed, who decided and how.
+/// A card runs once: the status moves PROPOSED -> RUNNING in one atomic update, whatever the screen does.
+model ChatRun {
+  id         String     @id @default(cuid())
+  threadId   String
+  tenantId   String
+  userId     String
+  /// The model's own id of the call: with the thread it makes a retried step find the same run instead of making a second one.
+  toolCallId String
+  tool       String
+  args       Json
+  argsHash   String
+  risk       String
+  /// PROPOSED | RUNNING | DONE | FAILED | CANCELLED | EXPIRED
+  status     String     @default("PROPOSED")
+  /// CONFIRMED (the person pressed Confirm) | AUTO (the autonomy setting let it run)
+  decidedBy  String?
+  autonomy   String     @default("ASK")
+  tainted    Boolean    @default(false)
+  /// The card as the person saw it: {title, lines}.
+  card       Json
+  result     Json?
+  error      String?
+  expiresAt  DateTime
+  createdAt  DateTime   @default(now())
+  decidedAt  DateTime?
+  finishedAt DateTime?
+  thread     ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, toolCallId])
+  @@index([tenantId, createdAt])
+}
+

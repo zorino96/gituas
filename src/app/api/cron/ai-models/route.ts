@@ -180,7 +180,12 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const body = (await req.json().catch(() => null)) as { model?: string; system?: string; user?: string; list?: boolean; claude?: boolean; alt?: boolean; altDebug?: boolean; video?: boolean; proofread?: boolean; tools?: boolean; maxTokens?: number; imageUrl?: string } | null;
+  const body = (await req.json().catch(() => null)) as { model?: string; system?: string; user?: string; list?: boolean; claude?: boolean; alt?: boolean; altDebug?: boolean; video?: boolean; proofread?: boolean; tools?: boolean; chat?: { text?: string; lang?: "en" | "ckb" | "ar" }; maxTokens?: number; imageUrl?: string } | null;
+  // {chat: {text, lang}}: one whole chat turn in a throwaway workspace (real model, real tools; a change it proposes is never run).
+  if (body?.chat) {
+    const { chatProbe } = await import("@/lib/chat/probe");
+    return NextResponse.json(await chatProbe(String(body.chat.text ?? "How many orders do I have today, and what should I do next?").slice(0, 500), body.chat.lang ?? "en"));
+  }
   // {tools: true}: does each provider of the chain carry native tool calls? One trivial function tool, then the tool's result sent
   // back to see whether the model answers from it. Only statuses and shapes are returned (no key, no long text).
   if (body?.tools) {

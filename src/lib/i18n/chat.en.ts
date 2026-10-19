@@ -1,0 +1,182 @@
+import type { chatCkb } from "./chat.ckb";
+
+const nf = new Intl.NumberFormat("en-US");
+
+// The chat (the shop's assistant as a conversation) in English. Exactly the keys of chat.ckb.ts; no Arabic-script text.
+export const chatEn: typeof chatCkb = {
+  title: "Chat",
+  newChat: "New chat",
+
+  frame: {
+    openList: "Open the chat list",
+    closeList: "Close the list",
+    chats: "Chats",
+  },
+
+  sidebar: {
+    search: "Search",
+    searchPlaceholder: "Search chats…",
+    clearSearch: "Clear search",
+    results: "Search results",
+    noResults: "No chats found.",
+    empty: "You have no chats yet. Type your first question.",
+    loading: "Loading chats…",
+    loadFailed: "The chat list did not load.",
+    retry: "Try again",
+    groups: {
+      pinned: "Pinned",
+      today: "Today",
+      yesterday: "Yesterday",
+      week: "Previous 7 days",
+      month: "Previous 30 days",
+      older: "Older",
+    },
+    rowMenu: "Chat options",
+    rename: "Rename",
+    renameLabel: "New name for the chat",
+    save: "Save",
+    pin: "Pin",
+    unpin: "Unpin",
+    delete: "Delete",
+    deleteAsk: "Delete this chat?",
+    deleteYes: "Delete",
+    deleteNo: "No",
+    failed: "That did not work. Try again.",
+    classic: "Gituas sections",
+    support: "Help on WhatsApp",
+    language: "Language",
+  },
+
+  screen: {
+    you: "You",
+    assistant: "Gituas",
+    stopped: "Stopped. If the answer finishes, it is saved in this chat.",
+    jumpLatest: "Jump to latest",
+    dropHere: "Drop a picture or video here",
+    retry: "Try again",
+    openLink: "Open",
+    imageOf: "Attached picture",
+  },
+
+  composer: {
+    label: "Your message",
+    placeholder: "Tell me what you need…",
+    send: "Send",
+    stop: "Stop",
+    hint: "Enter to send, Shift+Enter for a new line",
+    quickGroup: "Quick buttons",
+    quickHint: "These buttons use no AI and do not count against your chats.",
+    left: (day: number, month: number) => `Chats left: ${nf.format(day)} today · ${nf.format(month)} this month`,
+    lastOnes: "Today's chats are used up. The quick buttons still work.",
+  },
+
+  empty: {
+    hello: "Hi! What can I do for you today?",
+    sub: "Tell me what you need in your own words. For anything that matters I show you a card to approve before it happens.",
+    examples: [
+      "How many orders came in today?",
+      "Show me the comments I have not answered",
+      "Make a picture of my best product",
+      "Schedule a post for tonight at 9",
+      "Turn on auto replies",
+      "How did my shop do this week?",
+    ],
+  },
+
+  quick: {
+    today: { label: "Today", lead: "Here is your shop today:" },
+    orders: { label: "Orders", lead: "Here are your latest orders:" },
+    comments: { label: "Comments", lead: "These comments have no reply yet:" },
+    messages: { label: "Messages", lead: "These messages are waiting for a reply:" },
+    scheduled: { label: "Scheduled", lead: "These posts are scheduled:" },
+  },
+
+  errors: {
+    signin: "Sign in again, then try once more.",
+    forbidden: "Your role may not use the chat. Ask the shop's owner or admin.",
+    workspace: "This screen belongs to another shop you were in. Reload the page.",
+    badrequest: "That message was not sent. Shorten it and try again.",
+    limit_day: "Today's chats are used up. Try again tomorrow; the quick buttons still work.",
+    limit_month: "This month's chats are used up. To get more, upgrade your plan or message us on WhatsApp.",
+    allowance: "This month's AI allowance is nearly used and the rest is kept for replies to buyers. The quick buttons still work.",
+    busy: "The previous answer in this chat has not finished yet. Wait a few seconds and try again.",
+    unavailable: "The AI is not answering right now. Try again.",
+    not_found: "This chat was not found. It may have been deleted.",
+    expired: "This card is too old. Ask again.",
+    internal: "Something went wrong. Try again, or message us on WhatsApp.",
+    network: "The connection broke. Check your internet and try again.",
+  },
+
+  runs: {
+    status: {
+      PROPOSED: "Waiting for your approval",
+      RUNNING: "Working…",
+      DONE: "Done",
+      FAILED: "Did not work",
+      CANCELLED: "Cancelled",
+      EXPIRED: "Expired",
+    },
+    confirm: "Confirm",
+    cancel: "Cancel",
+    working: "Working…",
+    workingLong: "This can take up to a minute. Keep the page open.",
+    auto: "Auto",
+    autoHelp: "Done by itself, as your setting allows.",
+    expiresIn: (minutes: number) => `${nf.format(minutes)} min left`,
+    expiresSoon: "Less than a minute left",
+    tainted: "This card came after reading customers' words: check the values before you confirm.",
+    risk: {
+      money: "Uses your AI allowance",
+      public: "Will be public",
+      outbound: "Sends a message to a person",
+      standing: "Keeps acting later on its own",
+      destructive: "Removes something",
+    },
+    failedDefault: "It was not done.",
+    decideFailed: "It could not be done. Try again.",
+    unknown: "We do not know whether it ran. Reload the page and check.",
+    videoWaiting: "The video is being made. It takes a few minutes…",
+    videoReady: "The video is ready.",
+    videoFailed: "The video could not be made.",
+  },
+
+  views: {
+    more: (n: number) => `+${nf.format(n)} more`,
+    open: "Open",
+  },
+
+  settings: {
+    sec: "Chat",
+    title: "Chat and actions",
+    sub: "Choose how far the chat may act without asking. You can always see each action on its card.",
+    levelsLabel: "How the chat acts",
+    levels: {
+      ASK: {
+        label: "Ask me every time",
+        help: "Every change has a card and nothing happens until you press Confirm. The best choice to start with.",
+      },
+      LOW: {
+        label: "Do the small things by itself",
+        help: "Small, easy changes (like changing a setting) it does by itself. Anything that uses your AI allowance, becomes public, sends a message, acts later on its own or removes something still gets a card.",
+      },
+      ALL: {
+        label: "Do most things by itself",
+        help: "Small changes, what uses your AI allowance (like a video) and what becomes public (a post, a price) it does by itself. Messages and replies to people, things that keep acting on their own (like auto replies), removing something and making pictures always get a card. If the chat has read customers' words, everything in that answer and the next one gets a card.",
+      },
+    },
+    ownerOnly: "Only the owner and admins can change this.",
+    saved: "Saved.",
+    saveFailed: "It was not saved. Try again.",
+    deleteTitle: "Delete all my chats",
+    deleteHelp: "Deletes all your chats in this shop and cannot be undone. Other people's chats are not deleted.",
+    deleteButton: "Delete all chats",
+    deleteAsk: "Are you sure? All your chats will be deleted for good.",
+    deleteYes: "Yes, delete everything",
+    deleteNo: "No, keep them",
+    deleted: (n: number) => `${nf.format(n)} chats deleted.`,
+    deleteNone: "There were no chats to delete.",
+    deleteFailed: "It was not deleted. Try again.",
+    allowanceUsed: (percent: number) => `${nf.format(percent)}% of this month's AI allowance is used`,
+    retention: "What the chat looked up (orders, comments, messages) is blanked after 1 day. The tables and the values on cards are removed after 30 days, and a chat nobody uses for 180 days is deleted.",
+  },
+};

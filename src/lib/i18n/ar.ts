@@ -3,6 +3,7 @@ import { num } from "./num";
 import { nrNewsAr } from "./nr/news.ar";
 import { nrShellAr } from "./nr/shell.ar";
 import { nrTeamAr } from "./nr/team.ar";
+import { chatAr } from "./chat.ar";
 import { waAr } from "./wa.ar";
 import { studioAr } from "./studio.ar";
 import { plural } from "./plural";
@@ -1722,5 +1723,6 @@ export const ar: Dict = {
   },
   nr: { shell: nrShellAr, news: nrNewsAr, team: nrTeamAr },
   wa: waAr,
+  chat: chatAr,
   studio: studioAr,
 };
