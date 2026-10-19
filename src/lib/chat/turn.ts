@@ -27,10 +27,12 @@ import {
   lockThread,
   nextAttachmentId,
   runsOfThread,
+  setTitle,
   unlockThread,
   type ChatThread,
 } from "./store";
 import { errorText } from "./text";
+import { titleFor } from "./title";
 import { ALL_TOOLS } from "./tools";
 import { isQuickId, type ChatAttachment, type ChatErrorCode, type ChatEvent, type ChatTool, type QuickId } from "./types";
 
@@ -90,6 +92,8 @@ export async function executeChatRequest(actor: Actor, rawBody: unknown, emit: (
 
   let slot: Awaited<ReturnType<typeof claimSlot>> | null = null;
   let locked: ChatThread | null = null;
+  // Work that follows the `done` event (the screen is already free): a better title for a new thread.
+  let afterDone: (() => Promise<void>) | null = null;
   // Nothing usable was made: the place goes back, once. A failure that may have been paid for gives it back a few times a day only
   // (so it cannot loop for free); a refusal before any work (busy, no such thread) costs nothing and always gives it back.
   let refunded = false;
@@ -141,8 +145,16 @@ export async function executeChatRequest(actor: Actor, rawBody: unknown, emit: (
       );
       if (!outcome.answered) await giveBackSlot();
       if (outcome.error) fail(outcome.error, outcome.error === "unavailable");
+      if (isNew && outcome.answered && !outcome.error) {
+        const id = thread.id;
+        afterDone = async () => {
+          const title = await titleFor(text, actor.lang, noShop ? undefined : ai.meter);
+          if (title) await setTitle(id, title);
+        };
+      }
     }
     emit({ t: "done", remaining: await remainingOf(actor.tenantId), ms: deps.now() - started });
+    if (afterDone) await afterDone().catch(() => undefined);
   } catch (e) {
     console.error("[chat] turn failed:", e instanceof Error ? e.name : "unknown");
     await giveBackSlot();

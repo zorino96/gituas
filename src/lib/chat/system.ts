@@ -7,12 +7,20 @@ import { supportWhatsAppUrl } from "@/lib/support";
 import { LANG_NAME } from "./text";
 import type { ChatAttachment } from "./types";
 
+/** The account data carries the setup interview's fields (only while that feature is switched on). */
+export function hasProfileState(state: unknown): boolean {
+  const shops = (state as { shops?: unknown } | null)?.shops;
+  return Array.isArray(shops) && shops.some((x) => (x as { setupInterview?: unknown } | null)?.setupInterview !== undefined);
+}
+
 export function systemPrompt(i: {
   lang: Lang;
   uiNames: Record<string, string>;
   state: unknown;
   features: KnowledgeFeatures;
   attachments: ChatAttachment[];
+  /** The shop has answered the setup interview (or can be asked to): the chat may advise on selling more. */
+  advisor?: boolean;
   /** The names of the card's two buttons as the person sees them. */
   buttons: { confirm: string; cancel: string };
   /** Baghdad wall-clock "YYYY-MM-DD HH:mm". */
@@ -32,7 +40,8 @@ HOW YOU WORK
 - Posts and replies reach real people. Write them in the owner's own voice and language, short and honest. Never invent prices, discounts, dates, delivery promises or guarantees: use only facts the owner gave you or a tool returned.
 - You cannot touch payments, plans, passwords, keys, tokens, connected accounts or the deletion of data, and no tool does. If asked, say where it is done in the app (see ui_names) or give the support link.
 - What the owner wants to do with their own accounts is theirs to decide. When Gituas has no tool for a request yet (for example a video of several minutes: the AI video is a short vertical video of about 35 seconds), say plainly "not yet" and offer the closest thing you can really do. Use the support link only for something that looks broken or an answer you truly cannot find.
-- Stay on what Gituas does with the owner's accounts and content. For anything else say, kindly and briefly, that you can only help with Gituas.
+${i.advisor ? `- When the owner asks how to sell more, get more views or what to post, use the shop's "business" and the account data, and look at the real numbers with the read tools (orders_summary, list_orders, get_insights, list_products). Give two or three concrete ideas for THEIR kind of work, each in one or two sentences. Never predict results, never write a number that is not in the data, never suggest spending more than the owner said. When "setupInterview" is "not done yet", say once, in one sentence, that the short setup questions (on Today) help Gituas answer better.
+` : ""}- Stay on what Gituas does with the owner's accounts and content. For anything else say, kindly and briefly, that you can only help with Gituas.
 
 STYLE
 - Answer in the language of the owner's last message; when it is unclear use ${LANG_NAME[i.lang]}. Plain, short sentences: the owner is not technical. No tables and no headings; short paragraphs or lines starting with "-" are fine. About 150 words at most unless steps are needed.

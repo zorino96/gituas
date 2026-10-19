@@ -26,7 +26,7 @@ import {
   type ChatRun,
   type ChatThread,
 } from "./store";
-import { systemPrompt } from "./system";
+import { hasProfileState, systemPrompt } from "./system";
 import { say } from "./text";
 import { isWriteTool, ToolRefusal, type Autonomy, type Card, type ChatAttachment, type ChatErrorCode, type ChatEvent, type ChatTool, type QuickId, type ViewBlock } from "./types";
 import { withTimeout } from "./util";
@@ -103,7 +103,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnOut
   const snap = await deps.snapshot();
   const fileNote = input.attachments.length ? `\n[attached: ${input.attachments.map((a) => `${a.id} (${a.kind})`).join(", ")}]` : "";
   const messages: ChatMsg[] = [
-    { role: "system", content: systemPrompt({ lang: actor.lang, uiNames: snap.uiNames, state: snap.state, features: snap.features, attachments: everyAttachment, buttons: { confirm: dict(actor.lang).chat.runs.confirm, cancel: dict(actor.lang).chat.runs.cancel }, nowBaghdad: asBaghdad(started) }) },
+    { role: "system", content: systemPrompt({ lang: actor.lang, uiNames: snap.uiNames, state: snap.state, features: snap.features, attachments: everyAttachment, advisor: hasProfileState(snap.state), buttons: { confirm: dict(actor.lang).chat.runs.confirm, cancel: dict(actor.lang).chat.runs.cancel }, nowBaghdad: asBaghdad(started) }) },
     ...buildHistory(priorRows, runMap),
     { role: "user", content: input.text + fileNote },
   ];

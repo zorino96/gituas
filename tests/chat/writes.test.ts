@@ -228,7 +228,7 @@ describe("risk", () => {
       hide_comment: "low",
       reply_to_comment: "outbound",
       send_message: "outbound",
-      cancel_scheduled_post: "low",
+      cancel_scheduled_post: "destructive",
       update_product: "public",
     };
     for (const [name, risk] of Object.entries(fixed)) {
@@ -276,7 +276,7 @@ describe("risk", () => {
 
   it("makes the hiding of a product wait for Confirm at every autonomy level, and a cancelled post stay a small change", () => {
     expect(riskOf(tool("archive_product"), { product: "p2" })).toBe("destructive");
-    expect(riskOf(tool("cancel_scheduled_post"), { post: "sp1" })).toBe("low");
+    expect(riskOf(tool("cancel_scheduled_post"), { post: "sp1" })).toBe("destructive");
     for (const autonomy of ["ASK", "LOW", "ALL"] as const) {
       expect(decide({ risk: riskOf(tool("archive_product"), { product: "p2" }), autonomy, tainted: false }), autonomy).toBe("confirm");
     }

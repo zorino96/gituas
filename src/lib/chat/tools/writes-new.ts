@@ -293,7 +293,7 @@ const cancelScheduledPost = defineWrite({
   schema: SCHEMA.cancel_scheduled_post,
   kinds: ["shop"],
   permission: "publish",
-  risk: "low",
+  risk: "destructive",
   label: (lang) => LABEL.scheduled[lang],
   async card(ctx, args) {
     const row = await db.scheduledPost.findFirst({ where: { id: args.post, tenantId: ctx.tenantId, status: "PENDING" }, select: { runAt: true, input: true } });
