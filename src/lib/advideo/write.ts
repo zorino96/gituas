@@ -189,7 +189,8 @@ export async function writeAdSpec(input: WriteInput): Promise<Written> {
       model = out.model;
       // The spoken lines and the caption are corrected by the Sorani proofreader first; if the corrected text breaks one of the
       // spec's own rules (a number, a claim, the word limits) the model's own text is used.
-      const polished = await polishAdRaw(out.data, { timeoutMs: 8_000 });
+      // (The proofreader answers in 13 to 15 s, which an asynchronous video job has: it is waited for up to 18 s.)
+      const polished = await polishAdRaw(out.data, { timeoutMs: 18_000 });
       let n = normalizeSpec(polished, opts);
       if (!n.ok && polished !== out.data) n = normalizeSpec(out.data, opts);
       if (n.ok) {

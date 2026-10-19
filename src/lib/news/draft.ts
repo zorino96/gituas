@@ -141,20 +141,22 @@ export async function draftFor(
     { system: buildSystemPrompt(opts), user: buildUserPrompt(item, feedback, opts?.avoid), strength, free: "draft", opus: opts?.opus ?? "retry" },
     validateDraft,
   );
-  return { draft: await polishDraft(data), model };
+  // Not polished here: the proofreader takes 13 to 15 s and the autopilot has a minute for a whole story (see polishDraft).
+  return { draft: data, model };
 }
 
 /**
  * The owner's choice (2026-10-19): Sorani is written by the model and then corrected by the proofreader. Headline, body and quote
- * go out in parallel, each with a short wait; a correction that is refused, late or that breaks the draft's own rules leaves the
- * draft as the model wrote it.
+ * go out in parallel; a correction that is refused, late or that breaks the draft's own rules leaves the draft as the model wrote it.
+ * The door answers in 13 to 15 s from Vercel, so this is for a background or manual use (pass a timeout of 20 s or more), not for
+ * the autopilot's own run.
  */
-export async function polishDraft(d: Draft): Promise<Draft> {
+export async function polishDraft(d: Draft, timeoutMs = 20_000): Promise<Draft> {
   if (!proofreadEnabled()) return d;
   const [headline, body, quote] = await Promise.all([
-    proofreadSorani(d.headline, { timeoutMs: 6_000 }),
-    proofreadSorani(d.body, { timeoutMs: 6_000 }),
-    d.quote ? proofreadSorani(d.quote, { timeoutMs: 6_000 }) : Promise.resolve(null),
+    proofreadSorani(d.headline, { timeoutMs }),
+    proofreadSorani(d.body, { timeoutMs }),
+    d.quote ? proofreadSorani(d.quote, { timeoutMs }) : Promise.resolve(null),
   ]);
   if (!headline.changed && !body.changed && !quote?.changed) return d;
   return validateDraft({ ...d, headline: headline.text, body: body.text, quote: quote ? quote.text : d.quote }) ?? d;

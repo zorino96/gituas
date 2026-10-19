@@ -10,7 +10,8 @@ const MAX_CHARS = 3500;
 /** The door allows 30 fixes a minute from one address; this instance keeps well under it. */
 const PER_MINUTE = 18;
 const MAX_IN_FLIGHT = 3;
-const DEFAULT_TIMEOUT_MS = 8_000;
+/** The door asks the model up to three times: 13 to 15 s from Vercel, so a caller that cannot wait that long should not use it. */
+const DEFAULT_TIMEOUT_MS = 18_000;
 
 export function proofreadEnabled(): boolean {
   return process.env.PROOFREAD_ENABLED?.trim() !== "0";

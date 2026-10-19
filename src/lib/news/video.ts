@@ -16,7 +16,6 @@
 import { put } from "@vercel/blob";
 
 import { db } from "@/lib/db";
-import { polishReelSegments } from "@/lib/ai/proofread";
 import { completeJson } from "@/lib/ai/provider";
 import { countUsage, usageOf } from "@/lib/billing/limits";
 import { videoQuotaFor } from "@/lib/billing/plans";
@@ -277,9 +276,7 @@ export async function prepareVideo(jobId: string): Promise<boolean> {
     if (!draft || !item || !tenant) throw new Error("draft or story missing");
     const { system, user } = reelPrompt(draft);
     // The owner's order for video scripts (DeepSeek V4.1 Flash first, Haiku after it): see videoOrder in the AI provider.
-    const written = (await completeJson({ system, user, strength: "fast", thinking: false, free: "draft", prefer: "video" }, parseReelScript)).data;
-    // The spoken sentences are corrected by the Sorani proofreader before the voice reads them (a refused one is left as it was).
-    const script = { ...written, segments: await polishReelSegments(written.segments, { timeoutMs: 8_000 }) };
+    const script = (await completeJson({ system, user, strength: "fast", thinking: false, free: "draft", prefer: "video" }, parseReelScript)).data;
 
     // The desk's own voice (ENTERPRISE): read once per video; without it a ready-made voice reads.
     const clone = job.voice === CUSTOM_VOICE ? await cloneVoiceFor(job.tenantId) : null;

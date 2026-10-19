@@ -5,7 +5,6 @@
 
 import { aiFor, type AiOptions } from "@/lib/ai/for-store";
 import type { Prisma } from "@/generated/prisma/client";
-import { proofreadSorani } from "@/lib/ai/proofread";
 import { completeJson } from "@/lib/ai/provider";
 import { db } from "@/lib/db";
 import { isJpegPath, isOwnBlobUrl } from "@/lib/merchant/caption";
@@ -59,8 +58,7 @@ ${about.length ? `About the business (confirmed by the owner):\n${about.join("\n
     // With a profile the caption is public and goes out with no review: no link, handle or phone, and no number the product does not have.
     const allowed = new Set(numbersIn(`${name} ${description ?? ""}`));
     const clean = !biz || (!hasLinkOrPhone(text) && numbersIn(text).every((n) => allowed.has(n)));
-    // A Sorani caption is corrected by the proofreader before it is posted (the proofreader keeps numbers, links, handles and brand words).
-    if (text && clean) return biz?.language === "ar" ? text : (await proofreadSorani(text, { timeoutMs: 6_000 })).text;
+    if (text && clean) return text;
   } catch (e) {
     console.error("[shop-autopilot] caption failed:", e instanceof Error ? e.message : "unknown error");
   }
