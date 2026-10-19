@@ -41,7 +41,7 @@ export default async function SettingsPage({
   // The Chat card (how far the chat may act by itself, delete my chats) is for the owner and admins of a shop, or of a news desk
   // once the desk's chat is on.
   const desk = ws.kind === "NEWS";
-  const chatOn = desk ? newsChatEnabled() : chatEnabled();
+  const chatOn = desk ? newsChatEnabled(ws.id) : chatEnabled();
   const chatState = chatOn && can(ws.role, "configure") ? await getChatStateAction().catch(() => null) : null;
   // A desk whose trial or plan has ended: its chat can only read, and the card says so.
   const frozen = desk && chatState?.ok ? (await loadDeskAccess(ws.id).catch(() => null))?.active === false : false;

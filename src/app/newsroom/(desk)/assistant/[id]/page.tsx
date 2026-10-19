@@ -22,7 +22,7 @@ export default async function DeskChatThreadPage({ params }: { params: Promise<{
   const lang = await getLang();
   if (!can(ws.role, "configure")) return <p className="gm-note warn">{dict(lang).nr.team.roles.notAllowed}</p>;
   // With the desk's chat switched off there is only the older assistant, at /newsroom/assistant.
-  if (!newsChatEnabled()) redirect(DESK_HREFS.newChat);
+  if (!newsChatEnabled(ws.id)) redirect(DESK_HREFS.newChat);
 
   const [r, access] = await Promise.all([getThreadAction({ id }), loadDeskAccess(ws.id).catch(() => null)]);
   if (!r.ok) {

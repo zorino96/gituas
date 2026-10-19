@@ -21,6 +21,6 @@ export async function actorFromSession(): Promise<ActorResult> {
   if (!userId || !ws) return { ok: false, code: "signin", lang };
   if (!can(ws.role, "configure")) return { ok: false, code: "forbidden", lang };
   if (ws.kind === "MERCHANT") return { ok: true, actor: { tenantId: ws.id, userId, role: ws.role, kind: "shop", lang }, workspaceName: ws.name };
-  if (ws.kind === "NEWS" && newsChatEnabled()) return { ok: true, actor: { tenantId: ws.id, userId, role: ws.role, kind: "news", lang }, workspaceName: ws.name };
+  if (ws.kind === "NEWS" && newsChatEnabled(ws.id)) return { ok: true, actor: { tenantId: ws.id, userId, role: ws.role, kind: "news", lang }, workspaceName: ws.name };
   return { ok: false, code: "forbidden", lang };
 }

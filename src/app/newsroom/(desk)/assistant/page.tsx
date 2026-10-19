@@ -26,7 +26,7 @@ export default async function DeskAssistantPage() {
   if (ws.kind !== "NEWS") notFound();
   const support = { url: supportWhatsAppUrl(), display: SUPPORT_WHATSAPP_DISPLAY };
 
-  if (newsChatEnabled()) {
+  if (newsChatEnabled(ws.id)) {
     // The turns left are only a line under the box: if they cannot be read the chat still opens.
     const [state, access] = await Promise.all([getChatStateAction().catch(() => null), loadDeskAccess(ws.id).catch(() => null)]);
     return (

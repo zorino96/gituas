@@ -64,7 +64,7 @@ export async function DeskShell({ ws, children }: { ws: Workspace; children: Rea
   const roles = dict(await getLang()).nr.team.roles.label;
   // The chat is for the people who may configure the desk, while NEWS_CHAT_ENABLED is on (a client component cannot read the env).
   const chat =
-    newsChatEnabled() && can(ws.role, "configure")
+    newsChatEnabled(ws.id) && can(ws.role, "configure")
       ? {
           api: { list: listThreadsAction, rename: renameThreadAction, pin: pinThreadAction, remove: deleteThreadAction },
           support: { url: supportWhatsAppUrl(), display: SUPPORT_WHATSAPP_DISPLAY },
