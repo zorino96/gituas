@@ -226,7 +226,7 @@ export function renderRules(facts: CoachFacts, lang: NoteLang): NoteBody {
   const f = fmtFor(lang);
   if (!hasActivity(facts)) return { headline: W.headline.noData, points: [{ key: "no_data", text: W.noData }], tryThis: [] };
 
-  const talksOrders = facts.goal.kind !== "grow" && facts.goal.kind !== "other";
+  const talksOrders = facts.goal.kind !== "grow" && facts.goal.kind !== "monetize" && facts.goal.kind !== "other";
   const o = facts.orders;
   const m = facts.messages;
   const b = facts.buyers;

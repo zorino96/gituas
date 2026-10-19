@@ -12,7 +12,9 @@ import { CITIES } from "@/lib/orders/cities";
 import {
   CATEGORIES,
   CUSTOMERS,
-  GOALS,
+  GOAL_CHOICES,
+  choiceOf,
+  isAudienceGoal,
   PAYMENTS,
   PROFILE_LANGS,
   RETURNS,
@@ -47,7 +49,7 @@ type StepId = "goal" | "what" | "who" | "where" | "facts" | "tone" | "review";
 /** The screens for this goal, in order: delivery and payment only for people who sell or take enquiries. */
 export function stepsFor(goal: Goal | null, hasFacts: boolean): StepId[] {
   // Only an owner who wants viewers and followers is spared the questions about buyers; every one of them can be skipped.
-  const asksBuyers = goal !== "grow";
+  const asksBuyers = !isAudienceGoal(goal);
   const out: StepId[] = ["goal", "what", "who"];
   if (asksBuyers) out.push("where", "facts");
   out.push("tone");
@@ -154,7 +156,7 @@ export function SetupClient({ storeId, storeName, initial, initialStep = 0 }: { 
         {step === "goal" && (
           <>
             <p className="gm-sec" style={{ margin: 0 }}>{s.goalQ}</p>
-            <div className="gm-chips">{GOALS.map((g) => chip(g, label("goal", g), p.goal === g, () => setP((x) => ({ ...x, goal: x.goal === g ? null : g }))))}</div>
+            <div className="gm-chips">{GOAL_CHOICES.map((g) => chip(g, label("goal", g), choiceOf(p.goal) === g, () => setP((x) => ({ ...x, goal: choiceOf(x.goal) === g ? null : g }))))}</div>
             <input className="gm-input" dir="auto" maxLength={200} value={p.goalText} placeholder={s.goalTextPh} onChange={(e) => setP((x) => ({ ...x, goalText: e.target.value }))} />
             <small className="gm-hint">{s.goalHint}</small>
           </>

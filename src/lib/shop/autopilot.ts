@@ -34,7 +34,7 @@ async function writeCaption(name: string, description: string | null, ai?: AiOpt
   const about = profileLines(biz ?? null, { lang: biz?.language ?? "ckb", audience: "caption" });
   const language = biz?.language === "ar" ? "Arabic (Iraqi, Arabic script)" : "Sorani Kurdish (Arabic script)";
   // The call at the end follows what the owner wants from their page.
-  const ending = biz?.goal === "grow" ? "End with a call to follow the page." : "End with a call to message the page.";
+  const ending = biz?.goal === "grow" || biz?.goal === "monetize" ? "End with a call to follow the page." : "End with a call to message the page.";
   try {
     const { data } = await completeJson<{ text: string }>(
       {

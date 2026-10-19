@@ -14,8 +14,15 @@ import type { Lang } from "./money";
 
 export const profileEnabled = (): boolean => process.env.BUSINESS_PROFILE_ENABLED?.trim() === "1";
 
-export const GOALS = ["sell", "grow", "leads", "other"] as const;
+// "grow" and "leads" are the goals the interview used to offer; they are still read (a saved profile keeps working) but no longer offered.
+export const GOALS = ["sell", "monetize", "other", "grow", "leads"] as const;
 export type Goal = (typeof GOALS)[number];
+/** The three ways to earn from a page that the interview offers: selling, monetizing the content, or something else. */
+export const GOAL_CHOICES = ["sell", "monetize", "other"] as const;
+/** The choice an older saved goal stands for: wanting viewers and followers is monetizing, wanting messages and bookings is selling. */
+export const choiceOf = (g: Goal | null): (typeof GOAL_CHOICES)[number] | null => (g === "grow" ? "monetize" : g === "leads" ? "sell" : g);
+/** Goals of people who earn from their content, not from buyers: no questions about delivery and payment, and a call to follow the page. */
+export const isAudienceGoal = (g: Goal | null): boolean => g === "grow" || g === "monetize";
 export const CATEGORIES = ["fashion", "beauty", "electronics", "food", "home", "kids", "jewelry", "health", "education", "services", "content", "other"] as const;
 export const CUSTOMERS = ["women", "men", "youth", "parents", "families", "businesses", "everyone"] as const;
 export const TONES = ["friendly", "formal", "direct"] as const;

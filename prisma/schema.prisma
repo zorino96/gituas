@@ -1094,7 +1094,7 @@ enum MessageOutcome {
 model BusinessProfile {
   storeId   String   @id
   store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  /// sell | grow | leads | other: what the owner wants Gituas to do for them. `goalText` is their own words.
+  /// sell | monetize | other (older profiles may hold grow or leads): what the owner wants Gituas to do for them. `goalText` is their own words.
   goal      String?
   goalText  String?
   /// A chip id (fashion, beauty, ...) and one typed line about what they offer or what the page is about.

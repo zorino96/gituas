@@ -40,7 +40,7 @@ export function noteView(n: ReadNote, lang: Lang): ViewBlock[] {
   const t = dict(lang);
   const w = WORDS[lang];
   const f = n.facts;
-  const sellsLess = f.goal.kind === "grow" || f.goal.kind === "other";
+  const sellsLess = f.goal.kind === "grow" || f.goal.kind === "monetize" || f.goal.kind === "other";
   const blocks: ViewBlock[] = [
     {
       kind: "stats",

@@ -10,7 +10,7 @@ export default async function DevSetupPage({ searchParams }: { searchParams: Pro
   if (process.env.NODE_ENV === "production") notFound();
   const sp = await searchParams;
   const l = sp.lang === "en" || sp.lang === "ar" ? sp.lang : "ckb";
-  const goal = sp.goal === "grow" || sp.goal === "leads" || sp.goal === "other" ? sp.goal : "sell";
+  const goal = sp.goal === "grow" || sp.goal === "leads" || sp.goal === "monetize" || sp.goal === "other" ? sp.goal : "sell";
   return (
     <LangProvider lang={l}>
       <div className={`gm ${gmFontVars}`} dir={l === "en" ? "ltr" : "rtl"}>
