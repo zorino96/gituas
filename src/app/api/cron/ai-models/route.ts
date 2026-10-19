@@ -180,7 +180,84 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const body = (await req.json().catch(() => null)) as { model?: string; system?: string; user?: string; list?: boolean; claude?: boolean; alt?: boolean; altDebug?: boolean; video?: boolean; proofread?: boolean; maxTokens?: number; imageUrl?: string } | null;
+  const body = (await req.json().catch(() => null)) as { model?: string; system?: string; user?: string; list?: boolean; claude?: boolean; alt?: boolean; altDebug?: boolean; video?: boolean; proofread?: boolean; tools?: boolean; maxTokens?: number; imageUrl?: string } | null;
+  // {tools: true}: does each provider of the chain carry native tool calls? One trivial function tool, then the tool's result sent
+  // back to see whether the model answers from it. Only statuses and shapes are returned (no key, no long text).
+  if (body?.tools) {
+    const tool = [{ type: "function", function: { name: "get_orders_count", description: "How many orders a shop has today", parameters: { type: "object", properties: { shop: { type: "string" } }, required: ["shop"] } } }];
+    const targets: { name: string; url: string; headers: Record<string, string>; model: string; extra: Record<string, unknown> }[] = [];
+    const base = (process.env.KURDGG_BASE_URL?.trim() || "https://api.kurd.gg/v1").replace(/\/$/, "");
+    if (kurdggConfigured()) targets.push({ name: "main (Anthropic compat)", url: `${base}/chat/completions`, headers: kurdggHeaders(), model: process.env.KURDGG_MODEL?.trim() || "", extra: {} });
+    if (altConfigured()) {
+      const altBase = process.env.ALT_AI_BASE_URL!.trim().replace(/\/$/, "");
+      const altHeaders = { Authorization: `Bearer ${process.env.ALT_AI_API_KEY!.trim()}`, "Content-Type": "application/json" };
+      for (const m of ["cc/claude-haiku-5-5", ...altModels()]) targets.push({ name: `gateway ${m}`, url: `${altBase}/chat/completions`, headers: altHeaders, model: m, extra: {} });
+    }
+    if (deepseekConfigured()) {
+      const dsHeaders = { Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY!.trim()}`, "Content-Type": "application/json" };
+      targets.push({ name: "deepseek-flash", url: "https://api.deepseek.com/chat/completions", headers: dsHeaders, model: "deepseek-flash", extra: { thinking: { type: "disabled" } } });
+      targets.push({ name: "deepseek-v4-pro", url: "https://api.deepseek.com/chat/completions", headers: dsHeaders, model: "deepseek-v4-pro", extra: {} });
+    }
+    const call = async (t: (typeof targets)[number], messages: unknown[]) => {
+      try {
+        const res = await fetch(t.url, { method: "POST", headers: t.headers, body: JSON.stringify({ model: t.model, stream: false, max_tokens: 3000, tools: tool, tool_choice: "auto", messages, ...t.extra }), signal: AbortSignal.timeout(40_000) });
+        const raw = await res.text();
+        const sse = raw.trimStart().startsWith("data:");
+        let finish: unknown = null;
+        let calls: { id?: string; name?: string; args?: string }[] = [];
+        let text = "";
+        if (sse) {
+          const acc = new Map<number, { id?: string; name?: string; args: string }>();
+          for (const line of raw.split("\n")) {
+            if (!line.startsWith("data:") || line.includes("[DONE]")) continue;
+            try {
+              const c = JSON.parse(line.slice(5).trim());
+              const ch = c.choices?.[0];
+              if (ch?.finish_reason) finish = ch.finish_reason;
+              for (const d of ch?.delta?.tool_calls ?? []) {
+                const cur = acc.get(d.index ?? 0) ?? { args: "" };
+                if (d.id) cur.id = d.id;
+                if (d.function?.name) cur.name = d.function.name;
+                cur.args += d.function?.arguments ?? "";
+                acc.set(d.index ?? 0, cur);
+              }
+              if (typeof ch?.delta?.content === "string") text += ch.delta.content;
+            } catch {}
+          }
+          calls = [...acc.values()];
+        } else {
+          try {
+            const j = JSON.parse(raw);
+            const ch = j.choices?.[0];
+            finish = ch?.finish_reason ?? null;
+            text = typeof ch?.message?.content === "string" ? ch.message.content : "";
+            calls = (ch?.message?.tool_calls ?? []).map((c: { id?: string; function?: { name?: string; arguments?: string } }) => ({ id: c.id, name: c.function?.name, args: c.function?.arguments }));
+          } catch {}
+        }
+        return { status: res.status, sse, finish, calls, text: text.slice(0, 120), error: res.ok ? undefined : raw.slice(0, 160) };
+      } catch (e) {
+        return { status: 0, sse: false, finish: null, calls: [], text: "", error: e instanceof Error ? e.name : "failed" };
+      }
+    };
+    const out: Record<string, unknown>[] = [];
+    for (const t of targets) {
+      const first = await call(t, [{ role: "user", content: "How many orders does the shop 'Hawalnoos' have today? Use the tool." }]);
+      let second: Awaited<ReturnType<typeof call>> | null = null;
+      if (first.calls[0]?.name) {
+        second = await call(t, [
+          { role: "user", content: "How many orders does the shop 'Hawalnoos' have today? Use the tool." },
+          { role: "assistant", content: first.text || null, tool_calls: [{ id: first.calls[0].id || "call_1", type: "function", function: { name: first.calls[0].name, arguments: first.calls[0].args || "{}" } }] },
+          { role: "tool", tool_call_id: first.calls[0].id || "call_1", content: JSON.stringify({ orders: 7 }) },
+        ]);
+      }
+      out.push({
+        target: t.name,
+        step1: { status: first.status, sse: first.sse, finish: first.finish, tool: first.calls[0]?.name ?? null, args: first.calls[0]?.args?.slice(0, 80) ?? null, error: first.error?.slice(0, 120) },
+        step2: second ? { status: second.status, finish: second.finish, answerHas7: /7|حەوت|سبعة/.test(second.text), text: second.text, error: second.error?.slice(0, 120) } : null,
+      });
+    }
+    return NextResponse.json({ out });
+  }
   // {proofread: true, user}: the Sorani proofreader from this runtime (the text in "user" is corrected, or comes back as it was).
   if (body?.proofread) {
     const started = Date.now();
