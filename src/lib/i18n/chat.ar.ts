@@ -159,6 +159,7 @@ export const chatAr: typeof chatCkb = {
     verified: "تم التحقق بعد التغيير",
     problem: "ليس كما طُلب",
     fixIt: "أصلحه",
+    confirmAll: (n: number) => `تأكيد الكل (${num(n)})`,
     fixPrompt: (title: string) => `يرجى إصلاح المشكلة التي وجدتها في «${title}».`,
   },
 

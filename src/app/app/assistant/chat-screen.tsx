@@ -444,6 +444,14 @@ export function ChatScreen({
     [transport, workspaceId, touch, t, review],
   );
 
+  // "Confirm all": the waiting cards of one answer, one after the other (each is decided, run and checked on its own).
+  const decideAll = useCallback(
+    async (runs: RunDto[]) => {
+      for (const r of runs) await decide(r, "confirm");
+    },
+    [decide],
+  );
+
   const sendTyped = () => void send({ text: input });
   // "Fix it" is offered on the newest answer that holds cards (the closing message of the turn comes after it and has none).
   const lastWithRuns = state.messages.reduce((at, m, i) => (m.role === "assistant" && m.runs.length > 0 ? i : at), -1);
@@ -527,6 +535,7 @@ export function ChatScreen({
                   deciding={deciding}
                   decideErrors={decideErrors}
                   onDecide={decide}
+                  onDecideAll={decideAll}
                   onFix={i === lastWithRuns && !state.streaming && !blocked && !textBlocked ? fix : undefined}
                 />
               ))}

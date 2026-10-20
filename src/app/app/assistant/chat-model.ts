@@ -264,6 +264,12 @@ export function minutesLeft(expiresAt: string, now: number): number | null {
 }
 
 /** The status to draw: a card nobody confirmed in time is shown as expired even before the server says so. */
+/** The cards of one answer that "Confirm all" would confirm: waiting, not expired, not one made after customers' words (those are checked one by one), not being decided. */
+export function waitingToConfirm(runs: RunDto[], now: number | null, deciding: Record<string, unknown> = {}): RunDto[] {
+  if (now === null) return [];
+  return runs.filter((r) => shownStatus(r, now) === "PROPOSED" && !r.tainted && !deciding[r.id]);
+}
+
 export function shownStatus(run: Pick<RunDto, "status" | "expiresAt">, now: number): RunDto["status"] {
   return run.status === "PROPOSED" && minutesLeft(run.expiresAt, now) === 0 ? "EXPIRED" : run.status;
 }

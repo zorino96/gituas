@@ -151,6 +151,7 @@ export const chatEn: typeof chatCkb = {
     verified: "Checked after the change",
     problem: "Not as asked",
     fixIt: "Fix it",
+    confirmAll: (n: number) => `Confirm all (${nf.format(n)})`,
     fixPrompt: (title: string) => `Please fix the problem you found with "${title}".`,
   },
 

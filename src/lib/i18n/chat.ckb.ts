@@ -153,6 +153,7 @@ export const chatCkb = {
     verified: "دوای گۆڕانکارییەکە پشکنرا",
     problem: "وەک داواکراو نییە",
     fixIt: "چارەسەری بکە",
+    confirmAll: (n: number) => `هەمووی پەسەند بکە (${num(n)})`,
     fixPrompt: (title: string) => `تکایە ئەو کێشەیە چارەسەر بکە کە لە «${title}» دۆزیتەوە.`,
   },
 

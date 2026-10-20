@@ -10,7 +10,7 @@ import { ExternalLink, LoaderCircle, ShieldCheck, Sparkles, TriangleAlert } from
 import type { ChatAttachment, MessageDto, RunDto, VerifyReport, ViewBlock } from "@/lib/chat/types";
 import { useT } from "@/lib/i18n/client";
 import { videoJobStatusAction } from "../video/actions";
-import { minutesLeft, shownStatus, splitLinks, valueDir } from "./chat-model";
+import { minutesLeft, shownStatus, splitLinks, valueDir, waitingToConfirm } from "./chat-model";
 import { ChatAccounts } from "./chat-accounts";
 import { safeHrefFor } from "./chat-frame-model";
 import { useChatShell } from "./chat-shell";
@@ -394,6 +394,7 @@ export function MessageView({
   deciding,
   decideErrors,
   onDecide,
+  onDecideAll,
   onFix,
 }: {
   message: MessageDto;
@@ -401,9 +402,12 @@ export function MessageView({
   deciding: Record<string, "confirm" | "cancel">;
   decideErrors: Record<string, string>;
   onDecide: (run: RunDto, action: "confirm" | "cancel") => void;
+  /** Confirms several waiting cards of this answer with one press (each still runs as its own card). */
+  onDecideAll?: (runs: RunDto[]) => void;
   onFix?: (run: RunDto) => void;
 }) {
-  const s = useT().chat.screen;
+  const c = useT().chat;
+  const s = c.screen;
   if (message.role === "user") {
     return (
       // Read out already by the person typing it: not announced again as new.
@@ -432,6 +436,17 @@ export function MessageView({
           <BlockView key={i} block={b} />
         ))}
         <Files files={message.attachments} large />
+        {(() => {
+          // Several cards wait in this answer: one press confirms them all (never one that came after customers' words: it is checked one by one).
+          const waiting = waitingToConfirm(message.runs, now, deciding);
+          return onDecideAll && waiting.length >= 2 ? (
+            <div className="ch-run-actions ch-confirm-all">
+              <button type="button" className="gm-btn small" onClick={() => onDecideAll(waiting)}>
+                {c.runs.confirmAll(waiting.length)}
+              </button>
+            </div>
+          ) : null;
+        })()}
         {message.runs.map((r) => (
           <RunCard key={r.id} run={r} now={now} deciding={deciding[r.id]} error={decideErrors[r.id]} onDecide={onDecide} onFix={onFix} />
         ))}
