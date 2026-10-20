@@ -272,7 +272,7 @@ export const ckb = {
       media: "وێنە یان ڤیدیۆ",
       references: "ڕیفرێنس",
       product: "بەرهەم",
-      shop: "دووکان",
+      shop: "ئەکاونتەکان",
       name: "ناو",
       description: "وەسف",
       price: "نرخ (دینار)",

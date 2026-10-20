@@ -4,6 +4,7 @@
 
 import { db } from "@/lib/db";
 import { loadBuyerProfile, ordersByPost } from "@/lib/orders/audience";
+import { brandNameOf } from "@/lib/shop/brand-name";
 import { priceLineOf, usablePhotos } from "./brief";
 import { describeCalendar, marketCalendar, type MarketCalendar } from "./calendar";
 import { lookKey, type AdLook } from "./spec";
@@ -75,7 +76,7 @@ export function postIdsOf(results: unknown, fbPageId?: string | null): string[] 
 export async function gatherSignals(storeId: string, notes: string, now = Date.now()): Promise<Signals | null> {
   const store = await db.store.findUnique({
     where: { id: storeId },
-    select: { id: true, tenantId: true, name: true, igUsername: true, fbPageId: true, tenant: { select: { whatsappNumber: true } } },
+    select: { id: true, tenantId: true, name: true, igUsername: true, fbPageId: true, igUserId: true, tenant: { select: { whatsappNumber: true } } },
   });
   if (!store) return null;
   const since14 = new Date(now - 14 * DAY);
@@ -178,7 +179,7 @@ export async function gatherSignals(storeId: string, notes: string, now = Date.n
   return {
     calendar: marketCalendar(now),
     shop: {
-      name: store.name || (store.igUsername ? `@${store.igUsername}` : "shop"),
+      name: (await brandNameOf(store)) || (store.igUsername ? `@${store.igUsername}` : "shop"),
       tagline: kit?.tagline ?? null,
       cities: profile.cities,
       hours: profile.hours,

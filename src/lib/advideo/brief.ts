@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { SHOP_ORIGIN } from "@/lib/hosts";
 import { isJpegPath, isOwnBlobUrl, isOwnPathname } from "@/lib/merchant/caption";
 import { formatMoney } from "@/lib/shop/money";
+import { brandNameOf } from "@/lib/shop/brand-name";
 import { deliveryLine } from "@/lib/shop/compose";
 import type { RefItem } from "./refs";
 
@@ -110,7 +111,8 @@ export async function loadAdBrief(storeId: string, productId: string | null, ref
   const photos = [...(product ? own : [...refImages, ...own]), ...(product ? refImages : [])].slice(0, MAX_PHOTOS);
   const clips = refs.filter((r) => r.kind === "video" && isOwnBlobUrl(r.url, tenantId)).map((r) => r.url).slice(0, 3);
   return {
-    name: store.name.trim() || store.tenant.name || (store.igUsername ? `@${store.igUsername}` : "Shop"),
+    // The brand name is the Page's name now, not the name the store was given when it was made (the Page may have been renamed since).
+    name: (await brandNameOf(store)).trim() || store.tenant.name || (store.igUsername ? `@${store.igUsername}` : "Shop"),
     tagline: kit?.tagline?.trim() || null,
     deliveryNote: kit?.deliveryNote?.trim() || null,
     deliveryLine: deliveryLine(store, "ckb"),

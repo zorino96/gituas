@@ -266,7 +266,7 @@ export const en: Dict = {
       media: "Picture or video",
       references: "References",
       product: "Product",
-      shop: "Shop",
+      shop: "Accounts",
       name: "Name",
       description: "Description",
       price: "Price (IQD)",

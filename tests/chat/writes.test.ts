@@ -316,7 +316,7 @@ describe("the older tools' cards", () => {
         { label: "Caption", value: "New rings" },
         { label: "Picture or video", value: "bag.jpg" },
         { label: "Product", value: "Silver ring" },
-        { label: "Shop", value: "Shop two" },
+        { label: "Accounts", value: "Shop two" },
       ]),
     );
   });
@@ -339,7 +339,7 @@ describe("the older tools' cards", () => {
     const byId = await cardOf("archive_product", { product: "p2" });
     expect(byId.lines).toEqual([
       { label: "Product", value: "Silver ring" },
-      { label: "Shop", value: "Shop two" },
+      { label: "Accounts", value: "Shop two" },
       { label: "Note", value: CARD.archiveNote.en },
     ]);
     const byPart = await cardOf("make_video", { idea: "a short ad", product: "silver" });
@@ -445,13 +445,13 @@ describe("the older tools' runs", () => {
   it("schedule with the Baghdad time as given", async () => {
     vi.mocked(schedulePublishAction).mockResolvedValue({ ok: true, id: "x", runAt: "2026-10-20T16:30:00.000Z" });
     const r = await run("schedule_post", { caption: "Later", targets: ["FB"], when: "2026-10-20T19:30" });
-    expect(r).toMatchObject({ ok: true, text: "Scheduled for 2026-10-20 19:30 (Baghdad time).\nShop: Shop two" });
+    expect(r).toMatchObject({ ok: true, text: "Scheduled for 2026-10-20 19:30 (Baghdad time).\nAccounts: Shop two" });
     expect(vi.mocked(schedulePublishAction).mock.calls[0][1]).toBe("2026-10-20T19:30");
   });
 
   it("switch the automatic replies, the autopilot, the daily video and the shop options for the connected shop", async () => {
     vi.mocked(saveStoreSettingsAction).mockResolvedValue({ ok: true });
-    expect(await run("set_auto_replies", { on: true })).toMatchObject({ ok: true, text: "Automatic replies are on.\nShop: Shop two" });
+    expect(await run("set_auto_replies", { on: true })).toMatchObject({ ok: true, text: "Automatic replies are on.\nAccounts: Shop two" });
     expect(saveStoreSettingsAction).toHaveBeenLastCalledWith("s2", { automationEnabled: true });
     await run("set_autopilot", { mode: "PUBLISH", perDay: 2 });
     expect(saveStoreSettingsAction).toHaveBeenLastCalledWith("s2", { autoMode: "PUBLISH", autoPerDay: 2 });
@@ -481,7 +481,7 @@ describe("the older tools' runs", () => {
 
   it("answer in the person's language", async () => {
     vi.mocked(saveStoreSettingsAction).mockResolvedValue({ ok: true });
-    expect((await run("set_auto_replies", { on: true }, ctxOf({ lang: "ckb" }))).text).toBe("وەڵامی خۆکار چالاک کرا.\nدووکان: Shop two");
+    expect((await run("set_auto_replies", { on: true }, ctxOf({ lang: "ckb" }))).text).toBe("وەڵامی خۆکار چالاک کرا.\nئەکاونتەکان: Shop two");
   });
 });
 
@@ -495,7 +495,7 @@ describe("set_shop_options: a text that is cleared", () => {
       { label: "Delivery fee (IQD)", value: CARD.cleared.en },
       { label: "Delivery time", value: CARD.cleared.en },
       { label: "About the shop, for the AI", value: CARD.cleared.en },
-      { label: "Shop", value: "Shop two" },
+      { label: "Accounts", value: "Shop two" },
     ]);
     expect(CARD.cleared.en).toBe("Empty (cleared)");
     for (const lang of ["ckb", "ar"] as const) {
@@ -508,7 +508,7 @@ describe("set_shop_options: a text that is cleared", () => {
     const only = await cardOf("set_shop_options", { deliveryTime: "" });
     expect(only.lines).toEqual([
       { label: "Delivery time", value: "Empty (cleared)" },
-      { label: "Shop", value: "Shop two" },
+      { label: "Accounts", value: "Shop two" },
     ]);
     const set = await cardOf("set_shop_options", { deliveryTime: "1-2 days", aiBrief: "" });
     expect(set.lines.map((l) => l.value)).toEqual(["1-2 days", "Empty (cleared)", "Shop two"]);
@@ -594,7 +594,7 @@ describe("finding a product", () => {
     const c = await cardOf("archive_product", { product: "p777" });
     expect(c.lines).toEqual([
       { label: "Product", value: "Far product" },
-      { label: "Shop", value: "Shop one" },
+      { label: "Accounts", value: "Shop one" },
       { label: "Note", value: CARD.archiveNote.en },
     ]);
     expect(c.pin).toEqual({ product: "p777" });
@@ -645,7 +645,7 @@ describe("with several shops", () => {
       await cardOf("archive_product", { product: "p1" }),
       await cardOf("update_product", { product: "p1", price: "30000" }),
     ];
-    expect(cards.map((c) => c.lines.find((l) => l.label === "Shop")?.value)).toEqual(["Shop two", "Shop two", "Shop two", "Shop two", "Shop two", "Shop one", "Shop one"]);
+    expect(cards.map((c) => c.lines.find((l) => l.label === "Accounts")?.value)).toEqual(["Shop two", "Shop two", "Shop two", "Shop two", "Shop two", "Shop one", "Shop one"]);
   });
 
   it("names the shop in the result sentence, so a 'done' always says which shop it was", async () => {
@@ -660,9 +660,9 @@ describe("with several shops", () => {
       await run("set_shop_options", { expiryDays: 14 }),
       await run("add_product", { name: "Ring", price: "25000" }),
     ];
-    for (const r of results) expect(r.text.split("\n").at(-1)).toBe("Shop: Shop two");
+    for (const r of results) expect(r.text.split("\n").at(-1)).toBe("Accounts: Shop two");
     // A product is in the shop it belongs to, which may not be the shop of the connected Page.
-    expect((await run("archive_product", { product: "gold ring" })).text).toBe("The product is hidden.\nShop: Shop one");
+    expect((await run("archive_product", { product: "gold ring" })).text).toBe("The product is hidden.\nAccounts: Shop one");
     expect(archiveProductAction).toHaveBeenLastCalledWith("s1", "p1");
   });
 
@@ -675,7 +675,7 @@ describe("with several shops", () => {
   it("leaves the sentence as it is with one shop, and for a number that belongs to the whole workspace", async () => {
     vi.mocked(saveStoreSettingsAction).mockResolvedValue({ ok: true });
     vi.mocked(saveWhatsAppAction).mockResolvedValue({ ok: true, digits: "9647701234567" });
-    expect(await run("set_auto_replies", { on: true })).toMatchObject({ text: "Automatic replies are on.\nShop: Shop two" });
+    expect(await run("set_auto_replies", { on: true })).toMatchObject({ text: "Automatic replies are on.\nAccounts: Shop two" });
     expect(await run("set_whatsapp_number", { number: "07701234567" })).toMatchObject({ ok: true, text: "The WhatsApp number is saved." });
     oneShop();
     expect(await run("set_auto_replies", { on: true })).toEqual({ ok: true, text: "Automatic replies are on." });
@@ -687,12 +687,12 @@ describe("with several shops", () => {
       { id: "s2", name: "", igUsername: "zana_shop", fbPageId: "fb1", igUserId: null },
       { id: "s3", name: "", igUsername: null, fbPageId: "fb9", igUserId: null },
     ]);
-    expect((await cardOf("set_auto_replies", { on: true })).lines.find((l) => l.label === "Shop")?.value).toBe("@zana_shop");
+    expect((await cardOf("set_auto_replies", { on: true })).lines.find((l) => l.label === "Accounts")?.value).toBe("@zana_shop");
     db.store.findMany.mockResolvedValue([
       { id: "s1", name: "", igUsername: null, fbPageId: "other", igUserId: null },
       { id: "s2", name: "", igUsername: null, fbPageId: "fb1", igUserId: null },
     ]);
-    expect((await cardOf("set_auto_replies", { on: true })).lines.find((l) => l.label === "Shop")?.value).toBe("#2");
+    expect((await cardOf("set_auto_replies", { on: true })).lines.find((l) => l.label === "Accounts")?.value).toBe("#2");
   });
 
   it("names the Page on a reply, a hidden comment and a message when the shop has several Pages", async () => {
@@ -871,10 +871,10 @@ describe("update_product", () => {
     expect(c.lines).toEqual([
       { label: "Product", value: "Silver ring" },
       { label: "Price (IQD)", value: "30,000 IQD (was 25,000 IQD)" },
-      { label: "Shop", value: "Shop two" },
+      { label: "Accounts", value: "Shop two" },
     ]);
     vi.mocked(saveProductAction).mockResolvedValue({ ok: true, id: "p2" });
-    expect(await run("update_product", { product: "silver ring", price: "30000" })).toEqual({ ok: true, text: "The product is updated.\nShop: Shop two" });
+    expect(await run("update_product", { product: "silver ring", price: "30000" })).toEqual({ ok: true, text: "The product is updated.\nAccounts: Shop two" });
     expect(vi.mocked(saveProductAction).mock.calls[0]).toEqual([
       "s2",
       "p2",

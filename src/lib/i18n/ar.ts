@@ -270,7 +270,7 @@ export const ar: Dict = {
       media: "صورة أو فيديو",
       references: "المراجع",
       product: "المنتج",
-      shop: "المتجر",
+      shop: "الحسابات",
       name: "الاسم",
       description: "الوصف",
       price: "السعر (دينار)",

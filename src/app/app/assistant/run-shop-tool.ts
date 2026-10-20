@@ -14,6 +14,7 @@ import type { Dict } from "@/lib/i18n";
 import { isJpegPath, isOwnBlobUrl } from "@/lib/merchant/caption";
 import type { PublishInput } from "@/lib/merchant/publish-core";
 import { scopedAccount } from "@/lib/oauth/account-scope";
+import { accountsPhraseOf } from "@/lib/shop/brand-name";
 import { limitsOf } from "@/lib/shop/tenant-plans";
 import { publishAction, saveWhatsAppAction } from "../actions";
 import { archiveProductAction, saveProductAction, saveStoreSettingsAction } from "../automation/actions";
@@ -74,8 +75,9 @@ export async function resolveShop(tenantId: string, connectedIds: string[], prod
     productName = found.name;
     store = stores.find((s) => s.id === found.storeId) ?? store;
   }
-  // With several shops a shop that has neither a name nor an Instagram name is still named, by its place in the list.
-  const named = store.name || (store.igUsername ? `@${store.igUsername}` : "");
+  // The card and the result say which Page and Instagram account the change is for, by the names they have now (the stored name of a store
+  // is the account's name from when it was made). With several shops one that has no account is still named, by its place in the list.
+  const named = await accountsPhraseOf({ tenantId, name: store.name, igUsername: store.igUsername, fbPageId: store.fbPageId, igUserId: store.igUserId });
   const shopName = named || (stores.length > 1 ? `#${stores.indexOf(store) + 1}` : "");
   return { ok: true as const, store, productId, productName, shopName, shopCount: stores.length };
 }
