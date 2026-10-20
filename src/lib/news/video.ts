@@ -17,7 +17,7 @@ import { put } from "@vercel/blob";
 
 import { db } from "@/lib/db";
 import { polishReelSegments } from "@/lib/ai/proofread";
-import { completeJson } from "@/lib/ai/provider";
+import { completeJson, writesSorani } from "@/lib/ai/provider";
 import { countUsage, usageOf } from "@/lib/billing/limits";
 import { videoQuotaFor } from "@/lib/billing/plans";
 import { cleanSpeed, isPawanVoice, speak } from "@/lib/voice/tts";
@@ -277,7 +277,7 @@ export async function prepareVideo(jobId: string, opts: { proofread?: boolean } 
     if (!draft || !item || !tenant) throw new Error("draft or story missing");
     const { system, user } = reelPrompt(draft);
     // The owner's order for video scripts (DeepSeek V4.1 Flash first, Haiku after it): see videoOrder in the AI provider.
-    const written = (await completeJson({ system, user, strength: "fast", thinking: false, free: "draft", prefer: "video" }, parseReelScript)).data;
+    const written = (await completeJson({ system, user, strength: "fast", thinking: false, free: "draft", prefer: writesSorani({ system }) ? "kurdish" : "video" }, parseReelScript)).data;
     // The spoken sentences go through the Sorani proofreader before the voice reads them, when the caller has the 13 to 15 s it takes
     // (a refused or late correction leaves the sentences as the model wrote them).
     const script = opts.proofread ? { ...written, segments: await polishReelSegments(written.segments, { timeoutMs: 18_000 }) } : written;

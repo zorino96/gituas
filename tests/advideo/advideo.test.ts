@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db", () => ({ db: {} }));
-vi.mock("@/lib/ai/provider", () => ({ completeJson: vi.fn() }));
+vi.mock("@/lib/ai/provider", () => ({ completeJson: vi.fn(), writesSorani: (c: { system?: string }) => /sorani|central kurdish/i.test(c.system ?? "") }));
 vi.mock("@/lib/ai/kurdgg", () => ({ kurdggConfigured: () => false, kurdggJson: vi.fn() }));
 vi.mock("@vercel/blob", () => ({ put: vi.fn() }));
 vi.mock("@/lib/voice/tts", () => ({ speak: vi.fn() }));

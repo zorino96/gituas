@@ -88,3 +88,16 @@ describe("completeJson", () => {
     expect(models).toEqual(["cc/claude-haiku-5-5"]);
   });
 });
+
+
+describe("the newsroom and the video scripts", () => {
+  it("their Sorani prompts are recognised as Sorani writing, so Gemini answers first", async () => {
+    const { DRAFT_SYSTEM } = await import("@/lib/news/draft");
+    const { REEL_SYSTEM } = await import("@/lib/news/video");
+    expect(writesSorani({ system: DRAFT_SYSTEM })).toBe(true);
+    expect(writesSorani({ system: REEL_SYSTEM })).toBe(true);
+  });
+  it("a call for another order is left to that order", () => {
+    expect(writesSorani({ prefer: "video", system: "Write Sorani" })).toBe(false);
+  });
+});

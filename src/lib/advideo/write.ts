@@ -11,7 +11,7 @@
 // from a template, so a story that cannot be written fails and the job's own retry takes over.
 
 import { polishAdRaw } from "@/lib/ai/proofread";
-import { completeJson, type JsonCall, type Meter } from "@/lib/ai/provider";
+import { completeJson, type JsonCall, type Meter, writesSorani } from "@/lib/ai/provider";
 import type { AdBrief } from "./brief";
 import { langFields, videoKindOf, videoLangOf, type VideoKind, type VideoLang } from "./lang";
 import type { VideoTier } from "./limits";
@@ -288,7 +288,7 @@ export type DirectorCall = (call: JsonCall, timeoutMs: number) => Promise<{ data
  */
 export function defaultDirector(tier: VideoTier, meter?: Meter): DirectorCall {
   // The owner's order for video scripts: DeepSeek V4.1 Flash first, the gateway's Claude, then Haiku (see videoOrder in the provider).
-  return (call, timeoutMs) => completeJson({ ...call, tier: tier === "PRO" ? "opus" : "haiku", meter: call.meter ?? meter, budgetMs: timeoutMs, prefer: "video" });
+  return (call, timeoutMs) => completeJson({ ...call, tier: tier === "PRO" ? "opus" : "haiku", meter: call.meter ?? meter, budgetMs: timeoutMs, prefer: writesSorani(call) ? "kurdish" : "video" });
 }
 
 export interface Written {
