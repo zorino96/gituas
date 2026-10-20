@@ -1,3 +1,4 @@
+import { storeChoices } from "@/lib/shop/store-labels";
 import Link from "next/link";
 
 import { dict, getLang } from "@/lib/i18n";
@@ -34,7 +35,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
       key={state.store.id}
       workspaceId={ws.id}
       storeId={state.store.id}
-      stores={state.stores.map((s) => ({ id: s.id, name: s.name || (s.igUsername ? `@${s.igUsername}` : "—") }))}
+      stores={await storeChoices(ws.id, state.stores, state.store.id)}
       products={state.products.map((p) => ({
         id: p.id,
         name: p.name,

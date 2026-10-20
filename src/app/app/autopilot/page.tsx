@@ -1,3 +1,4 @@
+import { storeChoices } from "@/lib/shop/store-labels";
 import Link from "next/link";
 
 import { dict, getLang } from "@/lib/i18n";
@@ -38,7 +39,7 @@ export default async function AutopilotPage({ searchParams }: { searchParams: Pr
     <AutopilotClient
       key={store.id}
       store={storeView(store)}
-      stores={state.stores.map((s) => ({ id: s.id, name: s.name || (s.igUsername ? `@${s.igUsername}` : "—") }))}
+      stores={await storeChoices(ws.id, state.stores, state.store.id)}
       paid={state.usage.plan !== "FREE"}
       lastDraft={draft?.media?.url ? { caption: draft.caption, thumb: draft.media.url, at: draft.at } : null}
       studio={studioReadyFor(ws.id)}

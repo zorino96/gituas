@@ -1,3 +1,4 @@
+import { storeChoices } from "@/lib/shop/store-labels";
 import Link from "next/link";
 
 import { dict, getLang } from "@/lib/i18n";
@@ -63,7 +64,7 @@ export default async function AutomationPage({ searchParams }: { searchParams: P
     <AutomationClient
       key={store.id}
       store={storeView(store)}
-      stores={state.stores.map((s) => ({ id: s.id, name: s.name || (s.igUsername ? `@${s.igUsername}` : "—") }))}
+      stores={await storeChoices(ws.id, state.stores, state.store.id)}
       templates={state.templates.map((t) => ({
         id: t.id,
         name: t.name,

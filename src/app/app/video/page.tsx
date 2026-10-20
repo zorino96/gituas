@@ -1,3 +1,4 @@
+import { storeChoices } from "@/lib/shop/store-labels";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -108,7 +109,7 @@ export default async function VideoPage({ searchParams }: { searchParams: Promis
     <VideoClient
       key={store.id}
       storeId={store.id}
-      stores={state.stores.map((s) => ({ id: s.id, name: s.name || (s.igUsername ? `@${s.igUsername}` : "—") }))}
+      stores={await storeChoices(ws.id, state.stores, state.store.id)}
       canFb={!!store.fbPageId}
       canIg={!!store.igUserId}
       products={state.products.map((p) => ({ id: p.id, name: p.name, hasPhoto: p.photos.length > 0 }))}

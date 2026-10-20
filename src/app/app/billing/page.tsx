@@ -1,3 +1,4 @@
+import { storeLabelMap } from "@/lib/shop/store-labels";
 import { maxPlanOpen } from "@/lib/billing/prices";
 import { waylConfigured, waylEnv } from "@/lib/billing/wayl";
 import { db } from "@/lib/db";
@@ -23,6 +24,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
     loadAccounts(ws.id),
   ]);
 
+  const labels = await storeLabelMap(ws.id, stores);
   return (
     <BillingClient
       product="SHOP"
@@ -31,7 +33,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       result={result}
       targets={stores.map((s) => ({
         id: s.id,
-        name: s.name || (s.igUsername ? `@${s.igUsername}` : "—"),
+        name: labels.get(s.id) ?? (s.name || (s.igUsername ? `@${s.igUsername}` : "—")),
         plan: s.plan,
         paidUntil: s.planPaidUntil ? s.planPaidUntil.toISOString() : null,
         chips: storeChips(s, accounts),
