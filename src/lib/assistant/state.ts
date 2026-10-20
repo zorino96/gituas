@@ -2,6 +2,7 @@
 // workspace. No buyer's name, message or phone number goes in, and nothing secret.
 
 import { adVideoEnabled } from "@/lib/advideo/enabled";
+import { healStoreNames } from "@/lib/shop/store-names";
 import { workspaceVideos } from "@/lib/advideo/limits";
 import { imageEnabled } from "@/lib/ai/image";
 import { imagesLeft } from "@/lib/ai/image-left";
@@ -65,6 +66,8 @@ export async function loadAssistantState(tenantId: string, connections: Assistan
     const n = named.find((c) => c.provider === provider && c.providerAccountId === id)?.providerAccountName;
     return n ? n.replace(/\s+/g, " ").trim().slice(0, 60) || "(connected)" : "(connected)";
   };
+  // A store named after a Page that was renamed since is brought back in line, so the chat (and every card) says the name the owner knows.
+  const renamed = await healStoreNames(tenantId, stores, named);
   // What each owner told Gituas about their work (only while the interview is switched on); their own words, no buyer data.
   const profiles = profileEnabled() ? await loadProfiles(stores.map((s) => s.id)) : null;
   const [allowance, videos, images, waiting, products, rules] = await Promise.all([
@@ -84,7 +87,7 @@ export async function loadAssistantState(tenantId: string, connections: Assistan
     shops: stores.map((s) => {
       const lapsed = s.plan !== "FREE" && !!s.planPaidUntil && s.planPaidUntil.getTime() < now;
       return {
-        name: s.name || (s.igUsername ? `@${s.igUsername}` : "(no name)"),
+        name: renamed.get(s.id) || s.name || (s.igUsername ? `@${s.igUsername}` : "(no name)"),
         // A plan whose days ran out works as Free from that day, whatever is stored until the daily sweep.
         plan: lapsed ? "FREE" : s.plan,
         planDaysRanOut: lapsed,

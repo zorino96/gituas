@@ -13,6 +13,7 @@ import { z } from "zod";
 
 import { loadAccountLists, type AccountLists, type AccountRef } from "@/app/app/data";
 import { db } from "@/lib/db";
+import { healTenantStoreNames } from "@/lib/shop/store-names";
 import type { Lang } from "@/lib/i18n/lang";
 import { defineWrite, ToolRefusal, type Card, type CardLine, type ToolCtx, type WriteResult, type WriteTool } from "../types";
 import { groupLabel, groupPhrase, instagramPhrase, loadGroups, pagePhrase, planRank, type GroupRow } from "./reads-accounts";
@@ -385,7 +386,9 @@ const group_accounts = defineWrite({
         return { already: null, groups, move };
       });
       const toGroup = out.move ? out.move.to : out.already;
-      const label = toGroup ? clip(groupLabel(toGroup, out.groups), 60) : "";
+      // The group now holds other accounts: its stored name follows them, so nothing says the name it was given long ago.
+      const renamed = await healTenantStoreNames(ctx.tenantId).catch(() => new Map<string, string>());
+      const label = toGroup ? clip(renamed.get(toGroup.id) ?? groupLabel(toGroup, out.groups), 60) : "";
       const where = groupPhrase(lang, label);
       // The names are the real ones, cut like the card's: the read-back (verify/accounts.ts) prints them to the person, who must see
       // the same spelling as on the card. This data never goes to the model (group_accounts is always a card; Confirm drops it).

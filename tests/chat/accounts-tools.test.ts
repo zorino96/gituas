@@ -677,8 +677,8 @@ describe("group_accounts: the change", () => {
     await run(pinned, ctx({ tenantId: "t5" }));
     expect(data.loadAccountLists).toHaveBeenCalledWith("t5");
     for (const call of db.store.findMany.mock.calls) expect(call[0].where).toEqual({ tenantId: "t5" });
-    // one read for the accounts, one inside the transaction
-    expect(db.store.findMany).toHaveBeenCalledTimes(2);
+    // one read for the accounts, one inside the transaction, one to bring the group's stored name in line with its accounts
+    expect(db.store.findMany).toHaveBeenCalledTimes(3);
     for (const call of db.store.updateMany.mock.calls) expect(call[0].where.tenantId).toBe("t5");
     expect(db.auditLog.create.mock.calls[0][0].data.tenantId).toBe("t5");
   });

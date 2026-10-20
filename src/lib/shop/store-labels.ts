@@ -4,6 +4,7 @@
 // A store that holds no account is left out as long as another one does (it is an empty shell), unless it is the one being looked at.
 
 import { db } from "@/lib/db";
+import { healStoreNames } from "./store-names";
 
 export interface StoreRow {
   id: string;
@@ -23,6 +24,8 @@ export async function storeLabelMap(tenantId: string, stores: StoreRow[]): Promi
         .then(() => db.oAuthCredential.findMany({ where: { tenantId, providerAccountId: { in: ids } }, select: { provider: true, providerAccountId: true, providerAccountName: true } }))
         .catch(() => [] as { provider: string; providerAccountId: string; providerAccountName: string | null }[])
     : [];
+  // The stored name follows the accounts' names (see store-names.ts); the label below is built from them either way.
+  await healStoreNames(tenantId, stores, rows);
   const nameOf = (provider: string, id: string | null) => (id ? clean(rows.find((r) => r.provider === provider && r.providerAccountId === id)?.providerAccountName) : "");
   const label = (s: StoreRow): string => {
     const fb = s.fbPageId ? nameOf("META_FACEBOOK", s.fbPageId) || "Facebook" : "";
