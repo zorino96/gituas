@@ -642,6 +642,8 @@ export interface StoreRow {
   videoAutoTier: string;
   videoAutoHour: number;
   videoAutoLastAt: Date | null;
+  /** The language the shop's videos are made in; null or missing means Sorani. */
+  videoLang?: string | null;
   waPhoneNumberId: string | null;
 }
 
@@ -655,6 +657,10 @@ export function primaryStoreId(stores: readonly Pick<StoreRow, "id" | "fbPageId"
   const preferred = stores.find((s) => (!!s.fbPageId && connectedIds.includes(s.fbPageId)) || (!!s.igUserId && connectedIds.includes(s.igUserId)));
   return (preferred ?? stores[0])?.id;
 }
+
+/** The shop's video language as the model reads it: a readable name, and the code that make_video and set_daily_video take. Sorani when none is saved. */
+const VIDEO_LANGUAGE: Record<string, string> = { ckb: "Sorani Kurdish (ckb)", ar: "Arabic (ar)", en: "English (en)" };
+const videoLangCode = (v: string | null | undefined): string => (v && VIDEO_LANGUAGE[v] ? v : "ckb");
 
 const storeName = (s: Pick<StoreRow, "name" | "igUsername">): string => s.name || (s.igUsername ? `@${s.igUsername}` : "—");
 
@@ -683,6 +689,7 @@ export function settingsForModel(s: StoreRow, areas: readonly SettingsArea[], op
       mode: s.videoAutoMode,
       tier: s.videoAutoTier,
       afterHourBaghdad: s.videoAutoHour,
+      videoLanguage: VIDEO_LANGUAGE[videoLangCode(s.videoLang)],
       lastAt: baghdadIso(s.videoAutoLastAt),
     });
   }
@@ -736,6 +743,8 @@ export function settingsView(
     }
     if (areas.includes("video")) {
       items.push({ label: t.video.autoSec, value: `${videoMode(s.videoAutoMode)} · ${w.atHour(t.fmt.digits(`${String(s.videoAutoHour).padStart(2, "0")}:00`))}` });
+      const code = videoLangCode(s.videoLang);
+      items.push({ label: t.video.langLabel, value: (t.assistant.fields.languages as Record<string, string>)[code] ?? code });
     }
     if (areas.includes("shop")) {
       items.push({ label: t.orders.deliveryFee, value: s.deliveryFeeMinor === null ? w.notSet : formatMoney(s.deliveryFeeMinor, s.deliveryCurrency, lang) });

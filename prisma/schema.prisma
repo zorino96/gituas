@@ -1199,6 +1199,8 @@ model Store {
   videoAutoTier     String               @default("LITE")
   /// Hour of the day (Baghdad time) after which the day's video is made.
   videoAutoHour     Int                  @default(18)
+  /// The language the store's AI videos are made in (ckb | ar | en); null = Sorani. Used by the daily video, the Video form and the chat's make_video.
+  videoLang         String?
   videoAutoLastAt   DateTime?
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt

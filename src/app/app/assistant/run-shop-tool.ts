@@ -62,7 +62,7 @@ export function cleanAttachments(raw: unknown, tenantId: string, max = 10): Chat
 export async function resolveShop(tenantId: string, connectedIds: string[], productHint: unknown) {
   const hint = typeof productHint === "string" ? productHint.trim() : "";
   const [stores, found] = await Promise.all([
-    db.store.findMany({ where: { tenantId }, orderBy: { createdAt: "asc" }, take: 15, select: { id: true, name: true, igUsername: true, fbPageId: true, igUserId: true } }),
+    db.store.findMany({ where: { tenantId }, orderBy: { createdAt: "asc" }, take: 15, select: { id: true, name: true, igUsername: true, fbPageId: true, igUserId: true, videoLang: true } }),
     hint ? findProduct(tenantId, hint) : Promise.resolve(null),
   ]);
   let store = stores.find((s) => (!!s.fbPageId && connectedIds.includes(s.fbPageId)) || (!!s.igUserId && connectedIds.includes(s.igUserId))) ?? stores[0];
@@ -196,7 +196,19 @@ async function perform(input: ShopToolInput, conns: Connections, shop: Extract<A
     }
     case "make_video": {
       if (!adVideoEnabled()) return { ok: false, error: a.errors.featureOff };
-      const r = await createVideoAction(store.id, { tier, topic: String(args.idea), productId, voice: "shilan", publish: false, targets: [], review });
+      // The language and the kind only when the model gave them: left out, the store's own video language decides the language, and the kind
+      // is an ad when a product is named (productId below), else what the page is for (the action resolves them, with the same rule as the card).
+      const r = await createVideoAction(store.id, {
+        tier,
+        topic: String(args.idea),
+        productId,
+        voice: "shilan",
+        publish: false,
+        targets: [],
+        review,
+        ...(typeof args.language === "string" ? { lang: args.language } : {}),
+        ...(typeof args.kind === "string" ? { kind: args.kind } : {}),
+      });
       if (!r.ok) return { ok: false, error: r.error };
       const how = r.reviewed ? `\n${t.publish.ai.reviewedNote(r.reviewed.summary)}` : "";
       return { ok: true, text: `${a.done.videoStarted}${how}`, jobId: r.id };
@@ -268,11 +280,18 @@ async function perform(input: ShopToolInput, conns: Connections, shop: Extract<A
     }
     case "set_daily_video": {
       if (!adVideoEnabled()) return { ok: false, error: a.errors.featureOff };
-      // What the card did not show is left as it was: the hour and the kind of video already chosen stay.
+      // What the card did not show is left as it was: the mode, the hour, the kind of video and the video language already chosen stay.
       const cur = await db.store.findUnique({ where: { id: store.id }, select: { videoAutoHour: true, videoAutoTier: true } });
       const keepTier = cur?.videoAutoTier === "LITE" || cur?.videoAutoTier === "PRO" ? cur.videoAutoTier : tier;
       const keepHour = typeof cur?.videoAutoHour === "number" ? cur.videoAutoHour : 19;
-      const r = await saveVideoAutoAction(store.id, { mode: String(args.mode), tier: keepTier, hour: typeof args.hour === "number" ? args.hour : keepHour });
+      // The mode and the language are saved only when the card showed them: left out (the owner only changed the language or the hour),
+      // the daily video stays on or off as it was and the store's video language stays as it is (the action does not touch them).
+      const r = await saveVideoAutoAction(store.id, {
+        ...(typeof args.mode === "string" ? { mode: args.mode } : {}),
+        tier: keepTier,
+        hour: typeof args.hour === "number" ? args.hour : keepHour,
+        ...(typeof args.language === "string" ? { lang: args.language } : {}),
+      });
       return r.ok ? { ok: true, text: a.done.setting } : { ok: false, error: r.error };
     }
     default:

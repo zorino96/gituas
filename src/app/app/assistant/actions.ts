@@ -17,6 +17,7 @@ import type { ChatAttachment as SharedAttachment } from "@/lib/chat/types";
 import { limitsOf } from "@/lib/shop/tenant-plans";
 import { randomUUID } from "node:crypto";
 import { currentWorkspace, loadConnections } from "../data";
+import { videoChoice } from "../video/choice";
 import { cleanAttachments, resolveShop, runShopTool, type ToolResult as ShopToolResult } from "./run-shop-tool";
 
 /** A file the owner attached in the chat, as the screen keeps it. The address is checked in run-shop-tool.ts, never trusted. */
@@ -150,11 +151,16 @@ export async function askAssistantAction(input: { workspaceId: string; messages:
       const connectedIds = [conns.META_FACEBOOK.accountId, conns.META_INSTAGRAM.accountId].filter((id): id is string => !!id);
       const shop = await resolveShop(ws.id, connectedIds, (p.args as { product?: unknown }).product).catch(() => null);
       const files = Object.fromEntries(attachments.map((x) => [x.id, plainName(x.name) || x.kind]));
+      // A video's card names the language and the kind it will really be made in (the store's own default when the model named none).
+      const video =
+        p.tool === "make_video" && shop?.ok
+          ? await videoChoice(shop.store.id, shop.store.videoLang, { lang: (p.args as { language?: unknown }).language, kind: (p.args as { kind?: unknown }).kind, hasProduct: !!shop.productId }).catch(() => null)
+          : null;
       proposal = {
         tool: p.tool,
         args: p.args,
         title: (a.tools as Record<string, string>)[p.tool] ?? p.tool,
-        lines: proposalLines(p, a.fields, { files, shop: shop?.ok ? shop.shopName : undefined }),
+        lines: proposalLines(p, a.fields, { files, shop: shop?.ok ? shop.shopName : undefined, ...(video ? { video } : {}) }),
         nonce: randomUUID().replace(/-/g, "").slice(0, 16),
       };
     }

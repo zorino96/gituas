@@ -213,3 +213,30 @@ describe("a time limit on the spoken words", () => {
     expect(n.ok && n.spec.scenes.length).toBe(3);
   });
 });
+
+describe("claims in a Sorani or Arabic video do not depend on the language being named", () => {
+  const cases: [string[], string][] = [
+    [["کەمکردنەوە ٥٠٪"], ""],
+    [["لە ٢٥٠٠ دینار"], ""],
+    [["بچۆ بۆ www.shop.com"], ""],
+    [["داشکاندنی تایبەت"], ""],
+    [["خصم كبير"], ""],
+    [["ألف قطعة"], ""],
+    [["داشکاندنی جەژن ٢٠٪"], "ئۆفەری جەژن: داشکاندن ٢٠٪"],
+    [["بەخێربێن #کوردستان #2026"], ""],
+    [["Get it free, a sale for a thousand"], ""],
+  ];
+
+  it("finds the same problems with no language, with Sorani and with Arabic", () => {
+    for (const [texts, allowed] of cases) {
+      const plain = claimProblems(texts, allowed);
+      expect(claimProblems(texts, allowed, { lang: "ckb" })).toEqual(plain);
+      expect(claimProblems(texts, allowed, { lang: "ar" })).toEqual(plain);
+    }
+  });
+
+  it("looks for English price words only in English", () => {
+    expect(claimProblems(["Get it free, a sale for a thousand"], "")).toEqual([]);
+    expect(claimProblems(["Get it free, a sale for a thousand"], "", { lang: "en" })).toEqual(["a price or discount word"]);
+  });
+});

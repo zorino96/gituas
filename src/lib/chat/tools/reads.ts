@@ -623,6 +623,7 @@ const STORE_SELECT = {
   videoAutoTier: true,
   videoAutoHour: true,
   videoAutoLastAt: true,
+  videoLang: true,
   waPhoneNumberId: true,
 } as const;
 

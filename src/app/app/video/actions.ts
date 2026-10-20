@@ -9,14 +9,15 @@ import { isVideoTier } from "@/lib/advideo/limits";
 import { aiFor } from "@/lib/ai/for-store";
 import { createAdVideo, prepareAdVideo, type Target } from "@/lib/advideo/prepare";
 import { publishAdVideo } from "@/lib/advideo/publish";
+import { isVideoLang, voiceFor } from "@/lib/advideo/lang";
 import { isRefPath, removeRef } from "@/lib/advideo/refs";
 import { getDailyBrief, loadMarketNotes, readTodaysBrief, saveMarketNotes } from "@/lib/advideo/strategy";
 import { dict, getLang } from "@/lib/i18n";
 import { ownerJobError } from "@/lib/advideo/job-error";
 import { reviewIdea, ReviewFailed } from "@/lib/ai/review-idea";
 import { can } from "@/lib/newsroom/roles";
-import { isPawanVoice } from "@/lib/voice/voices";
 import { currentWorkspace } from "@/app/app/data";
+import { videoChoice } from "./choice";
 
 export type VideoResult = { ok: true; id?: string; reviewed?: { text: string; summary: string } } | { ok: false; error: string };
 
@@ -27,7 +28,7 @@ async function ownedStore(storeId: string, role: "publish" | "configure") {
   const e = t.video.errors;
   if (!ws || !adVideoEnabled()) return { ok: false, error: e.signIn } as const;
   if (!can(ws.role, role)) return { ok: false, error: e.notAllowed } as const;
-  const store = await db.store.findFirst({ where: { id: storeId, tenantId: ws.id }, select: { id: true, plan: true, fbPageId: true, igUserId: true } });
+  const store = await db.store.findFirst({ where: { id: storeId, tenantId: ws.id }, select: { id: true, plan: true, fbPageId: true, igUserId: true, videoLang: true } });
   if (!store) return { ok: false, error: e.store } as const;
   return { ok: true, ws, store, e } as const;
 }
@@ -35,21 +36,30 @@ async function ownedStore(storeId: string, role: "publish" | "configure") {
 const targetsOf = (raw: unknown, store: { fbPageId: string | null; igUserId: string | null }): Target[] =>
   (Array.isArray(raw) ? raw : []).filter((t): t is Target => (t === "FB" && !!store.fbPageId) || (t === "IG" && !!store.igUserId));
 
-/** Queues one video; its script and voice are written right after the answer is sent, the render follows on its own. */
+/**
+ * Queues one video; its script and voice are written right after the answer is sent, the render follows on its own.
+ * `lang` ("ckb", "ar" or "en") and `kind` ("ad" or "story") are the person's choice; left out, the store's video language (Sorani when
+ * it has none) decides the language, and the kind is an ad when a product is chosen, else what the page is for decides
+ * (src/app/app/video/choice.ts). A story needs no product and is never reviewed.
+ */
 export async function createVideoAction(
   storeId: string,
-  input: { tier: string; topic: string; productId: string | null; voice: string; publish: boolean; targets: string[]; review?: boolean },
+  input: { tier: string; topic: string; productId: string | null; voice: string; publish: boolean; targets: string[]; review?: boolean; lang?: string; kind?: string },
 ): Promise<VideoResult> {
   const r = await ownedStore(storeId, "publish");
   if (!r.ok) return r;
   if (!isVideoTier(input.tier)) return { ok: false, error: r.e.tier };
   const targets = targetsOf(input.targets, r.store);
   if (input.publish && !targets.length) return { ok: false, error: r.e.targets };
-  // Gituas reviews the owner's idea against the brand first (when asked, and when there is an idea): a review that
-  // cannot be done stops here, before anything is counted, and the owner chooses.
+  const { lang: videoLang, kind } = await videoChoice(r.store.id, r.store.videoLang, { lang: input.lang, kind: input.kind, hasProduct: !!input.productId });
+  const story = kind === "story";
   let topic = input.topic.trim();
+  // A story is told from the owner's idea: with no idea there is nothing to tell.
+  if (story && Array.from(topic).length < 10) return { ok: false, error: r.e.topic };
+  // Gituas reviews the owner's idea against the brand first (when asked, and when there is an idea): a review that
+  // cannot be done stops here, before anything is counted, and the owner chooses. It frames the idea as a shop ad, so a story skips it.
   let reviewed: { text: string; summary: string } | undefined;
-  if (input.review === true && topic.length >= 3) {
+  if (!story && input.review === true && topic.length >= 3) {
     try {
       const lang = await getLang();
       const rev = await reviewIdea({ tenantId: r.ws.id, storeId: r.store.id, productId: input.productId || null, idea: topic, kind: "video", lang });
@@ -67,12 +77,14 @@ export async function createVideoAction(
     storeId: r.store.id,
     tier: input.tier,
     topic: topic || null,
-    productId: input.productId || null,
-    voice: isPawanVoice(input.voice) ? input.voice : "shilan",
+    productId: story ? null : input.productId || null,
+    voice: voiceFor(videoLang, input.voice, kind),
     targets,
     autoPost: input.publish && targets.length > 0,
     source: "MANUAL",
     createdById: null,
+    lang: videoLang,
+    kind,
   });
   if (!made.ok) return { ok: false, error: r.e[made.error] ?? r.e.failed };
   // The script and voice take 15 to 40 seconds: start them now, the clock picks them up if this is cut short.
@@ -97,16 +109,30 @@ export async function publishVideoAction(jobId: string, targets: string[]): Prom
   return r.ok ? { ok: true, id: job.id } : { ok: false, error: t[r.error] ?? t.failed };
 }
 
-/** The daily video automation of one store. */
-export async function saveVideoAutoAction(storeId: string, input: { mode: string; tier: string; hour: number }): Promise<VideoResult> {
+/**
+ * The daily video automation of one store. `lang` is the store's video language (the daily video, the Video form and the chat use it):
+ * given, it must be one of the three and is saved with the rest; left out, the saved one stays as it is. `mode` works the same way: left
+ * out (the chat changing only the language or the hour), the daily video stays on, or off, exactly as it was.
+ */
+export async function saveVideoAutoAction(storeId: string, input: { mode?: string; tier: string; hour: number; lang?: string }): Promise<VideoResult> {
   const r = await ownedStore(storeId, "configure");
   if (!r.ok) return r;
-  if (!["OFF", "DRAFT", "PUBLISH"].includes(input.mode) || !isVideoTier(input.tier) || !HOURS.includes(Math.round(Number(input.hour)))) {
+  if (
+    (input.mode !== undefined && !["OFF", "DRAFT", "PUBLISH"].includes(input.mode)) ||
+    !isVideoTier(input.tier) ||
+    !HOURS.includes(Math.round(Number(input.hour))) ||
+    (input.lang !== undefined && !isVideoLang(input.lang))
+  ) {
     return { ok: false, error: r.e.tier };
   }
   await db.store.update({
     where: { id: r.store.id },
-    data: { videoAutoMode: input.mode, videoAutoTier: input.tier, videoAutoHour: Math.round(Number(input.hour)) },
+    data: {
+      ...(input.mode !== undefined ? { videoAutoMode: input.mode } : {}),
+      videoAutoTier: input.tier,
+      videoAutoHour: Math.round(Number(input.hour)),
+      ...(isVideoLang(input.lang) ? { videoLang: input.lang } : {}),
+    },
   });
   revalidatePath("/app/video");
   return { ok: true };

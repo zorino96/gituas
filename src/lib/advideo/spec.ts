@@ -3,8 +3,16 @@
 // cut to size here, and anything outside the vocabulary (an unknown icon, a photo that does not
 // exist, digits in a spoken line) is dropped or repaired before the job goes on.
 
-export type SceneType = "hook" | "value" | "product" | "offer" | "footage" | "cta";
-export const SCENE_TYPES: readonly SceneType[] = ["hook", "value", "product", "offer", "footage", "cta"];
+import { langFields, videoKindOf, videoLangOf, type VideoKind, type VideoLang } from "./lang";
+
+/** "story" is a beat of a story video (a content video, not an ad): the narrator's words over a slow backdrop. */
+export type SceneType = "hook" | "value" | "product" | "offer" | "footage" | "cta" | "story";
+export const SCENE_TYPES: readonly SceneType[] = ["hook", "value", "product", "offer", "footage", "cta", "story"];
+/** What a video of each kind may be made of: the other kind's scenes are dropped. */
+const KIND_SCENE_TYPES: Record<VideoKind, readonly SceneType[]> = {
+  ad: ["hook", "value", "product", "offer", "footage", "cta"],
+  story: ["hook", "story", "footage", "cta"],
+};
 
 /** The coarse family of a look: picks the music and the transitions' mood. */
 export type AdStyle = "elegant" | "bold" | "clean";
@@ -146,13 +154,13 @@ export interface AdScene {
   text: string;
   /** On screen, small, under the text (a short line; never a price: prices come from the shop's data). */
   sub: string | null;
-  /** Spoken by the voice: Sorani, no digits. */
+  /** Spoken by the voice, in the video's language: no digits. */
   voice: string;
   /** value scenes: a Lucide icon. */
   icon: AdIcon | null;
-  /** product scenes: which of the photos (0-based). */
+  /** product scenes: which of the photos (0-based). A story scene may use one as its backdrop. */
   photo: number | null;
-  /** footage scenes: which of the owner's own clips (0-based). */
+  /** footage scenes: which of the owner's own clips (0-based). A story scene may use one as its backdrop (a clip wins over a photo). */
   clip: number | null;
 }
 
@@ -163,6 +171,10 @@ export interface AdSpec {
   /** The post text that goes with the video. */
   caption: string;
   plan?: AdPlan;
+  /** The language of the whole video; absent = Sorani ("ckb"). */
+  lang?: VideoLang;
+  /** What the video is; absent = an ad. */
+  kind?: VideoKind;
 }
 
 export const LIMITS = {
@@ -177,7 +189,41 @@ export const LIMITS = {
   why: 300,
 } as const;
 
+/**
+ * A story video (content, not an ad): more and longer beats, because a story needs room. About 60 to 70 seconds
+ * of voice, inside the 90 seconds a Reel may last; the words that fit in that time differ by language.
+ */
+export const STORY_LIMITS = {
+  scenesMin: 4,
+  scenesMax: 10,
+  textWords: 5,
+  subWords: 8,
+  voiceWords: 32,
+  voiceTotalWords: { en: 165, ar: 150, ckb: 135 },
+  caption: 700,
+  why: 300,
+} as const;
+
+export interface VideoLimits {
+  scenesMin: number;
+  scenesMax: number;
+  textWords: number;
+  subWords: number;
+  voiceWords: number;
+  voiceTotalWords: number;
+  caption: number;
+  why: number;
+}
+
+/** The size limits of a video of this kind and language (ads: LIMITS, whatever the language). */
+export function limitsFor(kind: VideoKind = "ad", lang: VideoLang = "ckb"): VideoLimits {
+  if (kind === "story") return { ...STORY_LIMITS, voiceTotalWords: STORY_LIMITS.voiceTotalWords[lang] };
+  return { ...LIMITS };
+}
+
 const hasDigit = (s: string) => /\p{Nd}/u.test(s.normalize("NFKC"));
+/** Any letter of the Arabic script (Arabic, Sorani and Persian letters alike): English lines must have none. */
+const hasArabicLetters = (s: string) => /\p{Script=Arabic}/u.test(s);
 
 // ---- claims: prices, discounts and links are never the model's to write ----------------------------------
 // They come from the shop's own data or from the owner's own words. The prompt says so; this is the check
@@ -195,25 +241,95 @@ const asciiDigits = (s: string) =>
     .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
     .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0));
 
+/** English words that announce a price, a discount or something free; whole words only ("freedom" is fine). */
+const EN_CLAIM = /\b(?:free|discounts?|discounted|sales?|thousands?|millions?|hundreds?|per ?cent|half[- ]price)\b/g;
+const enClaimKey = (w: string) => w.replace(/[- ]+/g, " ").replace(/^per cent$/, "percent");
+
+export interface ClaimOptions {
+  /** The language of the text (English adds the English price words). */
+  lang?: VideoLang;
+  /**
+   * A story has no price to protect: its price, discount, "free" and "thousand" words are ordinary fiction words
+   * (in Arabic "خصم" is an opponent), so none of those checks is applied. Its on-screen text is checked for links only
+   * (a year is a number), its spoken line (spoken: true) for digits and links.
+   */
+  kind?: VideoKind;
+  /** A story's spoken line: its digits are refused too (only its link and digits are checked, never the price words). */
+  spoken?: boolean;
+}
+
+/** What the claim check found: the kinds of claim, and (for a price word) the words that were refused. */
+export interface ClaimReport {
+  problems: string[];
+  /** The refused price or discount words as they stand in the text, so the director can be told which one to change. */
+  words: string[];
+}
+
+const PRICE_WORD = "a price or discount word";
+const WORD_SPLIT = /[\s.,;:!?،؛()«»"']+/;
+
 /**
  * What in these texts claims a number, a percentage, a link or a discount that is not in `allowed` (the
- * owner's own request, the brand and product names and the price line the shop's data gives).
+ * owner's own request, the brand and product names and the price line the shop's data gives), and which
+ * words were refused.
  */
-export function claimProblems(texts: string[], allowed: string): string[] {
+export function claimReport(texts: string[], allowed: string, o: ClaimOptions = {}): ClaimReport {
   const allow = asciiDigits(allowed).toLowerCase();
   const allowNumbers = new Set(allow.match(/\d+/g) ?? []);
-  const allowWords = new Set(allow.split(/[\s.,;:!?،؛()«»"']+/).filter(Boolean));
+  const allowWords = new Set(allow.split(WORD_SPLIT).filter(Boolean));
+  const allowEn = new Set((allow.match(EN_CLAIM) ?? []).map(enClaimKey));
+  const story = o.kind === "story";
   const found = new Set<string>();
+  const refused = new Set<string>();
   for (const raw of texts) {
     // Hashtags are the post's tags, not claims.
     const text = asciiDigits(raw.replace(/#[^\s#]+/g, " ")).toLowerCase();
-    for (const n of text.match(/\d+/g) ?? []) if (!allowNumbers.has(n)) found.add("a number");
-    if (/[%٪]/.test(text) && !/[%٪]/.test(allow)) found.add("a percentage");
+    if (!story || o.spoken) {
+      for (const n of text.match(/\d+/g) ?? []) if (!allowNumbers.has(n)) found.add("a number");
+    }
+    if (!story && /[%٪]/.test(text) && !/[%٪]/.test(allow)) found.add("a percentage");
     if (LINK.test(text) && !LINK.test(allow)) found.add("a link");
-    for (const stem of CLAIM_STEMS) if (text.includes(stem) && !allow.includes(stem)) found.add("a price or discount word");
-    for (const w of text.split(/[\s.,;:!?،؛()«»"']+/)) if (CLAIM_WORDS.has(w) && !allowWords.has(w)) found.add("a price or discount word");
+    if (story) continue;
+    const tokens = text.split(WORD_SPLIT).filter(Boolean);
+    for (const stem of CLAIM_STEMS) {
+      if (text.includes(stem) && !allow.includes(stem)) {
+        found.add(PRICE_WORD);
+        refused.add(tokens.find((t) => t.includes(stem)) ?? stem);
+      }
+    }
+    for (const w of tokens) {
+      if (CLAIM_WORDS.has(w) && !allowWords.has(w)) {
+        found.add(PRICE_WORD);
+        refused.add(w);
+      }
+    }
+    if (o.lang === "en") {
+      for (const m of text.matchAll(EN_CLAIM)) {
+        if (!allowEn.has(enClaimKey(m[0]))) {
+          found.add(PRICE_WORD);
+          refused.add(m[0]);
+        }
+      }
+    }
   }
-  return [...found];
+  return { problems: [...found], words: [...refused] };
+}
+
+/** The kinds of claim found in these texts (see claimReport). */
+export function claimProblems(texts: string[], allowed: string, o: ClaimOptions = {}): string[] {
+  return claimReport(texts, allowed, o).problems;
+}
+
+const unionReports = (...rs: ClaimReport[]): ClaimReport => ({
+  problems: [...new Set(rs.flatMap((r) => r.problems))],
+  words: [...new Set(rs.flatMap((r) => r.words))],
+});
+
+/** The claims in words for an error message, naming the refused word: `a price or discount word ("free")`. */
+export function describeClaims(r: ClaimReport): string {
+  return r.problems
+    .map((p) => (p === PRICE_WORD && r.words.length ? `${p} (${r.words.slice(0, 4).map((w) => `"${w}"`).join(", ")})` : p))
+    .join(" and ");
 }
 const words = (s: string) => s.trim().split(/\s+/).filter(Boolean);
 const clean = (v: unknown, maxWords: number, maxChars = 120): string => {
@@ -237,6 +353,10 @@ export interface NormalizeOptions {
   avoid?: AdLook[];
   /** Everything the shop's own data and the owner's words allow the texts to mention (numbers, names). */
   allowed?: string;
+  /** The language of the video; absent = Sorani. English refuses any Arabic-script letter. */
+  lang?: VideoLang;
+  /** What the video is; absent = an ad. A story has its own scene types, limits and claim rules. */
+  kind?: VideoKind;
 }
 
 export type Normalized = { ok: true; spec: AdSpec } | { ok: false; errors: string[] };
@@ -255,12 +375,25 @@ function normalizePlan(raw: unknown): AdPlan | undefined {
   };
 }
 
+/** The palettes that read as dark; a story keeps to them. */
+const DARK_PALETTES: readonly AdLook["palette"][] = ["brand-dark", "duotone", "midnight"];
+
+/** An optional picture or clip index: a whole number inside the list, else none (a missing value is none, not the first). */
+function optionalIndex(v: unknown, count: number): number | null {
+  const n = typeof v === "number" ? v : typeof v === "string" && /^\d+$/.test(v.trim()) ? Number(v) : NaN;
+  return Number.isInteger(n) && n >= 0 && n < count ? n : null;
+}
+
 /**
  * Turns whatever the model returned into a spec the renderer can draw, or says what is wrong.
  * Repairs what is harmless (too many words, an icon that is not on the list, an extra scene) and
  * refuses what is not: no hook, no spoken lines, digits in speech.
  */
 export function normalizeSpec(raw: unknown, o: NormalizeOptions): Normalized {
+  const lang = videoLangOf(o.lang);
+  const kind = videoKindOf(o.kind);
+  const story = kind === "story";
+  const lim = limitsFor(kind, lang);
   const errors: string[] = [];
   const r = (raw ?? {}) as { style?: unknown; look?: unknown; plan?: unknown; scenes?: unknown; caption?: unknown };
   const list = Array.isArray(r.scenes) ? r.scenes : [];
@@ -268,15 +401,15 @@ export function normalizeSpec(raw: unknown, o: NormalizeOptions): Normalized {
   const scenes: AdScene[] = [];
   for (const item of list) {
     const s = (item ?? {}) as Record<string, unknown>;
-    const type = SCENE_TYPES.includes(s.type as SceneType) ? (s.type as SceneType) : null;
+    const type = KIND_SCENE_TYPES[kind].includes(s.type as SceneType) ? (s.type as SceneType) : null;
     if (!type) continue;
     // A product scene needs a photo to show, a footage scene a clip, and an offer scene the owner's own words to be about.
     if (type === "product" && o.photos < 1) continue;
     if (type === "footage" && clips < 1) continue;
     if (type === "offer" && !o.hasTopic) continue;
-    const voice = clean(s.voice, LIMITS.voiceWords, 220);
-    const text = clean(s.text, LIMITS.textWords, 60);
-    const sub = clean(s.sub, LIMITS.subWords, 90);
+    const voice = clean(s.voice, lim.voiceWords, story ? 400 : 220);
+    const text = clean(s.text, lim.textWords, 60);
+    const sub = clean(s.sub, lim.subWords, 90);
     if (!voice) {
       errors.push(`scene ${scenes.length + 1} (${type}) has no spoken line`);
       continue;
@@ -285,9 +418,21 @@ export function normalizeSpec(raw: unknown, o: NormalizeOptions): Normalized {
       errors.push(`scene ${scenes.length + 1} (${type}): the spoken line has digits; write numbers as words or leave them out`);
       continue;
     }
-    const claims = claimProblems([text, sub, voice], o.allowed ?? "");
-    if (claims.length) {
-      errors.push(`scene ${scenes.length + 1} (${type}) mentions ${claims.join(" and ")}: leave out numbers, prices, discounts and links unless the owner's request states them`);
+    if (lang === "en" && [text, sub, voice].some(hasArabicLetters)) {
+      errors.push(`scene ${scenes.length + 1} (${type}) has Arabic-script letters but this video is in English: write every word, name and brand in Latin letters`);
+      continue;
+    }
+    // A story has no price to protect: its on-screen text may hold a year, and only a link (or a digit in the spoken line)
+    // is refused; "free", "sale" or "a thousand" are ordinary words of a tale.
+    const claims = story
+      ? unionReports(claimReport([text, sub], o.allowed ?? "", { lang, kind }), claimReport([voice], o.allowed ?? "", { lang, kind, spoken: true }))
+      : claimReport([text, sub, voice], o.allowed ?? "", { lang });
+    if (claims.problems.length) {
+      errors.push(
+        story
+          ? `scene ${scenes.length + 1} (${type}) mentions ${describeClaims(claims)}: leave it out`
+          : `scene ${scenes.length + 1} (${type}) mentions ${describeClaims(claims)}: leave out numbers, prices, discounts and links unless the owner's request states them`,
+      );
       continue;
     }
     if (type !== "product" && type !== "footage" && !text) {
@@ -303,6 +448,11 @@ export function normalizeSpec(raw: unknown, o: NormalizeOptions): Normalized {
     if (type === "footage") {
       const n = Number(s.clip);
       clip = Number.isInteger(n) && n >= 0 && n < clips ? n : scenes.filter((x) => x.type === "footage").length % clips;
+    }
+    // A story beat may sit over one of the owner's pictures or clips; an index that is not there means no backdrop.
+    if (type === "story") {
+      photo = optionalIndex(s.photo, o.photos);
+      clip = optionalIndex(s.clip, clips);
     }
     const icon = (AD_ICONS as readonly string[]).includes(String(s.icon)) ? (s.icon as AdIcon) : null;
     scenes.push({
@@ -324,11 +474,27 @@ export function normalizeSpec(raw: unknown, o: NormalizeOptions): Normalized {
   if (errors.length) return { ok: false, errors };
 
   const middle = scenes.filter((s) => s !== hook && s !== cta && s.type !== "hook" && s.type !== "cta");
-  const ordered = [hook!, ...middle.slice(0, Math.max(0, o.maxScenes - 2)), cta!];
-  // A time limit: scenes are dropped from the back of the middle until the spoken words fit.
-  const spoken = () => ordered.reduce((n, sc) => n + words(sc.voice).length, 0);
-  while (spoken() > LIMITS.voiceTotalWords && ordered.length > LIMITS.scenesMin) {
-    // The owner's own offer, a product and the owner's clips stay; the plain value scenes go first, last ones first.
+  const spokenIn = (list: AdScene[]) => list.reduce((n, sc) => n + words(sc.voice).length, 0);
+  // A story is never cut to fit its time: dropping beats from the back would delete its turn and its ending and leave a plot
+  // that stops before the closing invitation. A story over its words goes back to the director, told how far over it is.
+  if (story) {
+    const total = spokenIn([hook!, ...middle, cta!]);
+    if (total > lim.voiceTotalWords) {
+      return {
+        ok: false,
+        errors: [`the spoken lines total ${total} words but this story may have at most ${lim.voiceTotalWords}: rewrite it shorter (fewer or shorter beats) and keep the ending`],
+      };
+    }
+  }
+  const maxScenes = story ? Math.min(o.maxScenes, lim.scenesMax) : o.maxScenes;
+  // The same for the number of scenes: a story with more beats than its tier allows goes back to the director, told how many it may have.
+  if (story && middle.length + 2 > maxScenes) {
+    return { ok: false, errors: [`the story has ${middle.length + 2} scenes but at most ${maxScenes} are allowed: merge or shorten the beats and keep the ending`] };
+  }
+  const ordered = [hook!, ...middle.slice(0, Math.max(0, maxScenes - 2)), cta!];
+  // An ad has a time limit: scenes are dropped from the back of the middle until the spoken words fit. The owner's own
+  // offer, a product and the owner's clips stay; the plain value scenes go first, last ones first.
+  while (!story && spokenIn(ordered) > lim.voiceTotalWords && ordered.length > lim.scenesMin) {
     let drop = -1;
     for (let k = ordered.length - 2; k >= 1; k--) {
       if (ordered[k].type === "value") {
@@ -338,18 +504,30 @@ export function normalizeSpec(raw: unknown, o: NormalizeOptions): Normalized {
     }
     ordered.splice(drop >= 0 ? drop : ordered.length - 2, 1);
   }
-  if (ordered.length < LIMITS.scenesMin) return { ok: false, errors: [`only ${ordered.length} usable scenes; at least ${LIMITS.scenesMin} are needed`] };
+  if (ordered.length < lim.scenesMin) return { ok: false, errors: [`only ${ordered.length} usable scenes; at least ${lim.scenesMin} are needed`] };
 
-  const caption = typeof r.caption === "string" ? Array.from(r.caption.trim()).slice(0, LIMITS.caption).join("") : "";
+  const caption = typeof r.caption === "string" ? Array.from(r.caption.trim()).slice(0, lim.caption).join("") : "";
   if (!caption) return { ok: false, errors: ["no post caption"] };
-  const captionClaims = claimProblems([caption], o.allowed ?? "");
-  if (captionClaims.length) {
-    return { ok: false, errors: [`the post caption mentions ${captionClaims.join(" and ")}: leave out numbers, prices, discounts and links unless the owner's request states them`] };
+  if (lang === "en" && hasArabicLetters(caption)) {
+    return { ok: false, errors: ["the post caption has Arabic-script letters but this video is in English: write it, with its hashtags, in Latin letters"] };
+  }
+  const captionClaims = claimReport([caption], o.allowed ?? "", { lang, kind });
+  if (captionClaims.problems.length) {
+    return {
+      ok: false,
+      errors: [
+        story
+          ? `the post caption mentions ${describeClaims(captionClaims)}: leave it out`
+          : `the post caption mentions ${describeClaims(captionClaims)}: leave out numbers, prices, discounts and links unless the owner's request states them`,
+      ],
+    };
   }
   const look = normalizeLook(r.look, o.seed ?? "default", o.avoid ?? []);
   // A look that is nearly the same as a recent one is moved: the point of a daily video is that it is not the last one.
   const avoided = (o.avoid ?? []).some((a) => lookDistance(a, look) >= 6);
-  const finalLook = avoided ? lookFromSeed(`${o.seed ?? "default"}!`, o.avoid ?? []) : look;
+  const moved = avoided ? lookFromSeed(`${o.seed ?? "default"}!`, o.avoid ?? []) : look;
+  // A story is dark and moody: a light palette (the seed's choice when the model gave none) becomes midnight.
+  const finalLook = story && !DARK_PALETTES.includes(moved.palette) ? { ...moved, palette: "midnight" as const } : moved;
   const style = AD_STYLES.includes(r.style as AdStyle) && r.look === undefined ? (r.style as AdStyle) : styleOf(finalLook);
-  return { ok: true, spec: { style, look: finalLook, scenes: ordered, caption, plan: normalizePlan(r.plan) } };
+  return { ok: true, spec: { style, look: finalLook, scenes: ordered, caption, plan: story ? undefined : normalizePlan(r.plan), ...langFields(lang, kind) } };
 }

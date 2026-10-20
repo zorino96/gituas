@@ -255,7 +255,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnOut
     emit({ t: "status", text: say(step === 0 ? "thinking" : "working", actor.lang) });
     let r: ChatStepResult;
     try {
-      r = await deps.step({ messages, tools: specs, meter: deps.meter, deadlineAt: deadline, allowFree: !tainted, now: deps.now });
+      r = await deps.step({ messages, tools: specs, meter: deps.meter, deadlineAt: deadline, allowFree: !tainted, kurdish: actor.lang === "ckb", now: deps.now });
     } catch (e) {
       stop = e instanceof AllowanceExhausted ? "allowance" : "error";
       break;

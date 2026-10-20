@@ -6,6 +6,8 @@ import { db } from "@/lib/db";
 import { adVideoEnabled } from "@/lib/advideo/enabled";
 import { aiFor } from "@/lib/ai/for-store";
 import { allowanceOf } from "@/lib/ai/meter";
+import { isVideoDue } from "@/lib/advideo/auto";
+import { kindForGoal, langAndKindOf, videoLangOf } from "@/lib/advideo/lang";
 import { VIDEOS_PER_DAY, videosToday } from "@/lib/advideo/limits";
 import { allowances } from "@/lib/advideo/prepare";
 import { listRefs, REF_LIMITS } from "@/lib/advideo/refs";
@@ -16,9 +18,12 @@ import { ordersByPost } from "@/lib/orders/audience";
 import { dict, getLang } from "@/lib/i18n";
 import { can } from "@/lib/newsroom/roles";
 import type { StorePlan } from "@/lib/shop/plans";
+import { loadProfile } from "@/lib/shop/profile";
 import { loadShopState } from "@/lib/shop/state";
+import { providersFor } from "@/lib/voice/tts";
 import { loadConnections, requireWorkspace } from "../data";
 import { ownerJobError } from "@/lib/advideo/job-error";
+import { autoHold } from "./hold";
 import { VideoClient, type VideoJobView } from "./video-client";
 
 export const dynamic = "force-dynamic";
@@ -53,15 +58,30 @@ export default async function VideoPage({ searchParams }: { searchParams: Promis
     );
   }
   const { store } = state;
-  const [jobs, allow, refs, plan, notes, aiState] = await Promise.all([
+  const [jobs, allow, refs, plan, notes, aiState, profile] = await Promise.all([
     db.adVideo.findMany({ where: { tenantId: ws.id, storeId: store.id }, orderBy: { createdAt: "desc" }, take: 30 }),
     allowances(ws.id),
     listRefs(ws.id, store.id),
     readTodaysBrief(ws.id, store.id),
     loadMarketNotes(ws.id, store.id),
     allowanceOf(aiFor({ tenantId: ws.id }).meter),
+    // What the page is for (it never throws): a page that grows or earns from its content opens on a story, the others on an ad.
+    loadProfile(store.id),
   ]);
   const productName = new Map(state.products.map((p) => [p.id, p.name]));
+  const storeLang = videoLangOf(store.videoLang);
+  // Why the daily video has made nothing today, when it is late (nothing is stored about a skipped day: this reads the same limits the engine does).
+  const hold = autoHold({
+    mode: store.videoAutoMode,
+    tier: store.videoAutoTier === "PRO" ? "PRO" : "LITE",
+    due: isVideoDue(store, Date.now()),
+    paused: !!store.pausedReason,
+    hasVoice: storeLang === "ckb" || providersFor(storeLang).length > 0,
+    allowances: { LITE: allow.LITE, PRO: allow.PRO },
+    today: allow.today,
+    // The daily video is optional work: it stops at the optional share of the allowance (the engine's own gate), not at 100 %.
+    aiPercent: aiState.optionalPercent,
+  });
 
   // How the posted videos did: the comments and the orders that came from their posts.
   const idsOf = new Map(jobs.filter((j) => j.postedAt).map((j) => [j.id, postIdsOf(j.results)]));
@@ -85,10 +105,13 @@ export default async function VideoPage({ searchParams }: { searchParams: Promis
   const views: VideoJobView[] = jobs.map((j) => {
     const spec = (j.spec ?? {}) as { look?: AdLook; plan?: { objective?: string; why?: string } };
     const ids = idsOf.get(j.id) ?? [];
+    const { lang, kind } = langAndKindOf(j.spec);
     return {
     id: j.id,
     tier: j.tier === "PRO" ? "PRO" : "LITE",
     status: j.status,
+    lang,
+    kind,
     source: j.source,
     topic: j.topic,
     productName: j.productId ? productName.get(j.productId) ?? null : null,
@@ -114,7 +137,10 @@ export default async function VideoPage({ searchParams }: { searchParams: Promis
       canIg={!!store.igUserId}
       products={state.products.map((p) => ({ id: p.id, name: p.name, hasPhoto: p.photos.length > 0 }))}
       allowances={{ LITE: allow.LITE, PRO: allow.PRO }}
-      auto={{ mode: store.videoAutoMode, tier: store.videoAutoTier === "PRO" ? "PRO" : "LITE", hour: store.videoAutoHour }}
+      auto={{ mode: store.videoAutoMode, tier: store.videoAutoTier === "PRO" ? "PRO" : "LITE", hour: store.videoAutoHour, lang: storeLang }}
+      autoHold={hold}
+      defaultLang={storeLang}
+      defaultKind={kindForGoal(profile?.goal ?? null)}
       jobs={views}
       configure={can(ws.role, "configure")}
       workspaceId={ws.id}

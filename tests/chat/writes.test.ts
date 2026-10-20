@@ -12,6 +12,7 @@ const db = vi.hoisted(() => ({
   product: { findMany: vi.fn(), findFirst: vi.fn() },
   order: { findFirst: vi.fn() },
   scheduledPost: { findFirst: vi.fn() },
+  businessProfile: { findUnique: vi.fn() },
 }));
 
 vi.mock("@/lib/db", () => ({ db }));
@@ -116,6 +117,8 @@ const photoProduct = (over: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
+  db.businessProfile.findUnique.mockResolvedValue(null);
   shop.fb = { connected: true, accountId: "fb1", name: "Page" };
   shop.ig = { connected: false };
   shop.fbPages = 1;
@@ -987,5 +990,154 @@ describe("words", () => {
       }
       expect(tool("hide_comment").label(lang).trim()).not.toBe("");
     }
+  });
+});
+
+describe("the video's language and kind", () => {
+  const languageOf = (c: Card) => c.lines.find((l) => l.label === "Video language" || l.label === "زمانی ڤیدیۆ" || l.label === "لغة الفيديو")?.value;
+  const kindRow = (c: Card) => c.lines.find((l) => l.label === "Kind");
+  const UI: Lang[] = ["ckb", "ar", "en"];
+  const KURDISH = /[کیەێۆڕڵڤپچژگ]/;
+  const stores = (over: Record<string, unknown> = {}) => [
+    { id: "s1", name: "Shop one", igUsername: null, fbPageId: "other", igUserId: null },
+    { id: "s2", name: "Shop two", igUsername: null, fbPageId: "fb1", igUserId: null, ...over },
+  ];
+  const profileOf = (goal: string) => ({ storeId: "s2", goal, goalText: null, category: null, offerLine: null, customer: [], sellsTo: [], language: null, tone: null, facts: [], interview: {} });
+
+  it("tells the model that the language is the owner's choice and what a story is", () => {
+    const d = tool("make_video").description;
+    expect(d).toMatch(/"ckb".*"ar".*"en"/);
+    expect(d).toMatch(/story/);
+    expect(d).toMatch(/no product, price, delivery line or phone/);
+    expect(d).toMatch(/no multi-minute/);
+    expect(tool("set_daily_video").description).toMatch(/language/);
+    // The language is the owner's explicit word: the language of the chat message says nothing about it.
+    expect(d).toMatch(/only when the owner explicitly names the video language/);
+    expect(d).toMatch(/the language of their chat message or of their idea says nothing about it/);
+    expect(d).not.toMatch(/writes the story or idea in another/);
+    expect(tool("set_daily_video").description).toMatch(/Pass it only when the owner explicitly names the video language/);
+    expect(tool("set_daily_video").description).toMatch(/the language of their chat message says nothing about it/);
+    // Mode is optional: a change of only the language leaves the daily video on or off as it was. The old claim that OFF just saves it is gone.
+    expect(tool("set_daily_video").description).toMatch(/Leave mode out to keep the daily video exactly as it is now/);
+    expect(tool("set_daily_video").description).not.toMatch(/mode OFF with a language/);
+    expect(tool("set_daily_video").description).not.toMatch(/mode is always required/);
+    const props = (toolSpecs([tool("make_video")])[0].function.parameters as { properties: Record<string, unknown> }).properties;
+    expect(Object.keys(props)).toEqual(expect.arrayContaining(["idea", "product", "language", "kind"]));
+  });
+
+  it("always shows the language the video will really use: the one asked, else the shop's own, else Sorani", async () => {
+    expect(languageOf(await cardOf("make_video", { idea: "a short ad" }))).toBe("Sorani Kurdish");
+    db.store.findMany.mockResolvedValue(stores({ videoLang: "en" }));
+    expect(languageOf(await cardOf("make_video", { idea: "a short ad" }))).toBe("English");
+    expect(languageOf(await cardOf("make_video", { idea: "a short ad", language: "ar" }))).toBe("Arabic");
+    // A value nobody can have in the column is Sorani, as everywhere else.
+    db.store.findMany.mockResolvedValue(stores({ videoLang: "fr" }));
+    expect(languageOf(await cardOf("make_video", { idea: "a short ad" }))).toBe("Sorani Kurdish");
+  });
+
+  it("names the language in the person's language, with no Kurdish-only letter in the Arabic and no Arabic script in the English", async () => {
+    db.store.findMany.mockResolvedValue(stores({ videoLang: "en" }));
+    expect(languageOf(await cardOf("make_video", { idea: "a short ad" }, ctxOf({ lang: "ckb" })))).toBe("ئینگلیزی");
+    expect(languageOf(await cardOf("make_video", { idea: "a short ad", language: "ckb" }, ctxOf({ lang: "ar" })))).toBe("الكردية السورانية");
+    for (const lang of UI) {
+      for (const language of ["ckb", "ar", "en"]) {
+        const c = await cardOf("make_video", { idea: "a short ad", language, kind: "story" }, ctxOf({ lang }));
+        expect(c.lines.length).toBeGreaterThan(3);
+        for (const l of c.lines) {
+          expect(l.label.trim()).not.toBe("");
+          expect(l.value.trim()).not.toBe("");
+          if (lang === "ar") expect(KURDISH.test(l.label + l.value), `${l.label}: ${l.value}`).toBe(false);
+          if (lang === "en") expect(/[؀-ۿ]/.test(l.label + l.value), `${l.label}: ${l.value}`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it("shows a story as a story, with no product row, and says the AI invents it", async () => {
+    const c = await cardOf("make_video", { idea: "a mystery about a missing letter", kind: "story", language: "en", product: "silver" });
+    expect(kindRow(c)).toEqual({ label: "Kind", value: "Story" });
+    expect(c.lines.some((l) => l.label === "Product")).toBe(false);
+    expect(c.lines).toContainEqual({ label: "Note", value: CARD.videoStoryNote.en });
+    expect(languageOf(c)).toBe("English");
+    // An ad shows no kind row and no note.
+    const ad = await cardOf("make_video", { idea: "a short ad", kind: "ad" });
+    expect(kindRow(ad)).toBeUndefined();
+    expect(ad.lines.some((l) => l.label === "Note")).toBe(false);
+  });
+
+  it("follows what the page is for when the model gave no kind, and the model's kind when it did", async () => {
+    vi.stubEnv("BUSINESS_PROFILE_ENABLED", "1");
+    db.businessProfile.findUnique.mockResolvedValue(profileOf("monetize"));
+    expect(kindRow(await cardOf("make_video", { idea: "a mystery about a missing letter" }))).toEqual({ label: "Kind", value: "Story" });
+    expect(kindRow(await cardOf("make_video", { idea: "a short ad about the new ring", kind: "ad" }))).toBeUndefined();
+    db.businessProfile.findUnique.mockResolvedValue(profileOf("sell"));
+    expect(kindRow(await cardOf("make_video", { idea: "a short ad" }))).toBeUndefined();
+    expect(kindRow(await cardOf("make_video", { idea: "a mystery about a missing letter", kind: "story" }))).toEqual({ label: "Kind", value: "Story" });
+    // A profile that cannot be read is an ad.
+    db.businessProfile.findUnique.mockRejectedValue(new Error("down"));
+    expect(kindRow(await cardOf("make_video", { idea: "a short ad" }))).toBeUndefined();
+  });
+
+  it("makes a video of a named product an ad, whatever the page is for, unless the kind says otherwise", async () => {
+    vi.stubEnv("BUSINESS_PROFILE_ENABLED", "1");
+    db.businessProfile.findUnique.mockResolvedValue(profileOf("monetize"));
+    const ad = await cardOf("make_video", { idea: "a short ad about the ring", product: "silver ring" });
+    expect(kindRow(ad)).toBeUndefined();
+    expect(ad.lines).toContainEqual({ label: "Product", value: "Silver ring" });
+    expect(ad.lines.some((l) => l.label === "Note")).toBe(false);
+    // The older goal "grow" reads the same way; with no product the page decides, as before.
+    db.businessProfile.findUnique.mockResolvedValue(profileOf("grow"));
+    expect(kindRow(await cardOf("make_video", { idea: "a short ad about the ring", product: "silver ring" }))).toBeUndefined();
+    expect(kindRow(await cardOf("make_video", { idea: "a mystery about a missing letter" }))).toEqual({ label: "Kind", value: "Story" });
+    // An explicit kind wins over the product.
+    const story = await cardOf("make_video", { idea: "a mystery about a missing letter", product: "silver ring", kind: "story" });
+    expect(kindRow(story)).toEqual({ label: "Kind", value: "Story" });
+    expect(story.lines.some((l) => l.label === "Product")).toBe(false);
+  });
+
+  it("refuses a story with no idea to tell", async () => {
+    expect(await refusal(cardOf("make_video", { idea: "tell it", kind: "story" }))).toMatch(/story/);
+    expect((await cardOf("make_video", { idea: "tell it", kind: "ad" })).lines.length).toBeGreaterThan(0);
+  });
+
+  it("passes the language and kind on only when the model gave them", async () => {
+    vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1" });
+    await run("make_video", { idea: "a short ad" });
+    const plain = vi.mocked(createVideoAction).mock.calls[0][1];
+    expect("lang" in plain || "kind" in plain).toBe(false);
+    expect(plain.voice).toBe("shilan");
+    await run("make_video", { idea: "a mystery about a missing letter", language: "en", kind: "story" });
+    expect(vi.mocked(createVideoAction).mock.calls[1][1]).toMatchObject({ topic: "a mystery about a missing letter", lang: "en", kind: "story", voice: "shilan" });
+  });
+
+  it("saves the daily video's language only when it was given, and shows it only then", async () => {
+    vi.mocked(saveVideoAutoAction).mockResolvedValue({ ok: true });
+    await run("set_daily_video", { mode: "OFF", language: "en" });
+    expect(saveVideoAutoAction).toHaveBeenLastCalledWith("s2", { mode: "OFF", tier: "LITE", hour: 21, lang: "en" });
+    await run("set_daily_video", { mode: "DRAFT" });
+    expect(saveVideoAutoAction).toHaveBeenLastCalledWith("s2", { mode: "DRAFT", tier: "LITE", hour: 21 });
+    expect(languageOf(await cardOf("set_daily_video", { mode: "OFF", language: "ar" }))).toBe("Arabic");
+    expect(languageOf(await cardOf("set_daily_video", { mode: "DRAFT" }))).toBeUndefined();
+  });
+
+  it("changes only the language of the daily video when no mode is given: no mode on the card, none saved, and a small risk", async () => {
+    vi.mocked(saveVideoAutoAction).mockResolvedValue({ ok: true });
+    const card = await cardOf("set_daily_video", { language: "en" });
+    expect(languageOf(card)).toBe("English");
+    expect(card.lines.some((l) => l.label === "Mode")).toBe(false);
+    await run("set_daily_video", { language: "en" });
+    const sent = vi.mocked(saveVideoAutoAction).mock.calls.at(-1)![1];
+    expect(sent).toEqual({ tier: "LITE", hour: 21, lang: "en" });
+    expect("mode" in sent).toBe(false);
+    expect(riskOf(tool("set_daily_video"), { language: "en" })).toBe("standing");
+    expect(riskOf(tool("set_daily_video"), { hour: 8 })).toBe("low");
+    // Nothing to change is no call at all.
+    expect(() => parse("set_daily_video", {})).toThrow();
+  });
+
+  it("keeps the risk of the daily video as it was: only OFF is small, with or without a language", () => {
+    expect(riskOf(tool("set_daily_video"), { mode: "OFF", language: "en" })).toBe("low");
+    expect(riskOf(tool("set_daily_video"), { mode: "DRAFT", language: "en" })).toBe("standing");
+    expect(riskOf(tool("make_video"), { idea: "a short ad", language: "en", kind: "story" })).toBe("money");
   });
 });

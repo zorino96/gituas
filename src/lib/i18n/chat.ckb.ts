@@ -88,6 +88,15 @@ export const chatCkb = {
       "وەڵامی خۆکار بکەرەوە",
       "ئەم هەفتەیە دووکانەکەم چۆن بووە؟",
     ],
+    // For someone who earns from content (a creator), not from selling: no orders, no products.
+    creatorExamples: [
+      "ڤیدیۆیەکی چیرۆک دروست بکە دەربارەی کەیسێکی نەشکێنراو",
+      "پەیجەکانم لەم هەفتەیە چۆن بوون؟",
+      "ئەو کۆمێنتانەم پیشان بدە کە وەڵام نەدراونەتەوە",
+      "پۆستێک بۆ ئەمشەو کاتژمێر ٩ خشتە بکە",
+      "ڤیدیۆی ڕۆژانە بکەرەوە",
+      "ئەم هەفتەیە چی پۆست بکەم؟",
+    ],
   },
 
   // The server answers these itself (no AI): `lead` is the sentence above the answer.

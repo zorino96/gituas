@@ -88,6 +88,15 @@ export const chatEn: typeof chatCkb = {
       "Turn on auto replies",
       "How did my shop do this week?",
     ],
+    // For someone who earns from content (a creator), not from selling: no orders, no products.
+    creatorExamples: [
+      "Make a story video about an unsolved mystery",
+      "How did my pages do this week?",
+      "Show me the comments I have not answered",
+      "Schedule a post for tonight at 9",
+      "Turn on the daily video",
+      "What should I post this week?",
+    ],
   },
 
   quick: {

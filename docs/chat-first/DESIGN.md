@@ -118,7 +118,7 @@ server action takes, so the model can pass it on.
 
 **Writes** (`writes.ts`): the eleven existing ones, unchanged in name and arguments: `make_picture` (money, long), `make_video`
 (money), `post_now` (public), `schedule_post` (public), `set_auto_replies` (standing when switched on, low when off),
-`set_autopilot` (standing for PUBLISH, else low), `set_daily_video` (standing unless OFF: a draft video still uses the month's videos every
+`set_autopilot` (standing for PUBLISH, else low), `set_daily_video` (standing for DRAFT or PUBLISH or when a language is given; low for OFF or an hour-only change: a draft video still uses the month's videos every
 day), `set_shop_options` (standing when likeComments, autoHideSpam or aiReplies goes on; public when defaultDm, aiBrief, deliveryFee or
 deliveryTime is set or cleared; else low; an empty string clears a text and the card shows it), `add_product` (public), `archive_product`
 (destructive: nothing in the app brings the product back, so it always gets a card), `set_whatsapp_number` (standing). Plus new ones:

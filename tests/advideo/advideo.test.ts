@@ -251,3 +251,60 @@ describe("the daily automation's clock", () => {
     expect(isVideoDue({ ...store, videoAutoLastAt: new Date(at(18, 11)) }, at(18, 12))).toBe(true);
   });
 });
+
+describe("buildRenderProps: the language and the kind", () => {
+  const spec = fallbackSpec(brief);
+  const voiced = spec.scenes.map((s, i) => ({ scene: s, url: `https://blob/vo-${i}.mp3` }));
+  const look = lookFromSeed("botolio:2026-10-12");
+  const base = { style: "bold" as const, look, plan: { objective: "sell_product" as const, why: "x", format: "showcase", priceMode: "conversion" as const, cta: "dm" as const } };
+
+  it("writes a Sorani ad as it always was: no language, no kind", () => {
+    const props = buildRenderProps(brief, base, voiced);
+    expect(Object.keys(props)).toEqual(["version", "size", "style", "look", "plan", "brand", "product", "photos", "clips", "scenes", "music"]);
+    expect(props.brand.tagline).toBe("جانتای ژنانە");
+    expect(props.product).toEqual({ name: "جانتای ڕەش", priceLine: "٢٥٬٠٠٠ دینار" });
+    expect(buildRenderProps(brief, { ...base, lang: "ckb", kind: "ad" }, voiced)).toEqual(props);
+  });
+
+  it("writes the language and the kind when they are not the defaults", () => {
+    expect(buildRenderProps(brief, { ...base, lang: "en" }, voiced)).toMatchObject({ lang: "en" });
+    expect(buildRenderProps(brief, { ...base, lang: "en" }, voiced)).not.toHaveProperty("kind");
+    expect(buildRenderProps(brief, { ...base, lang: "ar", kind: "story" }, voiced)).toMatchObject({ lang: "ar", kind: "story" });
+    expect(buildRenderProps(brief, { ...base, kind: "story" }, voiced)).not.toHaveProperty("lang");
+  });
+
+  it("sends the tagline for Sorani and Arabic as it is, and for English only when it has no Arabic letters", () => {
+    expect(buildRenderProps(brief, { ...base, lang: "ckb" }, voiced).brand.tagline).toBe("جانتای ژنانە");
+    expect(buildRenderProps(brief, { ...base, lang: "ar" }, voiced).brand.tagline).toBe("جانتای ژنانە");
+    expect(buildRenderProps(brief, { ...base, lang: "en" }, voiced).brand.tagline).toBeNull();
+    expect(buildRenderProps({ ...brief, tagline: "Women's bags" }, { ...base, lang: "en" }, voiced).brand.tagline).toBe("Women's bags");
+    expect(buildRenderProps({ ...brief, tagline: null }, { ...base, lang: "en" }, voiced).brand.tagline).toBeNull();
+    expect(buildRenderProps({ ...brief, tagline: "Women's bags" }, { ...base, lang: "ar" }, voiced).brand.tagline).toBe("Women's bags");
+  });
+
+  it("shows a story no product, no plan and no phone number, and sets it to the slow music", () => {
+    const props = buildRenderProps(brief, { ...base, lang: "en", kind: "story" }, voiced);
+    expect(props.product).toBeNull();
+    expect(props.plan).toBeNull();
+    expect(props.brand.phone).toBeNull();
+    expect(props.brand.handle).toBe("@botolio");
+    expect(props.music).toEqual({ style: "ambient", bpm: 84, key: "D", mode: "minor" });
+    // The look and the scenes are the story's own.
+    expect(props.look).toEqual(look);
+    expect(props.scenes).toHaveLength(voiced.length);
+    // An ad of the same style keeps its own music, product and phone.
+    const ad = buildRenderProps(brief, { ...base, lang: "en" }, voiced);
+    expect(ad.music.style).toBe("drive");
+    expect(ad.brand.phone).toBe("0750 123 4567");
+    expect(ad.product).not.toBeNull();
+  });
+});
+
+describe("the price and delivery lines of the brief follow the language", () => {
+  it("keeps the Sorani 'from' word", () => {
+    const many = [{ amountMinor: 25000, currency: "IQD", inStock: true }, { amountMinor: 27000, currency: "IQD", inStock: true }];
+    expect(priceLineOf(many, "ckb")).toBe(priceLineOf(many));
+    expect(priceLineOf(many, "ar")?.startsWith("من ")).toBe(true);
+    expect(priceLineOf(many, "en")?.startsWith("from ")).toBe(true);
+  });
+});

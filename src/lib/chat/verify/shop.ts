@@ -13,6 +13,7 @@
 // writes after the platform said yes, so a "check" would only repeat that the run was ok and could never fail.
 
 import { db } from "@/lib/db";
+import { videoLangOf } from "@/lib/advideo/lang";
 import { ar } from "@/lib/i18n/ar";
 import { ckb } from "@/lib/i18n/ckb";
 import { en } from "@/lib/i18n/en";
@@ -79,6 +80,12 @@ const VIDEO_MODE: Record<string, Words> = {
   PUBLISH: words("ڤیدیۆ دروست دەکات و خۆی بڵاوی دەکاتەوە", "إنتاج الفيديو ونشره تلقائياً", "making the video and publishing it by itself"),
 };
 
+/** The names of the video languages, from the app's own dictionary. */
+const videoLanguage = (code: string): Words => {
+  const name = (d: typeof ckb) => (d.assistant.fields.languages as Record<string, string>)[code] ?? code;
+  return words(name(ckb), name(ar), name(en));
+};
+
 /** The names of the order statuses, from the app's own dictionary. */
 const ORDER_STATUS: Record<Lang, Record<string, string>> = {
   ckb: ckb.orders.status as Record<string, string>,
@@ -93,6 +100,7 @@ const L = {
   perDay: words("ژمارەی پۆست لە ڕۆژێکدا", "عدد المنشورات في اليوم", "Posts per day"),
   dailyVideo: words("ڤیدیۆی ڕۆژانە", "الفيديو اليومي", "The daily video"),
   videoHour: words("کاتژمێری ڤیدیۆی ڕۆژانە", "ساعة الفيديو اليومي", "Hour of the daily video"),
+  videoLang: words("زمانی ڤیدیۆ", "لغة الفيديو", "The video language"),
   likeComments: words("لایککردنی کۆمێنتەکان", "الإعجاب بالتعليقات", "Liking comments"),
   autoHideSpam: words("شاردنەوەی خۆکاری سپام", "إخفاء الرسائل المزعجة تلقائياً", "Hiding spam"),
   aiReplies: words("وەڵامی زیرەک بە AI", "الردود الذكية بالذكاء الاصطناعي", "Smart AI replies"),
@@ -182,6 +190,7 @@ const STORE_PICK = {
   autoPerDay: true,
   videoAutoMode: true,
   videoAutoHour: true,
+  videoLang: true,
   plan: true,
   pausedReason: true,
   fbPageId: true,
@@ -307,15 +316,25 @@ const setAutopilot: VerifyFn = async (ctx, args) => {
 
 const setDailyVideo: VerifyFn = async (ctx, args) => {
   const a = rec(args);
-  const mode = str(a?.mode);
-  if (!a || !mode || !MODES.includes(mode)) return null;
+  if (!a) return null;
+  // A mode left out means the call changed only the language or the hour: the daily video stays on or off as it was, so there is no mode
+  // to read back. A mode that is given but is not one of the three is no request at all.
+  const mode = str(a.mode);
+  if (a.mode !== undefined && (!mode || !MODES.includes(mode))) return null;
+  const language = a.language === "ckb" || a.language === "ar" || a.language === "en" ? a.language : undefined;
+  if (!mode && typeof a.hour !== "number" && !language) return null;
   const s = await theStore(ctx);
   if (!s) return null;
-  const note = s.videoAutoMode === mode ? videoNotHonoured(s) : null;
-  const cmps: Cmp[] = note ? [] : [cmp(L.dailyVideo, s.videoAutoMode === mode, VIDEO_MODE[s.videoAutoMode] ?? plain(s.videoAutoMode), VIDEO_MODE[mode], `mode=${mode}`)];
+  const note = mode && s.videoAutoMode === mode ? videoNotHonoured(s) : null;
+  const cmps: Cmp[] = !mode || note ? [] : [cmp(L.dailyVideo, s.videoAutoMode === mode, VIDEO_MODE[s.videoAutoMode] ?? plain(s.videoAutoMode), VIDEO_MODE[mode], `mode=${mode}`)];
   if (typeof a.hour === "number") {
     const hour = Math.round(a.hour);
     cmps.push(cmp(L.videoHour, s.videoAutoHour === hour, count(s.videoAutoHour), count(hour), `hour=${hour}`));
+  }
+  // The video language is compared only when it was asked (left out, the saved one stays and there is nothing to read back).
+  if (language) {
+    const saved = videoLangOf(s.videoLang);
+    cmps.push(cmp(L.videoLang, saved === language, videoLanguage(saved), videoLanguage(language), `language=${language}`));
   }
   return report(ctx.lang, cmps, {
     bad: note ? [note.line[ctx.lang]] : [],

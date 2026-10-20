@@ -59,7 +59,7 @@ export interface JsonCall {
    * of the gateway), then the gateway's Claude, then Haiku, then the other alternative models. The steps that cannot take a call
    * with pictures are skipped, so that one goes to the main provider first.
    */
-  prefer?: "video";
+  prefer?: "video" | "kurdish";
 }
 
 /**
@@ -83,6 +83,21 @@ function parseOrder(raw: string | undefined, fallback: string): string[] {
   return out;
 }
 export const videoOrder = (): string[] => parseOrder(process.env.AI_VIDEO_ORDER, DEFAULT_VIDEO_ORDER);
+
+/**
+ * The order for TEXT THAT IS WRITTEN IN SORANI (the owner's choice, 2026-10-20: "for Kurdish text Gemini is the best"): Gemini 3.8 Flash
+ * through the gateway first (measured on the six Sorani writing tasks: 98 % Kurdish words, the proofreader changed 0 % of them, against
+ * Haiku's 97 % and 10 %), then the usual order. Gemini 3.1 Pro High (ag/gemini-3.1-pro-high) was unavailable (503, timeouts) when it was
+ * measured: AI_KURDISH_ORDER puts it first when it is stable. A step that fails is left alone for 90 s, then the next one answers.
+ */
+export const DEFAULT_KURDISH_ORDER = "alt:ag/gemini-3.8-flash,alt:cc/claude-haiku-5-5,main,deepseek,alt";
+export const kurdishOrder = (): string[] => parseOrder(process.env.AI_KURDISH_ORDER, DEFAULT_KURDISH_ORDER);
+
+/** Whether a call writes Sorani: the caller said so (prefer "kurdish"), or its prompt asks for Sorani / Central Kurdish text. */
+export function writesSorani(call: Pick<JsonCall, "prefer" | "system">): boolean {
+  if (call.prefer) return call.prefer === "kurdish";
+  return /sorani|central kurdish/i.test(call.system);
+}
 export const mainOrder = (): string[] => parseOrder(process.env.AI_ORDER, DEFAULT_MAIN_ORDER);
 
 // A step that failed (the network, a timeout, a provider error) is left alone for a short while, so that every call does not wait
@@ -261,7 +276,8 @@ export async function completeJson<T = unknown>(
   };
 
   let deepseekDone = false;
-  const steps = call.prefer === "video" ? videoOrder() : mainOrder();
+  // AI_KURDISH_ORDER=off switches the Sorani order off (every call then follows AI_ORDER).
+  const steps = call.prefer === "video" ? videoOrder() : writesSorani(call) && process.env.AI_KURDISH_ORDER?.trim() !== "off" ? kurdishOrder() : mainOrder();
   // A call that wants Opus goes to the main provider first: the steps before it (outside the video order) are Haiku.
   if (steps.length && !(tier === "opus" && call.prefer !== "video")) {
     // The owner's order: every step before "main" gets one try, with time kept back for the main provider after it.

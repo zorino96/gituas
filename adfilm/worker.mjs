@@ -14,11 +14,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { settleScenes } from "./scenes.mjs";
+
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(HERE, "out");
 const MANIFEST = path.join(OUT, "manifest.json");
 const BASE = (process.env.APP_URL || "https://gituas.com").replace(/\/$/, "");
 const PYTHON = process.env.PYTHON || "python3";
+/** How long one render may take before it is stopped (a story is longer than an ad, so it gets a little more). */
+const AD_RENDER_MINUTES = 18;
+const STORY_RENDER_MINUTES = 20;
 const MAX_FILE = 30 * 1024 * 1024;
 /** The owner's own clips (the app accepts up to 40 MB). */
 const MAX_CLIP = 45 * 1024 * 1024;
@@ -140,10 +145,9 @@ async function doFetch() {
         }
       }
       props.photos = photos;
-      // A photo that could not be fetched leaves its scene without one: the product scene is dropped.
-      props.scenes = props.scenes.filter((s) => s.type !== "product" || (Number.isInteger(s.photo) && photos[s.photo]));
 
-      // The owner's own clips, for footage scenes. A clip that cannot be fetched drops the scenes that wanted it.
+      // The owner's own clips, for footage scenes. A clip that cannot be fetched drops the scenes that wanted it
+      // (in a story they stay on the look's own background: see settleScenes).
       const clips = [];
       const clipIndex = new Map();
       for (const [i, url] of (Array.isArray(props.clips) ? props.clips : []).slice(0, 3).entries()) {
@@ -157,9 +161,9 @@ async function doFetch() {
         }
       }
       props.clips = clips;
-      props.scenes = props.scenes
-        .filter((s) => s.type !== "footage" || (Number.isInteger(s.clip) && clipIndex.has(s.clip)))
-        .map((s) => (s.type === "footage" ? { ...s, clip: clipIndex.get(s.clip) } : s));
+      // A photo that could not be fetched leaves its product scene without one, which is dropped; a footage scene
+      // loses its clip the same way. A story beat is never dropped for its backdrop (settleScenes).
+      props.scenes = settleScenes(props.scenes, { photos, clipIndex, story: props.kind === "story" });
 
       let logo = null;
       if (props.brand?.logoUrl) {
@@ -203,16 +207,25 @@ function doRender() {
   for (const job of readManifest()) {
     const dir = path.join(OUT, job.id);
     const outFile = path.join(dir, "ad.mp4");
+    // A story is longer than an ad and gets a little more time. A run renders one story at a time and nothing else
+    // (see src/app/api/cron/ad-jobs), so its claim, its render and its upload fit in the 25 minutes a claim lasts.
+    let story = false;
+    try {
+      story = JSON.parse(fs.readFileSync(path.join(dir, "job.json"), "utf8")).kind === "story";
+    } catch {
+      /* an ad */
+    }
     const started = Date.now();
     const r = spawnSync(PYTHON, ["render.py", "render", outFile, "--crf", "23"], {
       cwd: HERE,
       stdio: "inherit",
-      timeout: 18 * 60 * 1000,
+      timeout: (story ? STORY_RENDER_MINUTES : AD_RENDER_MINUTES) * 60 * 1000,
       env: { PATH: process.env.PATH, HOME: process.env.HOME, LANG: "C.UTF-8", AD_JOB: path.join(dir, "job.json") },
     });
     const ok = r.status === 0 && fs.existsSync(outFile);
-    fs.writeFileSync(path.join(dir, "status.json"), JSON.stringify(ok ? { ok: true, seconds: Math.round((Date.now() - started) / 1000) } : { ok: false, error: `render exited ${r.status}` }));
-    console.log(`ad ${job.id}: ${ok ? "drawn" : "render failed"}`);
+    const seconds = Math.round((Date.now() - started) / 1000);
+    fs.writeFileSync(path.join(dir, "status.json"), JSON.stringify(ok ? { ok: true, seconds, kind: story ? "story" : "ad" } : { ok: false, error: `render exited ${r.status}` }));
+    console.log(`ad ${job.id}: ${ok ? `drawn (${story ? "story" : "ad"}, ${seconds} s)` : "render failed"}`);
   }
 }
 
@@ -243,7 +256,7 @@ async function doUpload() {
         contentType: "video/mp4",
         multipart: true,
       });
-      console.log(`ad ${job.id}: rendered in ${status.seconds ?? "?"} s`);
+      console.log(`ad ${job.id}: ${status.kind ?? "ad"} rendered in ${status.seconds ?? "?"} s`);
       await report(auth, job.id, { url: blob.url });
     } catch (e) {
       const error = String(e?.message ?? e).slice(0, 200);

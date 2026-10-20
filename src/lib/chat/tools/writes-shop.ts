@@ -4,6 +4,7 @@
 // in the chat, JPEG for Instagram, product matching, plan limits, the image and video switches) is the one and only copy.
 
 import { postProblem, type PostProblem } from "@/app/app/assistant/run-shop-tool";
+import { videoChoice } from "@/app/app/video/choice";
 import type { Connections } from "@/app/app/data";
 import { adVideoEnabled } from "@/lib/advideo/enabled";
 import { imageEnabled } from "@/lib/ai/image";
@@ -29,12 +30,29 @@ const CLEARABLE = ["defaultDm", "aiBrief", "deliveryTime", "deliveryFee"] as con
  * named loosely (a part of the name, or its id) is shown by the name it resolved to, so the person sees what will really be used,
  * and is pinned to the id it resolved to, so Confirm acts on that same product. A text that is cleared is shown as cleared.
  */
-function cardOf(ctx: ToolCtx, tool: ToolName, args: object, shop: { shopName: string; productId?: string | null; productName?: string | null; conns?: Connections }): Card {
+function cardOf(
+  ctx: ToolCtx,
+  tool: ToolName,
+  args: object,
+  shop: { shopName: string; productId?: string | null; productName?: string | null; conns?: Connections },
+  /** make_video: the language and kind the video will really be made in. */
+  video?: { lang: string; kind: string },
+): Card {
   const t = dict(ctx.lang);
   const files = Object.fromEntries(attachmentsOf(ctx).map((x) => [x.id, plainName(x.name) || x.kind]));
   const shown: Record<string, unknown> = shop.productName ? { ...args, product: shop.productName } : { ...args };
   if (tool === "set_shop_options") for (const k of CLEARABLE) if (shown[k] === "") shown[k] = CARD.cleared[ctx.lang];
+  // A video always shows the language it will be made in (the one asked, else the shop's video language, else Sorani), and a story says
+  // so and shows no product (a story has none).
+  if (video) {
+    shown.language = video.lang;
+    if (video.kind === "story") {
+      shown.kind = "story";
+      delete shown.product;
+    } else delete shown.kind;
+  }
   const lines = proposalLines({ tool, args: shown }, t.assistant.fields, { files, shop: shop.shopName });
+  if (video?.kind === "story") lines.push({ label: NEW.field.note[ctx.lang], value: CARD.videoStoryNote[ctx.lang] });
   // A post names the Page / Instagram account it goes to, right after "where" (the first line), when the person chose it in the chat.
   if (tool === "post_now" || tool === "schedule_post") lines.splice(1, 0, ...chosenAccountLine(ctx.lang, (args as { targets?: string[] }).targets ?? [], shop.conns));
   return {
@@ -127,8 +145,12 @@ export const SHOP_WRITE_TOOLS: WriteTool[] = [
   defineWrite({
     name: "make_video",
     description:
-      "Start an AI video ad for the shop. idea: what the video is about, in the owner's words. product: the exact name, or the id from list_products, of the product it features, if any. " +
-      "It is made in the background and takes a few minutes; this tool does not post it.",
+      "Start a short AI video for the shop: about 60 seconds at most, vertical. idea: what the video is about, in the owner's words (up to 1200 characters; an ad's idea is cut to 300). " +
+      "The video language is the owner's choice: language is \"ckb\" (Sorani Kurdish), \"ar\" (Arabic) or \"en\" (English), and the whole video follows it (script, on-screen text, voice, layout, post text). " +
+      "Pass language only when the owner explicitly names the video language (for example \"in English\"); the language of their chat message or of their idea says nothing about it, so otherwise leave it out and the shop's own video language is used (get_settings, area video, dailyVideo.videoLanguage; Sorani when none is saved). Never write the language into the idea (no \"only in Kurdish\" or \"in English\"). " +
+      "kind: \"ad\" promotes the brand or a product (product: the exact name, or the id from list_products, of the product it features, if any); \"story\" is a story or content video told from the idea (for example a mystery for a story channel): it needs no product, price, delivery line or phone number, and the AI invents the story, so the owner reads it before posting. " +
+      "Leave kind out and a video of a product you name (product) is an ad; with no product it follows what the page is for (a page that grows or earns from its content gets a story, the others an ad). There is still no multi-minute documentary. " +
+      "It is made in the background and takes a few minutes; this tool does not post it. The card shows the language it will really use.",
     schema: SCHEMAS.make_video,
     kinds: ["shop"],
     permission: "publish",
@@ -138,7 +160,10 @@ export const SHOP_WRITE_TOOLS: WriteTool[] = [
     async card(ctx, args) {
       if (!adVideoEnabled()) refuse("Making AI videos is switched off on this server right now.");
       const shop = await shopFor(ctx, args.product);
-      return cardOf(ctx, "make_video", args, shop);
+      // The same rule as the action that runs it: an explicit kind, else an ad when a product was named, else what the page is for.
+      const video = await videoChoice(shop.store.id, shop.store.videoLang, { lang: args.language, kind: args.kind, hasProduct: !!shop.productId });
+      if (video.kind === "story" && Array.from(args.idea).length < 10) refuse("A story is told from the owner's idea: ask what the story is about (at least a short sentence) before proposing it.");
+      return cardOf(ctx, "make_video", args, shop, video);
     },
     execute: (ctx, args) => runShop(ctx, "make_video", args),
   }),
@@ -209,13 +234,17 @@ export const SHOP_WRITE_TOOLS: WriteTool[] = [
   defineWrite({
     name: "set_daily_video",
     description:
-      `Set the daily AI video. ${MODES} hour: 0 to 23, Baghdad time, after which the day's video is made; leave it out to keep the hour already chosen.`,
+      `Set the daily AI video. ${MODES} Leave mode out to keep the daily video exactly as it is now (on in its mode, or off) when the owner only changes the language or the hour. hour: 0 to 23, Baghdad time, after which the day's video is made; leave it out to keep the hour already chosen. ` +
+      "language: \"ckb\" (Sorani Kurdish), \"ar\" (Arabic) or \"en\" (English), the shop's video language: the daily video, the Video screen's form and make_video use it when they are given no other. Pass it only when the owner explicitly names the video language; the language of their chat message says nothing about it. Leave it out to keep the one already saved. " +
+      "A page that grows or earns from its content and has described its channel gets a story each day, always kept as a draft for the owner to read first; every other page gets an ad.",
     schema: SCHEMAS.set_daily_video,
     kinds: ["shop"],
     permission: "configure",
     risk: "standing",
-    // DRAFT does not publish, but it makes (and pays for) a video every day without anyone watching: only OFF is small and safe.
-    riskFor: (args) => (args.mode === "OFF" ? "low" : "standing"),
+    // DRAFT does not publish, but it makes (and pays for) a video every day without anyone watching: only OFF is small and safe. With no
+    // mode the daily video stays as it is (only its language or hour changes): nothing new starts, so it is small as well.
+    // Changing the language changes what a running daily video posts publicly: it is a card, like switching the video on. An hour alone, or OFF, is small.
+    riskFor: (args) => (args.mode === "OFF" || (args.mode === undefined && !(args as { language?: unknown }).language) ? "low" : "standing"),
     label: (lang) => LABEL.setting[lang],
     async card(ctx, args) {
       if (!adVideoEnabled()) refuse("AI videos are switched off on this server right now.");

@@ -7,7 +7,10 @@ import { startOfShopDay } from "@/lib/shop/pipeline";
 import type { StorePlan } from "@/lib/shop/plans";
 import { AD_CLAIM_MS, AD_MAX_TRIES, createAdVideo, prepareQueued, type Target } from "./prepare";
 import { chooseTier } from "@/lib/ai/meter";
+import { loadProfiles } from "@/lib/shop/profile";
 import { limitsOf } from "@/lib/shop/tenant-plans";
+import { providersFor } from "@/lib/voice/tts";
+import { kindForGoal, storyConceptOf, videoLangOf, voiceFor, type VideoKind } from "./lang";
 import { defaultTierFor, isVideoTier, refundVideo, videosToday, videosUsed, type VideoTier } from "./limits";
 import { publishAdVideo } from "./publish";
 import { voiceWasPaid } from "./voice";
@@ -29,20 +32,40 @@ export function isVideoDue(store: { videoAutoHour: number; videoAutoLastAt: Date
   return !store.videoAutoLastAt || store.videoAutoLastAt < startOfShopDay(new Date(now));
 }
 
-/** Makes the day's video for every store whose automation is due. Returns counts by outcome. */
+/**
+ * Makes the day's video for every store whose automation is due. Returns counts by outcome.
+ * The video follows the store's own choices: its video language (Store.videoLang, Sorani when unset) and its kind.
+ * A page that earns from its content (goal monetize or grow) AND has written what it is about (an offer line or a goal
+ * in words: a bare category such as "content" is not a concept) makes stories; every other store makes the ad it always
+ * made, so a store is never skipped because of the kind and a seller is never switched. A story is always a draft: an
+ * invented story is read before it goes out, even in PUBLISH mode.
+ */
 export async function runVideoAutomation(now = Date.now()): Promise<Record<string, number>> {
   const stores = await db.store.findMany({
     // A store on the free plan has no video allowance: it must not sit at the front of the queue forever.
     where: { videoAutoMode: { in: ["DRAFT", "PUBLISH"] }, pausedReason: null, plan: { not: "FREE" } },
     orderBy: { videoAutoLastAt: { sort: "asc", nulls: "first" } },
-    select: { id: true, tenantId: true, plan: true, videoAutoMode: true, videoAutoTier: true, videoAutoHour: true, videoAutoLastAt: true, fbPageId: true, igUserId: true, tenant: { select: { ownerId: true } } },
+    select: { id: true, tenantId: true, plan: true, videoAutoMode: true, videoAutoTier: true, videoAutoHour: true, videoAutoLastAt: true, videoLang: true, fbPageId: true, igUserId: true, tenant: { select: { ownerId: true } } },
     take: 50,
   });
+  // Only the stores whose video is due have their profile read (most minutes of the day none is): their goal decides the kind
+  // of video, and a story follows what the page is about. (loadProfiles never throws: a failed read is no profile, so an ad.)
+  const due = stores.filter((s) => isVideoDue(s, now));
+  const profiles = due.length ? await loadProfiles(due.map((s) => s.id)) : null;
   const counts: Record<string, number> = {};
   const bump = (k: string) => (counts[k] = (counts[k] ?? 0) + 1);
-  for (const s of stores) {
+  for (const s of due) {
     try {
-      if (!isVideoDue(s, now)) continue;
+      const lang = videoLangOf(s.videoLang);
+      const profile = profiles?.get(s.id) ?? null;
+      // A story only for a page that earns from its content and has said what it is about; any other store, and a content
+      // page with nothing written, gets the ad as before. The store is never skipped for its kind.
+      const kind: VideoKind = kindForGoal(profile?.goal) === "story" && storyConceptOf(profile) ? "story" : "ad";
+      // Arabic and English are read by Gemini: without its key nothing is claimed or paid for.
+      if (lang !== "ckb" && providersFor(lang).length === 0) {
+        bump("no_voice");
+        continue;
+      }
       // The tier follows the workspace's plans: Opus videos if it has the Opus plan, else Haiku.
       const lim = await limitsOf(s.tenantId);
       const wanted: VideoTier = isVideoTier(s.videoAutoTier) ? s.videoAutoTier : "LITE";
@@ -73,11 +96,13 @@ export async function runVideoAutomation(now = Date.now()): Promise<Record<strin
         topic: null,
         // No product chosen here: the daily plan aims the video (the product buyers ask about, an occasion, or the whole shop).
         productId: null,
-        voice: "shilan",
+        voice: voiceFor(lang, null, kind),
         targets,
-        autoPost: s.videoAutoMode === "PUBLISH" && targets.length > 0,
+        autoPost: kind === "ad" && s.videoAutoMode === "PUBLISH" && targets.length > 0,
         source: "AUTO",
         createdById: s.tenant.ownerId ?? null,
+        lang,
+        kind,
       });
       if (!made.ok) {
         // Nothing was made: the day is not spent (busy and limit refusals try again at the next tick).

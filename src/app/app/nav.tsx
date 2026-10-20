@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 
 import { useT } from "@/lib/i18n/client";
+import { useOwnerType } from "./owner-type-context";
 import { classicHref } from "./face";
 
 type Kind = "MERCHANT" | "NEWS";
@@ -56,6 +57,8 @@ function baseFor(kind: Kind): "/app" | "/newsroom" {
 export function useSections(kind: Kind, studio: boolean, video: boolean, chat = false): Section[] {
   const path = usePathname();
   const t = useT();
+  // A creator does not sell: no Orders, no Products, no product autopilot in the menu (the pages are still there by address).
+  const creator = useOwnerType() === "creator";
   const base = baseFor(kind);
   const s = (href: string, label: string, Icon: LucideIcon, group: Group, primary = false) => ({ href, label, Icon, group, primary });
   const tabs =
@@ -66,14 +69,13 @@ export function useSections(kind: Kind, studio: boolean, video: boolean, chat = 
           ...(chat ? [s(`${base}/assistant/history`, t.chat.historyNav, History, "main")] : []),
           s(`${base}/comments`, t.nav.comments, MessagesSquare, "inbox", true),
           s(`${base}/messages`, t.nav.messages, MessageCircle, "inbox", true),
-          s(`${base}/orders`, t.nav.orders, Package, "inbox", true),
+          ...(creator ? [] : [s(`${base}/orders`, t.nav.orders, Package, "inbox", true)]),
           s(`${base}/whatsapp`, t.wa.nav, Phone, "inbox"),
           s(`${base}/publish`, t.nav.publish, SquarePlus, "create"),
           ...(video ? [s(`${base}/video`, t.nav.video, Clapperboard, "create")] : []),
           ...(studio ? [s(`${base}/studio`, t.studio.nav, Sparkles, "create")] : []),
           s(`${base}/automation`, t.nav.automation, Bot, "automate"),
-          s(`${base}/products`, t.nav.products, ShoppingBag, "automate"),
-          s(`${base}/autopilot`, t.nav.autopilot, CalendarClock, "automate"),
+          ...(creator ? [] : [s(`${base}/products`, t.nav.products, ShoppingBag, "automate"), s(`${base}/autopilot`, t.nav.autopilot, CalendarClock, "automate")]),
           s(`${base}/boost`, t.nav.boost, Target, "grow"),
           s(`${base}/insights`, t.nav.insights, BarChart3, "grow"),
         ]

@@ -14,7 +14,10 @@ permissions:
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The newsroom reels, then either two ads (a few minutes each) or one story (up to 20 minutes, see adfilm/worker.mjs;
+    # a run takes one story at a time, src/app/api/cron/ad-jobs). Nothing is uploaded until the end, so a run cut off by
+    # this limit would lose a video that was already drawn: the limit is well above the longest thing a run can hold.
+    timeout-minutes: 45
     steps:
       - name: Anything to render?
         id: peek

@@ -7,6 +7,7 @@ import { isJpegPath, isOwnBlobUrl, isOwnPathname } from "@/lib/merchant/caption"
 import { formatMoney } from "@/lib/shop/money";
 import { brandNameOf } from "@/lib/shop/brand-name";
 import { deliveryLine } from "@/lib/shop/compose";
+import { videoKindOf, videoLangOf, type VideoKind, type VideoLang } from "./lang";
 import type { RefItem } from "./refs";
 
 export interface AdProduct {
@@ -45,6 +46,9 @@ export interface AdBrief {
   clips: string[];
 }
 
+/** A product row as the brief reads it. */
+type ProductRow = { id: string; name: string; description: string | null; photos: string[]; variants: { amountMinor: number; currency: string; inStock: boolean }[] };
+
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const MAX_PHOTOS = 6;
 
@@ -56,13 +60,16 @@ export function displayPhone(raw: string | null | undefined): string | null {
   return /^07\d{9}$/.test(local) ? `${local.slice(0, 4)} ${local.slice(4, 7)} ${local.slice(7)}` : local;
 }
 
-/** The lowest price among the variants in stock, "from" when they differ; null when nothing is priced. */
-export function priceLineOf(variants: { amountMinor: number; currency: string; inStock: boolean }[]): string | null {
+/** The word before the lowest price when the variants' prices differ, per language ("from"). */
+const FROM: Record<VideoLang, string> = { ckb: "لە ", ar: "من ", en: "from " };
+
+/** The lowest price among the variants in stock, "from" when they differ, written in the video's language; null when nothing is priced. */
+export function priceLineOf(variants: { amountMinor: number; currency: string; inStock: boolean }[], lang: VideoLang = "ckb"): string | null {
   const priced = variants.filter((v) => v.inStock && v.amountMinor > 0);
   if (!priced.length) return null;
   const low = priced.reduce((a, b) => (b.amountMinor < a.amountMinor ? b : a));
   const differ = priced.some((v) => v.amountMinor !== low.amountMinor);
-  return `${differ ? "لە " : ""}${formatMoney(low.amountMinor, low.currency, "ckb")}`;
+  return `${differ ? FROM[lang] : ""}${formatMoney(low.amountMinor, low.currency, lang)}`;
 }
 
 /** Only photos this workspace uploaded and a renderer can read (JPEG). */
@@ -70,7 +77,14 @@ export function usablePhotos(urls: string[], tenantId: string): string[] {
   return urls.filter((u) => isOwnBlobUrl(u, tenantId) && isJpegPath(new URL(u).pathname));
 }
 
-export async function loadAdBrief(storeId: string, productId: string | null, refs: RefItem[] = []): Promise<AdBrief | null> {
+/**
+ * The brief of a store for the director and the renderer. `lang` writes the price and delivery lines in the video's language.
+ * A `story` brief is a content page's: no product, no catalog, no delivery line or note, no phone number; its pictures come
+ * only from the owner's own references and its clips from the owner's clips.
+ */
+export async function loadAdBrief(storeId: string, productId: string | null, refs: RefItem[] = [], opts: { lang?: VideoLang; kind?: VideoKind } = {}): Promise<AdBrief | null> {
+  const lang = videoLangOf(opts.lang);
+  const story = videoKindOf(opts.kind) === "story";
   const store = await db.store.findUnique({
     where: { id: storeId },
     include: { tenant: { select: { id: true, name: true, whatsappNumber: true } } },
@@ -79,26 +93,28 @@ export async function loadAdBrief(storeId: string, productId: string | null, ref
   const tenantId = store.tenantId;
   const [kit, products] = await Promise.all([
     db.brandKit.findUnique({ where: { tenantId }, select: { logoPath: true, primary: true, accent: true, tagline: true, deliveryNote: true } }),
-    db.product.findMany({
-      where: { storeId, active: true },
-      orderBy: { updatedAt: "desc" },
-      take: 24,
-      select: { id: true, name: true, description: true, photos: true, variants: { select: { amountMinor: true, currency: true, inStock: true } } },
-    }),
+    story
+      ? Promise.resolve([] as ProductRow[])
+      : db.product.findMany({
+          where: { storeId, active: true },
+          orderBy: { updatedAt: "desc" },
+          take: 24,
+          select: { id: true, name: true, description: true, photos: true, variants: { select: { amountMinor: true, currency: true, inStock: true } } },
+        }),
   ]);
-  let chosen = productId ? products.find((p) => p.id === productId) ?? null : null;
+  let chosen = !story && productId ? products.find((p) => p.id === productId) ?? null : null;
   // The chosen product may be older than the 24 most recently edited: it is still the one to show.
-  if (productId && !chosen) {
+  if (!story && productId && !chosen) {
     chosen = await db.product.findFirst({
       where: { id: productId, storeId, active: true },
       select: { id: true, name: true, description: true, photos: true, variants: { select: { amountMinor: true, currency: true, inStock: true } } },
     });
   }
-  const asProduct = (p: (typeof products)[number]): AdProduct => ({
+  const asProduct = (p: ProductRow): AdProduct => ({
     id: p.id,
     name: p.name,
     description: p.description?.trim() || null,
-    priceLine: priceLineOf(p.variants),
+    priceLine: priceLineOf(p.variants, lang),
     photos: usablePhotos(p.photos, tenantId),
     inStock: p.variants.length === 0 || p.variants.some((v) => v.inStock),
   });
@@ -114,16 +130,16 @@ export async function loadAdBrief(storeId: string, productId: string | null, ref
     // The brand name is the Page's name now, not the name the store was given when it was made (the Page may have been renamed since).
     name: (await brandNameOf(store)).trim() || store.tenant.name || (store.igUsername ? `@${store.igUsername}` : "Shop"),
     tagline: kit?.tagline?.trim() || null,
-    deliveryNote: kit?.deliveryNote?.trim() || null,
-    deliveryLine: deliveryLine(store, "ckb"),
+    deliveryNote: story ? null : kit?.deliveryNote?.trim() || null,
+    deliveryLine: story ? null : deliveryLine(store, lang),
     primary: kit?.primary && HEX.test(kit.primary) ? kit.primary : "#0B2545",
     accent: kit?.accent && HEX.test(kit.accent) ? kit.accent : "#E0A526",
     // Served through our own /m route, as the reels do, so the renderer fetches it from our domain.
     logoUrl: isOwnPathname(kit?.logoPath, tenantId) ? `${SHOP_ORIGIN}/m/${kit!.logoPath}` : null,
     handle: store.igUsername ? `@${store.igUsername}` : null,
-    phone: displayPhone(store.tenant.whatsappNumber),
+    phone: story ? null : displayPhone(store.tenant.whatsappNumber),
     product,
-    catalog: others.slice(0, 8).map((p) => ({ name: p.name, priceLine: priceLineOf(p.variants) })),
+    catalog: others.slice(0, 8).map((p) => ({ name: p.name, priceLine: priceLineOf(p.variants, lang) })),
     photos,
     refPhotos: photos.filter((u) => refImages.includes(u)).length,
     refIndices: photos.flatMap((u, i) => (refImages.includes(u) ? [i] : [])),

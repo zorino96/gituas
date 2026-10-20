@@ -2,6 +2,7 @@ import { modelFor } from "@/lib/ai/models";
 import { NextResponse } from "next/server";
 
 import { altConfigured, altJson, altModels } from "@/lib/ai/alt";
+import { parseChatReply } from "@/lib/ai/chat";
 import { proofreadSorani } from "@/lib/ai/proofread";
 import { completeJson, videoOrder } from "@/lib/ai/provider";
 import { deepseekConfigured, deepseekJson } from "@/lib/ai/deepseek";
@@ -180,7 +181,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const body = (await req.json().catch(() => null)) as { model?: string; system?: string; user?: string; list?: boolean; claude?: boolean; alt?: boolean; altDebug?: boolean; video?: boolean; proofread?: boolean; tools?: boolean; chat?: { text?: string; lang?: "en" | "ckb" | "ar"; kind?: "shop" | "news" }; maxTokens?: number; imageUrl?: string } | null;
+  const body = (await req.json().catch(() => null)) as { model?: string; system?: string; user?: string; list?: boolean; claude?: boolean; alt?: boolean; altDebug?: boolean; altTools?: boolean; video?: boolean; proofread?: boolean; tools?: boolean; chat?: { text?: string; lang?: "en" | "ckb" | "ar"; kind?: "shop" | "news" }; maxTokens?: number; imageUrl?: string } | null;
   // {chat: {text, lang}}: one whole chat turn in a throwaway workspace (real model, real tools; a change it proposes is never run).
   if (body?.chat) {
     const { chatProbe } = await import("@/lib/chat/probe");
@@ -309,6 +310,43 @@ export async function POST(req: Request) {
       }
     }
     return NextResponse.json({ model, out });
+  }
+  // {altTools: true, model}: does one model of the gateway take a tool call and answer with the tool's result? (A Sorani question, one tool;
+  // reports whether a call came back, its name and arguments, and the Sorani answer after the result. Decides AI_KURDISH_CHAT.)
+  if (body?.altTools) {
+    if (!altConfigured()) return NextResponse.json({ ok: false, error: "the alternative models are not configured" });
+    const model = body.model && /^[\w.:/@+-]{1,80}$/.test(body.model) ? body.model : altModels()[0];
+    const base = process.env.ALT_AI_BASE_URL!.trim().replace(/\/$/, "");
+    const headers = { Authorization: `Bearer ${process.env.ALT_AI_API_KEY!.trim()}`, "Content-Type": "application/json" };
+    const tools = [{ type: "function", function: { name: "orders_summary", description: "The number of orders in a period", parameters: { type: "object", properties: { range: { type: "string", enum: ["today", "week"] } }, required: ["range"] } } }];
+    const system = { role: "system", content: "You are the assistant of a shop. Answer in Central Kurdish (Sorani). Use the tool for any number; never guess one." };
+    const user = { role: "user", content: "ئەمڕۆ چەند داواکارییم هەیە؟" };
+    const started = Date.now();
+    try {
+      const r1 = await fetch(`${base}/chat/completions`, { method: "POST", headers, body: JSON.stringify({ model, stream: false, max_tokens: 800, tools, messages: [system, user] }), signal: AbortSignal.timeout(50_000) });
+      const raw1 = await r1.text();
+      if (!r1.ok) return NextResponse.json({ ok: false, model, step: 1, status: r1.status, ms: Date.now() - started });
+      const first = parseChatReply(raw1);
+      const call = first.toolCalls[0];
+      if (!call) return NextResponse.json({ ok: true, model, toolCalled: false, text: first.text.slice(0, 200), ms: Date.now() - started });
+      const r2 = await fetch(`${base}/chat/completions`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model,
+          stream: false,
+          max_tokens: 800,
+          tools,
+          messages: [system, user, { role: "assistant", content: first.text || null, tool_calls: [{ id: call.id, type: "function", function: { name: call.name, arguments: call.args } }] }, { role: "tool", tool_call_id: call.id, content: JSON.stringify({ orders: 7 }) }],
+        }),
+        signal: AbortSignal.timeout(50_000),
+      });
+      const raw2 = await r2.text();
+      const second = r2.ok ? parseChatReply(raw2) : null;
+      return NextResponse.json({ ok: true, model, toolCalled: true, tool: call.name, args: call.args, secondStatus: r2.status, answer: second?.text.slice(0, 200) ?? null, answerHas7: !!second && /7|حەوت|سبعة/.test(second.text), ms: Date.now() - started });
+    } catch (e) {
+      return NextResponse.json({ ok: false, model, ms: Date.now() - started, error: e instanceof Error ? e.name : "failed" });
+    }
   }
   // {alt: true, model?, system, user}: one JSON answer from one of the alternative models alone (the first one when no model is named).
   if (body?.alt) {

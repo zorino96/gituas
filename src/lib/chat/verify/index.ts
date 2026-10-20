@@ -11,8 +11,8 @@ import { parseVerify } from "./report";
  */
 export async function verifierFor(kind: ToolCtx["kind"], name: string): Promise<VerifyFn | undefined> {
   if (kind === "news") return (await import("./news")).NEWS_VERIFIERS[name];
-  const [shop, rules, accounts, reset] = await Promise.all([import("./shop"), import("./rules"), import("./accounts"), import("./reset")]);
-  return shop.SHOP_VERIFIERS[name] ?? rules.RULE_VERIFIERS[name] ?? accounts.ACCOUNT_VERIFIERS[name] ?? reset.RESET_VERIFIERS[name];
+  const [shop, rules, accounts, reset, goal] = await Promise.all([import("./shop"), import("./rules"), import("./accounts"), import("./reset"), import("./goal")]);
+  return shop.SHOP_VERIFIERS[name] ?? rules.RULE_VERIFIERS[name] ?? accounts.ACCOUNT_VERIFIERS[name] ?? reset.RESET_VERIFIERS[name] ?? goal.GOAL_VERIFIERS[name];
 }
 
 /** How long a check may take, and how much room the request must still have for it to start. */

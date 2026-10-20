@@ -169,11 +169,11 @@ async function pawanClone(text: string, clone: CloneVoice, speed: number = SPEEC
 /** Gemini does not officially speak Kurdish and now and then answers without audio; a second try usually speaks. */
 const GEMINI_TRIES = 2;
 
-async function gemini(text: string, lang: VoiceLang, gender: VoiceGender): Promise<Speech> {
+async function gemini(text: string, lang: VoiceLang, gender: VoiceGender, style?: string): Promise<Speech> {
   let last: unknown;
   for (let i = 0; i < GEMINI_TRIES; i++) {
     try {
-      return await geminiOnce(text, lang, gender);
+      return await geminiOnce(text, lang, gender, style);
     } catch (e) {
       last = e;
       // Only an answer without audio is worth repeating; a refused key or quota is not.
@@ -183,12 +183,12 @@ async function gemini(text: string, lang: VoiceLang, gender: VoiceGender): Promi
   throw last;
 }
 
-async function geminiOnce(text: string, lang: VoiceLang, gender: VoiceGender): Promise<Speech> {
+async function geminiOnce(text: string, lang: VoiceLang, gender: VoiceGender, style?: string): Promise<Speech> {
   const res = await fetch(GEMINI_URL, {
     method: "POST",
     headers: { "x-goog-api-key": process.env.GOOGLE_AI_API_KEY ?? "", "Content-Type": "application/json" },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: `${GEMINI_STYLE[lang]}\n${text}` }] }],
+      contents: [{ parts: [{ text: `${style?.trim() || GEMINI_STYLE[lang]}\n${text}` }] }],
       generationConfig: {
         responseModalities: ["AUDIO"],
         speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: GEMINI_VOICE[gender] } } },
@@ -208,8 +208,12 @@ async function geminiOnce(text: string, lang: VoiceLang, gender: VoiceGender): P
   return { audio: pcmToWav(Buffer.from(b64, "base64")), mime: "audio/wav", provider: "gemini" };
 }
 
-/** Read `text` aloud in `lang`: the first provider that answers wins. */
-export async function speak(input: { text: string; lang: VoiceLang; gender?: VoiceGender; voice?: string; speed?: number; clone?: CloneVoice | null; env?: Record<string, string | undefined> }): Promise<Speech> {
+/**
+ * Read `text` aloud in `lang`: the first provider that answers wins. `style` is the reading instruction Gemini is given
+ * before the text (an ad is read warmly, a story like a storyteller); without it the news anchor style is used, so the
+ * newsroom's reels sound as they always did. Pawan has no style and ignores it.
+ */
+export async function speak(input: { text: string; lang: VoiceLang; gender?: VoiceGender; voice?: string; speed?: number; style?: string; clone?: CloneVoice | null; env?: Record<string, string | undefined> }): Promise<Speech> {
   const text = speechText(input.text);
   const gender = input.gender ?? "male";
   if (!text) throw new SpeechUnavailable(["empty text"]);
@@ -227,7 +231,7 @@ export async function speak(input: { text: string; lang: VoiceLang; gender?: Voi
   }
   for (const p of providersFor(input.lang, input.env)) {
     try {
-      return p === "pawan" ? await pawanOneAtATime(() => pawan(text, gender, input.voice, input.speed)) : await gemini(text, input.lang, gender);
+      return p === "pawan" ? await pawanOneAtATime(() => pawan(text, gender, input.voice, input.speed)) : await gemini(text, input.lang, gender, input.style);
     } catch (e) {
       const why = e instanceof Error ? e.message : String(e);
       reasons.push(why);

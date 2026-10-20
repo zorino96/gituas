@@ -2,6 +2,7 @@
 // workspace. No buyer's name, message or phone number goes in, and nothing secret.
 
 import { adVideoEnabled } from "@/lib/advideo/enabled";
+import { ownerTypeOf } from "@/lib/shop/owner-type";
 import { healStoreNames } from "@/lib/shop/store-names";
 import { workspaceVideos } from "@/lib/advideo/limits";
 import { imageEnabled } from "@/lib/ai/image";
@@ -84,6 +85,8 @@ export async function loadAssistantState(tenantId: string, connections: Assistan
   ]);
   return {
     today: new Date(now).toISOString().slice(0, 10),
+    // Who the owner says they are (from their own answer to "how does your page earn for you?"): a creator is not spoken to as a seller.
+    ownerType: profiles ? ownerTypeOf([...profiles.values()].map((p) => p.goal)) : "unknown",
     shops: stores.map((s) => {
       const lapsed = s.plan !== "FREE" && !!s.planPaidUntil && s.planPaidUntil.getTime() < now;
       return {

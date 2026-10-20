@@ -57,6 +57,34 @@ describe("parseProposal", () => {
     expect(parseProposal({ tool: "set_whatsapp_number", args: { number: "drop table" } }, ids)).toBeNull();
   });
 
+  it("takes the video's language and kind from the three languages and the two kinds, and nothing else", () => {
+    expect(parseProposal({ tool: "make_video", args: { idea: "a short ad" } }, ids)?.args).toEqual({ idea: "a short ad" });
+    for (const language of ["ckb", "ar", "en"]) {
+      expect(parseProposal({ tool: "make_video", args: { idea: "a mystery story", language, kind: "story" } }, ids)?.args).toEqual({ idea: "a mystery story", language, kind: "story" });
+      expect(parseProposal({ tool: "set_daily_video", args: { mode: "OFF", language } }, ids)?.args).toEqual({ mode: "OFF", language });
+    }
+    expect(parseProposal({ tool: "make_video", args: { idea: "a short ad", language: "fr" } }, ids)).toBeNull();
+    expect(parseProposal({ tool: "make_video", args: { idea: "a short ad", language: "kurdish" } }, ids)).toBeNull();
+    expect(parseProposal({ tool: "make_video", args: { idea: "a short ad", kind: "documentary" } }, ids)).toBeNull();
+    expect(parseProposal({ tool: "set_daily_video", args: { mode: "DRAFT", language: "fr" } }, ids)).toBeNull();
+    // The language is a video's own: the other tools drop it like any other key they do not have.
+    expect(parseProposal({ tool: "set_autopilot", args: { mode: "DRAFT", language: "en" } }, ids)?.args).toEqual({ mode: "DRAFT" });
+  });
+
+  it("lets the daily video change its language or its hour alone (no mode: it stays on or off as it was), but not nothing at all", () => {
+    expect(parseProposal({ tool: "set_daily_video", args: { language: "en" } }, ids)?.args).toEqual({ language: "en" });
+    expect(parseProposal({ tool: "set_daily_video", args: { hour: 8 } }, ids)?.args).toEqual({ hour: 8 });
+    expect(parseProposal({ tool: "set_daily_video", args: {} }, ids)).toBeNull();
+    expect(parseProposal({ tool: "set_daily_video", args: { url: "https://evil.example" } }, ids)).toBeNull();
+    expect(parseProposal({ tool: "set_daily_video", args: { mode: "ALWAYS" } }, ids)).toBeNull();
+  });
+
+  it("lets a story's idea run to 1200 characters and cuts nothing here (an ad's idea is cut to 300 further down)", () => {
+    expect(parseProposal({ tool: "make_video", args: { idea: "x".repeat(1200), kind: "story" } }, ids)).not.toBeNull();
+    expect(parseProposal({ tool: "make_video", args: { idea: "x".repeat(1201), kind: "story" } }, ids)).toBeNull();
+    expect(parseProposal({ tool: "make_video", args: { idea: "xy" } }, ids)).toBeNull();
+  });
+
   it("drops keys the tool does not have", () => {
     const p = parseProposal({ tool: "set_auto_replies", args: { on: false, url: "https://evil.example", planId: "MAX" } }, ids);
     expect(p?.args).toEqual({ on: false });
@@ -75,6 +103,58 @@ describe("proposalLines", () => {
     const off = proposalLines(parseProposal({ tool: "set_autopilot", args: { mode: "OFF" } }, ids)!, labels);
     expect(off).toEqual([{ label: "Mode", value: "Off" }]);
     expect(proposalLines(parseProposal({ tool: "post_now", args: { caption: "x", targets: ["FB"] } }, ids)!, labels)).toContainEqual({ label: "Media", value: "Text only" });
+  });
+});
+
+describe("the video's language and kind on the card", () => {
+  const named: FieldLabels = { ...labels, language: "Video language", kind: "Kind", kindAd: "Ad", kindStory: "Story", languages: { ckb: "Sorani Kurdish", ar: "Arabic", en: "English" } };
+
+  it("shows the rows only when the argument is given, so a card without them is what it always was", () => {
+    const plain = parseProposal({ tool: "make_video", args: { idea: "a short ad" } }, ids)!;
+    expect(proposalLines(plain, named, { shop: "My shop" })).toEqual([
+      { label: "Idea", value: "a short ad" },
+      { label: "Shop", value: "My shop" },
+    ]);
+    const story = parseProposal({ tool: "make_video", args: { idea: "a mystery story", language: "en", kind: "story" } }, ids)!;
+    expect(proposalLines(story, named, { shop: "My shop" })).toEqual([
+      { label: "Idea", value: "a mystery story" },
+      { label: "Video language", value: "English" },
+      { label: "Kind", value: "Story" },
+      { label: "Shop", value: "My shop" },
+    ]);
+    const daily = parseProposal({ tool: "set_daily_video", args: { mode: "OFF", language: "ar" } }, ids)!;
+    expect(proposalLines(daily, named)).toEqual([
+      { label: "Mode", value: "Off" },
+      { label: "Video language", value: "Arabic" },
+    ]);
+    // A change of the language alone shows no mode line: nothing is switched, so the card must not say "Publish" or "Off".
+    const languageOnly = parseProposal({ tool: "set_daily_video", args: { language: "en" } }, ids)!;
+    expect(proposalLines(languageOnly, named)).toEqual([{ label: "Video language", value: "English" }]);
+  });
+
+  it("shows the language the video will really use when the caller resolved it, even though the model left it out; a story shows no product", () => {
+    const plain = parseProposal({ tool: "make_video", args: { idea: "a short ad", product: "Silver ring" } }, ids)!;
+    expect(proposalLines(plain, named, { shop: "My shop", video: { lang: "en", kind: "ad" } })).toEqual([
+      { label: "Idea", value: "a short ad" },
+      { label: "Product", value: "Silver ring" },
+      { label: "Video language", value: "English" },
+      { label: "Shop", value: "My shop" },
+    ]);
+    const story = parseProposal({ tool: "make_video", args: { idea: "a mystery story", product: "Silver ring" } }, ids)!;
+    expect(proposalLines(story, named, { video: { lang: "ckb", kind: "story" } })).toEqual([
+      { label: "Idea", value: "a mystery story" },
+      { label: "Video language", value: "Sorani Kurdish" },
+      { label: "Kind", value: "Story" },
+    ]);
+    // The resolved language wins over the one the model wrote (the caller already applied the rule: the model's word, else the saved one).
+    const asked = parseProposal({ tool: "make_video", args: { idea: "a short ad", language: "ar" } }, ids)!;
+    expect(proposalLines(asked, named, { video: { lang: "ar", kind: "ad" } })).toContainEqual({ label: "Video language", value: "Arabic" });
+  });
+
+  it("falls back to the code when a screen has no names for the languages", () => {
+    const story = parseProposal({ tool: "make_video", args: { idea: "a mystery story", language: "ar", kind: "ad" } }, ids)!;
+    expect(proposalLines(story, labels)).toEqual([{ label: "Idea", value: "a mystery story" }]);
+    expect(proposalLines(story, { ...labels, language: "Video language" })).toContainEqual({ label: "Video language", value: "ar" });
   });
 });
 

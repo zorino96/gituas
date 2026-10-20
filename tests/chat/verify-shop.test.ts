@@ -148,6 +148,60 @@ describe("set_autopilot and set_daily_video", () => {
     expect((await run("set_daily_video", { mode: "DRAFT" }))?.checked).toEqual(["The daily video: making the video for review"]);
   });
 
+  it("checks the video language only when it was asked, and says how to put it right", async () => {
+    db.store.findMany.mockResolvedValue([store({ videoAutoMode: "OFF", videoLang: "en" })]);
+    const ok = await run("set_daily_video", { mode: "OFF", language: "en" });
+    expect(ok?.status).toBe("ok");
+    expect(ok?.checked).toEqual(["The daily video: off", "The video language: English"]);
+    const bad = await run("set_daily_video", { mode: "OFF", language: "ar" });
+    expect(bad?.status).toBe("problem");
+    expect(bad?.problems).toEqual(["The video language: English, not Arabic as you asked."]);
+    expect(bad?.fix).toBe("Call set_daily_video with language=ar.");
+    // Left out, the saved language stays and is not compared; so is something that is not a language.
+    expect((await run("set_daily_video", { mode: "OFF" }))?.checked).toEqual(["The daily video: off"]);
+    expect((await run("set_daily_video", { mode: "OFF", language: "fr" }))?.checked).toEqual(["The daily video: off"]);
+    // A shop with no saved language makes its videos in Sorani.
+    db.store.findMany.mockResolvedValue([store({ videoAutoMode: "OFF" })]);
+    expect((await run("set_daily_video", { mode: "OFF", language: "ckb" }))?.status).toBe("ok");
+    expect((await run("set_daily_video", { mode: "OFF", language: "en" }))?.problems).toEqual(["The video language: Sorani Kurdish, not English as you asked."]);
+    // The mode and the language are read back together.
+    const both = await run("set_daily_video", { mode: "DRAFT", language: "ar" });
+    expect(both?.fix).toBe("Call set_daily_video with mode=DRAFT and language=ar.");
+  });
+
+  it("reads back a change of only the language or the hour (no mode): the mode is not compared, whatever the daily video is doing", async () => {
+    db.store.findMany.mockResolvedValue([store({ videoAutoMode: "PUBLISH", videoAutoHour: 20, videoLang: "en" })]);
+    const language = await run("set_daily_video", { language: "en" });
+    expect(language).toMatchObject({ status: "ok", checked: ["The video language: English"] });
+    const bad = await run("set_daily_video", { language: "ar" });
+    expect(bad?.problems).toEqual(["The video language: English, not Arabic as you asked."]);
+    expect(bad?.fix).toBe("Call set_daily_video with language=ar.");
+    expect(all(bad)).not.toMatch(/daily video:/i);
+    const hour = await run("set_daily_video", { hour: 20 });
+    expect(hour).toMatchObject({ status: "ok", checked: ["Hour of the daily video: 20"] });
+    // Nothing that can be compared (not a language, no hour): nothing is read.
+    const before = queries();
+    expect(await run("set_daily_video", { language: "fr" })).toBeNull();
+    expect(queries()).toBe(before);
+  });
+
+  it("names the video language in Arabic and Sorani, with no Kurdish-only letter in the Arabic", async () => {
+    db.store.findMany.mockResolvedValue([store({ videoAutoMode: "OFF", videoLang: "en" })]);
+    const arabic = await run("set_daily_video", { mode: "OFF", language: "ckb" }, ctx({ lang: "ar" }));
+    expect(arabic?.problems).toEqual(["لغة الفيديو: الإنجليزية، وليس الكردية السورانية كما طلبت."]);
+    expect(/[کیەێۆڕڵڤپچژگ]/.test(all(arabic))).toBe(false);
+    const sorani = await run("set_daily_video", { mode: "OFF", language: "ckb" }, ctx({ lang: "ckb" }));
+    expect(sorani?.problems).toEqual(["زمانی ڤیدیۆ: ئینگلیزی، نەک کوردی سۆرانی وەک داوات کردبوو."]);
+    expect(/[؀-ۿ]/.test(all(await run("set_daily_video", { mode: "OFF", language: "ar" }, ctx({ lang: "en" }))))).toBe(false);
+  });
+
+  it("reads the video language in the same single query as the rest", async () => {
+    db.store.findMany.mockResolvedValue([store({ videoAutoMode: "OFF" })]);
+    await run("set_daily_video", { mode: "OFF", language: "en" });
+    expect(queries()).toBe(1);
+    expect((db.store.findMany.mock.calls[0][0] as { select: Record<string, boolean> }).select.videoLang).toBe(true);
+  });
+
   it("says nothing for a mode the app does not have", async () => {
     db.store.findMany.mockResolvedValue([store()]);
     expect(await run("set_autopilot", { mode: "constructor" })).toBeNull();

@@ -257,7 +257,8 @@ export function AiMediaPanel({
     start(async () => {
       try {
         const storeId = (productId && config.productStores[productId]) || config.storeId;
-        const r = await createVideoAction(storeId, { tier: config.video!.tier, topic: idea, productId: productId || null, voice: "shilan", publish: false, targets: [], review });
+        // The composer's panel makes a video for a post, with or without a product: always an ad, whatever the page is for (the kind has no control here).
+        const r = await createVideoAction(storeId, { tier: config.video!.tier, topic: idea, productId: productId || null, voice: "shilan", publish: false, targets: [], review, kind: "ad" });
         if (r.ok && r.reviewed) setUsed({ text: r.reviewed.text, summary: r.reviewed.summary, reviewed: true });
         else if (r.ok) setUsed({ text: idea, summary: "", reviewed: false });
         if (r.ok && r.id) {

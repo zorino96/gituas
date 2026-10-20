@@ -14,7 +14,7 @@ import { deepseekConfigured, deepseekModel } from "./deepseek";
 import { kurdggConfigured, kurdggHeaders, partsText } from "./kurdgg";
 import { chooseTier, recordSpend, type Meter } from "./meter";
 import { estimateTokens, modelFor } from "./models";
-import { AiUnavailable, coolStep, mainOrder, stepCooling } from "./provider";
+import { AiUnavailable, coolStep, kurdishOrder, mainOrder, stepCooling } from "./provider";
 
 export type ChatMsg =
   | { role: "system" | "user"; content: string }
@@ -259,9 +259,20 @@ export interface ChatStepOptions {
   maxTokens?: number;
   /** False once customers' words are in the conversation: the free open models of the gateway are then left out. Default true. */
   allowFree?: boolean;
+  /**
+   * The conversation is in Sorani: with AI_KURDISH_CHAT=1 the Sorani order (Gemini first, see kurdishOrder) is used for this step.
+   * Off until the gateway's Gemini has been seen to take tool calls (the probe {altTools:true, model} of /api/cron/ai-models).
+   */
+  kurdish?: boolean;
   /** For tests. */
   order?: string[];
   now?: () => number;
+}
+
+/** The providers for one step: the caller's order (tests), else the Sorani order for a Sorani chat when it is switched on, else AI_ORDER. */
+export function chatOrderFor(opts: Pick<ChatStepOptions, "order" | "kurdish">): string[] {
+  if (opts.order) return opts.order;
+  return opts.kurdish && process.env.AI_KURDISH_CHAT?.trim() === "1" && process.env.AI_KURDISH_ORDER?.trim() !== "off" ? kurdishOrder() : mainOrder();
 }
 
 /**
@@ -271,7 +282,7 @@ export interface ChatStepOptions {
  */
 export async function chatStep(opts: ChatStepOptions): Promise<ChatStepResult> {
   const now = opts.now ?? Date.now;
-  const targets = chatTargets(opts.order, opts.allowFree ?? true);
+  const targets = chatTargets(chatOrderFor(opts), opts.allowFree ?? true);
   if (!targets.length) throw new AiUnavailable("no AI provider is configured");
   if (opts.meter) {
     const allowed = await chooseTier(opts.meter, "haiku", { essential: false }).catch((): "haiku" => "haiku");

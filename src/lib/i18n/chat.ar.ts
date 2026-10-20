@@ -96,6 +96,15 @@ export const chatAr: typeof chatCkb = {
       "شغّل الرد التلقائي",
       "كيف كان متجري هذا الأسبوع؟",
     ],
+    // For someone who earns from content (a creator), not from selling: no orders, no products.
+    creatorExamples: [
+      "اصنع فيديو قصة عن لغز لم يُحل",
+      "كيف كان أداء صفحاتي هذا الأسبوع؟",
+      "أرني التعليقات التي لم أرد عليها",
+      "جدول منشوراً الليلة الساعة 9",
+      "شغّل الفيديو اليومي",
+      "ماذا أنشر هذا الأسبوع؟",
+    ],
   },
 
   quick: {

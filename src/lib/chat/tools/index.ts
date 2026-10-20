@@ -11,7 +11,8 @@ import { RULE_READ_TOOLS } from "./reads-rules";
 import { WRITE_TOOLS } from "./writes";
 import { ACCOUNT_WRITE_TOOLS } from "./writes-accounts";
 import { NEWS_WRITE_TOOLS } from "./writes-news";
+import { GOAL_WRITE_TOOLS } from "./writes-goal";
 import { RESET_WRITE_TOOLS } from "./writes-reset";
 import { RULE_WRITE_TOOLS } from "./writes-rules";
 
-export const ALL_TOOLS: ChatTool[] = [...READ_TOOLS, ...PICTURE_TOOLS, ...COACH_TOOLS, ...RULE_READ_TOOLS, ...HEALTH_READ_TOOLS, ...ACCOUNT_READ_TOOLS, ...WRITE_TOOLS, ...RULE_WRITE_TOOLS, ...ACCOUNT_WRITE_TOOLS, ...RESET_WRITE_TOOLS, ...NEWS_READ_TOOLS, ...NEWS_WRITE_TOOLS];
+export const ALL_TOOLS: ChatTool[] = [...READ_TOOLS, ...PICTURE_TOOLS, ...COACH_TOOLS, ...RULE_READ_TOOLS, ...HEALTH_READ_TOOLS, ...ACCOUNT_READ_TOOLS, ...WRITE_TOOLS, ...RULE_WRITE_TOOLS, ...ACCOUNT_WRITE_TOOLS, ...RESET_WRITE_TOOLS, ...GOAL_WRITE_TOOLS, ...NEWS_READ_TOOLS, ...NEWS_WRITE_TOOLS];

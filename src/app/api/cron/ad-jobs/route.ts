@@ -3,13 +3,18 @@ import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
 
 import { db } from "@/lib/db";
 import { adVideoEnabled } from "@/lib/advideo/enabled";
+import { langAndKindOf } from "@/lib/advideo/lang";
 import { AD_MAX_TRIES, prepareQueued, waitingFilter } from "@/lib/advideo/prepare";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** Renders handed out per call: the worker (adfilm/worker.mjs) renders them one by one. */
+/**
+ * Renders handed out per call: the worker (adfilm/worker.mjs) renders them one by one. A story (it renders for much longer
+ * than an ad) is never handed out together with another video: it takes a call to itself, so it cannot hold an ad's
+ * upload back or push the run past its time limit and the 25 minutes a claim lasts.
+ */
 const PER_CALL = 2;
 /** The upload token for one video lives this long. */
 const UPLOAD_TOKEN_MS = 40 * 60 * 1000;
@@ -35,8 +40,8 @@ function authorized(req: Request): boolean {
 }
 
 /**
- * The AI video render queue: claims up to two videos whose script and voice are ready and answers
- * with their props and a token that can upload exactly one file, that video, to Blob. `?peek=1`
+ * The AI video render queue: claims up to two videos whose script and voice are ready (or one story, alone) and
+ * answers with their props and a token that can upload exactly one file, that video, to Blob. `?peek=1`
  * only says how many are waiting, claiming nothing.
  */
 export async function GET(req: Request) {
@@ -60,6 +65,10 @@ export async function GET(req: Request) {
   const candidates = await db.adVideo.findMany({ where: waitingFilter(), orderBy: { createdAt: "asc" }, take: PER_CALL });
   const jobs = [];
   for (const c of candidates) {
+    // The oldest video comes first. A story that is not the first thing this call hands out waits for the next
+    // call, where it will be the oldest and go out alone.
+    const story = langAndKindOf(c.props).kind === "story";
+    if (story && jobs.length > 0) break;
     // Only the call that flips the row gets the job, so two workers never render one video.
     const claim = await db.adVideo.updateMany({
       where: { id: c.id, status: c.status, updatedAt: c.updatedAt },
@@ -77,6 +86,7 @@ export async function GET(req: Request) {
       allowOverwrite: true,
     });
     jobs.push({ id: c.id, props: c.props, pathname, uploadToken, blobHost: ownBlobHost(c.props) });
+    if (story) break;
   }
   return NextResponse.json({ jobs });
 }

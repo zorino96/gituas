@@ -77,6 +77,12 @@ export const NEW = {
 
 /** What the cards of the older tools add to the app's own wording. */
 export const CARD = {
+  /** Said on the card of a story video: the AI invents the story from the idea, so it must be read before it is posted. */
+  videoStoryNote: words(
+    "AI چیرۆکەکە لە بیرۆکەکەتەوە دادەهێنێت؛ پێش بڵاوکردنەوە بیخوێنەوە.",
+    "يؤلّف الذكاء الاصطناعي القصة من فكرتك؛ اقرأها قبل نشرها.",
+    "The AI invents the story from your idea: read it before it is posted.",
+  ),
   /** The value of a text that the change clears (an empty string): without it the card would show no line and hide the deletion. */
   cleared: words("بەتاڵ (دەسڕدرێتەوە)", "فارغ (سيتم مسحه)", "Empty (cleared)"),
   /** Said on the card of a product removal: the app has no way to bring it back. */

@@ -51,8 +51,10 @@ export function headerTitleAfterRefresh(current: string | null, list: readonly T
  * (BUSINESS_PROFILE_ENABLED, which the server page reads and hands down as `coachOn`): with it off the button would take one of the day's
  * shortcut uses, open a chat titled "Weekly note" and answer "not switched on yet". The same list comes back when nothing is hidden.
  */
-export function visibleQuickIds(ids: readonly string[], opts: { coachOn: boolean }): readonly string[] {
-  return opts.coachOn || !ids.includes("coach") ? ids : ids.filter((id) => id !== "coach");
+export function visibleQuickIds(ids: readonly string[], opts: { coachOn: boolean; creator?: boolean }): readonly string[] {
+  // The Orders shortcut is for people who sell: a creator (someone who earns from content) never sees it.
+  const shown = ids.filter((id) => (opts.coachOn || id !== "coach") && !(opts.creator && id === "orders"));
+  return shown.length === ids.length ? ids : shown;
 }
 
 /**

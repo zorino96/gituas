@@ -17,6 +17,8 @@ import { LangProvider } from "@/lib/i18n/client";
 import { chatEnabled } from "@/lib/chat/enabled";
 import { can } from "@/lib/newsroom/roles";
 import { SUPPORT_WHATSAPP_DISPLAY, supportWhatsAppUrl } from "@/lib/support";
+import { loadOwnerType } from "@/lib/shop/owner-type";
+import { OwnerTypeProvider } from "./owner-type-context";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = dict(await getLang());
@@ -95,11 +97,16 @@ async function Shell({ lang, children }: { lang: Lang; children: React.ReactNode
         }
       : null;
 
+  // A creator (someone who earns from content, not from selling) gets a menu and a chat that do not talk about orders and products.
+  const ownerType = await loadOwnerType(ws.id);
+
   return (
     <div className={`gm ${gmFontVars}`} dir={dirOf(lang)} lang={lang}>
-      <AppFrame kind={ws.kind} workspace={ws.name} workspaceId={ws.id} studio={studioReadyFor(ws.id)} video={adVideoEnabled()} chat={chat}>
-        {children}
-      </AppFrame>
+      <OwnerTypeProvider value={ownerType}>
+        <AppFrame kind={ws.kind} workspace={ws.name} workspaceId={ws.id} studio={studioReadyFor(ws.id)} video={adVideoEnabled()} chat={chat}>
+          {children}
+        </AppFrame>
+      </OwnerTypeProvider>
     </div>
   );
 }

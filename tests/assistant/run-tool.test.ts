@@ -139,6 +139,51 @@ describe("runToolAction", () => {
     expect(saveVideoAutoAction).toHaveBeenLastCalledWith("s2", { mode: "PUBLISH", tier: "LITE", hour: 21 });
   });
 
+  it("passes the video's language and kind on only when the model gave them, and the daily video's language only when it was given", async () => {
+    vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1" });
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea: "a short ad" } });
+    const plain = vi.mocked(createVideoAction).mock.calls[0][1];
+    expect(plain).toEqual({ tier: "LITE", topic: "a short ad", productId: null, voice: "shilan", publish: false, targets: [], review: true });
+    expect("lang" in plain || "kind" in plain).toBe(false);
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea: "a mystery about a letter", language: "en", kind: "story" } });
+    expect(vi.mocked(createVideoAction).mock.calls[1][1]).toMatchObject({ topic: "a mystery about a letter", lang: "en", kind: "story", voice: "shilan" });
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea: "a short ad", language: "ar" } });
+    const arabic = vi.mocked(createVideoAction).mock.calls[2][1];
+    expect(arabic).toMatchObject({ lang: "ar" });
+    expect("kind" in arabic).toBe(false);
+    // A language the schema does not know never reaches the action.
+    expect(await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea: "a short ad", language: "fr" } })).toMatchObject({ ok: false });
+    expect(createVideoAction).toHaveBeenCalledTimes(3);
+
+    vi.mocked(saveVideoAutoAction).mockResolvedValue({ ok: true });
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "set_daily_video", args: { mode: "OFF", language: "en" } });
+    expect(saveVideoAutoAction).toHaveBeenLastCalledWith("s2", { mode: "OFF", tier: "LITE", hour: 21, lang: "en" });
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "set_daily_video", args: { mode: "DRAFT", hour: 20 } });
+    expect(saveVideoAutoAction).toHaveBeenLastCalledWith("s2", { mode: "DRAFT", tier: "LITE", hour: 20 });
+  });
+
+  it("changes only the daily video's language or hour when no mode is given: the action gets no mode, so it stays on or off as it was", async () => {
+    vi.mocked(saveVideoAutoAction).mockResolvedValue({ ok: true });
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "set_daily_video", args: { language: "en" } });
+    const onlyLanguage = vi.mocked(saveVideoAutoAction).mock.calls.at(-1)![1];
+    expect(onlyLanguage).toEqual({ tier: "LITE", hour: 21, lang: "en" });
+    expect("mode" in onlyLanguage).toBe(false);
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "set_daily_video", args: { hour: 8 } });
+    expect(vi.mocked(saveVideoAutoAction).mock.calls.at(-1)![1]).toEqual({ tier: "LITE", hour: 8 });
+    // Nothing to change at all is no proposal.
+    const calls = vi.mocked(saveVideoAutoAction).mock.calls.length;
+    expect(await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "set_daily_video", args: {} })).toMatchObject({ ok: false });
+    expect(saveVideoAutoAction).toHaveBeenCalledTimes(calls);
+  });
+
+  it("hands a named product to the video action with no kind: the action makes it an ad, whatever the page is for", async () => {
+    vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1" });
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea: "a short ad", product: "silver ring" } });
+    const sent = vi.mocked(createVideoAction).mock.calls.at(-1)![1];
+    expect(sent).toMatchObject({ productId: "p2", topic: "a short ad" });
+    expect("kind" in sent).toBe(false);
+  });
+
   it("makes a picture with the reviewed idea and the attached references, and a video through the video action", async () => {
     vi.mocked(generateAiImageAction).mockResolvedValue({ ok: true, media: { url: OWN, pathname: att.pathname, type: "IMAGE" }, prompt: "p", reviewed: true, summary: "" });
     const r = await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_picture", args: { idea: "ring on marble", references: ["a1"], shape: "portrait" }, attachments: [att] });

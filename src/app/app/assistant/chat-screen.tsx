@@ -29,6 +29,7 @@ import { Composer, MAX_CHARS } from "./chat-composer";
 import { visibleQuickIds, workspaceMismatch } from "./chat-frame-model";
 import { ConnectCard } from "./chat-connect";
 import { MessageView } from "./chat-messages";
+import { useOwnerType } from "../owner-type-context";
 import { ReloadNote, useChatShell } from "./chat-shell";
 import { isUploadable, useChatUploads, type PutFile } from "./use-chat-uploads";
 
@@ -110,7 +111,9 @@ export function ChatScreen({
   const shell = useChatShell();
   const { setTitle, upsertThread, touch, refreshLater } = shell;
   const threadUrl = urlFor === undefined ? shell.hrefs.thread : urlFor;
-  const quickIds = visibleQuickIds(ownQuickIds ?? quickIdsOf(shell.kind), { coachOn });
+  // Someone who earns from content (a creator) is not given the shortcuts and examples of a seller.
+  const creator = useOwnerType() === "creator" && shell.kind === "shop";
+  const quickIds = visibleQuickIds(ownQuickIds ?? quickIdsOf(shell.kind), { coachOn, creator });
   const showReview = ownShowReview ?? shell.kind === "shop";
   const [state, dispatch] = useReducer(chatReducer, undefined, () => initialChatState({ threadId: thread?.id ?? null, title: thread?.title ?? "", messages: initialMessages, remaining }));
   const [input, setInput] = useState("");
@@ -518,7 +521,7 @@ export function ChatScreen({
               <h2 className="ch-hello kufi">{t.empty.hello}</h2>
               <p className="ch-sub">{t.empty.sub}</p>
               <div className="ch-examples">
-                {t.empty.examples.map((q) => (
+                {(creator ? t.empty.creatorExamples : t.empty.examples).map((q) => (
                   <button key={q} type="button" className="ch-example" disabled={state.streaming || blocked || !!textBlocked} onClick={() => void send({ text: q })}>
                     {q}
                   </button>

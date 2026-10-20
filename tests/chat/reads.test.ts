@@ -827,6 +827,27 @@ describe("settings and plan", () => {
     expect(stats).toBeDefined();
   });
 
+  it("tells the model the shop's video language by a readable name and its code, Sorani when none is saved, and shows it on the screen", async () => {
+    db.store.findMany.mockResolvedValue([store]);
+    const plain = await call("get_settings", { area: "video" });
+    const daily = (plain.data as { shops: { dailyVideo: Record<string, unknown> }[] }).shops[0].dailyVideo;
+    expect(daily).toMatchObject({ mode: "OFF", afterHourBaghdad: 18, videoLanguage: "Sorani Kurdish (ckb)" });
+    db.store.findMany.mockResolvedValue([{ ...store, videoLang: "en" }]);
+    const english = await call("get_settings", { area: "video" });
+    expect((english.data as { shops: { dailyVideo: Record<string, unknown> }[] }).shops[0].dailyVideo.videoLanguage).toBe("English (en)");
+    db.store.findMany.mockResolvedValue([{ ...store, videoLang: "klingon" }]);
+    expect(((await call("get_settings", { area: "video" })).data as { shops: { dailyVideo: Record<string, unknown> }[] }).shops[0].dailyVideo.videoLanguage).toBe("Sorani Kurdish (ckb)");
+    // The query asks for the column, and the card shows the language by its name.
+    expect(db.store.findMany.mock.calls[0][0].select.videoLang).toBe(true);
+    db.store.findMany.mockResolvedValue([{ ...store, videoLang: "ar" }]);
+    const view = (await call("get_settings", { area: "video" })).view;
+    const items = (view?.[0] as { items: { label: string; value: string }[] }).items;
+    expect(items).toContainEqual({ label: "Video language", value: "Arabic" });
+    // The other areas do not carry it.
+    const shop = (await call("get_settings", { area: "autopilot" })).data as { shops: Record<string, unknown>[] };
+    expect(shop.shops[0].dailyVideo).toBeUndefined();
+  });
+
   it("limits the answer to the area asked for", async () => {
     db.store.findMany.mockResolvedValue([store]);
     const r = await call("get_settings", { area: "autopilot" });

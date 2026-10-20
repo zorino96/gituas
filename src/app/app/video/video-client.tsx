@@ -5,11 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 
+import { defaultVoice, type VideoKind, type VideoLang } from "@/lib/advideo/lang";
 import { useLang, useT } from "@/lib/i18n/client";
+import { LANGS } from "@/lib/i18n/lang";
 import { cityLabel } from "@/lib/orders/cities";
 import { PAWAN_VOICES, VOICE_NAMES } from "@/lib/voice/voices";
 import { SaveMessage, SwitchRow, useSaver } from "../automation/shared";
 import { createVideoAction, publishVideoAction, refreshPlanAction, removeRefAction, saveMarketNotesAction, saveVideoAutoAction, type VideoResult } from "./actions";
+import type { AutoHold } from "./hold";
 
 type Tier = "LITE" | "PRO";
 
@@ -17,6 +20,9 @@ export interface VideoJobView {
   id: string;
   tier: Tier;
   status: string;
+  /** The language and kind the video was made in (missing: a Sorani ad, as every video made before they existed). */
+  lang?: VideoLang;
+  kind?: VideoKind;
   source: string;
   topic: string | null;
   productName: string | null;
@@ -60,7 +66,13 @@ interface Props {
   canIg: boolean;
   products: { id: string; name: string; hasPhoto: boolean }[];
   allowances: Record<Tier, { limit: number; used: number; left: number }>;
-  auto: { mode: string; tier: Tier; hour: number };
+  /** `lang` is the store's video language (missing: Sorani). */
+  auto: { mode: string; tier: Tier; hour: number; lang?: VideoLang };
+  /** Why the daily video has made nothing today, when it is late (missing or null: nothing holds it). */
+  autoHold?: AutoHold | null;
+  /** What the form opens on: the store's video language, and a story for a page that grows or earns from its content (missing: a Sorani ad). */
+  defaultLang?: VideoLang;
+  defaultKind?: VideoKind;
   jobs: VideoJobView[];
   configure: boolean;
   workspaceId: string;
@@ -77,7 +89,25 @@ interface Props {
 /** Statuses in which something is still going on: the page refreshes itself. */
 const BUSY = ["QUEUED", "READY", "RENDERING", "POSTING"];
 
-export function VideoClient({ storeId, stores, canFb, canIg, products, allowances, auto, jobs, configure, workspaceId, today, aiPercent, refs, refLimits, plan, notes }: Props) {
+/** The language control of a video, each language named in itself (also used by the daily video card). */
+function LangControl({ value, onChange, label, disabled }: { value: VideoLang; onChange: (l: VideoLang) => void; label: string; disabled?: boolean }) {
+  return (
+    <div className="gm-seg" role="group" aria-label={label}>
+      {LANGS.map((l) => (
+        <button key={l.lang} type="button" aria-pressed={value === l.lang} disabled={disabled} onClick={() => onChange(l.lang)}>
+          {l.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** A story is told from the owner's idea: this is the least it needs (the action checks the same). */
+const STORY_MIN = 10;
+const AD_TOPIC_MAX = 300;
+const STORY_TOPIC_MAX = 1200;
+
+export function VideoClient({ storeId, stores, canFb, canIg, products, allowances, auto, autoHold, defaultLang = "ckb", defaultKind = "ad", jobs, configure, workspaceId, today, aiPercent, refs, refLimits, plan, notes }: Props) {
   const router = useRouter();
   const t = useT();
   const v = t.video;
@@ -92,7 +122,9 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
   const [topic, setTopic] = useState("");
   // Gituas reviews the idea against the brand first (the same switch as in the composer).
   const [review, setReview] = useState(true);
-  const [voice, setVoice] = useState("shilan");
+  const [videoLang, setVideoLang] = useState<VideoLang>(defaultLang);
+  const [kind, setKind] = useState<VideoKind>(defaultKind);
+  const [voice, setVoice] = useState(defaultVoice(defaultLang, defaultKind));
   const [publish, setPublish] = useState(false);
   const [fb, setFb] = useState(canFb);
   const [ig, setIg] = useState(canIg);
@@ -109,11 +141,26 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
 
   const left = allowances[tier];
   const targets = [...(fb && canFb ? ["FB"] : []), ...(ig && canIg ? ["IG"] : [])];
+  const story = kind === "story";
+  const storyTooShort = story && Array.from(topic.trim()).length < STORY_MIN;
+
+  // The voices differ by language (Kurdish voices for Sorani, a male or a female voice for the others), so a new language starts on its default.
+  function changeLang(next: VideoLang) {
+    setVideoLang(next);
+    setVoice(defaultVoice(next, kind));
+  }
+
+  // A voice nobody changed follows the kind (a story is told by another default voice than an ad is read by); a chosen one stays.
+  function changeKind(next: VideoKind) {
+    if (voice === defaultVoice(videoLang, kind)) setVoice(defaultVoice(videoLang, next));
+    setKind(next);
+  }
 
   function create() {
     setNote(null);
     start(async () => {
-      const r = await createVideoAction(storeId, { tier, topic, productId: productId || null, voice, publish, targets, review });
+      // A story has no product and is not reviewed against the products; the language and kind are always the ones the form shows.
+      const r = await createVideoAction(storeId, { tier, topic, productId: story ? null : productId || null, voice, publish, targets, review: story ? false : review, lang: videoLang, kind });
       if (r.ok) {
         setNote({ ok: true, text: r.reviewed ? `${v.created} ${ai.reviewedNote(r.reviewed.summary)}` : v.created });
         setTopic("");
@@ -182,39 +229,78 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
         </div>
 
         <div className="gm-field">
-          <label htmlFor={`${uid}-product`}>{v.productLabel}</label>
-          <select id={`${uid}-product`} className="gm-input" value={productId} onChange={(e) => setProductId(e.target.value)}>
-            <option value="">{v.aiChooses}</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-                {p.hasPhoto ? "" : ` (${v.noPhoto})`}
-              </option>
-            ))}
-          </select>
+          <label>{v.kindLabel}</label>
+          <div className="gm-seg" role="group" aria-label={v.kindLabel}>
+            <button type="button" aria-pressed={!story} onClick={() => changeKind("ad")}>
+              {v.kindAd}
+            </button>
+            <button type="button" aria-pressed={story} onClick={() => changeKind("story")}>
+              {v.kindStory}
+            </button>
+          </div>
+          <p className="gm-hint">{story ? v.kindStoryHint : v.kindAdHint}</p>
         </div>
 
         <div className="gm-field">
-          <label htmlFor={`${uid}-topic`}>{v.topicLabel}</label>
-          <textarea id={`${uid}-topic`} className="gm-textarea" style={{ minHeight: 84 }} value={topic} maxLength={300} placeholder={v.topicPlaceholder} onChange={(e) => setTopic(e.target.value)} />
-        <label className="gm-row" style={{ alignItems: "flex-start", gap: 8, cursor: "pointer" }}>
-          <input type="checkbox" checked={review} disabled={pending} onChange={(e) => setReview(e.target.checked)} style={{ marginTop: 4 }} />
-          <span>
-            <b>{ai.reviewLabel}</b>
-            <br />
-            <span className="gm-hint">{ai.reviewHelp}</span>
-          </span>
-        </label>
+          <label>{v.langLabel}</label>
+          <LangControl value={videoLang} onChange={changeLang} label={v.langLabel} />
+          <p className="gm-hint">{v.langHint}</p>
+        </div>
+
+        {!story && (
+          <div className="gm-field">
+            <label htmlFor={`${uid}-product`}>{v.productLabel}</label>
+            <select id={`${uid}-product`} className="gm-input" value={productId} onChange={(e) => setProductId(e.target.value)}>
+              <option value="">{v.aiChooses}</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                  {p.hasPhoto ? "" : ` (${v.noPhoto})`}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="gm-field">
+          <label htmlFor={`${uid}-topic`}>{story ? v.storyTopicLabel : v.topicLabel}</label>
+          <textarea
+            id={`${uid}-topic`}
+            className="gm-textarea"
+            dir="auto"
+            style={{ minHeight: story ? 180 : 84 }}
+            value={topic}
+            maxLength={story ? STORY_TOPIC_MAX : AD_TOPIC_MAX}
+            placeholder={story ? v.storyTopicPlaceholder : v.topicPlaceholder}
+            onChange={(e) => setTopic(e.target.value)}
+          />
+          {!story && (
+            <label className="gm-row" style={{ alignItems: "flex-start", gap: 8, cursor: "pointer" }}>
+              <input type="checkbox" checked={review} disabled={pending} onChange={(e) => setReview(e.target.checked)} style={{ marginTop: 4 }} />
+              <span>
+                <b>{ai.reviewLabel}</b>
+                <br />
+                <span className="gm-hint">{ai.reviewHelp}</span>
+              </span>
+            </label>
+          )}
         </div>
 
         <div className="gm-field">
           <label htmlFor={`${uid}-voice`}>{v.voiceLabel}</label>
           <select id={`${uid}-voice`} className="gm-input" value={voice} onChange={(e) => setVoice(e.target.value)}>
-            {PAWAN_VOICES.map((name) => (
-              <option key={name} value={name}>
-                {lang === "en" ? VOICE_NAMES[name].en : VOICE_NAMES[name].ku}
-              </option>
-            ))}
+            {videoLang === "ckb" ? (
+              PAWAN_VOICES.map((name) => (
+                <option key={name} value={name}>
+                  {lang === "en" ? VOICE_NAMES[name].en : VOICE_NAMES[name].ku}
+                </option>
+              ))
+            ) : (
+              <>
+                <option value="male">{v.voiceMale}</option>
+                <option value="female">{v.voiceFemale}</option>
+              </>
+            )}
           </select>
         </div>
 
@@ -239,7 +325,7 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
         )}
 
         <div>
-          <button type="button" className="gm-btn" disabled={pending || left.left < 1 || today.used >= today.max || (publish && !targets.length)} onClick={create}>
+          <button type="button" className="gm-btn" disabled={pending || left.left < 1 || today.used >= today.max || (publish && !targets.length) || storyTooShort} onClick={create}>
             {v.create}
           </button>
           {note && <p className={note.ok ? "gm-ok" : "gm-err"}>{note.text}</p>}
@@ -248,7 +334,7 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
 
       <RefsCard storeId={storeId} workspaceId={workspaceId} refs={refs} limits={refLimits} />
 
-      {configure && <AutoCard storeId={storeId} auto={auto} allowances={allowances} canPublish={canFb || canIg} />}
+      {configure && <AutoCard storeId={storeId} auto={auto} hold={autoHold ?? null} allowances={allowances} canPublish={canFb || canIg} />}
 
       <p className="gm-sec">{v.listSec}</p>
       {jobs.length === 0 ? (
@@ -490,13 +576,14 @@ function RefsCard({ storeId, workspaceId, refs, limits }: { storeId: string; wor
   );
 }
 
-function AutoCard({ storeId, auto, allowances, canPublish }: { storeId: string; auto: Props["auto"]; allowances: Props["allowances"]; canPublish: boolean }) {
+function AutoCard({ storeId, auto, hold, allowances, canPublish }: { storeId: string; auto: Props["auto"]; hold: AutoHold | null; allowances: Props["allowances"]; canPublish: boolean }) {
   const v = useT().video;
   const { pending, message, run } = useSaver();
   const [mode, setMode] = useState(auto.mode);
   // The tier follows the plan: a plan with Opus videos has no Haiku ones, and the others the other way round.
   const [tier, setTier] = useState<Tier>(allowances[auto.tier].limit > 0 ? auto.tier : allowances.PRO.limit > 0 ? "PRO" : "LITE");
   const [hour, setHour] = useState(auto.hour);
+  const [videoLang, setVideoLang] = useState<VideoLang>(auto.lang ?? "ckb");
   return (
     <>
       <p className="gm-sec">{v.autoSec}</p>
@@ -504,6 +591,11 @@ function AutoCard({ storeId, auto, allowances, canPublish }: { storeId: string; 
         <p className="gm-hint" style={{ marginTop: 0 }}>
           {v.autoSub}
         </p>
+        {hold && (
+          <p className="gm-note warn" role="status">
+            {v.autoHold[hold]}
+          </p>
+        )}
         <div className="gm-seg" role="group" aria-label={v.autoSec}>
           <button type="button" aria-pressed={mode === "OFF"} onClick={() => setMode("OFF")}>
             {v.autoOff}
@@ -516,6 +608,11 @@ function AutoCard({ storeId, auto, allowances, canPublish }: { storeId: string; 
               {v.autoPublish}
             </button>
           )}
+        </div>
+        <div className="gm-field">
+          <label>{v.langLabel}</label>
+          <LangControl value={videoLang} onChange={setVideoLang} label={v.langLabel} disabled={pending} />
+          <p className="gm-hint">{v.autoLangHint}</p>
         </div>
         {mode !== "OFF" && (
           <div className="gm-row" style={{ flexWrap: "wrap" }}>
@@ -540,7 +637,7 @@ function AutoCard({ storeId, auto, allowances, canPublish }: { storeId: string; 
           </div>
         )}
         <div>
-          <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => saveVideoAutoAction(storeId, { mode, tier, hour }))}>
+          <button type="button" className="gm-btn" disabled={pending} onClick={() => run(() => saveVideoAutoAction(storeId, { mode, tier, hour, lang: videoLang }))}>
             {v.autoSave}
           </button>
           <SaveMessage message={message} />
@@ -549,6 +646,12 @@ function AutoCard({ storeId, auto, allowances, canPublish }: { storeId: string; 
     </>
   );
 }
+
+/** A story's idea can run to 1200 characters (an ad's to 300): the card shows the beginning of a long one. */
+const shortTopic = (text: string): string => {
+  const chars = Array.from(text);
+  return chars.length > AD_TOPIC_MAX ? `${chars.slice(0, AD_TOPIC_MAX).join("")}…` : text;
+};
 
 function JobCard({ job, canFb, canIg }: { job: VideoJobView; canFb: boolean; canIg: boolean }) {
   const router = useRouter();
@@ -577,12 +680,14 @@ function JobCard({ job, canFb, canIg }: { job: VideoJobView; canFb: boolean; can
           <div className="gm-chips">
             <span className={`gm-badge ${tone}`}>{label}</span>
             <span className="gm-badge ghost">{job.tier === "PRO" ? v.pro : v.lite}</span>
+            <span className="gm-badge ghost">{job.kind === "story" ? v.kindStory : v.kindAd}</span>
+            <span className="gm-badge ghost">{LANGS.find((l) => l.lang === (job.lang ?? "ckb"))?.label}</span>
             {job.source === "AUTO" && <span className="gm-badge ghost">{v.auto}</span>}
           </div>
           <p className="gm-hint" style={{ marginTop: 8 }}>
             {job.createdAt.slice(0, 10)}
             {job.productName ? ` · ${job.productName}` : ""}
-            {job.topic ? ` · ${job.topic}` : ""}
+            {job.topic ? ` · ${shortTopic(job.topic)}` : ""}
           </p>
           {job.objective && (
             <p className="gm-hint" style={{ marginTop: 4 }}>
