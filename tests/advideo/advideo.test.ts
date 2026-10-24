@@ -298,6 +298,16 @@ describe("buildRenderProps: the language and the kind", () => {
     expect(ad.brand.phone).toBe("0750 123 4567");
     expect(ad.product).not.toBeNull();
   });
+
+  it("puts the page's mark on a story only when the owner's request asks for it", () => {
+    const story = { ...base, kind: "story" as const };
+    expect(buildRenderProps(brief, { ...story, topic: "چیرۆکی زۆدیاک" }, voiced)).not.toHaveProperty("mark");
+    expect(buildRenderProps(brief, { ...story, topic: null }, voiced)).not.toHaveProperty("mark");
+    for (const topic of ["چیرۆکی زۆدیاک، لۆگۆی پەیجەکەشی تێدابێت", "قصة مع الشعار", "a story with our logo"]) {
+      expect(buildRenderProps(brief, { ...story, topic }, voiced), topic).toMatchObject({ mark: true });
+    }
+    expect(buildRenderProps(brief, { ...base, topic: "logo" }, voiced)).not.toHaveProperty("mark");
+  });
 });
 
 describe("the price and delivery lines of the brief follow the language", () => {

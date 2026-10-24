@@ -216,6 +216,13 @@ export interface RenderProps {
   format?: "wide";
   /** A story's photo credits as the few short lines the closing scene draws (credits.ts: creditScreen); absent when there are none. */
   credits?: string[];
+  /** A story draws the page's mark (its logo, else a letter tile) only when the owner's request asked for it; absent = none. */
+  mark?: true;
+}
+
+/** Whether the owner's own words ask for the page's logo / brand mark on the video (Sorani, Arabic, English). */
+export function asksForMark(topic: string | null | undefined): boolean {
+  return /لۆگ[ۆو]|لوگو|شعار|\blogo\b|watermark/iu.test(topic ?? "");
 }
 
 const MUSIC: Record<AdSpec["style"], RenderProps["music"]> = {
@@ -229,7 +236,7 @@ const MUSIC: Record<AdSpec["style"], RenderProps["music"]> = {
  * The language and the kind are written only when they are not Sorani and not an ad. A story shows no product,
  * no plan and no phone number, and is set to the slow ambient music.
  */
-export function buildRenderProps(brief: AdBrief, spec: Pick<AdSpec, "style" | "look" | "plan"> & { lang?: VideoLang; kind?: VideoKind; format?: "vertical" | "wide" }, voiced: VoicedScene[]): RenderProps {
+export function buildRenderProps(brief: AdBrief, spec: Pick<AdSpec, "style" | "look" | "plan"> & { lang?: VideoLang; kind?: VideoKind; format?: "vertical" | "wide"; topic?: string | null }, voiced: VoicedScene[]): RenderProps {
   const style = spec.style;
   const lang = videoLangOf(spec.lang);
   const kind = videoKindOf(spec.kind);
@@ -260,6 +267,7 @@ export function buildRenderProps(brief: AdBrief, spec: Pick<AdSpec, "style" | "l
     music: story ? MUSIC.elegant : MUSIC[style],
     ...langFields(lang, kind),
     ...(wide ? { format: "wide" as const } : {}),
+    ...(story && asksForMark(spec.topic) ? { mark: true as const } : {}),
   };
 }
 
@@ -624,7 +632,7 @@ export async function prepareAdVideo(jobId: string, deadline: number = Date.now(
     const shots = [...cached, ...(await searched)].sort((a, b) => a.scene - b.scene);
     // (the cache writes of the photographs are over before the job is made READY, so none can land after it)
     await valueWithin(cacheSaves, PHOTO_SETTLE_MS, undefined);
-    let props = buildRenderProps(brief, { ...written.spec, lang, kind, format: wide ? "wide" : undefined }, voiced);
+    let props = buildRenderProps(brief, { ...written.spec, lang, kind, format: wide ? "wide" : undefined, topic: found.topic }, voiced);
     let credits: PhotoCredit[] = [];
     const placedUrls = new Set<string>();
     if (mode !== "classic") {

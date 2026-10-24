@@ -43,6 +43,7 @@ interface JobOptions {
   format?: "wide";
   /** The photo credit lines of the closing scene. */
   credits?: string[];
+  mark?: true;
   scenes: Scene[];
 }
 interface Drawn {
@@ -129,6 +130,7 @@ function writeJob(name: string, o: JobOptions): string {
     ...(o.kind ? { kind: o.kind } : {}),
     ...(o.format ? { format: o.format } : {}),
     ...(o.credits ? { credits: o.credits } : {}),
+    ...(o.mark ? { mark: true } : {}),
   };
   const file = path.join(dir, "job.json");
   fs.writeFileSync(file, JSON.stringify(job), "utf8");
@@ -234,6 +236,7 @@ describe.skipIf(!PYTHON)("adfilm/render.py, run on job files", () => {
     // an English channel whose page is named in Arabic letters
     enArabicName: { lang: "en", kind: "story", layout: "start", brand: { name: "فایلی نهێنی", handle: "@thefile" }, scenes: story(EN) },
     enLatinName: { lang: "en", kind: "story", layout: "start", brand: { name: "فایلی نهێنی", handle: "@thefile", latin: "The File" }, scenes: story(EN) },
+    enLatinMark: { lang: "en", kind: "story", mark: true, layout: "start", brand: { name: "فایلی نهێنی", handle: "@thefile", latin: "The File" }, scenes: story(EN) },
     // the same Sorani ad: no language in the job (what every old job is), the language named, and in Arabic
     adNoLang: { brand: AD_BRAND, scenes: AD },
     adCkb: { lang: "ckb", brand: AD_BRAND, scenes: AD },
@@ -481,8 +484,9 @@ describe.skipIf(!PYTHON)("adfilm/render.py, run on job files", () => {
 
     it("draws the Latin form when the job carries one (brand.latin)", () => {
       expect(r.enLatinName.scenes.at(-1)!.headlines.at(-1)![0]).toBe("The File");
-      // (a story draws no letter tile made from the page's name: only the owner's own logo)
+      // (a story draws the page's mark only when the owner asked for it: mark is set from his request)
       expect(r.enLatinName.scenes[0].texts).not.toContain("T");
+      expect(r.enLatinMark.scenes[0].texts).toContain("T");
       for (const s of r.enLatinName.scenes) expect(s.texts.filter((t) => ARABIC.test(t)), `scene ${s.i}`).toEqual([]);
     });
   });

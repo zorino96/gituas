@@ -635,12 +635,12 @@ def logo_image():
 
 def mark(c, cx, cy, size, a=1.0):
     """The brand's logo, or a monogram tile in its colours when it has none."""
+    if STORY and JOB.get('mark') is not True:
+        return    # a story draws the page's mark only when the owner's request asked for it (the owner's rule, 2026-10-24)
     img = logo_image()
     if img is not None:
         mv.contain(c, img, cx - size / 2, cy - size / 2, cx + size / 2, cy + size / 2, a)
         return
-    if STORY:
-        return    # a story draws only the owner's own logo: no letter tile made up from the page's name (the owner's ask, 2026-10-24)
     name = NAME or '?'
     letter = next((ch for ch in name if ch.isalnum()), '?').upper()
     h = size * 0.45
