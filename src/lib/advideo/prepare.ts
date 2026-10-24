@@ -225,6 +225,11 @@ export function asksForMark(topic: string | null | undefined): boolean {
   return /لۆگ[ۆو]|لوگو|شعار|\blogo\b|watermark/iu.test(topic ?? "");
 }
 
+/** Whether the owner's own words ask for his uploaded reference pictures / clips in a story (Sorani, Arabic, English). */
+export function asksForRefs(topic: string | null | undefined): boolean {
+  return /[ڕر][یي]?فر[ێيی]?ن[سص]|مرجع|\breferences?\b|\bmy (own )?(clips?|videos?|photos?|pictures?)\b|ڤیدیۆکەم|ڤیدیۆکانم|وێنەکەم|وێنەکانم|کلیپەکەم|کلیپەکانم/iu.test(topic ?? "");
+}
+
 const MUSIC: Record<AdSpec["style"], RenderProps["music"]> = {
   elegant: { style: "ambient", bpm: 84, key: "D", mode: "minor" },
   clean: { style: "lofi", bpm: 92, key: "C", mode: "major" },
@@ -495,13 +500,15 @@ export async function prepareAdVideo(jobId: string, deadline: number = Date.now(
     let productId = story ? null : found.productId ?? plan?.productId ?? null;
     // The language and kind change what the brief holds (price words, no shop facts in a story); a Sorani ad asks as it always did.
     const briefOpts = lang === "ckb" && kind === "ad" ? [] : [{ lang, kind }];
-    let brief = await loadAdBrief(found.storeId, productId, refs, ...briefOpts);
+    // A story uses the owner's reference pictures and clips only when his request asks for them (the owner's rule, 2026-10-24).
+    const usedRefs = story && !asksForRefs(found.topic) ? [] : refs;
+    let brief = await loadAdBrief(found.storeId, productId, usedRefs, ...briefOpts);
     if (!brief) throw new Error("store not found");
     // A product the plan picked this morning may have sold out or lost its photo since: the video is then about the shop.
     if (!story && !found.productId && productId && (!brief.product || !brief.product.inStock || brief.product.photos.length === 0)) {
       productId = null;
       plan = null;
-      brief = await loadAdBrief(found.storeId, null, refs, ...briefOpts);
+      brief = await loadAdBrief(found.storeId, null, usedRefs, ...briefOpts);
       if (!brief) throw new Error("store not found");
     }
     // What the page is about, for a story to follow (its profile, when the owner filled one in). A literal story is told from the
@@ -522,7 +529,7 @@ export async function prepareAdVideo(jobId: string, deadline: number = Date.now(
     const avoidLooks = recentSpecs.map((r) => r?.look).filter((l): l is AdLook => !!l);
     // (a literal story is not steered by the wording of the page's earlier videos either)
     const recentHooks = literal ? [] : recentSpecs.map((r) => r?.scenes?.find((x) => x.type === "hook")?.text).filter((t): t is string => !!t);
-    const images = await refImagesForModel(refs);
+    const images = await refImagesForModel(usedRefs);
     // A script an earlier attempt wrote and then lost to a failing voice is kept: the director (Opus on the Opus
     // tier) is paid for once, not once per attempt. A documented or invented story's saved script is kept only when it carries the
     // subject the code set (a job queued before subjects existed would otherwise go out as a documented story without one).

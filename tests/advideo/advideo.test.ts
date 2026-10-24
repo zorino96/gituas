@@ -13,7 +13,14 @@ vi.mock("@/lib/advideo/prepare", async (orig) => ({ ...(await orig<typeof import
 import { allowance, VIDEO_LIMITS } from "@/lib/advideo/limits";
 import { baghdadHour, isVideoDue } from "@/lib/advideo/auto";
 import { displayPhone, priceLineOf, usablePhotos, type AdBrief } from "@/lib/advideo/brief";
-import { buildRenderProps } from "@/lib/advideo/prepare";
+import { buildRenderProps, asksForRefs } from "@/lib/advideo/prepare";
+
+describe("asksForRefs", () => {
+  it("is true only when the owner's words ask for his reference pictures or clips", () => {
+    for (const t of ["چیرۆکی زۆدیاک", "دۆکیومێنتاری جیهان پاش نەمانی نەوت", "", null]) expect(asksForRefs(t), String(t)).toBe(false);
+    for (const t of ["ڤیدیۆی ڕیفرێنسەکەم تێدا دابنێ", "ڤیدیۆکەم بەکاربهێنە", "استخدم المرجع", "use my clips", "with the reference video"]) expect(asksForRefs(t), t).toBe(true);
+  });
+});
 import { lookFromSeed, normalizeSpec } from "@/lib/advideo/spec";
 import { voiceScenes } from "@/lib/advideo/voice";
 import { completeJson } from "@/lib/ai/provider";
