@@ -639,6 +639,8 @@ def mark(c, cx, cy, size, a=1.0):
     if img is not None:
         mv.contain(c, img, cx - size / 2, cy - size / 2, cx + size / 2, cy + size / 2, a)
         return
+    if STORY:
+        return    # a story draws only the owner's own logo: no letter tile made up from the page's name (the owner's ask, 2026-10-24)
     name = NAME or '?'
     letter = next((ch for ch in name if ch.isalnum()), '?').upper()
     h = size * 0.45

@@ -481,7 +481,8 @@ describe.skipIf(!PYTHON)("adfilm/render.py, run on job files", () => {
 
     it("draws the Latin form when the job carries one (brand.latin)", () => {
       expect(r.enLatinName.scenes.at(-1)!.headlines.at(-1)![0]).toBe("The File");
-      expect(r.enLatinName.scenes[0].texts).toContain("T");
+      // (a story draws no letter tile made from the page's name: only the owner's own logo)
+      expect(r.enLatinName.scenes[0].texts).not.toContain("T");
       for (const s of r.enLatinName.scenes) expect(s.texts.filter((t) => ARABIC.test(t)), `scene ${s.i}`).toEqual([]);
     });
   });
