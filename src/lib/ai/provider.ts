@@ -59,7 +59,7 @@ export interface JsonCall {
    * of the gateway), then the gateway's Claude, then Haiku, then the other alternative models. The steps that cannot take a call
    * with pictures are skipped, so that one goes to the main provider first.
    */
-  prefer?: "video" | "kurdish";
+  prefer?: "video" | "kurdish" | "kurdish-video";
 }
 
 /**
@@ -92,10 +92,20 @@ export const videoOrder = (): string[] => parseOrder(process.env.AI_VIDEO_ORDER,
  */
 export const DEFAULT_KURDISH_ORDER = "alt:ag/gemini-3.8-flash,alt:cc/claude-haiku-5-5,main,deepseek,alt";
 export const kurdishOrder = (): string[] => parseOrder(process.env.AI_KURDISH_ORDER, DEFAULT_KURDISH_ORDER);
+/**
+ * The order for a Sorani VIDEO SCRIPT (prefer "kurdish-video", the owner's choice, 2026-10-24): Gemini writes the better Sorani, but on
+ * a slow day it took 85 s for a script while the writer has 40; GPT-6 Luna answered the same prompt in 12 s. So Gemini gets the time
+ * less what Luna needs (NEXT_ALT_RESERVE_MS), and Luna writes when Gemini runs out. The gateway's Haiku is left out: it returned
+ * empty scripts (all 3600 tokens used, no text). AI_KURDISH_VIDEO_ORDER changes it.
+ */
+export const DEFAULT_KURDISH_VIDEO_ORDER = "alt:ag/gemini-3.8-flash,alt:cx/gpt-6-luna,main,deepseek,alt";
+export const kurdishVideoOrder = (): string[] => parseOrder(process.env.AI_KURDISH_VIDEO_ORDER, DEFAULT_KURDISH_VIDEO_ORDER);
+/** In the Sorani video order: the time a step leaves for the alternative model after it (Luna's script took 12 to 14 s). */
+const NEXT_ALT_RESERVE_MS = 15_000;
 
 /** Whether a call writes Sorani: the caller said so (prefer "kurdish"), or its prompt asks for Sorani / Central Kurdish text. */
 export function writesSorani(call: Pick<JsonCall, "prefer" | "system">): boolean {
-  if (call.prefer) return call.prefer === "kurdish";
+  if (call.prefer) return call.prefer === "kurdish" || call.prefer === "kurdish-video";
   return /sorani|central kurdish/i.test(call.system);
 }
 export const mainOrder = (): string[] => parseOrder(process.env.AI_ORDER, DEFAULT_MAIN_ORDER);
@@ -277,14 +287,19 @@ export async function completeJson<T = unknown>(
 
   let deepseekDone = false;
   // AI_KURDISH_ORDER=off switches the Sorani order off (every call then follows AI_ORDER).
-  const steps = call.prefer === "video" ? videoOrder() : writesSorani(call) && process.env.AI_KURDISH_ORDER?.trim() !== "off" ? kurdishOrder() : mainOrder();
+  const kurdishVideo = call.prefer === "kurdish-video";
+  const steps = call.prefer === "video" ? videoOrder() : kurdishVideo ? kurdishVideoOrder() : writesSorani(call) && process.env.AI_KURDISH_ORDER?.trim() !== "off" ? kurdishOrder() : mainOrder();
   // A call that wants Opus goes to the main provider first: the steps before it (outside the video order) are Haiku.
-  if (steps.length && !(tier === "opus" && call.prefer !== "video")) {
+  if (steps.length && !(tier === "opus" && call.prefer !== "video" && !kurdishVideo)) {
     // The owner's order: every step before "main" gets one try, with time kept back for the main provider after it.
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i];
       if (step === "main") break;
-      const reserve = kurdgg && steps.slice(i + 1).includes("main") ? PREFER_RESERVE_MS : 0;
+      // (The Sorani video order keeps time for the next alternative model instead, only when this step still gets 15 s itself: a
+      // short call, an ad's 20 s, goes whole to the first model.)
+      const reserve = kurdishVideo
+        ? steps[i + 1]?.startsWith("alt:") && remaining() >= 2 * NEXT_ALT_RESERVE_MS ? NEXT_ALT_RESERVE_MS : 0
+        : kurdgg && steps.slice(i + 1).includes("main") ? PREFER_RESERVE_MS : 0;
       if (step === "deepseek") {
         if (standby && !deepseekDone) {
           deepseekDone = true;

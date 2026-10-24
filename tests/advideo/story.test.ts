@@ -414,7 +414,7 @@ describe("writing a story", () => {
     await expect(writeAdSpec({ ...input, call: down })).rejects.toThrow(/story could not be written/);
   });
 
-  it("gives a story more time and room than an ad: 30 s and 3600 tokens on LITE, 50 s and 4800 on PRO", async () => {
+  it("gives a story more time and room than an ad: 45 s and 3600 tokens on LITE, 50 s and 4800 on PRO", async () => {
     const seen: { timeout: number; maxTokens: number | undefined; system: string }[] = [];
     const call: DirectorCall = async (c, timeout) => {
       seen.push({ timeout, maxTokens: c.maxTokens, system: c.system });
@@ -423,7 +423,7 @@ describe("writing a story", () => {
     await writeAdSpec({ ...input, tier: "LITE", call });
     await writeAdSpec({ ...input, tier: "PRO", call });
     await writeAdSpec({ tier: "PRO", brief: shop, topic: null, call: async (c, t) => { seen.push({ timeout: t, maxTokens: c.maxTokens, system: c.system }); return { data: { scenes: [] }, model: "m" }; } });
-    expect(seen[0]).toMatchObject({ timeout: 30_000, maxTokens: 3600 });
+    expect(seen[0]).toMatchObject({ timeout: 45_000, maxTokens: 3600 });
     expect(seen[1]).toMatchObject({ timeout: 50_000, maxTokens: 4800 });
     expect(seen[2]).toMatchObject({ timeout: 40_000, maxTokens: 3200 });
     expect(seen[0].system).toBe(directorSystem("LITE", "en", "story"));

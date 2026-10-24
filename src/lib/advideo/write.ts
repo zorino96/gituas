@@ -402,7 +402,7 @@ export type DirectorCall = (call: JsonCall, timeoutMs: number) => Promise<{ data
  */
 export function defaultDirector(tier: VideoTier, meter?: Meter): DirectorCall {
   // The owner's order for video scripts: DeepSeek V4.1 Flash first, the gateway's Claude, then Haiku (see videoOrder in the provider).
-  return (call, timeoutMs) => completeJson({ ...call, tier: tier === "PRO" ? "opus" : "haiku", meter: call.meter ?? meter, budgetMs: timeoutMs, prefer: writesSorani(call) ? "kurdish" : "video" });
+  return (call, timeoutMs) => completeJson({ ...call, tier: tier === "PRO" ? "opus" : "haiku", meter: call.meter ?? meter, budgetMs: timeoutMs, prefer: writesSorani(call) ? "kurdish-video" : "video" });
 }
 
 export interface Written {
@@ -453,7 +453,8 @@ const AD_MAX_TOKENS: Record<VideoTier, number> = { LITE: 2400, PRO: 3200 };
 // about 55 of the 60 seconds; a PRO job is only started with 50 left): one call may take 50 s on PRO, and the whole
 // writer (the calls and the Sorani proofreader) is held to STORY_BUDGET_MS and to the job's real deadline, less the
 // time to save the script. A second try is made only if time is left.
-const STORY_TIMEOUT: Record<VideoTier, number> = { LITE: 30_000, PRO: 50_000 };
+// (LITE 45 s: a Sorani script's first model gets ~30 s and the one after it ~15 s, see DEFAULT_KURDISH_VIDEO_ORDER; left() still caps it.)
+const STORY_TIMEOUT: Record<VideoTier, number> = { LITE: 45_000, PRO: 50_000 };
 const STORY_MAX_TOKENS: Record<VideoTier, number> = { LITE: 3600, PRO: 4800 };
 const STORY_BUDGET_MS = 52_000;
 const STORY_RETRY_MIN_MS = 12_000;

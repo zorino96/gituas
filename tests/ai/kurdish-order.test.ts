@@ -90,6 +90,31 @@ describe("completeJson", () => {
 });
 
 
+describe("a Sorani video script (prefer kurdish-video)", () => {
+  const call = { system: SORANI, user: "u", strength: "strong" as const, prefer: "kurdish-video" as const };
+  it("goes Gemini, then Luna, never the gateway's Haiku first", async () => {
+    vi.stubEnv("ALT_AI_MODELS", "ag/gemini-3.8-flash,cx/gpt-6-luna");
+    gateway(["ag/gemini-3.8-flash"]);
+    const r = await completeJson<{ text: string }>({ ...call, budgetMs: 45_000 });
+    expect(models).toEqual(["ag/gemini-3.8-flash", "cx/gpt-6-luna"]);
+    expect(r.data.text).toBe("from cx/gpt-6-luna");
+  });
+  it("cuts Gemini short so Luna still has 15 s", async () => {
+    vi.stubEnv("ALT_AI_MODELS", "ag/gemini-3.8-flash,cx/gpt-6-luna");
+    const limits = vi.spyOn(AbortSignal, "timeout");
+    gateway(["ag/gemini-3.8-flash"]);
+    await completeJson({ ...call, budgetMs: 45_000 });
+    const [gemini] = limits.mock.calls.map((c) => c[0]);
+    expect(gemini).toBeLessThanOrEqual(45_000 - 15_000);
+    expect(gemini).toBeGreaterThan(25_000);
+    limits.mockRestore();
+  });
+  it("leaves the other Sorani writing on the usual Sorani order", () => {
+    expect(writesSorani({ prefer: "kurdish-video", system: "x" })).toBe(true);
+    expect(kurdishOrder()[1]).toBe("alt:cc/claude-haiku-5-5");
+  });
+});
+
 describe("the newsroom and the video scripts", () => {
   it("their Sorani prompts are recognised as Sorani writing, so Gemini answers first", async () => {
     const { DRAFT_SYSTEM } = await import("@/lib/news/draft");
