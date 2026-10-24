@@ -7,6 +7,9 @@ import { adVideoEnabled } from "@/lib/advideo/enabled";
 import { aiFor } from "@/lib/ai/for-store";
 import { allowanceOf } from "@/lib/ai/meter";
 import { isVideoDue } from "@/lib/advideo/auto";
+import { creditsOf } from "@/lib/advideo/credits";
+import { parseVideoAutoPlan } from "@/lib/advideo/plan";
+import { ownerWaitNote } from "@/lib/advideo/wait-note";
 import { kindForGoal, langAndKindOf, videoLangOf } from "@/lib/advideo/lang";
 import { VIDEOS_PER_DAY, videosToday } from "@/lib/advideo/limits";
 import { allowances } from "@/lib/advideo/prepare";
@@ -24,6 +27,7 @@ import { providersFor } from "@/lib/voice/tts";
 import { loadConnections, requireWorkspace } from "../data";
 import { ownerJobError } from "@/lib/advideo/job-error";
 import { autoHold } from "./hold";
+import { subjectViewOf } from "./story-form";
 import { VideoClient, type VideoJobView } from "./video-client";
 
 export const dynamic = "force-dynamic";
@@ -103,7 +107,13 @@ export default async function VideoPage({ searchParams }: { searchParams: Promis
   }
 
   const views: VideoJobView[] = jobs.map((j) => {
-    const spec = (j.spec ?? {}) as { look?: AdLook; plan?: { objective?: string; why?: string } };
+    const spec = (j.spec ?? {}) as { look?: AdLook; plan?: { objective?: string; why?: string }; noPhotos?: boolean; format?: unknown; subject?: { kind?: unknown } };
+    // A story about a real case: what it tells and the article it is told from (only when it was really read), whether Gituas chose it, whether it was told
+    // from memory or is very recent, the photographs' credits, and whether the owner switched the photographs off.
+    const credits = creditsOf(j.spec);
+    const { subject, subjectUrl, chosen, fromMemory, recent } = subjectViewOf(j.spec);
+    // Why a story that was to be posted by itself waited as a draft (kept as a note on the job; shown only while it still waits).
+    const waited = j.status === "RENDERED" ? ownerWaitNote(j.error, { memory: t.video.waitMemory, recent: t.video.waitRecent, fiction: t.video.waitFiction }) : null;
     const ids = idsOf.get(j.id) ?? [];
     const { lang, kind } = langAndKindOf(j.spec);
     return {
@@ -125,6 +135,20 @@ export default async function VideoPage({ searchParams }: { searchParams: Promis
     look: spec.look ? `${spec.look.palette} · ${spec.look.background} · ${spec.look.layout}` : null,
     comments: ids.length ? ids.reduce((n, id) => n + (commentsBy.get(id) ?? 0), 0) : null,
     orders: ids.length ? ids.reduce((n, id) => n + (ordersBy[id] ?? 0), 0) : null,
+    ...(credits.length ? { credits: credits.map((c) => ({ title: c.title, author: c.author, licence: c.licence, page: c.page })) } : {}),
+    ...(spec.noPhotos === true ? { noPhotos: true } : {}),
+    ...(spec.subject?.kind === "fiction" ? { fiction: true } : {}),
+    ...(subject ? { subject } : {}),
+    // The source link only for a story whose article was really read (a story told from memory has none).
+    ...(subjectUrl ? { subjectUrl } : {}),
+    ...(chosen ? { subjectChosen: true } : {}),
+    // A story told from memory (its Wikipedia article could not be read): the card says so and shows no source link.
+    ...(fromMemory ? { fromMemory: true } : {}),
+    // A story about a very recent case: the card says to check every fact.
+    ...(recent ? { recent: true } : {}),
+    ...(waited ? { waited } : {}),
+    // A story made wide (16:9, for YouTube): the card shows it in its own shape (an ad and a vertical story carry nothing).
+    ...(kind === "story" && spec.format === "wide" ? { format: "wide" as const } : {}),
     };
   });
 
@@ -138,6 +162,7 @@ export default async function VideoPage({ searchParams }: { searchParams: Promis
       products={state.products.map((p) => ({ id: p.id, name: p.name, hasPhoto: p.photos.length > 0 }))}
       allowances={{ LITE: allow.LITE, PRO: allow.PRO }}
       auto={{ mode: store.videoAutoMode, tier: store.videoAutoTier === "PRO" ? "PRO" : "LITE", hour: store.videoAutoHour, lang: storeLang }}
+      dailyPlan={parseVideoAutoPlan((store as { videoAutoPlan?: unknown }).videoAutoPlan)}
       autoHold={hold}
       defaultLang={storeLang}
       defaultKind={kindForGoal(profile?.goal ?? null)}

@@ -30,7 +30,7 @@ import { guardAdviceDetailed } from "./numbers";
 import { hasProfileState, systemPrompt } from "./system";
 import { systemPromptNews } from "./system-news";
 import { NEWS_QUICK, say } from "./text";
-import { isWriteTool, ToolRefusal, type Autonomy, type Card, type ChatAttachment, type ChatErrorCode, type ChatEvent, type ChatTool, type AnyQuickId, type ChatKind, type ViewBlock } from "./types";
+import { isWriteTool, ToolRefusal, type Autonomy, type Card, type ChatAttachment, type ChatErrorCode, type ChatEvent, type ChatTool, type AnyQuickId, type ChatKind, type ToolCtx, type ViewBlock } from "./types";
 import { withTimeout } from "./util";
 import { can } from "@/lib/newsroom/roles";
 import { verifyForModel } from "./verify";
@@ -126,7 +126,7 @@ export async function runTurn(input: TurnInput, deps: TurnDeps): Promise<TurnOut
     ...buildHistory(priorRows, runMap),
     { role: "user", content: input.text + fileNote },
   ];
-  const ctx = toolCtx(actor, { threadId: thread.id, attachments: everyAttachment, review: input.review, deadline });
+  const ctx: ToolCtx = { ...toolCtx(actor, { threadId: thread.id, attachments: everyAttachment, review: input.review, deadline }), latestAttachments: input.attachments.map((a) => a.id) };
 
   /** What an advice answer may take its numbers from: this turn's tool results, the account snapshot and what the owner wrote. */
   const allowedAdviceText = () => [...messages.filter((m) => m.role === "tool").map((m) => (typeof m.content === "string" ? m.content : "")), snapshotText, corpus].join("\n");

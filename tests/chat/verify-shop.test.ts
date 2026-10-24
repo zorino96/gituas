@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // cannot tell, never looks outside the workspace (tenantId), uses at most three queries, and speaks all three languages.
 
 const db = vi.hoisted(() => ({
-  store: { findMany: vi.fn() },
+  store: { findMany: vi.fn(), findUnique: vi.fn() },
   tenant: { findUnique: vi.fn() },
   product: { findMany: vi.fn() },
   order: { findFirst: vi.fn() },
@@ -893,5 +893,101 @@ describe("the words", () => {
 
   it("never types a backslash escape into a line", async () => {
     for (const lang of ["ckb", "ar", "en"] as const) for (const r of await cases(lang)) expect(all(r)).not.toMatch(BACKSLASH_U);
+  });
+});
+
+describe("set_daily_video: the owner's daily plan is read back from the shop", () => {
+  const PLAN = { brief: "یەکێک لە چیرۆکە نهێنییەکان", kind: "story", review: false, photos: true, targets: ["FB", "YT"], youtube: { privacy: "unlisted", madeForKids: false } };
+  const ASKED = { mode: "PUBLISH", idea: PLAN.brief, kind: "story", review: false, photos: true, publishTo: ["FB", "YT"], youtubePrivacy: "unlisted", youtubeMadeForKids: false, format: "vertical" };
+  const withPlan = (plan: unknown, over: Record<string, unknown> = {}) => {
+    db.store.findMany.mockResolvedValue([store({ videoAutoMode: "PUBLISH", ...over })]);
+    db.store.findUnique.mockResolvedValue({ videoAutoPlan: plan });
+  };
+
+  it("is ok when the saved plan is the one that was asked, one line for each thing, in the owner's language", async () => {
+    withPlan(PLAN);
+    const ok = await run("set_daily_video", ASKED);
+    expect(ok?.status).toBe("ok");
+    expect(ok?.checked).toEqual([
+      "The daily video: making the video and publishing it by itself",
+      `The idea of the daily video: ${PLAN.brief}`,
+      "The kind of the daily video: story",
+      "The shape of the daily video: vertical 9:16",
+      "Improving the idea first: no",
+      "Photographs in the daily video: yes",
+      "Where the daily video is posted: Facebook + YouTube",
+      "YouTube: who can watch: unlisted",
+      "YouTube: made for kids: no",
+    ]);
+    // The plan is read on its own, only this shop's row.
+    expect((db.store.findUnique.mock.calls.at(-1)![0] as { where: { id: string } }).where).toEqual({ id: "s1" });
+    // In Sorani and Arabic the same lines are in their words, with no Kurdish-only letter in the Arabic.
+    const ar = await run("set_daily_video", ASKED, ctx({ lang: "ar" }));
+    expect(ar?.status).toBe("ok");
+    expect(/[کیەێۆڕڵڤپچژگ]/.test((ar?.checked ?? []).join(" ").replace(PLAN.brief, ""))).toBe(false);
+    const ckb = await run("set_daily_video", ASKED, ctx({ lang: "ckb" }));
+    expect(ckb?.status).toBe("ok");
+    expect(ckb?.checked.length).toBe(9);
+    expect(ckb?.checked[1]).toContain(PLAN.brief);
+  });
+
+  it("says each thing that is not as asked, with how to put it right, and never calls a different idea fine", async () => {
+    withPlan({ ...PLAN, brief: "other words", review: true, kind: "ad", targets: ["FB"], youtube: undefined });
+    const r = await run("set_daily_video", ASKED);
+    expect(r?.status).toBe("problem");
+    expect(r?.problems).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("The idea of the daily video: other words, not"),
+        "The kind of the daily video: ad, not story as you asked.",
+        "Improving the idea first: yes, not no as you asked.",
+        "Where the daily video is posted: Facebook, not Facebook + YouTube as you asked.",
+      ]),
+    );
+    // No shape or photographs line for an ad, and no YouTube answers when YouTube is not in the saved plan.
+    expect(all(r)).not.toContain("YouTube: who can watch");
+    expect(all(r)).not.toContain("The shape of the daily video");
+    expect(r?.fix).toMatch(/^Call set_daily_video with /);
+    expect(r?.fix).toContain("kind=story");
+    expect(r?.fix).toContain("review=false");
+    expect(r?.fix).toContain('publishTo=["FB","YT"]');
+  });
+
+  it("compares the owner's two YouTube answers when YouTube is in the plan, and does not guess one that was not asked", async () => {
+    withPlan({ ...PLAN, youtube: { privacy: "public", madeForKids: true } });
+    const bad = await run("set_daily_video", { publishTo: ["FB", "YT"], youtubePrivacy: "unlisted", youtubeMadeForKids: false });
+    expect(bad?.problems).toEqual(["YouTube: who can watch: public, not unlisted as you asked.", "YouTube: made for kids: yes, not no as you asked."]);
+    // Only the privacy was asked: the kids answer is not compared.
+    const some = await run("set_daily_video", { youtubePrivacy: "public" });
+    expect(some?.checked).toEqual(["YouTube: who can watch: public"]);
+  });
+
+  it("says plainly when the plan is not saved, or cannot be read; and a plan is not read at all when the call carried none", async () => {
+    withPlan(null);
+    const none = await run("set_daily_video", ASKED);
+    expect(none?.status).toBe("problem");
+    expect(none?.problems).toContain("Saved, but the daily video's plan was not found in the settings.");
+    expect(none?.fix).toContain("The plan was not saved: call set_daily_video again with the owner's whole plan");
+    db.store.findUnique.mockRejectedValue(new Error("db down"));
+    const down = await run("set_daily_video", ASKED);
+    expect(down?.problems).toContain("Could not check that the daily video's plan was saved.");
+    // An old call (no plan in it) reads no plan.
+    db.store.findUnique.mockClear();
+    db.store.findMany.mockResolvedValue([store({ videoAutoMode: "DRAFT", videoAutoHour: 20 })]);
+    expect((await run("set_daily_video", { mode: "DRAFT", hour: 20 }))?.status).toBe("ok");
+    expect(db.store.findUnique).not.toHaveBeenCalled();
+    // A call that only changed the plan (no mode, hour or language) is read back too.
+    withPlan(PLAN);
+    expect((await run("set_daily_video", { idea: PLAN.brief }))?.status).toBe("ok");
+  });
+
+  it("does not say that a daily video that posts only to YouTube has no account to post to", async () => {
+    const ytOnly = { ...PLAN, targets: ["YT"] };
+    withPlan(ytOnly, { fbPageId: null, igUserId: null });
+    expect((await run("set_daily_video", { mode: "PUBLISH", publishTo: ["YT"], youtubePrivacy: "unlisted" }))?.status).toBe("ok");
+    // Without YouTube in the plan the old note stays.
+    withPlan({ ...PLAN, targets: ["FB"], youtube: undefined }, { fbPageId: null, igUserId: null });
+    const noAccount = await run("set_daily_video", { mode: "PUBLISH", publishTo: ["FB"] });
+    expect(noAccount?.status).toBe("problem");
+    expect(noAccount?.problems[0]).toContain("no Facebook or Instagram page is connected");
   });
 });

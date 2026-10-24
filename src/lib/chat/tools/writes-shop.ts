@@ -3,14 +3,20 @@
 // through runShopTool, so every check of the old confirm path (connected accounts, several Pages refused unless the person chose one
 // in the chat, JPEG for Instagram, product matching, plan limits, the image and video switches) is the one and only copy.
 
-import { postProblem, type PostProblem } from "@/app/app/assistant/run-shop-tool";
+import { postProblem, storyAttachmentsNotUsed, type PostProblem } from "@/app/app/assistant/run-shop-tool";
 import { videoChoice } from "@/app/app/video/choice";
+import { hasPlanArgs, ideaLength, mergeDailyPlan, PLAN_IDEA_MAX, type DailyArgs } from "@/app/app/video/daily-plan";
+import { storyTooShort, wantsWide } from "@/app/app/video/story-form";
 import type { Connections } from "@/app/app/data";
 import { adVideoEnabled } from "@/lib/advideo/enabled";
+import { storyFictionAsked } from "@/lib/advideo/lang";
+import { parseVideoAutoPlan, type VideoAutoPlan } from "@/lib/advideo/plan";
 import { imageEnabled } from "@/lib/ai/image";
+import { addedWords } from "@/lib/assistant/added-words";
 import { plainName } from "@/lib/assistant/ask";
-import { proposalLines, SCHEMAS, type ToolName } from "@/lib/assistant/tools";
+import { proposalLines, SCHEMAS, STORY_VIDEO_ARGS, type ToolName } from "@/lib/assistant/tools";
 import { defineWrite, type Card, type CardLine, type ToolCtx, type WriteTool } from "@/lib/chat/types";
+import { db } from "@/lib/db";
 import { dict } from "@/lib/i18n";
 import type { Lang } from "@/lib/i18n/lang";
 import { captionProblems, type Target } from "@/lib/merchant/caption";
@@ -19,7 +25,7 @@ import { baghdadLocalToUtc, scheduleProblem } from "@/lib/merchant/schedule";
 import { scopedAccount } from "@/lib/oauth/account-scope";
 import { parsePrice } from "@/lib/shop/forms";
 import { instagramPhrase, pagePhrase } from "./reads-accounts";
-import { attachmentsOf, clip, pinOf, platformName, refuse, runShop, shopFor } from "./writes-common";
+import { attachmentsOf, clip, latestAttachmentIds, pinOf, platformName, refuse, runShop, shopFor } from "./writes-common";
 import { CARD, LABEL, NEW } from "./writes-words";
 
 /** The texts of set_shop_options that an empty string clears. The card has to say so: an empty value would otherwise show no line at all. */
@@ -35,24 +41,49 @@ function cardOf(
   tool: ToolName,
   args: object,
   shop: { shopName: string; productId?: string | null; productName?: string | null; conns?: Connections },
-  /** make_video: the language and kind the video will really be made in. */
-  video?: { lang: string; kind: string },
+  /**
+   * make_video: the language, kind and shape the video will really be made in; `latest`: the ids of the files of the owner's latest message
+   * (null: unknown, nothing is claimed about attachments); `wideAuto`: Gituas itself set the shape to wide because the owner's words say YouTube.
+   */
+  video?: { lang: string; kind: string; format: string; latest?: readonly string[] | null; wideAuto?: boolean },
 ): Card {
   const t = dict(ctx.lang);
   const files = Object.fromEntries(attachmentsOf(ctx).map((x) => [x.id, plainName(x.name) || x.kind]));
   const shown: Record<string, unknown> = shop.productName ? { ...args, product: shop.productName } : { ...args };
   if (tool === "set_shop_options") for (const k of CLEARABLE) if (shown[k] === "") shown[k] = CARD.cleared[ctx.lang];
   // A video always shows the language it will be made in (the one asked, else the shop's video language, else Sorani), and a story says
-  // so and shows no product (a story has none).
+  // so, shows its shape (vertical 9:16 unless it was asked wide) and shows no product (a story has none). An ad is always vertical and shows no shape.
   if (video) {
     shown.language = video.lang;
     if (video.kind === "story") {
       shown.kind = "story";
+      shown.format = video.format;
       delete shown.product;
-    } else delete shown.kind;
+    } else {
+      delete shown.kind;
+      delete shown.format;
+    }
   }
   const lines = proposalLines({ tool, args: shown }, t.assistant.fields, { files, shop: shop.shopName });
-  if (video?.kind === "story") lines.push({ label: NEW.field.note[ctx.lang], value: CARD.videoStoryNote[ctx.lang] });
+  if (video?.kind === "story") {
+    // Every story is told from a real documented case (the one the idea names, or one Gituas chooses), or, when the idea says fiction, invented
+    // and said so (src/lib/advideo/lang.ts storyFictionAsked). The photographs are the free ones from Wikimedia Commons where they are found,
+    // unless switched off.
+    const fiction = storyFictionAsked((args as { idea?: unknown }).idea as string | undefined);
+    const noPhotos = (args as { photos?: unknown }).photos === false;
+    const note = fiction ? CARD.videoStoryFiction : noPhotos ? CARD.videoStoryRealNoPhotos : CARD.videoStoryReal;
+    lines.push({ label: NEW.field.note[ctx.lang], value: note[ctx.lang] });
+    // The length and the YouTube sentence sit here too, BEFORE Confirm: the owner who asked for 30 seconds or for YouTube reads what is really made.
+    lines.push({ label: t.assistant.fields.length, value: fiction ? t.assistant.done.videoLengthFiction : t.assistant.done.videoLengthStory });
+    lines.push({ label: t.assistant.fields.youtube, value: t.assistant.done.videoNotYouTube });
+    if (video.wideAuto) lines.push({ label: NEW.field.note[ctx.lang], value: CARD.videoWideAuto[ctx.lang] });
+    // What the owner attached to this message and a story cannot use is said FIRST, on the card, before Confirm: never in silence.
+    const unused = storyAttachmentsNotUsed(attachmentsOf(ctx), video.latest ?? null);
+    const first: CardLine[] = [];
+    if (unused.video) first.push({ label: CARD.notUsedLabel[ctx.lang], value: t.assistant.done.videoNotUsedVideo });
+    if (unused.picture) first.push({ label: CARD.notUsedLabel[ctx.lang], value: t.assistant.done.videoNotUsedPicture });
+    lines.unshift(...first);
+  }
   // A post names the Page / Instagram account it goes to, right after "where" (the first line), when the person chose it in the chat.
   if (tool === "post_now" || tool === "schedule_post") lines.splice(1, 0, ...chosenAccountLine(ctx.lang, (args as { targets?: string[] }).targets ?? [], shop.conns));
   return {
@@ -118,7 +149,122 @@ async function checkPost(ctx: ToolCtx, args: { caption: string; targets: ("FB" |
   return shop;
 }
 
+/**
+ * The owner's own recent messages in this thread, oldest first (null when they cannot be read: then nothing can be judged and nothing is refused).
+ * The last eight: an owner may name the topic a few messages before saying "yes, make it".
+ */
+async function ownerMessages(ctx: ToolCtx): Promise<string[] | null> {
+  try {
+    const { loadMessages } = await import("@/lib/chat/store");
+    const rows = await loadMessages(ctx.threadId, { last: 40 });
+    const own = rows.filter((r) => r.role === "user").slice(-8).map((r) => r.content);
+    return own.length ? own : null;
+  } catch {
+    return null;
+  }
+}
+
+/** How many of the owner's latest messages decide whether a story is wide: what they just said, not what they said a long time ago. */
+const WIDE_LOOKBACK = 3;
+
 const MODES = "mode is OFF, DRAFT (prepares it for the owner to review) or PUBLISH (does it by itself, publicly).";
+
+/** The plan the shop's daily video already has, and the mode it is in (nothing known when the shop cannot be read). */
+async function savedDaily(storeId: string): Promise<{ plan: VideoAutoPlan | null; mode: string | null }> {
+  try {
+    const row = await db.store.findUnique({ where: { id: storeId }, select: { videoAutoMode: true, videoAutoPlan: true } });
+    return { plan: parseVideoAutoPlan(row?.videoAutoPlan), mode: typeof row?.videoAutoMode === "string" ? row.videoAutoMode : null };
+  } catch {
+    return { plan: null, mode: null };
+  }
+}
+
+const DAILY_IDEA_TOO_LONG = `The daily video's idea can be at most ${PLAN_IDEA_MAX} characters. Tell the owner and ask them to shorten it; never cut or rewrite their words yourself.`;
+const DAILY_NEEDS_YOUTUBE =
+  "YouTube needs two answers that only the owner can give: who may watch the videos (youtubePrivacy: public, unlisted or private) and whether they are made for kids (youtubeMadeForKids: true or false). The owner has not said them. Ask ONE short question for both, in plain words, then propose again with their answers. Never choose them yourself.";
+const DAILY_NEEDS_TARGETS =
+  "A daily video that posts by itself needs publishTo: the platforms the owner named (FB, IG, YT). When they named none, use every Facebook Page and Instagram account that is connected (YT only when the owner has said who may watch and whether the videos are made for kids). Do not ask the owner which ones.";
+
+/**
+ * The card of set_daily_video. With no plan in the call it is the mode, the hour and the language as before. With a plan (the owner's idea, kind,
+ * shape, review, photographs, platforms and YouTube answers) the card shows the WHOLE plan that Confirm will save (what the call carries on top of the
+ * plan already saved) and says the plain facts before Confirm: what the daily video will do with the words, which case, what waits as a draft, and
+ * that YouTube keeps uploads Private. It refuses what cannot work: an idea too long to keep whole, words the owner never said, a platform that is not
+ * connected, a daily video that posts by itself with nowhere to post to, and YouTube without the owner's own two answers.
+ */
+async function dailyCard(ctx: ToolCtx, args: DailyArgs & { mode?: "OFF" | "DRAFT" | "PUBLISH"; hour?: number; language?: string }): Promise<Card> {
+  const t = dict(ctx.lang);
+  const shop = await shopFor(ctx);
+  const { plan: saved, mode: savedMode } = await savedDaily(shop.store.id);
+  if (!hasPlanArgs(args)) {
+    // The plan the daily video already has is not changed, but switching it to PUBLISH needs somewhere to post to.
+    if (args.mode === "PUBLISH" && saved && saved.targets.length === 0) refuse(DAILY_NEEDS_TARGETS);
+    return cardOf(ctx, "set_daily_video", args, shop);
+  }
+  if (typeof args.idea === "string" && ideaLength(args.idea) > PLAN_IDEA_MAX) refuse(DAILY_IDEA_TOO_LONG);
+  const fallbackKind = (await videoChoice(shop.store.id, shop.store.videoLang, { kind: args.kind, hasProduct: false })).kind;
+  const kind = args.kind ?? saved?.kind ?? fallbackKind;
+  const owner = await ownerMessages(ctx);
+  // The idea is the owner's own words: a country, a people, an era or a year the owner never said is the model's addition (as in make_video).
+  if (kind === "story" && typeof args.idea === "string" && args.idea.trim() && owner) {
+    const added = addedWords(args.idea, owner.join("\n"));
+    if (added.length) {
+      refuse(`The idea has words the owner did not say: ${added.join(", ")}. The daily video's idea is the owner's own words, exactly as they said them: never add a country, a people, an era, a year, a genre or a name. Remove them and propose again with the owner's words only. Do not ask the owner anything.`);
+    }
+  }
+  // The owner who says YouTube, 16:9, wide or landscape gets a wide story whatever the model remembered; Gituas sets it itself and the card says so.
+  let given = args;
+  let wideAuto = false;
+  const alreadyWide = args.format === undefined && saved?.format === "wide";
+  if (kind === "story" && args.format !== "wide" && !alreadyWide && owner && wantsWide(owner.slice(-WIDE_LOOKBACK).join("\n"))) {
+    given = { ...args, format: "wide" };
+    wideAuto = true;
+  }
+  const merged = mergeDailyPlan(given, saved, fallbackKind);
+  if (merged.needs === "youtube") refuse(DAILY_NEEDS_YOUTUBE);
+  const plan = parseVideoAutoPlan(merged.raw);
+  if (!plan) refuse("The daily plan could not be read. Propose it again with the owner's own words.");
+  if ((args.mode ?? savedMode) === "PUBLISH" && plan.targets.length === 0) refuse(DAILY_NEEDS_TARGETS);
+  // Every platform named must be there: this shop's Facebook Page and Instagram account, and the workspace's YouTube channel.
+  if (plan.targets.includes("FB") && !shop.store.fbPageId) refuse("This shop has no Facebook Page, so the daily video cannot post there. Do not ask the owner anything: leave FB out and say so in one line.");
+  if (plan.targets.includes("IG") && !shop.store.igUserId) refuse("This shop has no Instagram account, so the daily video cannot post there. Do not ask the owner anything: leave IG out and say so in one line.");
+  if (plan.targets.includes("YT") && !shop.conns.YOUTUBE.connected) {
+    refuse("YouTube is not connected. The person connects it with the Connect button that show_accounts puts in the chat; you cannot do that for them. Tell them so; do not leave YT out without saying it.");
+  }
+  const story = plan.kind === "story";
+  const shown: Record<string, unknown> = {
+    ...(args.mode !== undefined ? { mode: args.mode } : {}),
+    ...(args.hour !== undefined ? { hour: args.hour } : {}),
+    ...(args.language ? { language: args.language } : {}),
+    idea: plan.brief,
+    kind: plan.kind,
+    ...(story ? { format: plan.format === "wide" ? "wide" : "vertical", photos: plan.photos } : {}),
+    review: plan.review,
+    publishTo: plan.targets,
+    ...(plan.youtube ? { youtubePrivacy: plan.youtube.privacy, youtubeMadeForKids: plan.youtube.madeForKids } : {}),
+  };
+  const card = cardOf(ctx, "set_daily_video", shown, shop);
+  const note = NEW.field.note[ctx.lang];
+  const lines: CardLine[] = [...card.lines];
+  if (wideAuto) lines.push({ label: note, value: CARD.videoWideAuto[ctx.lang] });
+  if (story) {
+    lines.push({ label: t.assistant.fields.length, value: storyFictionAsked(plan.brief) ? t.assistant.done.videoLengthFiction : t.assistant.done.videoLengthStory });
+    lines.push({ label: note, value: t.assistant.done.dailyCase });
+    if ((args.mode ?? savedMode) === "PUBLISH") lines.push({ label: note, value: t.assistant.done.dailyWaits });
+  }
+  if (plan.targets.includes("YT")) lines.push({ label: t.assistant.fields.youtube, value: t.publish.ytPrivate });
+  // What Confirm saves is what the card shows, even if the saved plan changes meanwhile: the whole plan is stored with the run.
+  const pin: Record<string, unknown> = {
+    idea: plan.brief,
+    kind: plan.kind,
+    review: plan.review,
+    photos: plan.photos,
+    publishTo: plan.targets,
+    ...(story ? { format: plan.format === "wide" ? "wide" : "vertical" } : {}),
+    ...(plan.youtube ? { youtubePrivacy: plan.youtube.privacy, youtubeMadeForKids: plan.youtube.madeForKids } : {}),
+  };
+  return { ...card, lines, pin };
+}
 
 export const SHOP_WRITE_TOOLS: WriteTool[] = [
   defineWrite({
@@ -145,12 +291,13 @@ export const SHOP_WRITE_TOOLS: WriteTool[] = [
   defineWrite({
     name: "make_video",
     description:
-      "Start a short AI video for the shop: about 60 seconds at most, vertical. idea: what the video is about, in the owner's words (up to 1200 characters; an ad's idea is cut to 300). " +
+      "Start a short AI video for the shop: an ad of about 35 seconds or a story of about 60 to 70 seconds (a story aims for about 30 seconds when its idea asks for a short video, with no promise). idea: what the video is about, in the owner's own words (up to 1200 characters; an ad's idea is cut to 300). " +
       "The video language is the owner's choice: language is \"ckb\" (Sorani Kurdish), \"ar\" (Arabic) or \"en\" (English), and the whole video follows it (script, on-screen text, voice, layout, post text). " +
       "Pass language only when the owner explicitly names the video language (for example \"in English\"); the language of their chat message or of their idea says nothing about it, so otherwise leave it out and the shop's own video language is used (get_settings, area video, dailyVideo.videoLanguage; Sorani when none is saved). Never write the language into the idea (no \"only in Kurdish\" or \"in English\"). " +
-      "kind: \"ad\" promotes the brand or a product (product: the exact name, or the id from list_products, of the product it features, if any); \"story\" is a story or content video told from the idea (for example a mystery for a story channel): it needs no product, price, delivery line or phone number, and the AI invents the story, so the owner reads it before posting. " +
-      "Leave kind out and a video of a product you name (product) is an ad; with no product it follows what the page is for (a page that grows or earns from its content gets a story, the others an ad). There is still no multi-minute documentary. " +
-      "It is made in the background and takes a few minutes; this tool does not post it. The card shows the language it will really use.",
+      "kind: \"ad\" promotes the brand or a product (product: the exact name, or the id from list_products, of the product it features, if any); \"story\" is a story or content video (for example a mystery or a history story for a story channel): it needs no product, price, delivery line or phone number. " +
+      `${STORY_VIDEO_ARGS} ` +
+      "Leave kind out and a video of a product you name (product) is an ad; with no product it follows what the page is for (a page that grows or earns from its content gets a story, the others an ad). There is still no multi-minute documentary, and a video made now is not uploaded to YouTube from here (the owner downloads it and adds it in Publish or YouTube Studio; only the daily video can post to YouTube). Act first: a generic idea (a genre, a wish, a style) is enough for a story, so propose the video at once and never ask the owner to name a case, a country or an era. " +
+      "It is made in the background and takes a few minutes; this tool does not post it. The card shows the language and shape it will really use, and what the owner attached that is not used; the result lists the shape, the language and the photographs as they really are: report exactly that.",
     schema: SCHEMAS.make_video,
     kinds: ["shop"],
     permission: "publish",
@@ -161,9 +308,34 @@ export const SHOP_WRITE_TOOLS: WriteTool[] = [
       if (!adVideoEnabled()) refuse("Making AI videos is switched off on this server right now.");
       const shop = await shopFor(ctx, args.product);
       // The same rule as the action that runs it: an explicit kind, else an ad when a product was named, else what the page is for.
-      const video = await videoChoice(shop.store.id, shop.store.videoLang, { lang: args.language, kind: args.kind, hasProduct: !!shop.productId });
-      if (video.kind === "story" && Array.from(args.idea).length < 10) refuse("A story is told from the owner's idea: ask what the story is about (at least a short sentence) before proposing it.");
-      return cardOf(ctx, "make_video", args, shop, video);
+      const choice = await videoChoice(shop.store.id, shop.store.videoLang, { lang: args.language, kind: args.kind, hasProduct: !!shop.productId });
+      if (choice.kind === "story" && storyTooShort(args.idea)) refuse("A story needs the owner's idea in a few plain words (the kind of story, or a case or event): use what the owner said. Do not ask them to name a case: Gituas chooses a real one when none is named.");
+      // Only a story can be wide (16:9 for YouTube); an ad is always vertical. Say so plainly rather than make something else.
+      if (choice.kind !== "story" && args.format === "wide") refuse("An ad is always vertical (9:16); only a story can be wide (16:9, for YouTube). Tell the owner that plainly, and offer a vertical ad or a wide story: never swap one for the other without saying so.");
+      let wide = choice.kind === "story" && args.format === "wide";
+      let wideAuto = false;
+      if (choice.kind === "story") {
+        const owner = await ownerMessages(ctx);
+        // The idea is the owner's own words: a country, a people, an era or a year that the owner never said (here, in this thread) is the model's addition.
+        const added = owner ? addedWords(args.idea, owner.join("\n")) : [];
+        if (added.length) {
+          refuse(`The idea has words the owner did not say: ${added.join(", ")}. A story's idea is the owner's own words, exactly as they said them: never add a country, a people, an era, a year, a genre or a name. Remove them and propose again with the owner's words only. Do not ask the owner anything.`);
+        }
+        // The owner who says YouTube, 16:9, wide or landscape gets a wide story whatever the model remembered: Gituas sets it itself and the card says so.
+        if (!wide && owner && wantsWide(owner.slice(-WIDE_LOOKBACK).join("\n"))) {
+          wide = true;
+          wideAuto = true;
+        }
+      }
+      const card = cardOf(ctx, "make_video", args, shop, {
+        lang: choice.lang,
+        kind: choice.kind,
+        format: wide ? "wide" : "vertical",
+        latest: choice.kind === "story" ? await latestAttachmentIds(ctx) : null,
+        wideAuto,
+      });
+      // What Confirm runs is what the card shows: the shape Gituas set is stored with the run.
+      return wideAuto ? { ...card, pin: { ...card.pin, format: "wide" } } : card;
     },
     execute: (ctx, args) => runShop(ctx, "make_video", args),
   }),
@@ -236,20 +408,25 @@ export const SHOP_WRITE_TOOLS: WriteTool[] = [
     description:
       `Set the daily AI video. ${MODES} Leave mode out to keep the daily video exactly as it is now (on in its mode, or off) when the owner only changes the language or the hour. hour: 0 to 23, Baghdad time, after which the day's video is made; leave it out to keep the hour already chosen. ` +
       "language: \"ckb\" (Sorani Kurdish), \"ar\" (Arabic) or \"en\" (English), the shop's video language: the daily video, the Video screen's form and make_video use it when they are given no other. Pass it only when the owner explicitly names the video language; the language of their chat message says nothing about it. Leave it out to keep the one already saved. " +
-      "A page that grows or earns from its content and has described its channel gets a story each day, always kept as a draft for the owner to read first; every other page gets an ad.",
+      "With no plan of its own, a page that grows or earns from its content and has described its channel gets a story each day, kept as a draft for the owner to read first; every other page gets an ad. " +
+      "THE OWNER'S OWN DAILY PLAN: when the owner says \"every day make me a video like this (and post it)\", save it in one call. idea: the owner's own words, VERBATIM, at most 600 characters (the same words are used every day: a general idea such as a genre or a wish gets a different real case each day; an empty string means no idea of their own). " +
+      "kind: \"story\" or \"ad\" (left out: what the page is for). format: \"vertical\" (default) or \"wide\" (16:9; a story only). review: true only when the owner asks Gituas to improve the idea first; left out or false, their words go straight to the video maker exactly as written. photos: false switches the Wikimedia Commons photographs off. " +
+      "publishTo: where each day's video is posted by itself, a list of \"FB\", \"IG\", \"YT\" (the platforms the owner names; with none named and mode PUBLISH, every connected Facebook Page and Instagram account); mode PUBLISH needs it, DRAFT only makes the video and keeps it for the owner to read. " +
+      "YouTube (YT) needs two answers that only the owner can give: youtubePrivacy (\"public\", \"unlisted\" or \"private\") and youtubeMadeForKids (true or false). When YT is wanted and the owner has not said them, ask ONE short question for both; never choose them. Everything else is act-first: decide it yourself and say it in one line. " +
+      "A story told from memory (its Wikipedia article could not be read) or about a very recent case is never posted by itself: it waits as a draft. YouTube keeps every upload Private until Google finishes reviewing Gituas.",
     schema: SCHEMAS.set_daily_video,
     kinds: ["shop"],
     permission: "configure",
     risk: "standing",
+    textFields: ["idea"],
     // DRAFT does not publish, but it makes (and pays for) a video every day without anyone watching: only OFF is small and safe. With no
-    // mode the daily video stays as it is (only its language or hour changes): nothing new starts, so it is small as well.
-    // Changing the language changes what a running daily video posts publicly: it is a card, like switching the video on. An hour alone, or OFF, is small.
-    riskFor: (args) => (args.mode === "OFF" || (args.mode === undefined && !(args as { language?: unknown }).language) ? "low" : "standing"),
+    // mode the daily video stays as it is (only its hour changes): nothing new starts, so it is small as well.
+    // Changing the language or the plan changes what a running daily video makes and posts publicly: it is a card, like switching the video on.
+    riskFor: (args) => (args.mode === "OFF" || (args.mode === undefined && !args.language && !hasPlanArgs(args)) ? "low" : "standing"),
     label: (lang) => LABEL.setting[lang],
     async card(ctx, args) {
       if (!adVideoEnabled()) refuse("AI videos are switched off on this server right now.");
-      const shop = await shopFor(ctx);
-      return cardOf(ctx, "set_daily_video", args, shop);
+      return dailyCard(ctx, args);
     },
     execute: (ctx, args) => runShop(ctx, "set_daily_video", args),
   }),

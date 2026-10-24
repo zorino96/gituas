@@ -391,7 +391,9 @@ describe("the director's prompt", () => {
 
 describe("writing a story", () => {
   beforeEach(() => vi.mocked(polishAdRaw).mockClear());
-  const input = { tier: "LITE" as const, brief: channel, topic: "A locked room mystery", lang: "en" as const, kind: "story" as const, channel: { about: "English mystery stories" } };
+  // These cases are about the writer's mechanics (time, tokens, links, the proofreader), not about what is true: the classic
+  // way of telling a story. The documented and the fiction ways are in documentary.test.ts.
+  const input = { tier: "LITE" as const, brief: channel, topic: "A locked room mystery", lang: "en" as const, kind: "story" as const, mode: "classic" as const, channel: { about: "English mystery stories" } };
 
   it("returns the model's story, with its kind and language, and nothing of an ad's plan", async () => {
     const call: DirectorCall = async () => ({ data: goodStory, model: "m" });

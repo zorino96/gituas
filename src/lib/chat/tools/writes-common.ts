@@ -19,6 +19,25 @@ export const say = <A extends unknown[]>(ckb: (...a: A) => string, ar: (...a: A)
 /** The files attached in this chat, checked again: only the workspace's own uploads count, whatever the thread says. */
 export const attachmentsOf = (ctx: ToolCtx): ChatAttachment[] => cleanAttachments(ctx.attachments, ctx.tenantId, 99);
 
+/**
+ * The ids of the files the owner attached to their LATEST message: what a request is about, as opposed to every file of the thread (an earlier
+ * attachment, or a picture the chat made itself, is not part of it). From the turn's context when it has them; else (a run after Confirm) from the
+ * thread's last message of the owner. null when the thread cannot be read: then nothing is claimed about attachments.
+ */
+export async function latestAttachmentIds(ctx: ToolCtx): Promise<string[] | null> {
+  if (ctx.latestAttachments) return [...ctx.latestAttachments];
+  try {
+    const { loadMessages } = await import("@/lib/chat/store");
+    const rows = await loadMessages(ctx.threadId, { last: 12 });
+    const mine = [...rows].reverse().find((r) => r.role === "user");
+    if (!mine) return [];
+    const list = (mine.meta as { attachments?: unknown } | null)?.attachments;
+    return Array.isArray(list) ? list.map((x) => (x as { id?: unknown } | null)?.id).filter((id): id is string => typeof id === "string") : [];
+  } catch {
+    return null;
+  }
+}
+
 /** A short plain version of a stored text for a card line: cut on a character boundary, never in the middle of a letter. */
 export function clip(text: string, max: number): string {
   const chars = Array.from(text.replace(/\s+/g, " ").trim());
@@ -76,6 +95,10 @@ export async function runShop(ctx: ToolCtx, tool: ToolName, args: object): Promi
     attachments: attachmentsOf(ctx),
     review: ctx.review,
     igDeadlineMs: Math.max(15_000, Math.min(30_000, ctx.deadline - Date.now() - 20_000)),
+    // A video started here prepares its script and voice inside this same function: the writer is held to this turn's deadline.
+    deadline: ctx.deadline,
+    // A story's "not used" lines are about the files of the owner's latest message only (read only for the one tool that says them).
+    ...(tool === "make_video" ? { latestAttachmentIds: await latestAttachmentIds(ctx) } : {}),
   });
   if (!r.result.ok) return { ok: false, text: r.result.error };
   const done = r.result;

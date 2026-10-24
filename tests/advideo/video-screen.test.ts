@@ -101,17 +101,59 @@ describe("the form of a new video", () => {
     expect(render({ defaultLang: "en", defaultKind: "story" })).toMatch(/<option value="male" selected/);
   });
 
-  it("makes a story form: no product, no review, a bigger idea box with a story's own words", () => {
-    const html = render({ defaultKind: "story", defaultLang: "en" });
-    expect(pressed(html, en.video.kindStory)).toBe(true);
-    expect(html).not.toContain(en.video.productLabel);
-    expect(html).not.toContain(en.publish.ai.reviewLabel);
-    expect(html).toContain('maxLength="1200"');
-    expect(html).toContain(en.video.storyTopicLabel);
-    expect(html).toContain(en.video.storyTopicPlaceholder);
-    expect(html).toContain(en.video.kindStoryHint);
-    // A story cannot be started with no idea to tell.
-    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Make the video<\/button>/);
+  it("makes a story form, in every video language: no product, a bigger idea box, the story's own words about a real documented case", () => {
+    for (const defaultLang of ["ckb", "en", "ar"] as const) {
+      const html = render({ defaultKind: "story", defaultLang });
+      expect(pressed(html, en.video.kindStory), defaultLang).toBe(true);
+      expect(html).not.toContain(en.video.productLabel);
+      expect(html).toContain('maxLength="1200"');
+      expect(html).toContain(en.video.storyTopicLabel);
+      expect(html).toContain(en.video.storyTopicPlaceholder);
+      expect(html).toContain(en.video.kindStoryHint);
+      // The owner is not asked to name a case, and the form says Gituas chooses a real one when none is named.
+      expect(en.video.storyTopicPlaceholder).toMatch(/Gituas chooses a real documented case/);
+      // A story cannot be started with no idea to tell.
+      expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Make the video<\/button>/);
+    }
+  });
+
+  it("gives a story a Shape choice (vertical 9:16 pressed, wide 16:9 for YouTube beside it) in every video language; an ad's form has none", () => {
+    for (const defaultLang of ["ckb", "en", "ar"] as const) {
+      const story = render({ defaultKind: "story", defaultLang });
+      expect(story, defaultLang).toContain(en.video.formatLabel);
+      expect(story).toContain(`aria-pressed="true">${en.video.formatVertical}<`);
+      expect(story).toContain(`aria-pressed="false">${en.video.formatWide}<`);
+      expect(story).toContain(en.video.formatHint);
+      const ad = render({ defaultKind: "ad", defaultLang });
+      expect(ad).not.toContain(en.video.formatLabel);
+      expect(ad).not.toContain(en.video.formatWide);
+    }
+    // In the person's language too.
+    expect(render({ defaultKind: "story" }, "ckb")).toContain(ckb.video.formatWide);
+    expect(render({ defaultKind: "story" }, "ar")).toContain(ar.video.formatWide);
+  });
+
+  it("gives a story its own review switch, visible and OFF, with its own explanation; an ad's stays on", () => {
+    const on = (html: string) => /<input type="checkbox"[^>]*checked=""/.test(html);
+    for (const defaultLang of ["ckb", "en", "ar"] as const) {
+      const story = render({ defaultKind: "story", defaultLang });
+      expect(story, defaultLang).toContain(en.publish.ai.reviewLabel);
+      expect(story).toContain(en.video.storyReviewHelp);
+      expect(story).not.toContain(en.publish.ai.reviewHelp);
+      expect(on(story)).toBe(false);
+    }
+    const ad = render({ defaultKind: "ad" });
+    expect(ad).toContain(en.publish.ai.reviewHelp);
+    expect(ad).not.toContain(en.video.storyReviewHelp);
+    expect(on(ad)).toBe(true);
+  });
+
+  it("explains the story review in the person's own language: on = reads the page and earlier videos, off = exactly the words", () => {
+    expect(en.video.storyReviewHelp).toMatch(/On: Gituas reads your page and your earlier videos and rewrites your idea/);
+    expect(en.video.storyReviewHelp).toMatch(/Off: Gituas uses exactly your words/);
+    for (const d of [ckb, ar, en]) expect(d.video.storyReviewHelp.trim()).not.toBe("");
+    expect(render({ defaultKind: "story" }, "ckb")).toContain(ckb.video.storyReviewHelp);
+    expect(render({ defaultKind: "story" }, "ar")).toContain(ar.video.storyReviewHelp);
   });
 
   it("is in Sorani and in Arabic as well", () => {

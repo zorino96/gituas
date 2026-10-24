@@ -46,6 +46,11 @@ export interface ToolCtx {
   attachments: ChatAttachment[];
   /** "Let Gituas review my idea first" (default true). */
   review: boolean;
+  /**
+   * The ids of the files attached to the owner's LATEST message (the part of `attachments` that belongs to this request). Left out (a run after
+   * Confirm builds its own context), a tool that needs it reads the thread's last message itself (latestAttachmentIds in tools/writes-common.ts).
+   */
+  latestAttachments?: readonly string[];
   /** Epoch ms: the tool must be finished by then (the request has a 60 s limit). */
   deadline: number;
 }

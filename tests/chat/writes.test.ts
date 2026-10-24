@@ -13,6 +13,7 @@ const db = vi.hoisted(() => ({
   order: { findFirst: vi.fn() },
   scheduledPost: { findFirst: vi.fn() },
   businessProfile: { findUnique: vi.fn() },
+  chatMessage: { findMany: vi.fn() },
 }));
 
 vi.mock("@/lib/db", () => ({ db }));
@@ -56,6 +57,7 @@ import { riskOf, toolSpecs, toolsFor } from "@/lib/chat/registry";
 import { WRITE_TOOLS } from "@/lib/chat/tools/writes";
 import { CARD, LABEL, NEW } from "@/lib/chat/tools/writes-words";
 import { ToolRefusal, type Card, type ToolCtx, type WriteTool } from "@/lib/chat/types";
+import { STORY_VIDEO_ARGS, STORY_VIDEO_RULES } from "@/lib/assistant/tools";
 import { dict } from "@/lib/i18n";
 import type { Lang } from "@/lib/i18n/lang";
 
@@ -119,6 +121,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllEnvs();
   db.businessProfile.findUnique.mockResolvedValue(null);
+  // The thread's messages (the owner's own words a story's idea is compared with): none unless a test gives some.
+  db.chatMessage.findMany.mockReset();
+  db.chatMessage.findMany.mockResolvedValue([]);
   shop.fb = { connected: true, accountId: "fb1", name: "Page" };
   shop.ig = { connected: false };
   shop.fbPages = 1;
@@ -294,6 +299,7 @@ describe("text fields", () => {
       make_video: ["idea"],
       post_now: ["caption"],
       schedule_post: ["caption"],
+      set_daily_video: ["idea"],
       set_shop_options: ["defaultDm", "aiBrief", "deliveryTime"],
       add_product: ["name", "description"],
       update_product: ["name", "description"],
@@ -996,6 +1002,7 @@ describe("words", () => {
 describe("the video's language and kind", () => {
   const languageOf = (c: Card) => c.lines.find((l) => l.label === "Video language" || l.label === "زمانی ڤیدیۆ" || l.label === "لغة الفيديو")?.value;
   const kindRow = (c: Card) => c.lines.find((l) => l.label === "Kind");
+  const noteLine = (c: Card) => c.lines.find((l) => l.label === "Note");
   const UI: Lang[] = ["ckb", "ar", "en"];
   const KURDISH = /[کیەێۆڕڵڤپچژگ]/;
   const stores = (over: Record<string, unknown> = {}) => [
@@ -1022,7 +1029,33 @@ describe("the video's language and kind", () => {
     expect(tool("set_daily_video").description).not.toMatch(/mode OFF with a language/);
     expect(tool("set_daily_video").description).not.toMatch(/mode is always required/);
     const props = (toolSpecs([tool("make_video")])[0].function.parameters as { properties: Record<string, unknown> }).properties;
-    expect(Object.keys(props)).toEqual(expect.arrayContaining(["idea", "product", "language", "kind"]));
+    expect(Object.keys(props)).toEqual(expect.arrayContaining(["idea", "product", "language", "kind", "photos", "review"]));
+  });
+
+  it("tells the model what a story is, once: the options (review, photos, shape) are in the tool, the story rule is in the system prompt and not repeated here", () => {
+    const d = tool("make_video").description;
+    expect(d).toContain(STORY_VIDEO_ARGS);
+    expect(d).toMatch(/review: true only when the owner asks Gituas to improve or rewrite the idea first/);
+    expect(d).toMatch(/photos: false removes the photographs/);
+    expect(d).toMatch(/format: "vertical" \(the default, 9:16, for Reels\) or "wide" \(16:9, for YouTube\)/);
+    expect(d).toMatch(/pass "wide" whenever the owner mentions YouTube, 16:9, wide, landscape or horizontal/);
+    expect(d).toMatch(/an ad of about 35 seconds or a story of about 60 to 70 seconds \(a story aims for about 30 seconds when its idea asks for a short video, with no promise\)/);
+    expect(d).toMatch(/There is still no multi-minute documentary, and a video made now is not uploaded to YouTube from here/);
+    // The two answers agree: no "cannot be chosen" any more, and the review wording is the tool's own (the chat's switch decides when the owner said nothing).
+    expect(d).not.toMatch(/cannot be chosen/);
+    expect(d).toMatch(/left out, the owner's own "review my idea" switch in the chat decides/);
+    // Act first: a generic idea is enough, the owner is never asked for a case, a country or an era.
+    expect(d).toMatch(/Act first: a generic idea/);
+    expect(d).toMatch(/never ask the owner to name a case, a country or an era/);
+    expect(d).toMatch(/the result lists the shape, the language and the photographs as they really are: report exactly that/);
+    // The story rule itself (NEVER ask the owner to name a case, the owner's own words...) is the system prompt's, ONCE per prompt.
+    expect(d).not.toContain(STORY_VIDEO_RULES);
+    expect(d).not.toMatch(/NEVER ask the owner to name a case/);
+    // The round-1 rules (one named subject, ask one question, offer three cases) and the old claim that the AI invents every story are gone.
+    expect(d).not.toMatch(/the idea must name the SPECIFIC subject/);
+    expect(d).not.toMatch(/ask ONE short question/);
+    expect(d).not.toMatch(/offer three real documented cases/);
+    expect(d).not.toMatch(/the AI invents the story/);
   });
 
   it("always shows the language the video will really use: the one asked, else the shop's own, else Sorani", async () => {
@@ -1053,16 +1086,325 @@ describe("the video's language and kind", () => {
     }
   });
 
-  it("shows a story as a story, with no product row, and says the AI invents it", async () => {
-    const c = await cardOf("make_video", { idea: "a mystery about a missing letter", kind: "story", language: "en", product: "silver" });
-    expect(kindRow(c)).toEqual({ label: "Kind", value: "Story" });
-    expect(c.lines.some((l) => l.label === "Product")).toBe(false);
-    expect(c.lines).toContainEqual({ label: "Note", value: CARD.videoStoryNote.en });
-    expect(languageOf(c)).toBe("English");
-    // An ad shows no kind row and no note.
-    const ad = await cardOf("make_video", { idea: "a short ad", kind: "ad" });
+  // A story card with no files attached in the chat: the lines of the story itself. (The default context holds a picture and a video, which the
+  // card adds its "Not used" lines for: they have their own tests below.)
+  const bare = (over: Partial<ToolCtx> = {}) => ctxOf({ attachments: [], ...over });
+
+  it("shows a story, in every video language, as the owner's idea with its shape and the Wikimedia Commons photographs and a note to read it first; no product row", async () => {
+    for (const language of ["ckb", "ar", "en"]) {
+      const c = await cardOf("make_video", { idea: "Hinterkaifeck murders 1922", kind: "story", language, product: "silver" }, bare());
+      // The length and the YouTube sentence are on the card, BEFORE Confirm.
+      expect(c.lines.map((l) => l.label), language).toEqual(["Idea", "Video language", "Kind", "Shape", "Photos", "Accounts", "Note", "Length", "YouTube"]);
+      expect(c.lines[0]).toEqual({ label: "Idea", value: "Hinterkaifeck murders 1922" });
+      expect(kindRow(c)).toEqual({ label: "Kind", value: "Story" });
+      expect(c.lines).toContainEqual({ label: "Shape", value: "Vertical 9:16 (Reels)" });
+      expect(c.lines).toContainEqual({ label: "Photos", value: "Wikimedia Commons" });
+      expect(noteLine(c)).toEqual({ label: "Note", value: CARD.videoStoryReal.en });
+      expect(c.lines).toContainEqual({ label: "Length", value: dict("en").assistant.done.videoLengthStory });
+      expect(c.lines).toContainEqual({ label: "YouTube", value: dict("en").assistant.done.videoNotYouTube });
+      expect(c.lines.some((l) => l.label === "Product" || l.label === "Subject" || l.label === "Improve the idea first")).toBe(false);
+    }
+    // The shop's own video language decides when the model named none.
+    db.store.findMany.mockResolvedValue(stores({ videoLang: "ar" }));
+    const own = await cardOf("make_video", { idea: "one of the historical mystery stories, crime", kind: "story" }, bare());
+    expect(languageOf(own)).toBe("Arabic");
+    expect(own.lines).toContainEqual({ label: "Photos", value: "Wikimedia Commons" });
+    // An ad shows no kind row, no shape and no note: it is always vertical and is made as it was.
+    const ad = await cardOf("make_video", { idea: "a short ad", kind: "ad" }, bare());
     expect(kindRow(ad)).toBeUndefined();
-    expect(ad.lines.some((l) => l.label === "Note")).toBe(false);
+    expect(ad.lines.some((l) => l.label === "Note" || l.label === "Shape")).toBe(false);
+  });
+
+  it("states the shape on a story's card: wide 16:9 for YouTube when asked, vertical 9:16 otherwise, in the person's language; an ad never has one", async () => {
+    const wide = await cardOf("make_video", { idea: "one of the historical mystery stories, crime", kind: "story", format: "wide" }, bare());
+    expect(wide.lines).toContainEqual({ label: "Shape", value: "Wide 16:9 (YouTube)" });
+    expect(wide.lines.some((l) => l.value === "Vertical 9:16 (Reels)")).toBe(false);
+    for (const format of ["vertical", undefined]) {
+      const c = await cardOf("make_video", { idea: "one of the historical mystery stories, crime", kind: "story", ...(format ? { format } : {}) }, bare());
+      expect(c.lines).toContainEqual({ label: "Shape", value: "Vertical 9:16 (Reels)" });
+    }
+    // The page decides the kind when the model gave none: a content page's wide request is a wide story.
+    for (const lang of UI) {
+      const t = dict(lang).assistant.fields;
+      const c = await cardOf("make_video", { idea: "one of the historical mystery stories, crime", kind: "story", format: "wide" }, bare({ lang }));
+      expect(c.lines).toContainEqual({ label: t.format, value: t.formatWide });
+      const v = await cardOf("make_video", { idea: "one of the historical mystery stories, crime", kind: "story" }, bare({ lang }));
+      expect(v.lines).toContainEqual({ label: t.format, value: t.formatVertical });
+    }
+    // An ad cannot be wide: the card is refused with the plain facts for the model to tell the owner, and nothing is made.
+    const said = await refusal(cardOf("make_video", { idea: "a short ad", kind: "ad", format: "wide" }, bare()));
+    expect(said).toMatch(/An ad is always vertical \(9:16\); only a story can be wide \(16:9, for YouTube\)/);
+    expect(said).toMatch(/Tell the owner that plainly, and offer a vertical ad or a wide story: never swap one for the other without saying so/);
+    expect(await refusal(cardOf("make_video", { idea: "a short ad about the ring", product: "silver ring", format: "wide" }, bare()))).toMatch(/An ad is always vertical/);
+    // An ad that asks for vertical is fine, and says nothing about it.
+    const ok = await cardOf("make_video", { idea: "a short ad", kind: "ad", format: "vertical" }, bare());
+    expect(ok.lines.some((l) => l.label === "Shape")).toBe(false);
+  });
+
+  it("says the case is chosen by Gituas only when none is named, that the article is read when it can be, and that the owner reads it first", () => {
+    expect(CARD.videoStoryReal.en).toMatch(/or, when you named none, one Gituas chooses and shows on the video card/);
+    expect(CARD.videoStoryReal.en).toMatch(/retold from its Wikipedia article when that can be read; otherwise the video card says it was told from memory/);
+    expect(CARD.videoStoryReal.en).toMatch(/Free photographs from Wikimedia Commons are used where they are found, and credited in the caption and on the last scene/);
+    expect(CARD.videoStoryReal.en).toMatch(/Read it before it is posted/);
+    expect(CARD.videoStoryRealNoPhotos.en).toMatch(/or, when you named none, one Gituas chooses and shows on the video card/);
+    expect(CARD.videoStoryRealNoPhotos.en).toMatch(/otherwise the video card says it was told from memory/);
+    // Nothing promises a photograph for every part, or that a story is "never invented".
+    for (const note of [CARD.videoStoryReal, CARD.videoStoryRealNoPhotos]) for (const lang of UI) expect(note[lang]).not.toMatch(/never invented|every part/);
+  });
+
+  it("says 'no photographs' on the card, and drops the photographs from the note, when the owner switched them off", async () => {
+    for (const language of ["ckb", "en"]) {
+      const c = await cardOf("make_video", { idea: "Hinterkaifeck murders 1922", kind: "story", language, photos: false }, bare());
+      expect(c.lines).toContainEqual({ label: "Photos", value: "No photographs" });
+      expect(c.lines.some((l) => l.value === "Wikimedia Commons")).toBe(false);
+      expect(c.lines[0]).toEqual({ label: "Idea", value: "Hinterkaifeck murders 1922" });
+      expect(noteLine(c)).toEqual({ label: "Note", value: CARD.videoStoryRealNoPhotos.en });
+    }
+    expect(CARD.videoStoryRealNoPhotos.en).not.toMatch(/Wikimedia/);
+  });
+
+  it("shows the review line only when the owner asked Gituas to improve the idea first", async () => {
+    const asked = await cardOf("make_video", { idea: "one of the historical mystery stories, crime", kind: "story", language: "en", review: true }, bare());
+    expect(asked.lines).toContainEqual({ label: "Improve the idea first", value: "Yes" });
+    expect(asked.lines[0]).toEqual({ label: "Idea", value: "one of the historical mystery stories, crime" });
+    for (const review of [false, undefined]) {
+      const c = await cardOf("make_video", { idea: "one of the historical mystery stories, crime", kind: "story", language: "en", ...(review === undefined ? {} : { review }) }, bare());
+      expect(c.lines.some((l) => l.label === "Improve the idea first")).toBe(false);
+    }
+  });
+
+  it("shows a story whose idea says fiction as a fiction, in any video language: no photographs line, the fiction note", async () => {
+    for (const language of ["en", "ckb"]) {
+      for (const idea of ["a fictional lighthouse mystery", "fiction: a keeper who vanishes", "قصة خيالية عن منارة", "چیرۆکێکی خەیاڵی دەربارەی فانۆس"]) {
+        const c = await cardOf("make_video", { idea, kind: "story", language }, bare());
+        expect(c.lines.some((l) => l.label === "Photos")).toBe(false);
+        expect(c.lines[0]).toEqual({ label: "Idea", value: idea });
+        expect(noteLine(c)).toEqual({ label: "Note", value: CARD.videoStoryFiction.en });
+        // A fiction has one length (the short aim is only for a real story).
+        expect(c.lines).toContainEqual({ label: "Length", value: dict("en").assistant.done.videoLengthFiction });
+      }
+    }
+    // "Non-fiction" asks for the opposite.
+    const real = await cardOf("make_video", { idea: "a non-fiction account of the Hinterkaifeck murders", kind: "story", language: "en" }, bare());
+    expect(noteLine(real)).toEqual({ label: "Note", value: CARD.videoStoryReal.en });
+  });
+
+  it("decides fiction from the idea as the owner said it, once: the card and the action use the same words", async () => {
+    // The card reads the idea the model proposed (the owner's words, no review has run yet); the action reads the same words again at Confirm.
+    const idea = "a fictional lighthouse mystery";
+    const c = await cardOf("make_video", { idea, kind: "story", language: "en", review: true }, bare());
+    expect(noteLine(c)).toEqual({ label: "Note", value: CARD.videoStoryFiction.en });
+    vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1" });
+    await run("make_video", { idea, kind: "story", language: "en", review: true }, bare());
+    expect(vi.mocked(createVideoAction).mock.calls.at(-1)![1]).toMatchObject({ topic: idea, kind: "story", review: true });
+  });
+
+  it("says the same in the person's language, with no Kurdish-only letter in the Arabic and no Arabic script in the English", async () => {
+    for (const lang of UI) {
+      const real = await cardOf("make_video", { idea: "Hinterkaifeck murders 1922", kind: "story", language: "en" }, bare({ lang }));
+      expect(real.lines.find((l) => l.label === NEW.field.note[lang])).toEqual({ label: NEW.field.note[lang], value: CARD.videoStoryReal[lang] });
+      const fiction = await cardOf("make_video", { idea: "a fictional lighthouse mystery", kind: "story", language: "en" }, bare({ lang }));
+      expect(fiction.lines.find((l) => l.label === NEW.field.note[lang])).toEqual({ label: NEW.field.note[lang], value: CARD.videoStoryFiction[lang] });
+      for (const l of [...real.lines, ...fiction.lines]) {
+        expect(l.label.trim()).not.toBe("");
+        expect(l.value.trim()).not.toBe("");
+        if (lang === "ar") expect(KURDISH.test(l.label + l.value), `${l.label}: ${l.value}`).toBe(false);
+        if (lang === "en") expect(/[؀-ۿ]/.test(l.label + l.value), `${l.label}: ${l.value}`).toBe(false);
+      }
+    }
+    // The Sorani card spells Wikimedia Commons in Sorani letters, in the note and in the Photos row; the Latin name stays out of the Sorani words.
+    expect(CARD.videoStoryReal.ckb).toContain("ویکیمیدیا کۆمۆنز");
+    expect(CARD.videoStoryReal.ckb).not.toMatch(/[A-Za-z]{3}/);
+    expect(CARD.videoStoryReal.ar).toContain("ويكيميديا كومنز");
+    const ckbCard = await cardOf("make_video", { idea: "Hinterkaifeck murders 1922", kind: "story", language: "en" }, bare({ lang: "ckb" }));
+    expect(ckbCard.lines).toContainEqual({ label: dict("ckb").assistant.fields.storyPhotos, value: "ویکیمیدیا کۆمۆنز" });
+    const arCard = await cardOf("make_video", { idea: "Hinterkaifeck murders 1922", kind: "story", language: "en" }, bare({ lang: "ar" }));
+    expect(arCard.lines).toContainEqual({ label: dict("ar").assistant.fields.storyPhotos, value: "ويكيميديا كومنز" });
+  });
+
+  describe("what the owner attached and a story cannot use is said first, on the card", () => {
+    const NOT_USED = "Not used";
+    const idea = "one of the historical mystery stories, crime";
+
+    it("says an attached video was NOT used, before everything else, and an attached picture too; one line each", async () => {
+      const c = await cardOf("make_video", { idea, kind: "story", language: "en", format: "wide" }, ctxOf({ attachments: [vid, img], latestAttachments: ["a3", "a1"] }));
+      expect(c.lines[0]).toEqual({ label: NOT_USED, value: "The attached video was NOT used: Gituas cannot learn from a video yet." });
+      expect(c.lines[1]).toEqual({ label: NOT_USED, value: "The attached picture was NOT used: Gituas cannot use your pictures in a story yet." });
+      expect(c.lines[2]).toEqual({ label: "Idea", value: idea });
+      // Only the video: one line.
+      const only = await cardOf("make_video", { idea, kind: "story", language: "en" }, ctxOf({ attachments: [vid], latestAttachments: ["a3"] }));
+      expect(only.lines.filter((l) => l.label === NOT_USED)).toHaveLength(1);
+      // The same in the person's language.
+      for (const lang of UI) {
+        const t = dict(lang).assistant.done;
+        const card = await cardOf("make_video", { idea, kind: "story", language: "en" }, ctxOf({ lang, attachments: [vid], latestAttachments: ["a3"] }));
+        expect(card.lines[0]).toEqual({ label: CARD.notUsedLabel[lang], value: t.videoNotUsedVideo });
+        if (lang === "ar") expect(KURDISH.test(card.lines[0].label + card.lines[0].value)).toBe(false);
+      }
+    });
+
+    it("says nothing when nothing is attached, when the only picture is one the chat made itself, and on an ad", async () => {
+      const none = await cardOf("make_video", { idea, kind: "story", language: "en" }, ctxOf({ attachments: [], latestAttachments: [] }));
+      expect(none.lines.some((l) => l.label === NOT_USED)).toBe(false);
+      // A picture the chat made is not in the owner's latest message: it is excluded by id, whatever its name says (here a name in another language).
+      const made = { ...img, id: "a9", name: dict("ckb").assistant.done.pictureName };
+      const mine = await cardOf("make_video", { idea, kind: "story", language: "en" }, ctxOf({ attachments: [made], latestAttachments: [] }));
+      expect(mine.lines.some((l) => l.label === NOT_USED)).toBe(false);
+      const ad = await cardOf("make_video", { idea: "a short ad", kind: "ad" }, ctxOf({ attachments: [vid, img], latestAttachments: ["a3", "a1"] }));
+      expect(ad.lines.some((l) => l.label === NOT_USED)).toBe(false);
+    });
+
+    it("counts only the files of the owner's LATEST message: an earlier video, or a product photo attached days ago, is not part of this story", async () => {
+      // The whole thread holds a video and two pictures; the latest message attached nothing (or only one of them).
+      const old = await cardOf("make_video", { idea, kind: "story", language: "en" }, ctxOf({ attachments: [vid, img, png], latestAttachments: [] }));
+      expect(old.lines.some((l) => l.label === NOT_USED)).toBe(false);
+      const one = await cardOf("make_video", { idea, kind: "story", language: "en" }, ctxOf({ attachments: [vid, img, png], latestAttachments: ["a2"] }));
+      expect(one.lines.filter((l) => l.label === NOT_USED)).toEqual([{ label: NOT_USED, value: dict("en").assistant.done.videoNotUsedPicture }]);
+    });
+
+    it("reads the latest message from the thread when the context does not carry it (a run after Confirm), and claims nothing when it cannot be read", async () => {
+      // The owner's last message attached the video.
+      db.chatMessage.findMany.mockResolvedValue([
+        { role: "user", content: "older", seq: 1, meta: { attachments: [{ id: "a1" }] } },
+        { role: "assistant", content: "ok", seq: 2, meta: null },
+        { role: "user", content: "make the story", seq: 3, meta: { attachments: [{ id: "a3" }] } },
+      ]);
+      const c = await cardOf("make_video", { idea, kind: "story", language: "en" }, ctxOf({ attachments: [vid, img] }));
+      expect(c.lines.filter((l) => l.label === NOT_USED)).toEqual([{ label: NOT_USED, value: dict("en").assistant.done.videoNotUsedVideo }]);
+      // A thread that cannot be read: no claim at all (never a guess), and the card still comes.
+      db.chatMessage.findMany.mockRejectedValue(new Error("db down"));
+      const down = await cardOf("make_video", { idea, kind: "story", language: "en" }, ctxOf({ attachments: [vid, img] }));
+      expect(down.lines.some((l) => l.label === NOT_USED)).toBe(false);
+    });
+  });
+
+  describe("the idea is the owner's own words: a country, an era or a year the model added is refused", () => {
+    // The real chat: the owner wrote "one of the historical mystery stories, crime" and the idea came back with "Egyptian".
+    // The thread's rows as the store returns them, newest first (a fresh copy on every read).
+    const owner = (...texts: string[]) =>
+      db.chatMessage.findMany.mockImplementation(async () => [...texts].reverse().map((content, i) => ({ role: "user", content, seq: texts.length - i })));
+
+    it("refuses the real log's idea: the owner said 'mystery history', the idea said 'Egyptian'", async () => {
+      owner("a video for my YouTube mystery-history channel, one of the historical mystery stories, crime genre, very eye-catching");
+      const said = await refusal(cardOf("make_video", { idea: "A historical Egyptian crime mystery, very eye-catching", kind: "story", language: "ckb" }, bare()));
+      expect(said).toMatch(/The idea has words the owner did not say: Egypt/);
+      expect(said).toMatch(/exactly as they said them/);
+      expect(said).toMatch(/Remove them and propose again with the owner's words only/);
+      expect(said).toMatch(/Do not ask the owner anything/);
+    });
+
+    it("refuses a country, a people, an era and a year the owner never said, and names each one", async () => {
+      owner("make a mystery story for my channel");
+      const cases: [string, string][] = [
+        ["a mystery in ancient Rome", "Rome, ancient times"],
+        ["a medieval murder", "the Middle Ages"],
+        ["a Victorian poisoning", "the Victorian era"],
+        ["an Ottoman palace secret", "the Ottoman era"],
+        ["a Greek tragedy of a vanished fleet", "Greece"],
+        ["a crime from 1922", "1922"],
+        ["a crime from the 1920s", "1920"],
+        ["جريمة غامضة في مصر القديمة", "Egypt"],
+        ["چیرۆکێکی نهێنی لە میسر", "Egypt"],
+        ["مرموزی ڕووداوێک لە ڕۆمای کۆن", "Rome"],
+      ];
+      for (const [idea, words] of cases) {
+        const said = await refusal(cardOf("make_video", { idea, kind: "story", language: "en" }, bare()));
+        for (const w of words.split(", ")) expect(said, idea).toContain(w);
+      }
+    });
+
+    it("allows what the owner said, in any of the three languages, and years the owner wrote, in any digits", async () => {
+      owner("جريمة في مصر القديمة، سنة ١٩٢٢");
+      expect((await cardOf("make_video", { idea: "An Egyptian crime, 1922", kind: "story", language: "en" }, bare())).lines.length).toBeGreaterThan(3);
+      owner("a story about the Hinterkaifeck murders, 1922");
+      expect((await cardOf("make_video", { idea: "Hinterkaifeck murders 1922", kind: "story", language: "en" }, bare())).lines.length).toBeGreaterThan(3);
+      owner("چیرۆکێک دەربارەی میسر");
+      expect((await cardOf("make_video", { idea: "Egyptian pharaohs mystery", kind: "story", language: "en" }, bare())).lines.length).toBeGreaterThan(3);
+      // An owner who named the topic a few messages before saying "yes, make it" is still the one who said it.
+      owner("mystery stories from ancient Egypt", "yes", "ok, make it");
+      expect((await cardOf("make_video", { idea: "an Egyptian mystery", kind: "story", language: "en" }, bare())).lines.length).toBeGreaterThan(3);
+    });
+
+    it("does not mistake other words for those: a romance is not Rome, and a plain idea passes", async () => {
+      owner("a romantic mystery story");
+      expect((await cardOf("make_video", { idea: "A romance and a mystery, told calmly", kind: "story", language: "en" }, bare())).lines.length).toBeGreaterThan(3);
+      owner("قصة رومانسية غامضة");
+      expect((await cardOf("make_video", { idea: "قصة رومانسية غامضة", kind: "story", language: "ar" }, bare())).lines.length).toBeGreaterThan(3);
+      owner("one of the historical mystery stories, crime");
+      expect((await cardOf("make_video", { idea: "one of the historical mystery stories, crime", kind: "story", language: "en" }, bare())).lines.length).toBeGreaterThan(3);
+    });
+
+    it("judges nothing it cannot read: no thread rows, or a thread that cannot be loaded, lets the card through; an ad is never checked", async () => {
+      db.chatMessage.findMany.mockResolvedValue([]);
+      expect((await cardOf("make_video", { idea: "An Egyptian crime, 1922", kind: "story", language: "en" }, bare())).lines.length).toBeGreaterThan(3);
+      db.chatMessage.findMany.mockRejectedValue(new Error("db down"));
+      expect((await cardOf("make_video", { idea: "An Egyptian crime, 1922", kind: "story", language: "en" }, bare())).lines.length).toBeGreaterThan(3);
+      owner("make a short ad");
+      expect((await cardOf("make_video", { idea: "an ad with a Roman theme in 1922", kind: "ad" }, bare())).lines.length).toBeGreaterThan(2);
+    });
+  });
+
+  describe("the result of a video start, in the owner's language: the facts of the job, and what was not used", () => {
+    const idea = "one of the historical mystery stories, crime";
+    const facts = { lang: "ckb", kind: "story", format: "wide", photos: "on" } as const;
+
+    it("lists the shape, the language, the photographs and the credits, and that nothing was posted to YouTube, in each language", async () => {
+      vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1", facts });
+      for (const lang of UI) {
+        const t = dict(lang).assistant;
+        const r = await run("make_video", { idea, kind: "story", format: "wide" }, bare({ lang }));
+        const lines = r.text.split("\n").filter((x) => !x.startsWith(t.fields.shop));
+        expect(lines, lang).toEqual([
+          t.done.videoStarted,
+          t.done.videoFormatWide,
+          t.done.videoLanguage(t.fields.languages["ckb"]),
+          t.done.videoLengthStory,
+          t.done.videoCase,
+          t.done.videoPhotosOn,
+          t.done.videoCredits,
+          t.done.videoNotYouTube,
+          // No review ran (the mocked action reports none): the result says the idea was used exactly as written.
+          t.done.videoUsedAsWritten,
+        ]);
+        if (lang === "ar") expect(KURDISH.test(r.text), r.text).toBe(false);
+        if (lang === "en") expect(/[؀-ۿ]/.test(r.text), r.text).toBe(false);
+      }
+    });
+
+    it("says the attached video was NOT used as the very first line of the result, in each language", async () => {
+      vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1", facts });
+      for (const lang of UI) {
+        const t = dict(lang).assistant.done;
+        const r = await run("make_video", { idea, kind: "story", format: "wide" }, ctxOf({ lang, attachments: [vid], latestAttachments: ["a3"] }));
+        expect(r.text.split("\n")[0], lang).toBe(t.videoNotUsedVideo);
+        // The same file from an earlier message is not part of this request: nothing is said about it.
+        const later = await run("make_video", { idea, kind: "story", format: "wide" }, ctxOf({ lang, attachments: [vid], latestAttachments: [] }));
+        expect(later.text, lang).not.toContain(t.videoNotUsedVideo);
+      }
+      expect(dict("en").assistant.done.videoNotUsedVideo).toBe("The attached video was NOT used: Gituas cannot learn from a video yet.");
+    });
+
+    it("writes the shape of a vertical story and of an ad as vertical, and carries the Sorani spelling of Wikimedia Commons in Sorani letters", async () => {
+      vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1", facts: { lang: "en", kind: "story", format: "vertical", photos: "on" } });
+      const r = await run("make_video", { idea, kind: "story" }, bare({ lang: "ckb" }));
+      expect(r.text).toContain(dict("ckb").assistant.done.videoFormatVertical);
+      expect(r.text).toContain("ویکیمیدیا کۆمۆنز");
+      expect(r.text).not.toContain("Wikimedia");
+      vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1", facts: { lang: "en", kind: "ad", format: "vertical" } });
+      const ad = await run("make_video", { idea: "a short ad", kind: "ad" }, bare());
+      expect(ad.text.split("\n").filter((x) => !x.startsWith("Accounts"))).toEqual([dict("en").assistant.done.videoStarted, "Format: vertical 9:16.", "Language: English.", "Length: about 35 seconds; an ad's length is fixed."]);
+    });
+  });
+
+  it("passes the shape on only when it is vertical or wide", async () => {
+    vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1" });
+    await run("make_video", { idea: "one of the historical mystery stories, crime", kind: "story", format: "wide" }, bare());
+    expect(vi.mocked(createVideoAction).mock.calls.at(-1)![1]).toMatchObject({ kind: "story", format: "wide" });
+    await run("make_video", { idea: "one of the historical mystery stories, crime", kind: "story" }, bare());
+    expect("format" in vi.mocked(createVideoAction).mock.calls.at(-1)![1]).toBe(false);
+    expect(() => parse("make_video", { idea: "one of the historical mystery stories, crime", format: "square" })).toThrow();
+    const props = (toolSpecs([tool("make_video")])[0].function.parameters as { properties: Record<string, unknown> }).properties;
+    expect(Object.keys(props)).toContain("format");
   });
 
   it("follows what the page is for when the model gave no kind, and the model's kind when it did", async () => {
@@ -1095,9 +1437,14 @@ describe("the video's language and kind", () => {
     expect(story.lines.some((l) => l.label === "Product")).toBe(false);
   });
 
-  it("refuses a story with no idea to tell", async () => {
-    expect(await refusal(cardOf("make_video", { idea: "tell it", kind: "story" }))).toMatch(/story/);
-    expect((await cardOf("make_video", { idea: "tell it", kind: "ad" })).lines.length).toBeGreaterThan(0);
+  it("refuses a story with no idea to go on (fewer than four characters), tells the model not to ask the owner for a case, and takes a short word", async () => {
+    const said = await refusal(cardOf("make_video", { idea: "abc", kind: "story" }));
+    expect(said).toMatch(/story/);
+    expect(said).toMatch(/Do not ask them to name a case: Gituas chooses a real one when none is named/);
+    expect((await cardOf("make_video", { idea: "abc", kind: "ad" })).lines.length).toBeGreaterThan(0);
+    // A word is enough for a story: the system finds or chooses the case.
+    expect((await cardOf("make_video", { idea: "Titanic", kind: "story", language: "en" })).lines.length).toBeGreaterThan(0);
+    expect((await cardOf("make_video", { idea: "tell it", kind: "story" })).lines.length).toBeGreaterThan(0);
   });
 
   it("passes the language and kind on only when the model gave them", async () => {
@@ -1108,6 +1455,57 @@ describe("the video's language and kind", () => {
     expect(plain.voice).toBe("shilan");
     await run("make_video", { idea: "a mystery about a missing letter", language: "en", kind: "story" });
     expect(vi.mocked(createVideoAction).mock.calls[1][1]).toMatchObject({ topic: "a mystery about a missing letter", lang: "en", kind: "story", voice: "shilan" });
+  });
+
+  it("passes the photo switch on only when the model gave a true or false", async () => {
+    vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1" });
+    await run("make_video", { idea: "Hinterkaifeck murders 1922", language: "en", kind: "story", photos: false });
+    expect(vi.mocked(createVideoAction).mock.calls.at(-1)![1]).toMatchObject({ topic: "Hinterkaifeck murders 1922", lang: "en", kind: "story", photos: false });
+    await run("make_video", { idea: "Hinterkaifeck murders 1922", language: "en", kind: "story", photos: true });
+    expect(vi.mocked(createVideoAction).mock.calls.at(-1)![1]).toMatchObject({ photos: true });
+    await run("make_video", { idea: "Hinterkaifeck murders 1922", language: "en", kind: "story" });
+    expect("photos" in vi.mocked(createVideoAction).mock.calls.at(-1)![1]).toBe(false);
+    // Anything but a true or false is no call at all.
+    expect(() => parse("make_video", { idea: "Hinterkaifeck murders 1922", photos: "off" })).toThrow();
+  });
+
+  it("a story's review is what the owner said in words (review true or false), else the chat's own switch; an ad keeps the chat's switch", async () => {
+    vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1" });
+    const idea = "one of the historical mystery stories, crime";
+    const last = () => vi.mocked(createVideoAction).mock.calls.at(-1)![1];
+    // The chat's switch is OFF and the model said nothing: the idea goes straight to the video maker (the story is literal).
+    await run("make_video", { idea, language: "en", kind: "story" }, ctxOf({ review: false }));
+    expect(last()).toMatchObject({ kind: "story", topic: idea, review: false });
+    // The switch is ON and the model said nothing: the switch decides (args.review ?? ctx.review).
+    await run("make_video", { idea, language: "en", kind: "story" });
+    expect(last()).toMatchObject({ kind: "story", topic: idea, review: true });
+    // What the owner said in words wins over the switch, in both directions.
+    await run("make_video", { idea, language: "en", kind: "story", review: false });
+    expect(last()).toMatchObject({ review: false });
+    await run("make_video", { idea, language: "en", kind: "story", review: true }, ctxOf({ review: false }));
+    expect(last()).toMatchObject({ kind: "story", review: true });
+    // The page decides the kind when the model gave none: a content page makes a story, which follows the same rule.
+    vi.stubEnv("BUSINESS_PROFILE_ENABLED", "1");
+    db.businessProfile.findUnique.mockResolvedValue(profileOf("monetize"));
+    await run("make_video", { idea }, ctxOf({ review: false }));
+    expect(last()).toMatchObject({ review: false });
+    await run("make_video", { idea });
+    expect(last()).toMatchObject({ review: true });
+    // An ad is reviewed as the chat's switch says (the owner's review of ideas in general), as before.
+    await run("make_video", { idea: "a short ad", kind: "ad" });
+    expect(last()).toMatchObject({ review: true });
+    await run("make_video", { idea: "a short ad", kind: "ad" }, ctxOf({ review: false }));
+    expect(last()).toMatchObject({ review: false });
+    // Anything but a true or false is no call at all.
+    expect(() => parse("make_video", { idea, review: "yes" })).toThrow();
+    expect(() => parse("make_video", { idea, review: "true" })).toThrow();
+  });
+
+  it("tells the owner what the review changed, after the video starts", async () => {
+    vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1", reviewed: { text: "a clearer brief", summary: "added the page's angle" } });
+    const r = await run("make_video", { idea: "one of the historical mystery stories, crime", language: "en", kind: "story", review: true });
+    expect(r).toMatchObject({ ok: true, jobId: "job1" });
+    expect((r as { text: string }).text).toContain("Reviewed: added the page's angle");
   });
 
   it("saves the daily video's language only when it was given, and shows it only then", async () => {

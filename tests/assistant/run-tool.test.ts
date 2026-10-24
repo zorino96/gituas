@@ -47,6 +47,7 @@ import { schedulePublishAction } from "@/app/app/publish/schedule-actions";
 import { createVideoAction, saveVideoAutoAction } from "@/app/app/video/actions";
 import { designSectionFrameAction, removeSectionFrameAction, saveDesignPromptAction, saveSectionFrameTextAction } from "@/app/newsroom/(desk)/news/actions";
 import { runToolAction } from "@/app/app/assistant/actions";
+import { en } from "@/lib/i18n/en";
 
 const OWN = "https://abc.public.blob.vercel-storage.com/merchant/t1/chat/1.jpg";
 const seen = new Set<string>();
@@ -176,6 +177,147 @@ describe("runToolAction", () => {
     expect(saveVideoAutoAction).toHaveBeenCalledTimes(calls);
   });
 
+  it("passes the Wikimedia Commons photo switch of a story on only when it is a true or false, and never confuses it with a product's photos", async () => {
+    vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1" });
+    const idea = "Hinterkaifeck murders 1922";
+    expect(await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea, language: "en", kind: "story", photos: false } })).toMatchObject({ ok: true, jobId: "job1" });
+    expect(vi.mocked(createVideoAction).mock.calls.at(-1)![1]).toMatchObject({ topic: idea, lang: "en", kind: "story", photos: false });
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea, language: "ar", kind: "story", photos: true } });
+    expect(vi.mocked(createVideoAction).mock.calls.at(-1)![1]).toMatchObject({ lang: "ar", photos: true });
+    // Left out, the action is told nothing about photographs (its default applies): an ad and a story with no word on it send none.
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea, language: "en", kind: "story" } });
+    expect("photos" in vi.mocked(createVideoAction).mock.calls.at(-1)![1]).toBe(false);
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea: "a short ad" } });
+    expect("photos" in vi.mocked(createVideoAction).mock.calls.at(-1)![1]).toBe(false);
+    // Anything that is not a true or false never reaches the action.
+    const calls = vi.mocked(createVideoAction).mock.calls.length;
+    expect(await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea, photos: "off" } })).toMatchObject({ ok: false });
+    expect(createVideoAction).toHaveBeenCalledTimes(calls);
+  });
+
+  it("passes a story's shape on only when it is vertical or wide; left out nothing is sent, and anything else never reaches the action", async () => {
+    vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1" });
+    const idea = "one of the historical mystery stories, crime";
+    const last = () => vi.mocked(createVideoAction).mock.calls.at(-1)![1];
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea, kind: "story", format: "wide" } });
+    expect(last()).toMatchObject({ kind: "story", format: "wide" });
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea, kind: "story", format: "vertical" } });
+    expect(last()).toMatchObject({ format: "vertical" });
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea, kind: "story" } });
+    expect("format" in last()).toBe(false);
+    const calls = vi.mocked(createVideoAction).mock.calls.length;
+    expect(await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea, kind: "story", format: "16:9" } })).toMatchObject({ ok: false });
+    expect(createVideoAction).toHaveBeenCalledTimes(calls);
+  });
+
+  describe("what the chat is told after a video was started: the facts of the job, and what was not used", () => {
+    const idea = "one of the historical mystery stories, crime";
+    const start = async (args: Record<string, unknown>, attachments?: unknown[]) => {
+      const r = await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea, ...args }, ...(attachments ? { attachments } : {}) } as never);
+      expect(r.ok).toBe(true);
+      return (r as { text: string }).text.split("\n");
+    };
+    const vid = { id: "a2", url: "https://abc.public.blob.vercel-storage.com/merchant/t1/chat/2.mp4", pathname: "merchant/t1/chat/2.mp4", kind: "video" as const, name: "Video Project 1.mp4" };
+
+    it("says the format, the language, the photographs and the credits of a wide story as the job really is, and that nothing went to YouTube", async () => {
+      vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1", facts: { lang: "ckb", kind: "story", format: "wide", photos: "on" } });
+      const lines = await start({ kind: "story", format: "wide" });
+      expect(lines[0]).toBe(en.assistant.done.videoStarted);
+      expect(lines).toContain("Format: wide 16:9.");
+      expect(lines).toContain("Language: Sorani Kurdish.");
+      // The owner who asked for 30 seconds is told what the writer really does: it aims for about 30 seconds and cannot promise it.
+      expect(lines).toContain("Length: about 60 to 70 seconds. If your idea asks for a short video, Gituas aims for about 30 seconds but cannot promise it.");
+      expect(lines.join(" ")).not.toMatch(/cannot be chosen/);
+      expect(lines).toContain("Photos: free ones from Wikimedia Commons where they are found.");
+      expect(lines).toContain("Credits go in the caption and on the last scene.");
+      expect(lines).toContain(en.assistant.done.videoNotYouTube);
+      expect(en.assistant.done.videoNotYouTube).toMatch(/not sent to YouTube from here: download it and add it in Publish or in YouTube Studio\. YouTube keeps every upload Private until Google finishes reviewing Gituas/);
+      // No review ran (the mocked action reports none): the result says the idea was used exactly as written.
+      expect(lines.at(-1)).toBe(en.assistant.done.videoUsedAsWritten);
+      expect(lines.join(" ")).not.toMatch(/vertical/);
+    });
+
+    it("says vertical when the job is vertical, whatever was asked: the facts are the job's, not the request's", async () => {
+      vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1", facts: { lang: "en", kind: "story", format: "vertical", photos: "on" } });
+      const lines = await start({ kind: "story", format: "wide", language: "en" });
+      expect(lines).toContain("Format: vertical 9:16.");
+      expect(lines).toContain("Language: English.");
+      expect(lines).not.toContain("Format: wide 16:9.");
+    });
+
+    it("says no photographs when they are off, and that a fiction is invented and has none, with no credits line for either", async () => {
+      vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1", facts: { lang: "ar", kind: "story", format: "vertical", photos: "off" } });
+      const off = await start({ kind: "story", photos: false });
+      expect(off).toContain("Photos: none (switched off).");
+      expect(off).not.toContain("Credits go in the caption and on the last scene.");
+      vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1", facts: { lang: "en", kind: "story", format: "vertical", photos: "fiction" } });
+      const fiction = await start({ kind: "story" });
+      expect(fiction).toContain("Told as an invented story (fiction), with no real photographs.");
+      expect(fiction.join(" ")).not.toMatch(/Wikimedia|Credits|Case:/);
+    });
+
+    it("gives an ad its format and language only: always vertical, no photographs, no case, no YouTube line", async () => {
+      vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1", facts: { lang: "en", kind: "ad", format: "vertical" } });
+      const lines = await start({ kind: "ad" });
+      expect(lines).toEqual([en.assistant.done.videoStarted, "Format: vertical 9:16.", "Language: English.", "Length: about 35 seconds; an ad's length is fixed."]);
+    });
+
+    it("says nothing about the format or language when the job could not be read back (never a guess)", async () => {
+      vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1" });
+      expect(await start({ kind: "story", format: "wide" })).toEqual([en.assistant.done.videoStarted, en.assistant.done.videoUsedAsWritten]);
+    });
+
+    it("says FIRST that an attached video was NOT used, and that an attached picture was not either; a picture the chat made itself is not the owner's", async () => {
+      vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1", facts: { lang: "ckb", kind: "story", format: "wide", photos: "on" } });
+      const lines = await start({ kind: "story", format: "wide" }, [vid, att]);
+      expect(lines[0]).toBe("The attached video was NOT used: Gituas cannot learn from a video yet.");
+      expect(lines[1]).toBe("The attached picture was NOT used: Gituas cannot use your pictures in a story yet.");
+      expect(lines[2]).toBe(en.assistant.done.videoStarted);
+      const made = { ...att, id: "a3", name: en.assistant.done.pictureName };
+      const only = await start({ kind: "story" }, [made]);
+      expect(only[0]).toBe(en.assistant.done.videoStarted);
+      // An ad does not use chat attachments either, but it is not a story: its result stays as it was.
+      vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1", facts: { lang: "en", kind: "ad", format: "vertical" } });
+      expect((await start({ kind: "ad" }, [vid]))[0]).toBe(en.assistant.done.videoStarted);
+    });
+
+    it("says what the review did: 'Reviewed' only when the idea was rewritten, and the neutral sentence when there was nothing to read", async () => {
+      vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1", reviewed: { text: "a brief", summary: "added the angle" } });
+      const reviewed = await start({ kind: "story", review: true });
+      expect(reviewed.at(-1)).toBe("Reviewed: added the angle");
+      const said = "Nothing to read yet: your words were used as written.";
+      vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1", reviewSkipped: { summary: said } });
+      const skipped = await start({ kind: "story", review: true });
+      expect(skipped.at(-1)).toBe(said);
+      expect(skipped.join(" ")).not.toMatch(/Reviewed/);
+    });
+  });
+
+  it("a story's review is what the owner said (review true or false), else the screen's switch; an ad keeps the screen's switch", async () => {
+    vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1" });
+    const idea = "one of the historical mystery stories, crime";
+    const last = () => vi.mocked(createVideoAction).mock.calls.at(-1)![1];
+    // The screen's switch is OFF and nothing was said: the story goes straight to the video maker (literal).
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea, language: "en", kind: "story" }, review: false });
+    expect(last()).toMatchObject({ topic: idea, kind: "story", review: false });
+    // The switch is ON (the default) and nothing was said: the switch decides.
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea, language: "en", kind: "story" } });
+    expect(last()).toMatchObject({ topic: idea, kind: "story", review: true });
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea, language: "en", kind: "story", review: false } });
+    expect(last()).toMatchObject({ review: false });
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea, language: "ckb", kind: "story", review: true }, review: false });
+    expect(last()).toMatchObject({ kind: "story", lang: "ckb", review: true });
+    // An ad is reviewed as the switch says, exactly as before, and an ad's own review flag is not read.
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea: "a short ad", kind: "ad" } });
+    expect(last()).toMatchObject({ kind: "ad", review: true });
+    await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea: "a short ad", kind: "ad", review: true }, review: false });
+    expect(last()).toMatchObject({ review: false });
+    // Anything that is not a true or false never reaches the action.
+    const calls = vi.mocked(createVideoAction).mock.calls.length;
+    expect(await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea, review: "yes" } })).toMatchObject({ ok: false });
+    expect(createVideoAction).toHaveBeenCalledTimes(calls);
+  });
+
   it("hands a named product to the video action with no kind: the action makes it an ad, whatever the page is for", async () => {
     vi.mocked(createVideoAction).mockResolvedValue({ ok: true, id: "job1" });
     await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "make_video", args: { idea: "a short ad", product: "silver ring" } });
@@ -299,5 +441,66 @@ describe("runToolAction in a news desk", () => {
     ws.current = { id: "t1", role: "OWNER", kind: "MERCHANT" };
     expect(await runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "remove_section_frame", args: { section: "sports" } })).toMatchObject({ ok: false });
     expect(removeSectionFrameAction).not.toHaveBeenCalled();
+  });
+});
+
+describe("runToolAction: the owner's daily plan on the classic screen", () => {
+  const SORANI_IDEA = "یەکێک لە چیرۆکە نهێنییە مێژووییەکان، ژانری تاوان";
+  const run = (args: Record<string, unknown>) => runToolAction({ workspaceId: "t1", nonce: nonce(), tool: "set_daily_video", args });
+
+  it("saves the plan in the owner's words with the usual checks, and reports what runs every day", async () => {
+    vi.mocked(saveVideoAutoAction).mockResolvedValue({ ok: true });
+    const r = await run({ mode: "PUBLISH", idea: `  ${SORANI_IDEA}  `, kind: "story", publishTo: ["FB"] });
+    expect(r).toMatchObject({ ok: true });
+    const sent = vi.mocked(saveVideoAutoAction).mock.calls.at(-1)!;
+    expect(sent[0]).toBe("s2");
+    expect(sent[1]).toMatchObject({ mode: "PUBLISH", tier: "LITE", hour: 21, plan: { brief: SORANI_IDEA, kind: "story", review: false, photos: true, targets: ["FB"] } });
+    const text = (r as { text: string }).text;
+    expect(text).toContain(en.assistant.done.dailyPlan);
+    expect(text).toContain(en.assistant.done.dailyCase);
+    expect(text).toContain(en.assistant.done.dailyWaits);
+  });
+
+  it("builds on the plan already saved and refuses what cannot work, saving nothing", async () => {
+    vi.mocked(saveVideoAutoAction).mockResolvedValue({ ok: true });
+    db.store.findUnique.mockResolvedValue({ videoAutoHour: 9, videoAutoTier: "PRO", videoAutoMode: "DRAFT", videoAutoPlan: { brief: "old", kind: "story", format: "wide", review: true, photos: false, targets: ["FB"] } });
+    await run({ hour: 7, idea: "new words" });
+    expect(vi.mocked(saveVideoAutoAction).mock.calls.at(-1)![1]).toEqual({ tier: "PRO", hour: 7, plan: { brief: "new words", kind: "story", format: "wide", review: true, photos: false, targets: ["FB"] } });
+    vi.mocked(saveVideoAutoAction).mockClear();
+    // YouTube without the owner's two answers, an unconnected YouTube, an Instagram the shop does not have, an idea over 600 characters.
+    db.store.findUnique.mockResolvedValue({ videoAutoHour: 9, videoAutoTier: "LITE", videoAutoMode: "OFF", videoAutoPlan: null });
+    expect(await run({ idea: "x words", kind: "story", publishTo: ["YT"] })).toEqual({ ok: false, error: en.assistant.errors.youtubeNeeds });
+    expect(await run({ idea: "x words", kind: "story", publishTo: ["YT"], youtubePrivacy: "public", youtubeMadeForKids: true })).toEqual({ ok: false, error: en.assistant.errors.notConnected("YouTube") });
+    expect(await run({ idea: "x words", kind: "story", publishTo: ["IG"] })).toEqual({ ok: false, error: en.assistant.errors.notConnected("Instagram") });
+    expect(await run({ idea: "w".repeat(601), kind: "story" })).toEqual({ ok: false, error: en.assistant.errors.planIdeaLong });
+    expect(await run({ mode: "PUBLISH", idea: "x words", kind: "story" })).toEqual({ ok: false, error: en.assistant.errors.planTargets });
+    expect(saveVideoAutoAction).not.toHaveBeenCalled();
+  });
+
+  it("shows the plan on the card in the owner's words, with the idea exactly as given", async () => {
+    const { proposalLines } = await import("@/lib/assistant/tools");
+    const f = en.assistant.fields;
+    const lines = proposalLines(
+      { tool: "set_daily_video", args: { mode: "PUBLISH", hour: 18, idea: SORANI_IDEA, kind: "story", format: "wide", review: false, photos: true, publishTo: ["FB", "YT"], youtubePrivacy: "private", youtubeMadeForKids: false } },
+      f,
+      { shop: "My shop" },
+    );
+    expect(lines).toEqual([
+      { label: f.mode, value: f.modePublish },
+      { label: f.hour, value: "18:00" },
+      { label: f.idea, value: SORANI_IDEA },
+      { label: f.kind, value: f.kindStory },
+      { label: f.format, value: f.formatWide },
+      { label: f.words, value: f.wordsExact },
+      { label: f.storyPhotos, value: f.storyPhotosFrom },
+      { label: f.postTo, value: "Facebook + YouTube" },
+      { label: f.ytWho, value: f.ytWhoOptions.private },
+      { label: f.ytKids, value: f.no },
+      { label: f.shop, value: "My shop" },
+    ]);
+    // Nothing of the plan on a card that carries none, and no YouTube answers when YouTube is not in the plan.
+    expect(proposalLines({ tool: "set_daily_video", args: { mode: "OFF" } }, f, {}).map((l) => l.label)).toEqual([f.mode]);
+    expect(proposalLines({ tool: "set_daily_video", args: { publishTo: ["FB"], youtubePrivacy: "private" } }, f, {}).map((l) => l.label)).toEqual([f.postTo]);
+    expect(proposalLines({ tool: "set_daily_video", args: { idea: "" } }, f, {})).toEqual([{ label: f.idea, value: f.ideaUsual }]);
   });
 });

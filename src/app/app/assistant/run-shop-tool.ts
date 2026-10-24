@@ -6,6 +6,7 @@
 // Each tool goes through the same server action the app's own screens use, with that action's own checks and limits.
 
 import { adVideoEnabled } from "@/lib/advideo/enabled";
+import { parseVideoAutoPlan } from "@/lib/advideo/plan";
 import { imageEnabled } from "@/lib/ai/image";
 import type { ToolName } from "@/lib/assistant/tools";
 import type { ChatAttachment } from "@/lib/chat/types";
@@ -20,7 +21,10 @@ import { publishAction, saveWhatsAppAction } from "../actions";
 import { archiveProductAction, saveProductAction, saveStoreSettingsAction } from "../automation/actions";
 import { generateAiImageAction } from "../publish/ai-image-action";
 import { schedulePublishAction } from "../publish/schedule-actions";
+import { videoChoice } from "../video/choice";
 import { createVideoAction, saveVideoAutoAction } from "../video/actions";
+import { hasPlanArgs, ideaLength, mergeDailyPlan, PLAN_IDEA_MAX, type DailyArgs } from "../video/daily-plan";
+import type { VideoFacts } from "../video/story-form";
 import { loadAccountLists, loadConnections, type Connections } from "../data";
 
 export type ToolResult =
@@ -35,6 +39,65 @@ export type ToolResult =
   | { ok: false; error: string };
 
 const ID = /^a\d{1,2}$/;
+
+/**
+ * What a story cannot use of the files the owner attached to their LATEST message: a video (Gituas cannot learn from a video yet) and a picture
+ * (a story is told from its own case and the free photographs that are found, not from the owner's pictures). `latest` is the ids of the files of
+ * that message (null when they cannot be read: nothing is claimed; left out, as the classic assistant screen does, every file given counts, because
+ * that screen only sends the files of the request in hand). A picture the chat made itself, and a file from an earlier message, are not part of this
+ * request, so they are never counted (by id, not by any name). The card and the result both say it, in the owner's words.
+ */
+export function storyAttachmentsNotUsed(atts: readonly ChatAttachment[], latest?: readonly string[] | null, madeName?: string): { video: boolean; picture: boolean } {
+  if (latest === null || (latest && latest.length === 0)) return { video: false, picture: false };
+  // The classic screen has no message ids: a picture it made itself is told apart by its name (the dictionary's "AI picture").
+  const mine = latest ? atts.filter((x) => latest.includes(x.id)) : atts.filter((x) => x.name !== madeName);
+  return { video: mine.some((x) => x.kind === "video"), picture: mine.some((x) => x.kind === "image") };
+}
+
+/**
+ * The words that come back after a video was started: the facts of the job as it really is (read from the stored job by the action: its
+ * shape, language and photographs), what the owner attached that is not used, and the review's outcome. The chat repeats ONLY this, so it
+ * can never claim a shape, a language or a platform that was not made. What cannot be done comes FIRST.
+ */
+function videoStartedText(
+  t: Dict,
+  r: { reviewed?: { summary: string }; reviewSkipped?: { summary: string }; facts?: VideoFacts },
+  story: boolean,
+  atts: readonly ChatAttachment[],
+  latest: readonly string[] | null | undefined,
+): string {
+  const a = t.assistant;
+  const lines: string[] = [];
+  if (story) {
+    const unused = storyAttachmentsNotUsed(atts, latest, a.done.pictureName);
+    if (unused.video) lines.push(a.done.videoNotUsedVideo);
+    if (unused.picture) lines.push(a.done.videoNotUsedPicture);
+  }
+  lines.push(a.done.videoStarted);
+  const facts = r.facts;
+  if (facts) {
+    lines.push(facts.format === "wide" ? a.done.videoFormatWide : a.done.videoFormatVertical);
+    lines.push(a.done.videoLanguage(a.fields.languages?.[facts.lang] ?? facts.lang));
+    // The length the owner is told is the one the writer really aims for: a real story aims shorter when the idea asks for a short video (and says
+    // it cannot promise it), a fiction and an ad have one length.
+    lines.push(facts.kind === "story" ? (facts.photos === "fiction" ? a.done.videoLengthFiction : a.done.videoLengthStory) : a.done.videoLengthAd);
+    if (facts.kind === "story") {
+      if (facts.photos === "fiction") lines.push(a.done.videoFiction);
+      else {
+        lines.push(a.done.videoCase);
+        if (facts.photos === "off") lines.push(a.done.videoPhotosOff);
+        else lines.push(a.done.videoPhotosOn, a.done.videoCredits);
+      }
+      // A single video is not uploaded to YouTube from here: the owner downloads it and adds it in Publish or in YouTube Studio.
+      lines.push(a.done.videoNotYouTube);
+    }
+  }
+  if (r.reviewed) lines.push(t.publish.ai.reviewedNote(r.reviewed.summary));
+  else if (r.reviewSkipped) lines.push(r.reviewSkipped.summary);
+  // A story whose idea was not reviewed went to the video maker exactly as the owner wrote it: said, so the owner knows what "review off" did.
+  else if (story) lines.push(a.done.videoUsedAsWritten);
+  return lines.join("\n");
+}
 
 /** Only the workspace's own uploads count as attachments. The classic screen sends at most ten; a chat thread can hold more (a..a99). */
 export function cleanAttachments(raw: unknown, tenantId: string, max = 10): ChatAttachment[] {
@@ -152,6 +215,10 @@ export interface ShopToolInput {
   review: boolean;
   /** How long an Instagram post may be waited for (ms): the chat gives the confirm request's remaining time, the classic screen none. */
   igDeadlineMs?: number;
+  /** The chat's own deadline (epoch ms): a video started from the chat prepares its script and voice inside the same function, so it stops in time (createVideoAction). */
+  deadline?: number;
+  /** The ids of the files attached to the owner's latest message (null: unknown). A story's "not used" lines are about these only. */
+  latestAttachmentIds?: readonly string[] | null;
 }
 
 /** Runs one confirmed shop tool. The caller has checked the session, the role, the card's one-time claim and the daily caps. */
@@ -198,6 +265,11 @@ async function perform(input: ShopToolInput, conns: Connections, shop: Extract<A
       if (!adVideoEnabled()) return { ok: false, error: a.errors.featureOff };
       // The language and the kind only when the model gave them: left out, the store's own video language decides the language, and the kind
       // is an ad when a product is named (productId below), else what the page is for (the action resolves them, with the same rule as the card).
+      // A story's review is the owner's choice: what the tool's arguments say (the owner asked in words), else the "review my idea" switch of the
+      // chat as the owner has it now. With the switch OFF and no word about it, the idea goes straight to the video maker exactly as written
+      // (the story is literal). An ad keeps the switch the owner set for ideas in general.
+      const choice = await videoChoice(store.id, store.videoLang, { lang: args.language, kind: args.kind, hasProduct: !!productId });
+      const reviewNow = choice.kind === "story" && typeof args.review === "boolean" ? args.review : review;
       const r = await createVideoAction(store.id, {
         tier,
         topic: String(args.idea),
@@ -205,13 +277,18 @@ async function perform(input: ShopToolInput, conns: Connections, shop: Extract<A
         voice: "shilan",
         publish: false,
         targets: [],
-        review,
+        review: reviewNow,
+        // The chat's turn and the video's script and voice share one 60 s function: the writer is held to the chat's deadline.
+        ...(typeof input.deadline === "number" ? { deadline: input.deadline } : {}),
         ...(typeof args.language === "string" ? { lang: args.language } : {}),
         ...(typeof args.kind === "string" ? { kind: args.kind } : {}),
+        // Wikimedia Commons photographs of a real story: only an explicit true or false is passed on (left out, they are on).
+        ...(typeof args.photos === "boolean" ? { photos: args.photos } : {}),
+        // The shape of a story (wide 16:9 for YouTube): only "wide" or "vertical" is passed on; an ad ignores it (the action decides).
+        ...(args.format === "wide" || args.format === "vertical" ? { format: args.format } : {}),
       });
       if (!r.ok) return { ok: false, error: r.error };
-      const how = r.reviewed ? `\n${t.publish.ai.reviewedNote(r.reviewed.summary)}` : "";
-      return { ok: true, text: `${a.done.videoStarted}${how}`, jobId: r.id };
+      return { ok: true, text: videoStartedText(t, r, choice.kind === "story", atts, input.latestAttachmentIds), jobId: r.id };
     }
     case "post_now":
     case "schedule_post": {
@@ -281,9 +358,30 @@ async function perform(input: ShopToolInput, conns: Connections, shop: Extract<A
     case "set_daily_video": {
       if (!adVideoEnabled()) return { ok: false, error: a.errors.featureOff };
       // What the card did not show is left as it was: the mode, the hour, the kind of video and the video language already chosen stay.
-      const cur = await db.store.findUnique({ where: { id: store.id }, select: { videoAutoHour: true, videoAutoTier: true } });
+      const cur = await db.store.findUnique({ where: { id: store.id }, select: { videoAutoHour: true, videoAutoTier: true, videoAutoMode: true, videoAutoPlan: true } });
       const keepTier = cur?.videoAutoTier === "LITE" || cur?.videoAutoTier === "PRO" ? cur.videoAutoTier : tier;
       const keepHour = typeof cur?.videoAutoHour === "number" ? cur.videoAutoHour : 19;
+      // The daily plan, in the owner's own words (the idea exactly as they said it): built on top of the plan already saved, and checked here as the
+      // card did, because this runs after Confirm and for the classic screen too: the idea is not cut, YouTube is never chosen for the owner, every
+      // platform named is really there, and a daily video that posts by itself has somewhere to post to.
+      let plan: ReturnType<typeof parseVideoAutoPlan> = null;
+      const saved = parseVideoAutoPlan(cur?.videoAutoPlan);
+      if (hasPlanArgs(args)) {
+        const dailyArgs = args as DailyArgs;
+        if (typeof dailyArgs.idea === "string" && ideaLength(dailyArgs.idea) > PLAN_IDEA_MAX) return { ok: false, error: a.errors.planIdeaLong };
+        const fallbackKind = (await videoChoice(store.id, store.videoLang, { kind: dailyArgs.kind, hasProduct: false })).kind;
+        const merged = mergeDailyPlan(dailyArgs, saved, fallbackKind);
+        if (merged.needs === "youtube") return { ok: false, error: a.errors.youtubeNeeds };
+        plan = parseVideoAutoPlan(merged.raw);
+        if (!plan) return { ok: false, error: a.errors.badAction };
+        if (plan.targets.includes("FB") && !store.fbPageId) return { ok: false, error: a.errors.notConnected("Facebook") };
+        if (plan.targets.includes("IG") && !store.igUserId) return { ok: false, error: a.errors.notConnected("Instagram") };
+        if (plan.targets.includes("YT") && !conns.YOUTUBE.connected) return { ok: false, error: a.errors.notConnected("YouTube") };
+      }
+      const after = plan ?? saved;
+      // A daily video that posts by itself needs somewhere to post to once it has a plan of its own (without a plan it posts as it always did).
+      const modeAfter = typeof args.mode === "string" ? args.mode : cur?.videoAutoMode;
+      if (modeAfter === "PUBLISH" && after && after.targets.length === 0) return { ok: false, error: a.errors.planTargets };
       // The mode and the language are saved only when the card showed them: left out (the owner only changed the language or the hour),
       // the daily video stays on or off as it was and the store's video language stays as it is (the action does not touch them).
       const r = await saveVideoAutoAction(store.id, {
@@ -291,8 +389,16 @@ async function perform(input: ShopToolInput, conns: Connections, shop: Extract<A
         tier: keepTier,
         hour: typeof args.hour === "number" ? args.hour : keepHour,
         ...(typeof args.language === "string" ? { lang: args.language } : {}),
+        ...(plan ? { plan } : {}),
       });
-      return r.ok ? { ok: true, text: a.done.setting } : { ok: false, error: r.error };
+      if (!r.ok) return { ok: false, error: r.error };
+      if (!plan) return { ok: true, text: a.done.setting };
+      // What the saved plan really does, said once: it follows the owner's own plan, a general idea gets a different real case each day, a story told
+      // from memory or about a very recent case waits as a draft, and YouTube keeps every upload Private until Google's review ends.
+      const facts = [a.done.setting, a.done.dailyPlan, a.done.dailyCase];
+      if (plan.kind === "story" && modeAfter === "PUBLISH") facts.push(a.done.dailyWaits);
+      if (plan.targets.includes("YT")) facts.push(t.publish.ytPrivate);
+      return { ok: true, text: facts.join("\n") };
     }
     default:
       // A tool of the newsroom, in a shop: not on its list.

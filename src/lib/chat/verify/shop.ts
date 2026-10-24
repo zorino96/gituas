@@ -14,6 +14,7 @@
 
 import { db } from "@/lib/db";
 import { videoLangOf } from "@/lib/advideo/lang";
+import { parseVideoAutoPlan, type VideoAutoPlan } from "@/lib/advideo/plan";
 import { ar } from "@/lib/i18n/ar";
 import { ckb } from "@/lib/i18n/ckb";
 import { en } from "@/lib/i18n/en";
@@ -67,6 +68,19 @@ const PLATFORM = {
   IG: words("ئینستاگرام", "إنستغرام", "Instagram"),
 };
 
+const YES = words("بەڵێ", "نعم", "yes");
+const NO = words("نەخێر", "لا", "no");
+const yesNo = (v: boolean): Words => (v ? YES : NO);
+const STORY_KIND = words("چیرۆک", "قصة", "story");
+const AD_KIND = words("ڕیکلام", "إعلان", "ad");
+const SHAPE_WIDE = words("پان 16:9", "عريض 16:9", "wide 16:9");
+const SHAPE_VERTICAL = words("ستوونی 9:16", "طولي 9:16", "vertical 9:16");
+const NOWHERE = words("هیچ شوێنێک (ڕەشنووس)", "لا مكان (مسودة)", "nowhere (a draft)");
+const PRIVACY: Record<string, Words> = { public: words("گشتی", "عام", "public"), unlisted: words("تەنها بە لینک", "غير مدرج", "unlisted"), private: words("تایبەت", "خاص", "private") };
+const PLATFORM_NAME: Record<string, Words> = { ...PLATFORM, YT: words("یوتیوب", "يوتيوب", "YouTube") };
+/** The platforms of a plan as one phrase, in the order the plan keeps them (nothing: it is only kept as a draft). */
+const whereOf = (targets: readonly string[]): Words => (targets.length ? words(...(["ckb", "ar", "en"] as const).map((l) => targets.map((t) => PLATFORM_NAME[t]?.[l] ?? t).join(" + ")) as [string, string, string]) : NOWHERE);
+
 const MODES = ["OFF", "DRAFT", "PUBLISH"];
 /** The mode of the automatic posts and of the daily video. Noun phrases (English and Arabic), so they fit after "Label: " and after "not ". */
 const POST_MODE: Record<string, Words> = {
@@ -101,6 +115,14 @@ const L = {
   dailyVideo: words("ڤیدیۆی ڕۆژانە", "الفيديو اليومي", "The daily video"),
   videoHour: words("کاتژمێری ڤیدیۆی ڕۆژانە", "ساعة الفيديو اليومي", "Hour of the daily video"),
   videoLang: words("زمانی ڤیدیۆ", "لغة الفيديو", "The video language"),
+  dailyIdea: words("بیرۆکەی ڤیدیۆی ڕۆژانە", "فكرة الفيديو اليومي", "The idea of the daily video"),
+  dailyKind: words("جۆری ڤیدیۆی ڕۆژانە", "نوع الفيديو اليومي", "The kind of the daily video"),
+  dailyShape: words("شێوەی ڤیدیۆی ڕۆژانە", "شكل الفيديو اليومي", "The shape of the daily video"),
+  dailyReview: words("باشترکردنی بیرۆکە پێشوەخت", "تحسين الفكرة أولاً", "Improving the idea first"),
+  dailyPhotos: words("وێنەکانی ڤیدیۆی ڕۆژانە", "صور الفيديو اليومي", "Photographs in the daily video"),
+  dailyWhere: words("شوێنی بڵاوکردنەوەی ڤیدیۆی ڕۆژانە", "مكان نشر الفيديو اليومي", "Where the daily video is posted"),
+  dailyYtWho: words("یوتیوب: کێ دەتوانێت ببینێت", "يوتيوب: من يستطيع المشاهدة", "YouTube: who can watch"),
+  dailyYtKids: words("یوتیوب: بۆ منداڵان", "يوتيوب: موجّه للأطفال", "YouTube: made for kids"),
   likeComments: words("لایککردنی کۆمێنتەکان", "الإعجاب بالتعليقات", "Liking comments"),
   autoHideSpam: words("شاردنەوەی خۆکاری سپام", "إخفاء الرسائل المزعجة تلقائياً", "Hiding spam"),
   aiReplies: words("وەڵامی زیرەک بە AI", "الردود الذكية بالذكاء الاصطناعي", "Smart AI replies"),
@@ -286,13 +308,14 @@ const VIDEO_NO_ACCOUNT = words(
   "Saved, but no Facebook or Instagram page is connected, so the video is made but not posted.",
 );
 
-function videoNotHonoured(s: { videoAutoMode: string; plan: string; pausedReason: string | null; fbPageId: string | null; igUserId: string | null }): NotHonoured | null {
+function videoNotHonoured(s: { videoAutoMode: string; plan: string; pausedReason: string | null; fbPageId: string | null; igUserId: string | null }, plan?: VideoAutoPlan | null): NotHonoured | null {
   if (s.videoAutoMode !== "DRAFT" && s.videoAutoMode !== "PUBLISH") return null;
   if (s.plan === "FREE") {
     return { line: VIDEO_FREE_PLAN, fix: "The free plan makes no daily video, so nothing will be made. Do not call set_daily_video again. Tell the person; offer a paid plan, or mode=OFF to switch it off." };
   }
   if (s.pausedReason) return { line: VIDEO_PAUSED, fix: REPAIR_PAUSED };
-  if (s.videoAutoMode === "PUBLISH" && !s.fbPageId && !s.igUserId) {
+  // A plan that posts to YouTube has somewhere to post without a Page or an Instagram account.
+  if (s.videoAutoMode === "PUBLISH" && !s.fbPageId && !s.igUserId && !plan?.targets.includes("YT")) {
     return { line: VIDEO_NO_ACCOUNT, fix: `${NO_ACCOUNT}, so the video is made but not posted. Do not call set_daily_video again: tell the person to connect a page first, or offer mode=DRAFT.` };
   }
   return null;
@@ -314,6 +337,58 @@ const setAutopilot: VerifyFn = async (ctx, args) => {
   });
 };
 
+/** The arguments of set_daily_video that make up the daily plan (see app/video/daily-plan.ts). */
+const PLAN_ASKED = ["idea", "kind", "format", "review", "photos", "publishTo", "youtubePrivacy", "youtubeMadeForKids"] as const;
+const PLAN_MISSING = words(
+  "پاشەکەوت کرا، بەڵام پلانی ڤیدیۆی ڕۆژانە لە ڕێکخستنەکاندا نەدۆزرایەوە.",
+  "تم الحفظ، لكن خطة الفيديو اليومي لم تُوجد في الإعدادات.",
+  "Saved, but the daily video's plan was not found in the settings.",
+);
+const PLAN_UNREADABLE = words(
+  "نەتوانرا بپشکنرێت کە پلانی ڤیدیۆی ڕۆژانە پاشەکەوت کراوە.",
+  "تعذّر التحقق من حفظ خطة الفيديو اليومي.",
+  "Could not check that the daily video's plan was saved.",
+);
+
+/** The stored plan of a shop, read on its own (never throws; null = none saved, undefined = could not be read). */
+async function storedPlan(storeId: string): Promise<VideoAutoPlan | null | undefined> {
+  try {
+    const row = await db.store.findUnique({ where: { id: storeId }, select: { videoAutoPlan: true } });
+    if (!row) return undefined;
+    return parseVideoAutoPlan(row.videoAutoPlan);
+  } catch {
+    return undefined;
+  }
+}
+
+/** What the daily plan asked for, against the plan the shop really holds. One comparison per thing asked; nothing for what was left out. */
+function planComparisons(a: Record<string, unknown>, stored: VideoAutoPlan): Cmp[] {
+  const out: Cmp[] = [];
+  if (typeof a.idea === "string") {
+    const want = norm(a.idea, 600);
+    out.push(cmp(L.dailyIdea, stored.brief === want, shown(stored.brief), shown(want), textFix("idea", want)));
+  }
+  if (a.kind === "story" || a.kind === "ad") out.push(cmp(L.dailyKind, stored.kind === a.kind, stored.kind === "story" ? STORY_KIND : AD_KIND, a.kind === "story" ? STORY_KIND : AD_KIND, `kind=${a.kind}`));
+  // The shape is only a story's: an ad is always vertical.
+  if ((a.format === "wide" || a.format === "vertical") && stored.kind === "story") {
+    const storedWide = stored.format === "wide";
+    out.push(cmp(L.dailyShape, storedWide === (a.format === "wide"), storedWide ? SHAPE_WIDE : SHAPE_VERTICAL, a.format === "wide" ? SHAPE_WIDE : SHAPE_VERTICAL, `format=${a.format}`));
+  }
+  if (typeof a.review === "boolean") out.push(cmp(L.dailyReview, stored.review === a.review, yesNo(stored.review), yesNo(a.review), `review=${a.review}`));
+  if (typeof a.photos === "boolean" && stored.kind === "story") out.push(cmp(L.dailyPhotos, stored.photos === a.photos, yesNo(stored.photos), yesNo(a.photos), `photos=${a.photos}`));
+  if (Array.isArray(a.publishTo)) {
+    const want = (["FB", "IG", "YT"] as const).filter((t) => (a.publishTo as unknown[]).includes(t));
+    out.push(cmp(L.dailyWhere, stored.targets.join(",") === want.join(","), whereOf(stored.targets), whereOf(want), `publishTo=${JSON.stringify(want)}`));
+  }
+  if (stored.youtube && typeof a.youtubePrivacy === "string") {
+    out.push(cmp(L.dailyYtWho, stored.youtube.privacy === a.youtubePrivacy, PRIVACY[stored.youtube.privacy] ?? plain(stored.youtube.privacy), PRIVACY[a.youtubePrivacy] ?? plain(a.youtubePrivacy), `youtubePrivacy=${a.youtubePrivacy}`));
+  }
+  if (stored.youtube && typeof a.youtubeMadeForKids === "boolean") {
+    out.push(cmp(L.dailyYtKids, stored.youtube.madeForKids === a.youtubeMadeForKids, yesNo(stored.youtube.madeForKids), yesNo(a.youtubeMadeForKids), `youtubeMadeForKids=${a.youtubeMadeForKids}`));
+  }
+  return out;
+}
+
 const setDailyVideo: VerifyFn = async (ctx, args) => {
   const a = rec(args);
   if (!a) return null;
@@ -322,10 +397,21 @@ const setDailyVideo: VerifyFn = async (ctx, args) => {
   const mode = str(a.mode);
   if (a.mode !== undefined && (!mode || !MODES.includes(mode))) return null;
   const language = a.language === "ckb" || a.language === "ar" || a.language === "en" ? a.language : undefined;
-  if (!mode && typeof a.hour !== "number" && !language) return null;
+  const planAsked = PLAN_ASKED.some((k) => a[k] !== undefined);
+  if (!mode && typeof a.hour !== "number" && !language && !planAsked) return null;
   const s = await theStore(ctx);
   if (!s) return null;
-  const note = mode && s.videoAutoMode === mode ? videoNotHonoured(s) : null;
+  // The daily plan, when the call carried one: read back on its own (a plan that is not there is the one clear mismatch; one that cannot be read says so).
+  const planBad: string[] = [];
+  let planCmps: Cmp[] = [];
+  let stored: VideoAutoPlan | null | undefined;
+  if (planAsked) {
+    stored = await storedPlan(s.id);
+    if (stored === undefined) planBad.push(PLAN_UNREADABLE[ctx.lang]);
+    else if (stored === null) planBad.push(PLAN_MISSING[ctx.lang]);
+    else planCmps = planComparisons(a, stored);
+  }
+  const note = mode && s.videoAutoMode === mode ? videoNotHonoured(s, stored) : null;
   const cmps: Cmp[] = !mode || note ? [] : [cmp(L.dailyVideo, s.videoAutoMode === mode, VIDEO_MODE[s.videoAutoMode] ?? plain(s.videoAutoMode), VIDEO_MODE[mode], `mode=${mode}`)];
   if (typeof a.hour === "number") {
     const hour = Math.round(a.hour);
@@ -336,9 +422,17 @@ const setDailyVideo: VerifyFn = async (ctx, args) => {
     const saved = videoLangOf(s.videoLang);
     cmps.push(cmp(L.videoLang, saved === language, videoLanguage(saved), videoLanguage(language), `language=${language}`));
   }
+  cmps.push(...planCmps);
   return report(ctx.lang, cmps, {
-    bad: note ? [note.line[ctx.lang]] : [],
-    fix: (bad) => [bad.length ? `Call set_daily_video with ${bad.map((c) => c.fix).join(" and ")}.` : "", note?.fix ?? ""].filter(Boolean).join(" "),
+    bad: [...(note ? [note.line[ctx.lang]] : []), ...planBad],
+    fix: (bad) =>
+      [
+        bad.length ? `Call set_daily_video with ${bad.map((c) => c.fix).join(" and ")}.` : "",
+        stored === null ? "The plan was not saved: call set_daily_video again with the owner's whole plan (idea, kind, review, publishTo and the YouTube answers)." : "",
+        note?.fix ?? "",
+      ]
+        .filter(Boolean)
+        .join(" "),
   });
 };
 

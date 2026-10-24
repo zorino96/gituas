@@ -12,7 +12,7 @@ vi.mock("@/lib/db", () => ({
     product: { findMany: vi.fn() },
     order: { groupBy: vi.fn() },
     conversationMessage: { groupBy: vi.fn() },
-    adVideo: { findMany: vi.fn() },
+    adVideo: { findMany: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn() },
   },
 }));
 vi.mock("@/app/app/data", () => ({ currentWorkspace: vi.fn(async () => ws.current) }));
@@ -45,7 +45,7 @@ import { after } from "next/server";
 import { db } from "@/lib/db";
 import { takeDaily } from "@/lib/ai/slots";
 import { reviewIdea } from "@/lib/ai/review-idea";
-import { createAdVideo } from "@/lib/advideo/prepare";
+import { createAdVideo, prepareAdVideo } from "@/lib/advideo/prepare";
 import { loadProfile } from "@/lib/shop/profile";
 import { ar } from "@/lib/i18n/ar";
 import { ckb } from "@/lib/i18n/ckb";
@@ -55,7 +55,8 @@ import { removeRef } from "@/lib/advideo/refs";
 import { getDailyBrief, loadMarketNotes, readTodaysBrief, saveMarketNotes } from "@/lib/advideo/strategy";
 import { loadBuyerProfile, ordersByPost } from "@/lib/orders/audience";
 import { gatherSignals } from "@/lib/advideo/signals";
-import { createVideoAction, refreshPlanAction, removeRefAction, saveMarketNotesAction, saveVideoAutoAction } from "@/app/app/video/actions";
+import { createVideoAction, refreshPlanAction, removeRefAction, saveMarketNotesAction, saveVideoAutoAction, videoJobStatusAction } from "@/app/app/video/actions";
+import { Prisma } from "@/generated/prisma/client";
 import { POST as uploadRoute } from "@/app/api/app/upload/route";
 
 const m = db as unknown as Record<string, Record<string, ReturnType<typeof vi.fn>>>;
@@ -233,6 +234,8 @@ describe("createVideoAction: the language and the kind of a video", () => {
     vi.mocked(createAdVideo).mockResolvedValue({ ok: true, id: "job1" } as never);
     vi.mocked(loadProfile).mockResolvedValue(null);
     m.store.findFirst.mockResolvedValue({ id: "s1", plan: "MERCHANT", fbPageId: null, igUserId: null, videoLang: null });
+    // The stored job the facts are read back from: none unless a test gives one.
+    m.adVideo.findUnique.mockReset();
   });
 
   it("keeps a Sorani ad exactly as it was: Sorani, an ad, the chosen Kurdish voice, the product", async () => {
@@ -270,17 +273,175 @@ describe("createVideoAction: the language and the kind of a video", () => {
     expect(sent().voice).toBe("male");
   });
 
-  it("makes a story from the idea alone: no product, no review, a story's own kind", async () => {
+  it("makes a story from the idea alone: no product, the owner's words as typed (literal), and no review unless asked", async () => {
     const idea = "a mystery about a missing letter in an old house";
-    expect(await createVideoAction("s1", { ...base, topic: idea, kind: "story", lang: "en", review: true })).toEqual({ ok: true, id: "job1" });
-    expect(sent()).toMatchObject({ lang: "en", kind: "story", productId: null, topic: idea });
+    expect(await createVideoAction("s1", { ...base, topic: idea, kind: "story", lang: "en", review: false })).toEqual({ ok: true, id: "job1" });
+    expect(sent()).toMatchObject({ lang: "en", kind: "story", productId: null, topic: idea, literal: true });
+    // Left out, the review is off too.
+    await createVideoAction("s1", { ...base, topic: idea, kind: "story", lang: "ckb", review: undefined });
+    expect(sent()).toMatchObject({ lang: "ckb", kind: "story", topic: idea, literal: true });
     expect(reviewIdea).not.toHaveBeenCalled();
+    // An ad never carries the flag: it is made exactly as before.
+    await createVideoAction("s1", { ...base });
+    expect("literal" in sent()).toBe(false);
   });
 
-  it("refuses a story with no idea to tell, before anything is made", async () => {
-    expect(await createVideoAction("s1", { ...base, topic: "  short  ", kind: "story" })).toEqual({ ok: false, error: en.video.errors.topic });
+  it("reviews a story's idea against the page when the owner asked: the story kind, no product, the rewritten idea goes on and is not literal", async () => {
+    vi.mocked(reviewIdea).mockResolvedValue({ kept: false, text: "A cold case from a village. Suggested case: Hinterkaifeck murders", summary: "added the page's angle" } as never);
+    const idea = "one of the historical mystery stories, crime";
+    expect(await createVideoAction("s1", { ...base, topic: idea, kind: "story", lang: "en", review: true })).toEqual({
+      ok: true,
+      id: "job1",
+      reviewed: { text: "A cold case from a village. Suggested case: Hinterkaifeck murders", summary: "added the page's angle" },
+    });
+    expect(reviewIdea).toHaveBeenCalledWith(expect.objectContaining({ tenantId: "t1", storeId: "s1", idea, kind: "story", lang: "en", productId: null }));
+    expect(sent()).toMatchObject({ kind: "story", productId: null, topic: "A cold case from a village. Suggested case: Hinterkaifeck murders", literal: false });
+    // Even a product the form still holds is not given to a story's review.
+    await createVideoAction("s1", { ...base, topic: idea, kind: "story", lang: "en", review: true });
+    expect(vi.mocked(reviewIdea).mock.calls.at(-1)![0].productId).toBeNull();
+  });
+
+  it("tells the owner plainly that there was nothing to read when the page is not known yet: reviewSkipped, never 'reviewed', and the words go on as written", async () => {
+    const idea = "Hinterkaifeck murders 1922";
+    const said = "Nothing to read yet: your words were used as written.";
+    vi.mocked(reviewIdea).mockResolvedValue({ kept: true, skipped: true, text: idea, summary: said } as never);
+    const r = await createVideoAction("s1", { ...base, topic: idea, kind: "story", lang: "en", review: true });
+    expect(r).toEqual({ ok: true, id: "job1", reviewSkipped: { summary: said } });
+    expect("reviewed" in r).toBe(false);
+    expect(sent()).toMatchObject({ topic: idea, literal: false });
+    // A kept ad idea has no summary and says nothing, as before.
+    vi.mocked(reviewIdea).mockResolvedValue({ kept: true, text: "a short ad", summary: "" } as never);
+    expect(await createVideoAction("s1", { ...base, review: true })).toEqual({ ok: true, id: "job1" });
+    // A story whose review changed the words is "reviewed", with no skipped note.
+    vi.mocked(reviewIdea).mockResolvedValue({ kept: false, text: "a clearer brief", summary: "added the angle" } as never);
+    const changed = await createVideoAction("s1", { ...base, topic: idea, kind: "story", lang: "en", review: true });
+    expect(changed).toEqual({ ok: true, id: "job1", reviewed: { text: "a clearer brief", summary: "added the angle" } });
+    expect("reviewSkipped" in changed).toBe(false);
+  });
+
+  it("stops before anything is counted when a story's review cannot be done, and says so", async () => {
+    const { ReviewFailed } = await import("@/lib/ai/review-idea");
+    vi.mocked(reviewIdea).mockRejectedValue(new ReviewFailed());
+    expect(await createVideoAction("s1", { ...base, topic: "Hinterkaifeck murders 1922", kind: "story", lang: "en", review: true })).toEqual({ ok: false, error: en.video.errors.reviewFailed });
+    expect(createAdVideo).not.toHaveBeenCalled();
+    expect(after).not.toHaveBeenCalled();
+  });
+
+  it("hands the photo switch of a story to the pipeline as it was given, and sends none for a Sorani ad or when it is left out", async () => {
+    const idea = "the Hinterkaifeck murders, 1922";
+    await createVideoAction("s1", { ...base, topic: idea, kind: "story", lang: "en", photos: false });
+    expect(sent()).toMatchObject({ lang: "en", kind: "story", productId: null, topic: idea, photos: false });
+    await createVideoAction("s1", { ...base, topic: idea, kind: "story", lang: "ar", photos: true });
+    expect(sent()).toMatchObject({ lang: "ar", kind: "story", photos: true });
+    // Left out, nothing is said: the pipeline's own default (photographs on for a true story) applies.
+    await createVideoAction("s1", { ...base, topic: idea, kind: "story", lang: "en" });
+    expect(sent().photos).toBeUndefined();
+    // An ad is made exactly as before.
+    await createVideoAction("s1", { ...base, voice: "rebin" });
+    expect(sent()).toMatchObject({ lang: "ckb", kind: "ad", voice: "rebin", productId: "p1", topic: "a short ad", source: "MANUAL", autoPost: false });
+    expect(sent().photos).toBeUndefined();
+  });
+
+  it("does not judge whether a story names a case: a generic idea starts at once, because the system chooses a real documented case", async () => {
+    for (const lang of ["en", "ar", "ckb"]) {
+      expect(await createVideoAction("s1", { ...base, topic: "a gripping story about an unsolved case", kind: "story", lang })).toEqual({ ok: true, id: "job1" });
+    }
+    expect(createAdVideo).toHaveBeenCalledTimes(3);
+  });
+
+  it("decides whether a story is fiction ONCE, from the owner's own words, before any review: asked = fiction true is sent, not asked = fiction false is sent (the pipeline follows it and never reads the rewritten idea); an ad sends none", async () => {
+    // The owner's words say fiction; the review rewrites them without the word: the decision stays.
+    vi.mocked(reviewIdea).mockResolvedValue({ kept: false, text: "A lighthouse keeper vanishes; a quiet, atmospheric tale.", summary: "x" } as never);
+    await createVideoAction("s1", { ...base, topic: "a fictional lighthouse mystery", kind: "story", lang: "en", review: true });
+    expect(sent()).toMatchObject({ fiction: true, topic: "A lighthouse keeper vanishes; a quiet, atmospheric tale." });
+    // The owner's words ask for a real story; the reviewer happens to write the word fictional: the story stays real.
+    vi.mocked(reviewIdea).mockResolvedValue({ kept: false, text: "A real case, free of fictional details, told calmly.", summary: "x" } as never);
+    await createVideoAction("s1", { ...base, topic: "one of the historical mystery stories, crime", kind: "story", lang: "en", review: true });
+    expect(sent().fiction).toBe(false);
+    // Sorani: the plain word is a wish for fiction.
+    await createVideoAction("s1", { ...base, topic: "چیرۆکێکی خەیاڵی دەربارەی فانۆس", kind: "story", lang: "ckb" });
+    expect(sent()).toMatchObject({ fiction: true });
+    // An ad never carries it, whatever its words.
+    await createVideoAction("s1", { ...base, topic: "a fictional offer" });
+    expect("fiction" in sent()).toBe(false);
+  });
+
+  it("makes a story wide (16:9, for YouTube) only when asked, and an ad ignores the shape: it is always vertical", async () => {
+    const idea = "one of the historical mystery stories, crime";
+    await createVideoAction("s1", { ...base, topic: idea, kind: "story", lang: "ckb", format: "wide" });
+    expect(sent()).toMatchObject({ kind: "story", format: "wide" });
+    // Vertical, left out and anything else send nothing: absent is vertical, as every video was.
+    for (const format of ["vertical", undefined, "square"]) {
+      await createVideoAction("s1", { ...base, topic: idea, kind: "story", lang: "ckb", format });
+      expect("format" in sent(), String(format)).toBe(false);
+    }
+    await createVideoAction("s1", { ...base, format: "wide" });
+    expect(sent()).toMatchObject({ kind: "ad" });
+    expect("format" in sent()).toBe(false);
+    // A fiction can be wide too.
+    await createVideoAction("s1", { ...base, topic: "a fictional lighthouse mystery", kind: "story", lang: "en", format: "wide" });
+    expect(sent()).toMatchObject({ fiction: true, format: "wide" });
+  });
+
+  it("holds the script and the voice to the end of THIS function's 60 seconds, not to 55 seconds from whenever the review let them start", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(1_000_000);
+      vi.mocked(prepareAdVideo).mockResolvedValue(true);
+      // The review takes 12 seconds.
+      vi.mocked(reviewIdea).mockImplementation((async () => {
+        vi.setSystemTime(1_012_000);
+        return { kept: false, text: "a clearer brief", summary: "x" };
+      }) as never);
+      await createVideoAction("s1", { ...base, topic: "one of the historical mystery stories, crime", kind: "story", lang: "en", review: true });
+      const start = vi.mocked(after).mock.calls.at(-1)![0] as () => unknown;
+      await start();
+      expect(prepareAdVideo).toHaveBeenLastCalledWith("job1", 1_055_000);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("returns the facts of the job as it is stored: its language, kind, shape and photographs, read back from the row and not from what was asked", async () => {
+    const idea = "one of the historical mystery stories, crime";
+    // A wide Sorani-less story with its photographs on.
+    m.adVideo.findUnique.mockResolvedValue({ spec: { lang: "en", kind: "story", format: "wide" } });
+    expect(await createVideoAction("s1", { ...base, topic: idea, kind: "story", lang: "en", format: "wide" })).toEqual({
+      ok: true,
+      id: "job1",
+      facts: { lang: "en", kind: "story", format: "wide", photos: "on" },
+    });
+    expect(m.adVideo.findUnique).toHaveBeenCalledWith({ where: { id: "job1" }, select: { spec: true } });
+    // The pipeline did not keep the shape that was asked: the facts say vertical, because the stored job is vertical.
+    m.adVideo.findUnique.mockResolvedValue({ spec: { lang: "en", kind: "story" } });
+    const vertical = await createVideoAction("s1", { ...base, topic: idea, kind: "story", lang: "en", format: "wide" });
+    expect(vertical).toMatchObject({ facts: { format: "vertical" } });
+    // Photographs switched off, and a fiction.
+    m.adVideo.findUnique.mockResolvedValue({ spec: { lang: "ar", kind: "story", noPhotos: true } });
+    expect(await createVideoAction("s1", { ...base, topic: idea, kind: "story", lang: "ar", photos: false })).toMatchObject({ facts: { lang: "ar", photos: "off" } });
+    m.adVideo.findUnique.mockResolvedValue({ spec: { kind: "story", fiction: true } });
+    expect(await createVideoAction("s1", { ...base, topic: "a fictional lighthouse mystery", kind: "story", lang: "ckb" })).toMatchObject({ facts: { lang: "ckb", photos: "fiction", format: "vertical" } });
+    // An ad: a language and a kind, always vertical, no photographs word.
+    m.adVideo.findUnique.mockResolvedValue({ spec: { lang: "en" } });
+    expect(await createVideoAction("s1", { ...base, lang: "en", format: "wide" })).toEqual({ ok: true, id: "job1", facts: { lang: "en", kind: "ad", format: "vertical" } });
+    // A job that cannot be read gives no facts at all (never a guess).
+    m.adVideo.findUnique.mockRejectedValue(new Error("db down"));
+    expect(await createVideoAction("s1", { ...base })).toEqual({ ok: true, id: "job1" });
+    m.adVideo.findUnique.mockResolvedValue(null);
+    expect(await createVideoAction("s1", { ...base })).toEqual({ ok: true, id: "job1" });
+  });
+
+  it("refuses a story with no idea to tell (fewer than four characters), before anything is made, and takes a short word", async () => {
+    expect(await createVideoAction("s1", { ...base, topic: "  abc  ", kind: "story" })).toEqual({ ok: false, error: en.video.errors.topic });
     expect(await createVideoAction("s1", { ...base, topic: "", kind: "story", lang: "en" })).toEqual({ ok: false, error: en.video.errors.topic });
     expect(createAdVideo).not.toHaveBeenCalled();
+    // A review does not rescue a story with nothing to go on.
+    expect(await createVideoAction("s1", { ...base, topic: "ab", kind: "story", lang: "ckb", review: true })).toEqual({ ok: false, error: en.video.errors.topic });
+    expect(reviewIdea).not.toHaveBeenCalled();
+    // A word is enough: the system chooses or finds the case.
+    expect(await createVideoAction("s1", { ...base, topic: " Titanic ", kind: "story", lang: "en" })).toMatchObject({ ok: true });
+    expect(sent().topic).toBe("Titanic");
+    expect(await createVideoAction("s1", { ...base, topic: "جريمة", kind: "story", lang: "ar" })).toMatchObject({ ok: true });
     // An ad needs no idea at all.
     expect(await createVideoAction("s1", { ...base, topic: "" })).toMatchObject({ ok: true });
     expect(sent().topic).toBeNull();
@@ -418,5 +579,123 @@ describe("videoChoice: one rule for the screen's action and the chat's card", ()
     await videoChoice("s1", null, { kind: "story" });
     await videoChoice("s1", null, { hasProduct: true });
     expect(loadProfile).not.toHaveBeenCalled();
+  });
+});
+
+describe("saveVideoAutoAction: the daily video's own plan", () => {
+  const input = { mode: "PUBLISH", tier: "LITE", hour: 19 };
+  const plan = { brief: "یەکێک لە چیرۆکە نهێنییە مێژووییەکان", kind: "story", review: false, photos: true, targets: ["FB"] };
+  const saved = () => (m.store.update.mock.calls.at(-1)![0] as { data: Record<string, unknown> }).data;
+
+  beforeEach(() => {
+    m.store.findFirst.mockResolvedValue({ id: "s1", fbPageId: "fb1", igUserId: null, videoLang: null });
+  });
+
+  it("saves the plan read by parseVideoAutoPlan with the rest, and nothing about a plan when none is given", async () => {
+    expect(await saveVideoAutoAction("s1", { ...input, plan })).toEqual({ ok: true });
+    expect(saved()).toEqual({ videoAutoMode: "PUBLISH", videoAutoTier: "LITE", videoAutoHour: 19, videoAutoPlan: plan });
+    m.store.update.mockClear();
+    expect(await saveVideoAutoAction("s1", input)).toEqual({ ok: true });
+    expect("videoAutoPlan" in saved()).toBe(false);
+  });
+
+  it("reads the plan tolerantly: the owner's words are kept, bad platforms and a bad shape are dropped, YouTube is never saved without both answers", async () => {
+    expect(await saveVideoAutoAction("s1", { ...input, plan: { ...plan, brief: `  ${plan.brief}  `, targets: ["FB", "TT", "YT"], format: "square", review: "yes" } })).toEqual({ ok: true });
+    expect(saved().videoAutoPlan).toEqual({ brief: plan.brief, kind: "story", review: false, photos: true, targets: ["FB"] });
+  });
+
+  it("removes the plan when it is null (the daily video goes back to its usual way) and leaves it alone when it is left out", async () => {
+    expect(await saveVideoAutoAction("s1", { tier: "LITE", hour: 19, plan: null })).toEqual({ ok: true });
+    expect(saved().videoAutoPlan).toBe(Prisma.DbNull);
+    m.store.update.mockClear();
+    expect(await saveVideoAutoAction("s1", { tier: "LITE", hour: 19, plan: undefined })).toEqual({ ok: true });
+    expect("videoAutoPlan" in saved()).toBe(false);
+  });
+
+  it("refuses what is not a plan, and a platform the shop does not have, saving nothing", async () => {
+    for (const junk of ["x", 5, [], {}, { kind: "movie" }, { brief: "x" }]) {
+      expect(await saveVideoAutoAction("s1", { ...input, plan: junk }), JSON.stringify(junk)).toMatchObject({ ok: false });
+    }
+    // No Instagram account in this shop, and no YouTube channel in the workspace.
+    expect(await saveVideoAutoAction("s1", { ...input, plan: { ...plan, targets: ["IG"] } })).toEqual({ ok: false, error: en.video.errors.targets });
+    expect(await saveVideoAutoAction("s1", { ...input, plan: { ...plan, targets: ["YT"], youtube: { privacy: "public", madeForKids: false } } })).toEqual({ ok: false, error: en.video.errors.targets });
+    expect(m.store.update).not.toHaveBeenCalled();
+  });
+
+  it("is for people who may configure, as the rest of the daily video", async () => {
+    ws.current = { id: "t1", role: "MEMBER", kind: "MERCHANT" };
+    expect(await saveVideoAutoAction("s1", { ...input, plan })).toMatchObject({ ok: false });
+    expect(m.store.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("createVideoAction: the chat's own deadline", () => {
+  it("also holds the script and the voice to the chat's deadline plus a short margin, when the chat started the video", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(1_000_000);
+      vi.mocked(prepareAdVideo).mockResolvedValue(true);
+      vi.mocked(createAdVideo).mockResolvedValue({ ok: true, id: "job1" } as never);
+      // The chat's turn ends 30 s from now: the writer may use 5 s more than that, not the 55 s the Video screen would give.
+      await createVideoAction("s1", { tier: "LITE", topic: "one of the historical mystery stories, crime", productId: null, voice: "shilan", publish: false, targets: [], kind: "story", lang: "en", deadline: 1_030_000 });
+      await (vi.mocked(after).mock.calls.at(-1)![0] as () => unknown)();
+      expect(prepareAdVideo).toHaveBeenLastCalledWith("job1", 1_035_000);
+      // With no deadline from the chat it is 55 s from the start, as before.
+      await createVideoAction("s1", { tier: "LITE", topic: "one of the historical mystery stories, crime", productId: null, voice: "shilan", publish: false, targets: [], kind: "story", lang: "en" });
+      await (vi.mocked(after).mock.calls.at(-1)![0] as () => unknown)();
+      expect(prepareAdVideo).toHaveBeenLastCalledWith("job1", 1_055_000);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("videoJobStatusAction: what the chat needs to show a finished story", () => {
+  const row = (spec: unknown, over: Record<string, unknown> = {}) => ({ status: "RENDERED", videoUrl: "https://abc.public.blob.vercel-storage.com/v.mp4", videoPath: "merchant/t1/v.mp4", caption: "A caption", error: null, spec, ...over });
+
+  it("returns the case, the told-from-memory and recent flags, why it was held back, the shape and the credits of a story", async () => {
+    m.adVideo.findFirst.mockResolvedValue(
+      row(
+        {
+          lang: "en",
+          kind: "story",
+          format: "wide",
+          subject: { name: "Hinterkaifeck murders", url: "https://en.wikipedia.org/wiki/Hinterkaifeck_murders", chosen: true, recent: true },
+          credits: [{ scene: 1, title: "File:Hof.jpg", author: "Alice Example", licence: "CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File:Hof.jpg", attribution: true }],
+        },
+        { error: "waits for you: a recent case" },
+      ),
+    );
+    const r = await videoJobStatusAction("j1");
+    expect(r).toMatchObject({ ok: true, status: "RENDERED", url: "https://abc.public.blob.vercel-storage.com/v.mp4", caption: "A caption" });
+    const story = (r as unknown as { story: Record<string, unknown> }).story;
+    expect(story).toMatchObject({
+      subject: "Hinterkaifeck murders",
+      subjectUrl: "https://en.wikipedia.org/wiki/Hinterkaifeck_murders",
+      chosen: true,
+      fromMemory: false,
+      recent: true,
+      wide: true,
+      waited: en.video.waitRecent,
+    });
+    expect(story.credits).toEqual([{ title: "File:Hof.jpg", author: "Alice Example", licence: "CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File:Hof.jpg" }]);
+  });
+
+  it("gives a story told from memory no article link, and an ad no story part at all", async () => {
+    m.adVideo.findFirst.mockResolvedValue(row({ kind: "story", subject: { name: "Mary Celeste", url: "https://en.wikipedia.org/wiki/Mary_Celeste", fromMemory: true } }, { error: "waits for you: told from memory, not from an article" }));
+    const memory = (await videoJobStatusAction("j1")) as unknown as { story: { subjectUrl: string | null; fromMemory: boolean; waited: string | null; wide: boolean } };
+    expect(memory.story).toMatchObject({ subjectUrl: null, fromMemory: true, waited: en.video.waitMemory, wide: false });
+    m.adVideo.findFirst.mockResolvedValue(row({ lang: "en", kind: "ad" }));
+    const ad = await videoJobStatusAction("j1");
+    expect(ad).toMatchObject({ ok: true, status: "RENDERED" });
+    expect("story" in ad).toBe(false);
+  });
+
+  it("says nothing of a video that is not ready, and refuses a job of another workspace", async () => {
+    m.adVideo.findFirst.mockResolvedValue(row({ kind: "story", subject: { name: "X" } }, { status: "QUEUED" }));
+    expect(await videoJobStatusAction("j1")).toMatchObject({ ok: true, status: "QUEUED", url: null });
+    m.adVideo.findFirst.mockResolvedValue(null);
+    expect(await videoJobStatusAction("j9")).toMatchObject({ ok: false });
+    expect((m.adVideo.findFirst.mock.calls.at(-1)![0] as { where: { tenantId: string } }).where.tenantId).toBe("t1");
   });
 });

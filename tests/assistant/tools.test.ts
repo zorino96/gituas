@@ -106,6 +106,83 @@ describe("proposalLines", () => {
   });
 });
 
+describe("make_video's photo switch", () => {
+  it("is a true or false, kept as given, and left out when the model did not give it", () => {
+    expect(parseProposal({ tool: "make_video", args: { idea: "Hinterkaifeck murders 1922", kind: "story", photos: false } }, ids)?.args).toEqual({ idea: "Hinterkaifeck murders 1922", kind: "story", photos: false });
+    expect(parseProposal({ tool: "make_video", args: { idea: "Hinterkaifeck murders 1922", photos: true } }, ids)?.args).toEqual({ idea: "Hinterkaifeck murders 1922", photos: true });
+    expect(parseProposal({ tool: "make_video", args: { idea: "Hinterkaifeck murders 1922" } }, ids)?.args).toEqual({ idea: "Hinterkaifeck murders 1922" });
+    expect(parseProposal({ tool: "make_video", args: { idea: "Hinterkaifeck murders 1922", photos: "no" } }, ids)).toBeNull();
+    expect(parseProposal({ tool: "make_video", args: { idea: "Hinterkaifeck murders 1922", photos: ["a1"] } }, ids)).toBeNull();
+  });
+
+  it("is not mistaken for a product's photos, which are still attached files that must exist", () => {
+    expect(parseProposal({ tool: "add_product", args: { name: "Ring", price: "5000", photos: ["a1"] } }, ids)?.args.photos).toEqual(["a1"]);
+    expect(parseProposal({ tool: "add_product", args: { name: "Ring", price: "5000", photos: ["a9"] } }, ids)).toBeNull();
+  });
+});
+
+describe("make_video's shape (format)", () => {
+  const idea = "one of the historical mystery stories, crime";
+  const shapeLabels: FieldLabels = { ...labels, format: "Shape of the video", formatVertical: "Vertical 9:16 (Reels)", formatWide: "Wide 16:9 (YouTube)", storyPhotos: "Photos", storyPhotosFrom: "Wikimedia Commons", kind: "Kind", kindStory: "Story", kindAd: "Ad" };
+
+  it("is 'vertical' or 'wide', kept as given and left out when the model did not give it; anything else is no proposal", () => {
+    expect(parseProposal({ tool: "make_video", args: { idea, kind: "story", format: "wide" } }, ids)?.args).toEqual({ idea, kind: "story", format: "wide" });
+    expect(parseProposal({ tool: "make_video", args: { idea, kind: "story", format: "vertical" } }, ids)?.args).toEqual({ idea, kind: "story", format: "vertical" });
+    expect(parseProposal({ tool: "make_video", args: { idea, kind: "story" } }, ids)?.args).toEqual({ idea, kind: "story" });
+    for (const bad of ["16:9", "square", "landscape", true, 169, null, ["wide"]]) {
+      expect(parseProposal({ tool: "make_video", args: { idea, format: bad } }, ids), String(bad)).toBeNull();
+    }
+  });
+
+  it("is not mistaken for the picture's shape or for a file", () => {
+    expect(parseProposal({ tool: "make_picture", args: { idea: "a ring", shape: "wide" } }, ids)).toBeNull();
+    expect(parseProposal({ tool: "make_video", args: { idea, format: "wide" } }, new Set())).not.toBeNull();
+  });
+
+  it("shows on a story's card, and only there: wide when asked or resolved, else vertical; an ad has no line", () => {
+    const story = (args: Record<string, unknown>, video?: { lang: string; kind: string; format?: string }) =>
+      proposalLines(parseProposal({ tool: "make_video", args: { idea, kind: "story", ...args } }, ids)!, shapeLabels, video ? { video } : {});
+    expect(story({ format: "wide" })).toContainEqual({ label: "Shape of the video", value: "Wide 16:9 (YouTube)" });
+    expect(story({})).toContainEqual({ label: "Shape of the video", value: "Vertical 9:16 (Reels)" });
+    // What the caller resolved wins.
+    expect(story({ format: "wide" }, { lang: "en", kind: "story", format: "vertical" })).toContainEqual({ label: "Shape of the video", value: "Vertical 9:16 (Reels)" });
+    expect(story({}, { lang: "en", kind: "story", format: "wide" })).toContainEqual({ label: "Shape of the video", value: "Wide 16:9 (YouTube)" });
+    // Photographs: the name the person's language writes.
+    expect(story({})).toContainEqual({ label: "Photos", value: "Wikimedia Commons" });
+    const ad = proposalLines(parseProposal({ tool: "make_video", args: { idea: "a short ad", kind: "ad" } }, ids)!, shapeLabels, { video: { lang: "en", kind: "ad", format: "wide" } });
+    expect(ad.some((l) => l.label === "Shape of the video")).toBe(false);
+    // A screen with no label for it (an older caller) shows no such line.
+    expect(proposalLines(parseProposal({ tool: "make_video", args: { idea, kind: "story", format: "wide" } }, ids)!, labels, {}).some((l) => l.value.includes("16:9"))).toBe(false);
+  });
+});
+
+describe("make_video's review switch", () => {
+  it("is a true or false, kept as given, and left out when the model did not give it; a word or a number is no proposal", () => {
+    const idea = "one of the historical mystery stories, crime";
+    expect(parseProposal({ tool: "make_video", args: { idea, kind: "story", review: true } }, ids)?.args).toEqual({ idea, kind: "story", review: true });
+    expect(parseProposal({ tool: "make_video", args: { idea, kind: "story", review: false } }, ids)?.args).toEqual({ idea, kind: "story", review: false });
+    expect(parseProposal({ tool: "make_video", args: { idea, kind: "story" } }, ids)?.args).toEqual({ idea, kind: "story" });
+    for (const bad of ["true", "yes", "on", 1, null, ["a1"]]) {
+      expect(parseProposal({ tool: "make_video", args: { idea, review: bad } }, ids), String(bad)).toBeNull();
+    }
+  });
+
+  it("is not mistaken for a file, and a story's review line appears on the card only when it is on", () => {
+    const named: FieldLabels = { ...labels, language: "Video language", kind: "Kind", kindAd: "Ad", kindStory: "Story", storyPhotos: "Photos", storyNoPhotos: "No photographs", review: "Improve the idea first" };
+    const lines = (args: Record<string, unknown>) => proposalLines(parseProposal({ tool: "make_video", args }, ids)!, named, { video: { lang: "en", kind: "story" } });
+    expect(lines({ idea: "Hinterkaifeck murders 1922", review: true })).toContainEqual({ label: "Improve the idea first", value: labels.yes });
+    expect(lines({ idea: "Hinterkaifeck murders 1922", review: false }).some((l) => l.label === "Improve the idea first")).toBe(false);
+    expect(lines({ idea: "Hinterkaifeck murders 1922" }).some((l) => l.label === "Improve the idea first")).toBe(false);
+    // The photographs line says plainly when they are off.
+    expect(lines({ idea: "Hinterkaifeck murders 1922", photos: false })).toContainEqual({ label: "Photos", value: "No photographs" });
+    expect(lines({ idea: "Hinterkaifeck murders 1922" })).toContainEqual({ label: "Photos", value: "Wikimedia Commons" });
+    // A fiction has no photographs line; an ad has neither line.
+    expect(lines({ idea: "a fictional lighthouse mystery" }).some((l) => l.label === "Photos")).toBe(false);
+    const ad = proposalLines(parseProposal({ tool: "make_video", args: { idea: "a short ad", kind: "ad", review: true } }, ids)!, named, { video: { lang: "en", kind: "ad" } });
+    expect(ad.some((l) => l.label === "Photos" || l.label === "Improve the idea first")).toBe(false);
+  });
+});
+
 describe("the video's language and kind on the card", () => {
   const named: FieldLabels = { ...labels, language: "Video language", kind: "Kind", kindAd: "Ad", kindStory: "Story", languages: { ckb: "Sorani Kurdish", ar: "Arabic", en: "English" } };
 

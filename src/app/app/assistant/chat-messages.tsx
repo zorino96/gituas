@@ -10,10 +10,12 @@ import { ExternalLink, LoaderCircle, ShieldCheck, Sparkles, TriangleAlert } from
 import type { ChatAttachment, MessageDto, RunDto, VerifyReport, ViewBlock } from "@/lib/chat/types";
 import { useT } from "@/lib/i18n/client";
 import { videoJobStatusAction } from "../video/actions";
+import type { StoryStatusView } from "../video/story-form";
 import { minutesLeft, shownStatus, splitLinks, valueDir, waitingToConfirm } from "./chat-model";
 import { ChatAccounts } from "./chat-accounts";
 import { safeHrefFor } from "./chat-frame-model";
 import { useChatShell } from "./chat-shell";
+import { StoryReady } from "./story-ready";
 
 export function Avatar() {
   return (
@@ -191,10 +193,14 @@ export function Files({ files, large = false }: { files: Pick<ChatAttachment, "u
   );
 }
 
-/** A video being made: asks after it until it is ready or has failed, then shows it. */
+/**
+ * A video being made: asks after it until it is ready or has failed, then shows it. A finished STORY also shows what the owner needs before it goes
+ * anywhere: the case it tells (a link to its article only when that was read), the told-from-memory and recent notes, why it was held back when it
+ * was to be posted by itself, and Download, Copy caption (with the photo credits) and the way to the Video section where it can be posted.
+ */
 function VideoWatch({ jobId }: { jobId: string }) {
   const t = useT().chat.runs;
-  const [state, setState] = useState<{ phase: "waiting" | "none" } | { phase: "ready"; url: string } | { phase: "failed"; error: string }>({ phase: "waiting" });
+  const [state, setState] = useState<{ phase: "waiting" | "none" } | { phase: "ready"; url: string; caption: string | null; story?: StoryStatusView } | { phase: "failed"; error: string }>({ phase: "waiting" });
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | undefined;
     let stopped = false;
@@ -212,7 +218,7 @@ function VideoWatch({ jobId }: { jobId: string }) {
         if (stopped) return;
         if (!r.ok) return finish({ phase: "none" });
         if (r.status === "FAILED") return finish({ phase: "failed", error: r.error || t.videoFailed });
-        if (r.url) return finish({ phase: "ready", url: r.url });
+        if (r.url) return finish({ phase: "ready", url: r.url, caption: r.caption, ...(r.story ? { story: r.story } : {}) });
       } catch {
         /* the next tick asks again */
       }
@@ -226,6 +232,9 @@ function VideoWatch({ jobId }: { jobId: string }) {
   }, [jobId, t.videoFailed]);
 
   if (state.phase === "none") return null;
+  if (state.phase === "ready" && state.story) {
+    return <StoryReady url={state.url} caption={state.caption} story={state.story} video={<Files files={[{ url: state.url, kind: "video", name: "" }]} large />} />;
+  }
   if (state.phase === "ready")
     return (
       <div>

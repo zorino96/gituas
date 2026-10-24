@@ -77,12 +77,37 @@ export const NEW = {
 
 /** What the cards of the older tools add to the app's own wording. */
 export const CARD = {
-  /** Said on the card of a story video: the AI invents the story from the idea, so it must be read before it is posted. */
-  videoStoryNote: words(
-    "AI چیرۆکەکە لە بیرۆکەکەتەوە دادەهێنێت؛ پێش بڵاوکردنەوە بیخوێنەوە.",
-    "يؤلّف الذكاء الاصطناعي القصة من فكرتك؛ اقرأها قبل نشرها.",
-    "The AI invents the story from your idea: read it before it is posted.",
+  /**
+   * Said on the card of a story video that is told from a real case (every story whose idea does not say fiction, in any video language): the
+   * case is the one the owner named, or, when none was named, one Gituas chooses and shows on the video card, retold from its Wikipedia article
+   * WHEN THAT CAN BE READ (otherwise the video card says it was told from memory); the photographs are the free ones from Wikimedia Commons
+   * where they are found. Nothing here promises a photograph for every part. The owner reads it before it is posted.
+   */
+  videoStoryReal: words(
+    "چیرۆکەکە لەسەر کەیسێکی ڕاستەقینەی باش تۆمارکراو دەگێڕدرێتەوە: ئەوەی تۆ ناوت بردووە، یان ئەگەر ناوی هیچت نەبردبێت، ئەوەی گیتواس هەڵیدەبژێرێت و لەسەر کارتی ڤیدیۆکە پیشانی دەدات. لە وتارەکەی ویکیپیدیاوە بە وشەی نوێ دەگێڕدرێتەوە کاتێک بخوێندرێتەوە، ئەگینا کارتی ڤیدیۆکە دەڵێت لە یادەوەرییەوە گێڕدراوەتەوە. وێنەی ئازاد لە ویکیمیدیا کۆمۆنز بەکاردێت لەو شوێنانەی دەدۆزرێنەوە و ناوی خاوەنەکانیان لە وەسفەکە و لە کۆتا دیمەنەکەدا دەنووسرێت. پێش بڵاوکردنەوە بیخوێنەوە.",
+    "تُروى القصة عن قضية حقيقية موثّقة جيدًا: التي ذكرتها، أو، إن لم تذكر قضية، تلك التي تختارها Gituas وتعرضها على بطاقة الفيديو. تُعاد صياغتها من مقالتها في ويكيبيديا حين يمكن قراءتها، وإلا تذكر بطاقة الفيديو أنها رُويت من الذاكرة. تُستخدم صور حرة من ويكيميديا كومنز حيثما وُجدت ويُذكر أصحابها في الوصف وفي المشهد الأخير. اقرأها قبل نشرها.",
+    "Told from a real, well-documented case: the one you named, or, when you named none, one Gituas chooses and shows on the video card. It is retold from its Wikipedia article when that can be read; otherwise the video card says it was told from memory. Free photographs from Wikimedia Commons are used where they are found, and credited in the caption and on the last scene. Read it before it is posted.",
   ),
+  /** The same when the owner switched the photographs off. */
+  videoStoryRealNoPhotos: words(
+    "چیرۆکەکە لەسەر کەیسێکی ڕاستەقینەی باش تۆمارکراو دەگێڕدرێتەوە: ئەوەی تۆ ناوت بردووە، یان ئەگەر ناوی هیچت نەبردبێت، ئەوەی گیتواس هەڵیدەبژێرێت و لەسەر کارتی ڤیدیۆکە پیشانی دەدات. لە وتارەکەی ویکیپیدیاوە بە وشەی نوێ دەگێڕدرێتەوە کاتێک بخوێندرێتەوە، ئەگینا کارتی ڤیدیۆکە دەڵێت لە یادەوەرییەوە گێڕدراوەتەوە. وێنەی تێدا نابێت. پێش بڵاوکردنەوە بیخوێنەوە.",
+    "تُروى القصة عن قضية حقيقية موثّقة جيدًا: التي ذكرتها، أو، إن لم تذكر قضية، تلك التي تختارها Gituas وتعرضها على بطاقة الفيديو. تُعاد صياغتها من مقالتها في ويكيبيديا حين يمكن قراءتها، وإلا تذكر بطاقة الفيديو أنها رُويت من الذاكرة. بلا صور. اقرأها قبل نشرها.",
+    "Told from a real, well-documented case: the one you named, or, when you named none, one Gituas chooses and shows on the video card. It is retold from its Wikipedia article when that can be read; otherwise the video card says it was told from memory. No photographs. Read it before it is posted.",
+  ),
+  /** Said on the card of a story (any video language) the owner asked for as fiction (the idea says so): invented, told as fiction, no real photographs. */
+  videoStoryFiction: words(
+    "چیرۆکێکی خەیاڵییە و وەک خەیاڵ دەگێڕدرێتەوە (پۆستەکەش ئەوە دەڵێت). پێش بڵاوکردنەوە بیخوێنەوە.",
+    "قصة خيالية تُروى كخيال (ويذكر المنشور ذلك). اقرأها قبل نشرها.",
+    "A fictional story, told as fiction (the post says so). Read it before it is posted.",
+  ),
+  /** Said on a story's card when Gituas itself set the shape to wide, because the owner's recent words mention YouTube or 16:9 (see wantsWide in video/story-form.ts). */
+  videoWideAuto: words(
+    "بە پان 16:9 دانرا، چونکە باسی یوتیوبت کرد.",
+    "ضُبط على العريض 16:9 لأنك ذكرت يوتيوب.",
+    "Set to wide 16:9 because you mentioned YouTube or 16:9.",
+  ),
+  /** The label of the card line that says what the owner attached and the video does not use (the sentences are the dictionary's assistant.done.videoNotUsed*). */
+  notUsedLabel: words("بەکارنەهات", "لم يُستخدم", "Not used"),
   /** The value of a text that the change clears (an empty string): without it the card would show no line and hide the deletion. */
   cleared: words("بەتاڵ (دەسڕدرێتەوە)", "فارغ (سيتم مسحه)", "Empty (cleared)"),
   /** Said on the card of a product removal: the app has no way to bring it back. */

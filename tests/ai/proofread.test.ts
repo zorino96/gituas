@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { correctionProblem, looksKurdish, polishAdRaw, polishReelSegments, proofreadLines, proofreadSorani, resetProofreadLimits } from "@/lib/ai/proofread";
+import { correctionProblem, looksKurdish, numberWordSignature, polishAdRaw, polishReelSegments, proofreadLines, proofreadSorani, resetProofreadLimits } from "@/lib/ai/proofread";
 
 const SORANI = "فڕۆکەخانەی هەولێر لە مانگی داهاتوو هێڵێکی نوێ زیاد دەکات.";
 
@@ -85,6 +85,58 @@ describe("proofreadSorani", () => {
     vi.stubGlobal("fetch", fetchMock);
     for (let i = 0; i < 30; i++) await proofreadSorani(SORANI);
     expect(fetchMock.mock.calls.length).toBeLessThanOrEqual(18);
+  });
+});
+
+describe("a documented story's number words (a year written as words)", () => {
+  // 1922 as Sorani words, and the same sentence with the last number word changed to 1921.
+  const YEAR = "لە ساڵی هەزار و نۆسەد و بیست و دوو شەش کەس کوژران";
+  const YEAR_CHANGED = "لە ساڵی هەزار و نۆسەد و بیست و یەک شەش کەس کوژران";
+  const SPELLING = "بادبانەکانی کراونەتەوە و ڕێک بەرەو پێش دەڕوات";
+  const SPELLING_FIXED = "چارۆکەکانی کراونەتەوە و ڕێک بەرەو پێش دەڕوات";
+
+  it("knows the number words of a text, however they are spelled with Arabic or Persian letters", () => {
+    expect(numberWordSignature(YEAR)).toBe(numberWordSignature(YEAR));
+    expect(numberWordSignature(YEAR)).not.toBe(numberWordSignature(YEAR_CHANGED));
+    expect(numberWordSignature(SPELLING)).toBe("");
+    // Order does not matter, the words themselves do; Arabic yeh and kaf read as the Persian ones.
+    expect(numberWordSignature("دوو و سێ")).toBe(numberWordSignature("سێ و دوو"));
+    expect(numberWordSignature("بیست و دوو")).not.toBe(numberWordSignature("بیست و سێ"));
+  });
+
+  it("is thrown away by proofreadSorani when it changes a year, and kept when it only fixes a spelling", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(answer(YEAR_CHANGED)));
+    expect(await proofreadSorani(YEAR, { numberWords: true })).toEqual({ text: YEAR, changed: false });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(answer(SPELLING_FIXED)));
+    const ok = await proofreadSorani(SPELLING, { numberWords: true });
+    expect(ok.changed).toBe(true);
+    expect(ok.text).toBe(SPELLING_FIXED);
+  });
+
+  it("is left as it always was when the option is off (an ad, a caption, a news text): the correction is taken", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(answer(YEAR_CHANGED)));
+    const r = await proofreadSorani(YEAR);
+    expect(r.changed).toBe(true);
+    expect(r.text).toBe(YEAR_CHANGED);
+  });
+
+  it("keeps the one line whose year was changed and still takes the other lines' corrections", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => answer(`${YEAR_CHANGED}\n${SPELLING_FIXED}`)));
+    expect(await proofreadLines([YEAR, SPELLING], { numberWords: true })).toEqual([YEAR, SPELLING_FIXED]);
+    // Without the option the changed line is taken too.
+    expect(await proofreadLines([YEAR, SPELLING])).toEqual([YEAR_CHANGED, SPELLING_FIXED]);
+  });
+
+  it("reaches the script through polishAdRaw: the spoken line with the changed year stays, the caption is held to the same rule", async () => {
+    const raw = { scenes: [{ type: "hook", text: "x", voice: YEAR }, { type: "story", text: "y", voice: SPELLING }], caption: YEAR };
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (_url: string, init: { body: string }) => {
+      const sent = (JSON.parse(init.body) as { text: string }).text;
+      return answer(sent === YEAR ? YEAR_CHANGED : sent.includes("\n") ? `${YEAR_CHANGED}\n${SPELLING_FIXED}` : sent);
+    }));
+    const out = (await polishAdRaw(raw, { numberWords: true })) as typeof raw;
+    expect(out.scenes[0].voice).toBe(YEAR);
+    expect(out.scenes[1].voice).toBe(SPELLING_FIXED);
+    expect(out.caption).toBe(YEAR);
   });
 });
 

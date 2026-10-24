@@ -3,7 +3,8 @@
 // cut to size here, and anything outside the vocabulary (an unknown icon, a photo that does not
 // exist, digits in a spoken line) is dropped or repaired before the job goes on.
 
-import { langFields, videoKindOf, videoLangOf, type VideoKind, type VideoLang } from "./lang";
+import type { PhotoCredit } from "./credits";
+import { langFields, videoKindOf, videoLangOf, type StoryMode, type VideoKind, type VideoLang } from "./lang";
 
 /** "story" is a beat of a story video (a content video, not an ad): the narrator's words over a slow backdrop. */
 export type SceneType = "hook" | "value" | "product" | "offer" | "footage" | "cta" | "story";
@@ -158,10 +159,58 @@ export interface AdScene {
   voice: string;
   /** value scenes: a Lucide icon. */
   icon: AdIcon | null;
-  /** product scenes: which of the photos (0-based). A story scene may use one as its backdrop. */
+  /**
+   * product scenes: which of the photos (0-based). A story scene may use one as its backdrop; a story's hook may too, and
+   * there the photo is set by prepare from Wikimedia Commons (never by the writer) and lives in the render props only.
+   */
   photo: number | null;
   /** footage scenes: which of the owner's own clips (0-based). A story scene may use one as its backdrop (a clip wins over a photo). */
   clip: number | null;
+  /**
+   * A documented story's hook and beats: 1 to 3 word Wikimedia Commons search phrases for the photograph that fits the beat
+   * (at most 4, Latin letters, English first). Only a real-mode story's writer gives them; they are never drawn or spoken.
+   */
+  queries?: string[];
+  /** A documented story's hook and beats: what the photograph shows, a few words. Never drawn or spoken. */
+  visual?: string | null;
+}
+
+/**
+ * What a story is about, for the owner to read on the card. A real story's subject is set by CODE (src/lib/advideo/subject.ts:
+ * the case the owner named and Wikipedia confirmed, or one the system chose), never by the model.
+ */
+export interface StorySubject {
+  /** Latin letters; for a real story the title of its English Wikipedia article. */
+  name: string;
+  /** real: told from what is documented; fiction: an invented story. */
+  kind: "real" | "fiction";
+  /** real: the title of the English Wikipedia article the story was told from. Absent when no article could be read. */
+  wiki?: string;
+  /** real: the article's address, https://en.wikipedia.org/wiki/... Absent with `wiki`. */
+  url?: string;
+  /** True when the system chose the case (the owner named none); absent when the owner named it. */
+  chosen?: boolean;
+  /** real: "File:..." titles of the pictures used in the article (at most 40), the first pool the photograph finder judges. */
+  images?: string[];
+  /**
+   * True when NO article was read: the story was told from what the writer knows (Wikipedia could not be reached, or the article was
+   * too short). Then `wiki` and `url` are absent (a source link is shown only for an article that was read), and the card says plainly
+   * that the story was told from memory and its facts must be checked.
+   */
+  fromMemory?: true;
+  /** True when the case is recent or may involve people who are alive: the writer was told to name no individual suspect. */
+  recent?: true;
+  /**
+   * The years the case covers, read from its article by the code (see caseEra in subject.ts): a photograph whose own text names a year
+   * well after `to` is a modern one and is not used. Only written when the article names years from 1000 on; absent = the script's own years.
+   */
+  era?: { from: number; to: number };
+}
+
+/** What a story or an ad is published with when it goes to YouTube: the owner's own declarations (never guessed). */
+export interface YouTubeChoice {
+  privacy: "public" | "unlisted" | "private";
+  madeForKids: boolean;
 }
 
 export interface AdSpec {
@@ -175,6 +224,29 @@ export interface AdSpec {
   lang?: VideoLang;
   /** What the video is; absent = an ad. */
   kind?: VideoKind;
+  /** A story's subject (every story, in every language). Absent for an ad. */
+  subject?: StorySubject;
+  /** The photographs shown behind a documented story's beats, with the author and licence of each. */
+  credits?: PhotoCredit[];
+  /** Written ONLY when the owner switched the Wikimedia Commons photographs off for this story; absent = photographs on. */
+  noPhotos?: true;
+  /** Written ONLY when the story was made LITERALLY (the owner's words exactly as typed, no review and no page knowledge); absent = page-aware. */
+  literal?: true;
+  /**
+   * Written ONLY for a story the owner asked to be WIDE (16:9, for YouTube); absent = vertical 9:16. An ad is always vertical and never
+   * carries it. The renderer draws 1920x1080 for it.
+   */
+  format?: "wide";
+  /**
+   * Written ONLY when the owner's OWN words asked for fiction (decided once, from what he typed, before any review); absent = a real
+   * story. A reader of the spec stub gives it to storyModeOf, so a rewritten topic never turns a real story into an invented one.
+   */
+  fiction?: true;
+  /**
+   * Written ONLY for a job that is to be published to YouTube (the owner's declarations of who may see it and whether it is made for
+   * children); absent = the video is not for YouTube. Publishing to YouTube without both answers is never done.
+   */
+  youtube?: YouTubeChoice;
 }
 
 export const LIMITS = {
@@ -357,6 +429,21 @@ export interface NormalizeOptions {
   lang?: VideoLang;
   /** What the video is; absent = an ad. A story has its own scene types, limits and claim rules. */
   kind?: VideoKind;
+  /**
+   * How a story is told; absent = classic (every ad: nothing below applies). real: the hook and beats carry picture queries and
+   * the story's subject is `subject`; fiction: the model's subject name is kept, queries are dropped.
+   */
+  mode?: StoryMode;
+  /**
+   * A real story's subject, found by the code before the writer ran (resolveStorySubject). It becomes the spec's subject as it is
+   * (its kind forced to "real"); whatever subject the model gives is ignored. Without it a real story's spec has no subject.
+   */
+  subject?: StorySubject;
+  /**
+   * A story's shape: "wide" (16:9) is kept in the spec; "vertical" (the default) writes nothing. Ignored for an ad, which is always
+   * vertical.
+   */
+  format?: "vertical" | "wide";
 }
 
 export type Normalized = { ok: true; spec: AdSpec } | { ok: false; errors: string[] };
@@ -378,6 +465,28 @@ function normalizePlan(raw: unknown): AdPlan | undefined {
 /** The palettes that read as dark; a story keeps to them. */
 const DARK_PALETTES: readonly AdLook["palette"][] = ["brand-dark", "duotone", "midnight"];
 
+// ---- a documented story: the picture queries and the subject ------------------------------------------------------
+
+/** Wikimedia Commons search phrases from the writer: cleaned, de-duplicated, at most 4. A bad one is dropped silently (it never costs a retry). */
+function cleanQueries(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    if (typeof item !== "string") continue;
+    if (/[\/\\]|https?|www\./i.test(item)) continue;
+    const q = clean(item.replace(/["“”„‟«»]/g, " "), 3, 40).replace(/^['‘’`´\s]+|['‘’`´\s]+$/g, "");
+    // A phrase for a Latin-letter archive: at least one Latin letter (so not only digits) and no Arabic-script letter.
+    if (!q || !/\p{Script=Latin}/u.test(q) || hasArabicLetters(q)) continue;
+    const key = q.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(q);
+    if (out.length >= 4) break;
+  }
+  return out;
+}
+
 /** An optional picture or clip index: a whole number inside the list, else none (a missing value is none, not the first). */
 function optionalIndex(v: unknown, count: number): number | null {
   const n = typeof v === "number" ? v : typeof v === "string" && /^\d+$/.test(v.trim()) ? Number(v) : NaN;
@@ -394,8 +503,10 @@ export function normalizeSpec(raw: unknown, o: NormalizeOptions): Normalized {
   const kind = videoKindOf(o.kind);
   const story = kind === "story";
   const lim = limitsFor(kind, lang);
+  // How a story is told; an ad and a classic story (the default) are checked and returned exactly as they always were.
+  const mode: StoryMode = story ? (o.mode ?? "classic") : "classic";
   const errors: string[] = [];
-  const r = (raw ?? {}) as { style?: unknown; look?: unknown; plan?: unknown; scenes?: unknown; caption?: unknown };
+  const r = (raw ?? {}) as { style?: unknown; look?: unknown; plan?: unknown; scenes?: unknown; caption?: unknown; subject?: unknown };
   const list = Array.isArray(r.scenes) ? r.scenes : [];
   const clips = o.clips ?? 0;
   const scenes: AdScene[] = [];
@@ -455,6 +566,10 @@ export function normalizeSpec(raw: unknown, o: NormalizeOptions): Normalized {
       clip = optionalIndex(s.clip, clips);
     }
     const icon = (AD_ICONS as readonly string[]).includes(String(s.icon)) ? (s.icon as AdIcon) : null;
+    // A documented story's hook and beats carry the phrases a photograph is searched with (a fiction has none: nothing to look up).
+    const pictured = mode === "real" && (type === "hook" || type === "story");
+    const queries = pictured ? cleanQueries(s.queries) : [];
+    const visual = pictured ? clean(s.visual, 12, 120) : "";
     scenes.push({
       type,
       text,
@@ -463,8 +578,14 @@ export function normalizeSpec(raw: unknown, o: NormalizeOptions): Normalized {
       icon: type === "value" ? icon ?? "sparkles" : null,
       photo,
       clip,
+      ...(queries.length ? { queries } : {}),
+      ...(visual ? { visual } : {}),
     });
   }
+
+  // A fiction may name its own subject (an invention, so nothing to check it against). A documented story's subject is NOT the
+  // model's to name: the code found the case (and its source) before the writer ran, and `o.subject` is what is kept.
+  const givenName = mode === "fiction" ? clean(typeof r.subject === "string" ? r.subject : (r.subject as { name?: unknown } | null | undefined)?.name, 10, 100) : "";
 
   // One hook first and one call to action last, whatever order the model gave.
   const hook = scenes.find((s) => s.type === "hook");
@@ -529,5 +650,19 @@ export function normalizeSpec(raw: unknown, o: NormalizeOptions): Normalized {
   // A story is dark and moody: a light palette (the seed's choice when the model gave none) becomes midnight.
   const finalLook = story && !DARK_PALETTES.includes(moved.palette) ? { ...moved, palette: "midnight" as const } : moved;
   const style = AD_STYLES.includes(r.style as AdStyle) && r.look === undefined ? (r.style as AdStyle) : styleOf(finalLook);
-  return { ok: true, spec: { style, look: finalLook, scenes: ordered, caption, plan: story ? undefined : normalizePlan(r.plan), ...langFields(lang, kind) } };
+  // The subject's kind is the code's, not the model's: a documented story is real, a fiction is fiction.
+  const subject: StorySubject | undefined =
+    mode === "real"
+      ? o.subject
+        ? { ...o.subject, kind: "real", ...(o.subject.images ? { images: o.subject.images.slice(0, 40) } : {}) }
+        : undefined
+      : mode === "fiction"
+        ? { name: givenName || hook!.text, kind: "fiction" }
+        : undefined;
+  // The shape is the caller's choice (the owner's), never the model's: only a story can be wide, and an ad never carries the key.
+  const wide = story && o.format === "wide";
+  return {
+    ok: true,
+    spec: { style, look: finalLook, scenes: ordered, caption, plan: story ? undefined : normalizePlan(r.plan), ...langFields(lang, kind), ...(subject ? { subject } : {}), ...(wide ? { format: "wide" as const } : {}) },
+  };
 }

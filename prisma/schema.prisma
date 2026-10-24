@@ -1201,6 +1201,8 @@ model Store {
   videoAutoHour     Int                  @default(18)
   /// The language the store's AI videos are made in (ckb | ar | en); null = Sorani. Used by the daily video, the Video form and the chat's make_video.
   videoLang         String?
+  /// The daily video's own plan, in the owner's words: { brief, kind, format, review, photos, targets, youtube }; null = the usual daily video the channel profile decides.
+  videoAutoPlan     Json?
   videoAutoLastAt   DateTime?
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt

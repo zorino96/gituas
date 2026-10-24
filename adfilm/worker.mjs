@@ -14,7 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { settleScenes } from "./scenes.mjs";
+import { cleanCredits, frameOf, settleScenes } from "./scenes.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(HERE, "out");
@@ -134,7 +134,7 @@ async function doFetch() {
         s.audio = rel;
       }
       const photos = [];
-      for (const [i, url] of (props.photos ?? []).slice(0, 6).entries()) {
+      for (const [i, url] of (props.photos ?? []).slice(0, 16).entries()) {
         const rel = `photo-${i}.jpg`;
         try {
           await download(url, path.join(dir, rel), { blobHost, kinds: ["jpeg", "png", "webp"] });
@@ -145,6 +145,16 @@ async function doFetch() {
         }
       }
       props.photos = photos;
+
+      // The frame: only a story can be wide (16:9, 1920x1080); anything else is the vertical reel. The photo credit lines are the closing
+      // scene's, a few short strings: the render step draws nothing else from the job's words.
+      const frame = frameOf(props);
+      props.size = frame.size;
+      if (frame.wide) props.format = "wide";
+      else delete props.format;
+      const credits = cleanCredits(props.credits, props.kind === "story");
+      if (credits.length) props.credits = credits;
+      else delete props.credits;
 
       // The owner's own clips, for footage scenes. A clip that cannot be fetched drops the scenes that wanted it
       // (in a story they stay on the look's own background: see settleScenes).
@@ -210,8 +220,11 @@ function doRender() {
     // A story is longer than an ad and gets a little more time. A run renders one story at a time and nothing else
     // (see src/app/api/cron/ad-jobs), so its claim, its render and its upload fit in the 25 minutes a claim lasts.
     let story = false;
+    let wide = false;
     try {
-      story = JSON.parse(fs.readFileSync(path.join(dir, "job.json"), "utf8")).kind === "story";
+      const props = JSON.parse(fs.readFileSync(path.join(dir, "job.json"), "utf8"));
+      story = props.kind === "story";
+      wide = frameOf(props).wide;
     } catch {
       /* an ad */
     }
@@ -224,8 +237,8 @@ function doRender() {
     });
     const ok = r.status === 0 && fs.existsSync(outFile);
     const seconds = Math.round((Date.now() - started) / 1000);
-    fs.writeFileSync(path.join(dir, "status.json"), JSON.stringify(ok ? { ok: true, seconds, kind: story ? "story" : "ad" } : { ok: false, error: `render exited ${r.status}` }));
-    console.log(`ad ${job.id}: ${ok ? `drawn (${story ? "story" : "ad"}, ${seconds} s)` : "render failed"}`);
+    fs.writeFileSync(path.join(dir, "status.json"), JSON.stringify(ok ? { ok: true, seconds, kind: story ? "story" : "ad", format: wide ? "wide" : "vertical" } : { ok: false, error: `render exited ${r.status}` }));
+    console.log(`ad ${job.id}: ${ok ? `drawn (${story ? "story" : "ad"}${wide ? ", wide" : ""}, ${seconds} s)` : "render failed"}`);
   }
 }
 

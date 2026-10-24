@@ -37,6 +37,15 @@ describe("claiming videos to render", () => {
     expect(claimed()).toEqual(["s1"]);
   });
 
+  it("hands a wide story (16:9, for YouTube) out as it is, alone like every story, with its format, size and credit lines untouched", async () => {
+    const props = { kind: "story", format: "wide", size: [1920, 1080], credits: ["Photos: Wikimedia Commons", "Jane Doe, CC BY 2.0"] };
+    m.adVideo.findMany.mockResolvedValue([row("w1", props), row("a1")]);
+    const out = (await call()).jobs as unknown as { id: string; props: Record<string, unknown> }[];
+    expect(out.map((j) => j.id)).toEqual(["w1"]);
+    expect(out[0].props).toMatchObject(props);
+    expect(claimed()).toEqual(["w1"]);
+  });
+
   it("leaves a story for the next call when an ad is older", async () => {
     m.adVideo.findMany.mockResolvedValue([row("a1"), row("s1", { kind: "story" })]);
     expect((await call()).jobs.map((j) => j.id)).toEqual(["a1"]);

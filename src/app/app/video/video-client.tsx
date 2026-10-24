@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 
 import { defaultVoice, type VideoKind, type VideoLang } from "@/lib/advideo/lang";
+import type { VideoAutoPlan } from "@/lib/advideo/plan";
 import { useLang, useT } from "@/lib/i18n/client";
 import { LANGS } from "@/lib/i18n/lang";
 import { cityLabel } from "@/lib/orders/cities";
@@ -13,6 +14,9 @@ import { PAWAN_VOICES, VOICE_NAMES } from "@/lib/voice/voices";
 import { SaveMessage, SwitchRow, useSaver } from "../automation/shared";
 import { createVideoAction, publishVideoAction, refreshPlanAction, removeRefAction, saveMarketNotesAction, saveVideoAutoAction, type VideoResult } from "./actions";
 import type { AutoHold } from "./hold";
+import { captionWithCredits, formatField, photosField, storyFormOf, storyTooShort as tooShort, type VideoFormat } from "./story-form";
+import { CopyButton, DownloadLink } from "./story-actions";
+import { StoryOptions } from "./story-options";
 
 type Tier = "LITE" | "PRO";
 
@@ -37,6 +41,26 @@ export interface VideoJobView {
   look: string | null;
   comments: number | null;
   orders: number | null;
+  /** A story with real photographs: who took them and under which licence (missing: none). */
+  credits?: { title: string; author: string | null; licence: string; page: string }[];
+  /** The owner switched the Wikimedia Commons photographs off for this story. */
+  noPhotos?: boolean;
+  /** The story was asked for as fiction (told as fiction, no real photographs). */
+  fiction?: boolean;
+  /** What a story is about: the real case or event it tells (chosen by the owner's words or by Gituas), or a fiction's title (missing: none). */
+  subject?: string | null;
+  /** The English Wikipedia article the case was told from (only a real case has one). */
+  subjectUrl?: string | null;
+  /** Gituas chose the case itself, because the idea named none. */
+  subjectChosen?: boolean;
+  /** The story was told from memory (its Wikipedia article could not be read): the card says so, and there is no source link. */
+  fromMemory?: boolean;
+  /** The story is about a very recent case (it may name people who are still alive): the card says to check every fact. */
+  recent?: boolean;
+  /** This story was meant to be posted by itself and waited as a draft instead (told from memory, very recent, or an invented story nobody asked for): why, in the owner's words. */
+  waited?: string;
+  /** The story was made wide 16:9 (for YouTube); missing: vertical 9:16, as every video was. */
+  format?: "wide";
 }
 
 export interface RefView {
@@ -68,6 +92,8 @@ interface Props {
   allowances: Record<Tier, { limit: number; used: number; left: number }>;
   /** `lang` is the store's video language (missing: Sorani). */
   auto: { mode: string; tier: Tier; hour: number; lang?: VideoLang };
+  /** The daily video's own plan (what the owner asked the chat for), or null: the daily video follows the page as it always did. */
+  dailyPlan?: VideoAutoPlan | null;
   /** Why the daily video has made nothing today, when it is late (missing or null: nothing holds it). */
   autoHold?: AutoHold | null;
   /** What the form opens on: the store's video language, and a story for a page that grows or earns from its content (missing: a Sorani ad). */
@@ -102,12 +128,10 @@ function LangControl({ value, onChange, label, disabled }: { value: VideoLang; o
   );
 }
 
-/** A story is told from the owner's idea: this is the least it needs (the action checks the same). */
-const STORY_MIN = 10;
 const AD_TOPIC_MAX = 300;
 const STORY_TOPIC_MAX = 1200;
 
-export function VideoClient({ storeId, stores, canFb, canIg, products, allowances, auto, autoHold, defaultLang = "ckb", defaultKind = "ad", jobs, configure, workspaceId, today, aiPercent, refs, refLimits, plan, notes }: Props) {
+export function VideoClient({ storeId, stores, canFb, canIg, products, allowances, auto, dailyPlan, autoHold, defaultLang = "ckb", defaultKind = "ad", jobs, configure, workspaceId, today, aiPercent, refs, refLimits, plan, notes }: Props) {
   const router = useRouter();
   const t = useT();
   const v = t.video;
@@ -120,12 +144,18 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
   );
   const [productId, setProductId] = useState("");
   const [topic, setTopic] = useState("");
-  // Gituas reviews the idea against the brand first (the same switch as in the composer).
+  // Gituas reviews the idea against the brand first (the same switch as in the composer). A story's review is its own switch and starts OFF:
+  // the owner's words go through exactly as typed unless the owner asks Gituas to read the page and rewrite the idea first.
   const [review, setReview] = useState(true);
+  const [storyReview, setStoryReview] = useState(false);
   const [videoLang, setVideoLang] = useState<VideoLang>(defaultLang);
   const [kind, setKind] = useState<VideoKind>(defaultKind);
   const [voice, setVoice] = useState(defaultVoice(defaultLang, defaultKind));
   const [publish, setPublish] = useState(false);
+  // Real photographs from Wikimedia Commons behind a true story (on unless the owner switches them off).
+  const [photos, setPhotos] = useState(true);
+  // The shape of a story: vertical 9:16 for Reels (the default) or wide 16:9 for YouTube. An ad is always vertical and sends none.
+  const [format, setFormat] = useState<VideoFormat>("vertical");
   const [fb, setFb] = useState(canFb);
   const [ig, setIg] = useState(canIg);
   const [pending, start] = useTransition();
@@ -141,8 +171,11 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
 
   const left = allowances[tier];
   const targets = [...(fb && canFb ? ["FB"] : []), ...(ig && canIg ? ["IG"] : [])];
-  const story = kind === "story";
-  const storyTooShort = story && Array.from(topic.trim()).length < STORY_MIN;
+  // A story, in any video language, is a short documentary about one real documented case (the one the idea names, or one Gituas chooses), or,
+  // when the idea says fiction, an invented story. The switch for the photographs is only for a real case.
+  const form = storyFormOf(kind, topic);
+  const { story, realStory } = form;
+  const storyTooShort = story && tooShort(topic);
 
   // The voices differ by language (Kurdish voices for Sorani, a male or a female voice for the others), so a new language starts on its default.
   function changeLang(next: VideoLang) {
@@ -159,10 +192,11 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
   function create() {
     setNote(null);
     start(async () => {
-      // A story has no product and is not reviewed against the products; the language and kind are always the ones the form shows.
-      const r = await createVideoAction(storeId, { tier, topic, productId: story ? null : productId || null, voice, publish, targets, review: story ? false : review, lang: videoLang, kind });
+      // A story has no product; its review (the page and its earlier videos) is its own switch. The language and kind are always the ones the form shows.
+      const r = await createVideoAction(storeId, { tier, topic, productId: story ? null : productId || null, voice, publish, targets, review: story ? storyReview : review, lang: videoLang, kind, ...photosField(form, photos), ...formatField(form, format) });
       if (r.ok) {
-        setNote({ ok: true, text: r.reviewed ? `${v.created} ${ai.reviewedNote(r.reviewed.summary)}` : v.created });
+        // A review that rewrote the idea says so ("Reviewed: ..."); one that had nothing to read says that, neutrally; neither is claimed otherwise.
+        setNote({ ok: true, text: r.reviewed ? `${v.created} ${ai.reviewedNote(r.reviewed.summary)}` : r.reviewSkipped ? `${v.created} ${r.reviewSkipped.summary}` : v.created });
         setTopic("");
         router.refresh();
       } else {
@@ -274,16 +308,20 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
             placeholder={story ? v.storyTopicPlaceholder : v.topicPlaceholder}
             onChange={(e) => setTopic(e.target.value)}
           />
-          {!story && (
-            <label className="gm-row" style={{ alignItems: "flex-start", gap: 8, cursor: "pointer" }}>
-              <input type="checkbox" checked={review} disabled={pending} onChange={(e) => setReview(e.target.checked)} style={{ marginTop: 4 }} />
-              <span>
-                <b>{ai.reviewLabel}</b>
-                <br />
-                <span className="gm-hint">{ai.reviewHelp}</span>
-              </span>
-            </label>
-          )}
+          <label className="gm-row" style={{ alignItems: "flex-start", gap: 8, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={story ? storyReview : review}
+              disabled={pending}
+              onChange={(e) => (story ? setStoryReview(e.target.checked) : setReview(e.target.checked))}
+              style={{ marginTop: 4 }}
+            />
+            <span>
+              <b>{ai.reviewLabel}</b>
+              <br />
+              <span className="gm-hint">{story ? v.storyReviewHelp : ai.reviewHelp}</span>
+            </span>
+          </label>
         </div>
 
         <div className="gm-field">
@@ -304,9 +342,11 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
           </select>
         </div>
 
+        <StoryOptions form={form} photos={photos} disabled={pending} onToggle={() => setPhotos((x) => !x)} format={format} onFormat={setFormat} />
+
         {(canFb || canIg) && (
           <>
-            <SwitchRow label={v.publishWhenReady} checked={publish} disabled={pending} onToggle={() => setPublish((x) => !x)} />
+            <SwitchRow label={v.publishWhenReady} hint={realStory ? v.storyReadFirst : undefined} checked={publish} disabled={pending} onToggle={() => setPublish((x) => !x)} />
             {publish && (
               <div className="gm-chips" role="group" aria-label={v.targetsLabel}>
                 {canFb && (
@@ -334,7 +374,7 @@ export function VideoClient({ storeId, stores, canFb, canIg, products, allowance
 
       <RefsCard storeId={storeId} workspaceId={workspaceId} refs={refs} limits={refLimits} />
 
-      {configure && <AutoCard storeId={storeId} auto={auto} hold={autoHold ?? null} allowances={allowances} canPublish={canFb || canIg} />}
+      {configure && <AutoCard storeId={storeId} auto={auto} plan={dailyPlan ?? null} hold={autoHold ?? null} allowances={allowances} canPublish={canFb || canIg} />}
 
       <p className="gm-sec">{v.listSec}</p>
       {jobs.length === 0 ? (
@@ -576,7 +616,63 @@ function RefsCard({ storeId, workspaceId, refs, limits }: { storeId: string; wor
   );
 }
 
-function AutoCard({ storeId, auto, hold, allowances, canPublish }: { storeId: string; auto: Props["auto"]; hold: AutoHold | null; allowances: Props["allowances"]; canPublish: boolean }) {
+/** The idea of the daily plan as the owner wrote it, cut for a line (the plan itself keeps every word). */
+const routineIdea = (text: string): string => {
+  const chars = Array.from(text.replace(/\s+/g, " ").trim());
+  return chars.length > 160 ? `${chars.slice(0, 160).join("")}…` : chars.join("");
+};
+
+/**
+ * The daily video's own plan as plain words, when the owner has one (they asked the chat for it): when it runs, what kind of video, the idea in
+ * their words, whether their words go through exactly, and where it is posted. With a way to switch the daily video off, and to remove the plan
+ * (the daily video then goes back to the usual one the page decides). Where it is posted is only what the daily video really does: the plan's
+ * platforms count when it posts by itself, otherwise it only keeps the video for the owner to read.
+ */
+function RoutineLine({ storeId, plan, mode, saved, onOff }: { storeId: string; plan: VideoAutoPlan; mode: string; saved: Props["auto"]; onOff: () => void }) {
+  const v = useT().video;
+  const pub = useT().publish;
+  const { pending, message, run } = useSaver();
+  const names = { FB: "Facebook", IG: "Instagram", YT: "YouTube" } as const;
+  const posts = mode === "PUBLISH" && plan.targets.length > 0;
+  const story = plan.kind === "story";
+  const parts = [
+    v.routineEvery(`${String(saved.hour).padStart(2, "0")}:00`),
+    `${story ? v.kindStory : v.kindAd}${story && plan.format === "wide" ? ` ${v.wideBadge}` : ""}`,
+  ];
+  return (
+    <div className="gm-field" role="group" aria-label={v.routineSec}>
+      <label>{v.routineSec}</label>
+      <p className="gm-text" style={{ margin: 0 }}>
+        {parts.join(" · ")}
+      </p>
+      <p className="gm-text" style={{ margin: 0 }}>
+        {v.routineIdea}: <bdi>{plan.brief ? `«${routineIdea(plan.brief)}»` : v.routineUsual}</bdi>
+      </p>
+      <p className="gm-hint" style={{ margin: 0 }}>
+        {plan.review ? v.routineReviewed : v.routineExact}
+        {story && !plan.photos ? ` · ${v.routineNoPhotos}` : ""}
+        {" · "}
+        {v.routineWhere}: {posts ? plan.targets.map((x) => names[x]).join(" + ") : v.routineNowhere}
+        {posts && plan.youtube ? ` · YouTube: ${pub.ytPrivacyOptions[plan.youtube.privacy]}` : ""}
+      </p>
+      {mode === "OFF" && <p className="gm-hint" style={{ margin: 0 }}>{v.routineIsOff}</p>}
+      {posts && plan.targets.includes("YT") && <p className="gm-hint" style={{ margin: 0 }}>{pub.ytPrivate}</p>}
+      <div className="gm-row" style={{ flexWrap: "wrap", marginTop: 8 }}>
+        {mode !== "OFF" && (
+          <button type="button" className="gm-btn small" disabled={pending} onClick={() => run(() => saveVideoAutoAction(storeId, { mode: "OFF", tier: saved.tier, hour: saved.hour }), onOff)}>
+            {v.routineSwitchOff}
+          </button>
+        )}
+        <button type="button" className="gm-btn small quiet" disabled={pending} onClick={() => run(() => saveVideoAutoAction(storeId, { tier: saved.tier, hour: saved.hour, plan: null }))}>
+          {v.routineRemove}
+        </button>
+      </div>
+      <SaveMessage message={message} />
+    </div>
+  );
+}
+
+function AutoCard({ storeId, auto, plan, hold, allowances, canPublish }: { storeId: string; auto: Props["auto"]; plan: VideoAutoPlan | null; hold: AutoHold | null; allowances: Props["allowances"]; canPublish: boolean }) {
   const v = useT().video;
   const { pending, message, run } = useSaver();
   const [mode, setMode] = useState(auto.mode);
@@ -591,6 +687,7 @@ function AutoCard({ storeId, auto, hold, allowances, canPublish }: { storeId: st
         <p className="gm-hint" style={{ marginTop: 0 }}>
           {v.autoSub}
         </p>
+        {plan && <RoutineLine storeId={storeId} plan={plan} mode={mode} saved={auto} onOff={() => setMode("OFF")} />}
         {hold && (
           <p className="gm-note warn" role="status">
             {v.autoHold[hold]}
@@ -647,6 +744,11 @@ function AutoCard({ storeId, auto, hold, allowances, canPublish }: { storeId: st
   );
 }
 
+/** The credits link only to a file's page on Wikimedia Commons (a stored address is never trusted to be anything else). */
+const COMMONS_PAGE = /^https:\/\/commons\.wikimedia\.org\//;
+/** A story's source links only to an article on English Wikipedia. */
+const WIKIPEDIA_PAGE = /^https:\/\/en\.wikipedia\.org\/wiki\//;
+
 /** A story's idea can run to 1200 characters (an ad's to 300): the card shows the beginning of a long one. */
 const shortTopic = (text: string): string => {
   const chars = Array.from(text);
@@ -656,6 +758,7 @@ const shortTopic = (text: string): string => {
 function JobCard({ job, canFb, canIg }: { job: VideoJobView; canFb: boolean; canIg: boolean }) {
   const router = useRouter();
   const v = useT().video;
+  const wide = job.format === "wide";
   const [fb, setFb] = useState(canFb);
   const [ig, setIg] = useState(canIg);
   const [pending, start] = useTransition();
@@ -683,6 +786,9 @@ function JobCard({ job, canFb, canIg }: { job: VideoJobView; canFb: boolean; can
             <span className="gm-badge ghost">{job.kind === "story" ? v.kindStory : v.kindAd}</span>
             <span className="gm-badge ghost">{LANGS.find((l) => l.lang === (job.lang ?? "ckb"))?.label}</span>
             {job.source === "AUTO" && <span className="gm-badge ghost">{v.auto}</span>}
+            {job.fiction && <span className="gm-badge ghost">{v.fictionBadge}</span>}
+            {job.noPhotos && <span className="gm-badge ghost">{v.noPhotosBadge}</span>}
+            {wide && <span className="gm-badge ghost">{v.wideBadge}</span>}
           </div>
           <p className="gm-hint" style={{ marginTop: 8 }}>
             {job.createdAt.slice(0, 10)}
@@ -710,10 +816,53 @@ function JobCard({ job, canFb, canIg }: { job: VideoJobView; canFb: boolean; can
 
       {job.videoUrl && (
         <div style={{ marginTop: 12 }}>
-          <video src={job.videoUrl} controls playsInline preload="metadata" style={{ width: "100%", maxWidth: 280, aspectRatio: "9 / 16", borderRadius: 14, background: "var(--media)" }} />
+          <video src={job.videoUrl} controls playsInline preload="metadata" style={{ width: "100%", maxWidth: wide ? 480 : 280, aspectRatio: wide ? "16 / 9" : "9 / 16", borderRadius: 14, background: "var(--media)" }} />
         </div>
       )}
       {job.caption && job.status !== "QUEUED" && <p className="gm-text" style={{ marginTop: 12 }}>{job.caption}</p>}
+      {job.kind === "story" && job.subject && (
+        <p className="gm-hint" style={{ marginTop: 8, marginBottom: 0 }}>
+          {v.subjectLine}: <b><bdi>{job.subject}</bdi></b>
+          {job.subjectUrl && WIKIPEDIA_PAGE.test(job.subjectUrl) && (
+            <>
+              {" · "}
+              <a className="gm-link" href={job.subjectUrl} target="_blank" rel="noreferrer">
+                {v.sourceWikipedia}
+              </a>
+            </>
+          )}
+          {job.subjectChosen && ` · ${v.subjectChosenNote}`}
+        </p>
+      )}
+      {job.kind === "story" && job.subject && job.fromMemory && <p className="gm-note warn" style={{ marginTop: 8, marginBottom: 0 }}>{v.fromMemoryNote}</p>}
+      {job.kind === "story" && job.subject && job.recent && <p className="gm-note warn" style={{ marginTop: 8, marginBottom: 0 }}>{v.recentNote}</p>}
+      {job.kind === "story" && job.waited && job.status === "RENDERED" && <p className="gm-note" style={{ marginTop: 8, marginBottom: 0 }}>{job.waited}</p>}
+      {job.credits && job.credits.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <p className="gm-hint" style={{ margin: 0 }}>
+            {v.photosLine}
+          </p>
+          <details>
+            <summary className="gm-hint" style={{ cursor: "pointer" }}>
+              {v.photoCredits}
+            </summary>
+            <ul className="gm-hint gm-ltr" style={{ margin: "4px 0 0", paddingInlineStart: 18 }}>
+              {job.credits.map((c, i) => (
+                <li key={`${i}-${c.page}`}>
+                  {COMMONS_PAGE.test(c.page) ? (
+                    <a className="gm-link" href={c.page} target="_blank" rel="noreferrer">
+                      {c.title}
+                    </a>
+                  ) : (
+                    c.title
+                  )}
+                  {c.author ? ` - ${c.author}` : ""} - {c.licence}
+                </li>
+              ))}
+            </ul>
+          </details>
+        </div>
+      )}
 
       {job.status === "RENDERED" && (
         <div className="gm-stack" style={{ marginTop: 12 }}>
@@ -738,12 +887,21 @@ function JobCard({ job, canFb, canIg }: { job: VideoJobView; canFb: boolean; can
           )}
         </div>
       )}
-      {job.videoUrl && (
+      {job.videoUrl && job.kind !== "story" && (
         <p style={{ marginTop: 10 }}>
-          <a className="gm-link" href={job.videoUrl} download target="_blank" rel="noreferrer">
-            {v.download}
-          </a>
+          <DownloadLink url={job.videoUrl} className="gm-link" />
         </p>
+      )}
+      {job.videoUrl && job.kind === "story" && (
+        // A finished story: the owner often takes it to YouTube (a single video is added there from Publish or YouTube Studio), so Download and the caption with its photo credits are here.
+        <div className="gm-stack" style={{ marginTop: 10 }}>
+          <div className="gm-row" style={{ flexWrap: "wrap" }}>
+            <DownloadLink url={job.videoUrl} />
+            <CopyButton text={captionWithCredits(job, v.photoCredits)} disabled={!job.caption && !(job.credits && job.credits.length > 0)} />
+          </div>
+          <p className="gm-hint" style={{ margin: 0 }}>{v.youtubeNote}</p>
+          {job.credits && job.credits.length > 0 && <p className="gm-hint" style={{ margin: 0 }}>{v.creditsTravel}</p>}
+        </div>
       )}
       {(err || job.error) && job.status !== "POSTED" && <p className="gm-err">{err ?? job.error}</p>}
     </div>

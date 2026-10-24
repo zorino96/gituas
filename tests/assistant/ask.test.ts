@@ -106,6 +106,31 @@ describe("askAssistant", () => {
     await expect(askAssistant({ ...base, turns: [] })).rejects.toBeInstanceOf(AssistantUnavailable);
     expect(completeJson).not.toHaveBeenCalled();
   });
+
+  it("keeps a wide story's shape in the proposal it hands back, and drops a shape that is neither vertical nor wide", async () => {
+    const proposal = (format: unknown) => ({ tool: "make_video", args: { idea: "one of the historical mystery stories, crime", kind: "story", format } });
+    vi.mocked(completeJson).mockImplementation((async (_call: unknown, validate: (d: unknown) => unknown) => ({
+      data: validate({ reply: "Ready.", followups: [], action: proposal("wide") }),
+      model: "m",
+    })) as never);
+    const wide = await askAssistant({ ...base, turns: [{ role: "user", text: "make a story video" }] });
+    expect(wide.action).toEqual({ tool: "make_video", args: { idea: "one of the historical mystery stories, crime", kind: "story", format: "wide" } });
+    // A shape the tool does not have makes the whole proposal void: nothing is made that the owner did not ask for.
+    vi.mocked(completeJson).mockImplementation((async (_call: unknown, validate: (d: unknown) => unknown) => ({
+      data: validate({ reply: "Ready.", followups: [], action: proposal("16:9") }),
+      model: "m",
+    })) as never);
+    expect((await askAssistant({ ...base, turns: [{ role: "user", text: "make a story video" }] })).action).toBeNull();
+  });
+
+  it("carries the story rule and the honesty rule once each in the classic assistant's prompt, and the story options in its tool list", async () => {
+    await askAssistant({ ...base, turns: [{ role: "user", text: "make a story video" }] });
+    const system = vi.mocked(completeJson).mock.calls[0][0].system;
+    const count = (part: string) => system.split(part).length - 1;
+    expect(count("A story video (any video language) is told from ONE real, well-documented case")).toBe(1);
+    expect(count("AFTER A VIDEO REQUEST SAY ONLY WHAT THE TOOL RESULT SAYS")).toBe(1);
+    expect(system).toMatch(/format: "vertical" \(the default, 9:16, for Reels\) or "wide" \(16:9, for YouTube\)/);
+  });
 });
 
 describe("assistantCaps", () => {

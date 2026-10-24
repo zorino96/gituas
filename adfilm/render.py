@@ -13,6 +13,11 @@ The job may also name the video's language (lang: 'ar' | 'en'; absent = Sorani K
 absent = an ad). The language sets the reading direction; a story has 'story' scenes (a kicker, a slow backdrop and
 the narration as timed caption chunks) and no product, price, delivery line or phone number.
 
+A story may also ask for the wide format (format: 'wide'; for YouTube): it is drawn on a 1920x1080 frame, the text in a column on the
+side the language is read from (mirrored for Arabic and Sorani) over a veil that is darkest at that edge. An ad is always the
+1080x1920 reel and ignores the format. A story's closing scene draws the photo credits the app wrote into the job (credits: a few
+short lines: who took the photographs and under which licence), in either frame.
+
 Engine: the MIT-licensed programmatic-motion-video engine (mv.py and friends, see LICENSE and
 THIRD_PARTY_NOTICES.md). Skia draws every frame, ffmpeg encodes.
 """
@@ -21,6 +26,7 @@ import json
 import math
 import os
 import re
+import sys
 
 import skia
 
@@ -43,7 +49,11 @@ MUSIC = JOB.get('music') or {}
 
 AR_B, AR_M = 'IBM Plex Sans Arabic Bold', 'IBM Plex Sans Arabic Medium'
 
-W, H = mv.env_size((1080, 1920))
+# A story asked wide (for YouTube) is drawn on a 1920x1080 frame; every other video (every ad, every vertical story) is the 1080x1920 reel
+# it always was. The format is the job's word and only a story can have it (an ad's 'wide' would be ignored).
+WIDE = JOB.get('kind') == 'story' and JOB.get('format') == 'wide'
+
+W, H = mv.env_size((1920, 1080) if WIDE else (1080, 1920))
 FPS = mv.env_fps(30)
 L = layout.Frame(W, H)
 SAFE = L.safe('social') if L.portrait else L.safe('title')
@@ -194,6 +204,10 @@ else:
 NAME = BR.get('name', '')
 if EN and is_arabic(NAME or ''):
     NAME = BR.get('latin') if isinstance(BR.get('latin'), str) and not is_arabic(BR.get('latin')) else ''
+
+# The photo credits of a story (authors and licences of the Wikimedia Commons photographs) are drawn on its closing scene, as the
+# few short lines the app wrote (credits.ts): at most three, each at most 200 characters. An ad has none.
+_CREDITS_RAW = [' '.join(s.split())[:200] for s in (JOB.get('credits') or []) if isinstance(s, str) and s.strip()][:3] if STORY else []
 
 
 def _text_width(s, family, size):
@@ -435,6 +449,11 @@ def r(x):
 
 CAP_BOTTOM = SAFE[3] - L.u(30)
 CAP_SIZES = [L.u(50), L.u(44), L.u(40), L.u(36)]
+CAP_MAX_W = layout.width(SAFE) - L.u(110)
+if WIDE:
+    # a wide frame is read from a distance and has room to the sides: a little larger, and a box no wider than about three quarters
+    CAP_SIZES = [L.u(52), L.u(46), L.u(42), L.u(38)]
+    CAP_MAX_W = min(CAP_MAX_W, L.u(1440))
 # What a scene draws stays above this line: a two-line caption box ends here, with a margin. An English video
 # also allows a third line at 40 px (its sentences are longer in letters), so it keeps a little more room.
 CAP_TOP = CAP_BOTTOM - max(2 * CAP_SIZES[0], 3 * CAP_SIZES[2] if EN else 0) * 1.5 - L.u(18) - L.u(40)
@@ -460,7 +479,7 @@ def caption_lines(text, max_w):
 
 def _caption_box(c, text, alpha, dy, bottom):
     """One caption box (the spoken words on a dark pill) with its bottom edge on `bottom`."""
-    max_w = layout.width(SAFE) - L.u(110)
+    max_w = CAP_MAX_W
     size, lines = caption_lines(text, max_w)
     if not lines:
         return
@@ -580,11 +599,12 @@ def caption(c, u, i, bottom=None):
 
 # ---- shared drawing ---------------------------------------------------------------------------------
 
-def stage(c, u, gy=0.34, seed=1):
+def stage(c, u, gy=0.34, seed=1, gx=0.5):
+    """The look's own background. `gx` is where the glow sits across the frame (a wide story puts it on the side the text is not)."""
     c.drawRect(skia.Rect.MakeWH(W, H), linear(0, 0, 0, H, [T['bg'], T['bg2']]))
     bgm = LOOK['background']
     if bgm != 'none':
-        c.drawRect(skia.Rect.MakeWH(W, H), radial(W / 2, H * gy, L.u(1150), [T['glow'], T['bg']], alphas=[T['glow_a'], 0.0]))
+        c.drawRect(skia.Rect.MakeWH(W, H), radial(W * gx, H * gy, L.u(1150), [T['glow'], T['bg']], alphas=[T['glow_a'], 0.0]))
     if bgm == 'dust':
         fx.particles(c, W, H, u, n=36, seed=seed, col=T['ink'], size=(1.5, 4.0), a=(0.08, 0.5), direction=-90, speed=(10, 26), twinkle=0.8, glow=True)
     elif bgm == 'grid':
@@ -592,7 +612,7 @@ def stage(c, u, gy=0.34, seed=1):
     elif bgm == 'waves':
         fx.waves(c, W, H, u, lines=7, amp=L.u(46), col=T['accent'], a=0.2, period=10.0, y=H * 0.8)
     elif bgm == 'rings':
-        fx.pulse_rings(c, W / 2, H * gy, u, period=3.4, rings=4, r0=L.u(130), r1=L.u(720), col=T['accent'], width=L.u(3), a=0.26)
+        fx.pulse_rings(c, W * gx, H * gy, u, period=3.4, rings=4, r0=L.u(130), r1=L.u(720), col=T['accent'], width=L.u(3), a=0.26)
     if T['dark'] and LOOK['palette'] in ('brand-dark', 'midnight'):
         fx.vignette(c, W, H, strength=0.5)
 
@@ -656,6 +676,256 @@ def tint_bottom(c, top, a=0.78):
     c.drawRect(skia.Rect.MakeLTRB(0, top, W, H), linear(0, top, 0, H, ['#000000'] * 3, alphas=[0.0, a * 0.8, a], pos=[0.0, 0.5, 1.0]))
 
 
+# ---- the photo credits ------------------------------------------------------------------------------
+
+# The credit lines are written by the app (credits.ts): "Photos: Wikimedia Commons" and then the authors, one entry "Name, CC BY-SA 4.0" each, joined
+# on a line by CREDIT_SEP. The card draws Latin, Cyrillic and Greek in Inter and Arabic script in IBM Plex Sans Arabic; the app does not send an
+# author written in letters neither font has (credits.ts: authorDrawable), and an entry that still arrives with such a letter is left out here, never
+# drawn as empty boxes. A line that holds Arabic-script text and more than one entry is drawn entry by entry (each one its own run, in its own
+# direction, set in the order the video is read in), so that every licence stays next to its own author whatever the scripts are.
+CREDIT_SEP = ' · '
+
+
+@functools.lru_cache(maxsize=None)
+def _covered(ch):
+    """Whether Inter or the Arabic font has a glyph for this character (a space, a control character or the like needs none)."""
+    if ch.isspace() or not ch.isprintable():
+        return True
+    for f in (_inter(32, 500), mv.font(AR_M, 32)):
+        glyphs = f.textToGlyphs(ch)
+        if glyphs and glyphs[0] != 0:
+            return True
+    return False
+
+
+def credit_drawable(entry):
+    """Whether every letter of a credit entry has a glyph in the card's fonts."""
+    return all(_covered(ch) for ch in entry)
+
+
+def _drawable_credit_lines(lines):
+    out = []
+    for line in lines:
+        entries = [e for e in line.split(CREDIT_SEP) if e.strip()]
+        kept = [e for e in entries if credit_drawable(e)]
+        if len(kept) < len(entries):
+            sys.stderr.write('credits: %d entr%s left out, the card has no font for the letters\n' % (len(entries) - len(kept), 'y' if len(entries) - len(kept) == 1 else 'ies'))
+        if kept:
+            out.append(CREDIT_SEP.join(kept))
+    return out
+
+
+CREDITS = _drawable_credit_lines(_CREDITS_RAW)
+
+
+def credit_runs(s):
+    """[(kind, text)] in logical order: kind 'ar' for an entry with Arabic-script text, 'ltr' for any other entry, 'sep' for the separator.
+    A line without Arabic script (or with a single entry) is one run: it is drawn as one piece, as it always was."""
+    if not is_arabic(s) or CREDIT_SEP not in s:
+        return [('ar' if is_arabic(s) else 'ltr', s)]
+    out = []
+    for k, e in enumerate(s.split(CREDIT_SEP)):
+        if k:
+            out.append(('sep', CREDIT_SEP))
+        out.append(('ar' if is_arabic(e) else 'ltr', e))
+    return out
+
+
+def _entry_split(text):
+    """(name, licence) of an entry "Name, CC BY 4.0" whose NAME holds Arabic script; None for anything else (the licence is never Arabic)."""
+    i = text.rfind(', ')
+    if i <= 0 or not is_arabic(text[:i]):
+        return None
+    return text[:i], text[i + 2:]
+
+
+def _entry_parts(kind, text, size):
+    """[(kind, text, width)] in reading order for one run. An entry with an Arabic-script author is the name and the licence as runs of their
+    own: shaped together, the comma after an Arabic name lands on the wrong side in a video read left to right (",name licence")."""
+    f = _inter(size, 500)
+    if kind != 'ar':
+        return [(kind, text, mv.width(text, f))]
+    split = _entry_split(text)
+    if split is None:
+        return [('ar', text, line_width(text, AR_M, size))]
+    name, licence = split
+    if RTL:
+        # read from the right: the name with its comma (an Arabic run puts the comma on its left), a space, the licence
+        return [('ar', name + ',', line_width(name + ',', AR_M, size)), ('gap', ' ', mv.width(' ', f)), ('ltr', licence, mv.width(licence, f))]
+    return [('ar', name, line_width(name, AR_M, size)), ('ltr', ', ' + licence, mv.width(', ' + licence, f))]
+
+
+def credit_uses_runs(s):
+    """Whether a credit line is drawn piece by piece: Arabic script among several entries, or an Arabic-script author with a licence."""
+    runs = credit_runs(s)
+    return len(runs) > 1 or (runs[0][0] == 'ar' and _entry_split(runs[0][1]) is not None)
+
+
+def _credit_width(s, size):
+    return sum(w for k, t in credit_runs(s) for _, _, w in _entry_parts(k, t, size))
+
+
+def credit_size(max_w):
+    """The size of the credit lines: 32 px, smaller (never under 23) when the widest line would not fit in max_w."""
+    size = L.u(32)
+    while size > L.u(23) and max(_credit_width(s, size) for s in CREDITS) > max_w:
+        size *= 0.95
+    return size
+
+
+def _draw_credit_runs(c, s, cx, base, size, col, a):
+    """One credit line with an Arabic-script author in it, centred on cx: every entry is drawn on its own, and an Arabic-script author and its
+    licence as two runs, set in the order the video is read in (from the right for Arabic and Sorani, from the left for English)."""
+    pieces = [p for k, t in credit_runs(s) for p in _entry_parts(k, t, size)]
+    total = sum(w for _, _, w in pieces)
+    f = _inter(size, 500)
+    x = cx + total / 2 if RTL else cx - total / 2
+    for kind, text, w in pieces:
+        mid = x - w / 2 if RTL else x + w / 2
+        if kind == 'ar':
+            draw_line(c, text, mid, base, AR_M, size, col, a)
+        elif kind != 'gap':
+            mv.text(c, text, mid, base, f, col, a, align='center', anchor='baseline')
+        x = x - w if RTL else x + w
+    return total
+
+
+def credits_height(max_w):
+    """The height of the credit block (with its gap to what is above it); 0 when the video has no credits."""
+    return credit_size(max_w) * 1.42 * len(CREDITS) + L.u(26) if CREDITS else 0.0
+
+
+def credits_block(c, u, bottom, max_w, edge=None, t0=0.9):
+    """The credit lines of a story (who took the photographs, under which licence), small and calm, their last line ending on `bottom`.
+    Centred on the frame, or, with `edge`, against the side a wide story starts reading from."""
+    if not CREDITS:
+        return
+    size = credit_size(max_w)
+    lh = size * 1.42
+    top = bottom - lh * len(CREDITS)
+    q = out_cubic(S(u, t0, t0 + 0.7))
+    with Layer(c, clamp(q * 1.5), dy=(1 - q) * L.u(14)):
+        for k, s in enumerate(CREDITS):
+            base = top + lh * k + size * 1.02
+            if credit_uses_runs(s):
+                # an Arabic-script author: each entry (and the author and the licence of one) is its own run (against the side the text starts from, or centred)
+                total = _credit_width(s, size)
+                _draw_credit_runs(c, s, edge + DIRN * total / 2 if edge is not None else W / 2, base, size, T['ink'], 0.85)
+            elif edge is not None:
+                w_line(c, s, edge, base, size, T['ink'], 0.85, bold=False)
+            elif is_arabic(s):
+                draw_line(c, s, W / 2, base, AR_M, size, T['ink'], 0.85)
+            else:
+                mv.text(c, s, W / 2, base, _inter(size, 500), T['ink'], 0.85, align='center', anchor='baseline')
+
+
+# ---- the wide (16:9) layout of a story ----------------------------------------------------------------
+# Used only when WIDE. The text sits in a column against the side the language is read from (the left edge for English, the right edge
+# for Arabic and Sorani: the whole layout is mirrored), in the lower part of the frame above the caption, with an accent bar on its outer
+# side; over a photograph a gradient veil is darkest at that edge. The brand mark is a small stamp in the top corner over a photograph,
+# and the large mark on the other side of a title card (no photograph; the closing card).
+
+DIRN = -1 if RTL else 1
+W_BAR = L.u(6)
+W_GAP = L.u(30)
+
+
+def w_edge():
+    """The outer edge of a wide text column (where its accent bar stands): inside the title-safe area, on the reading-start side."""
+    return SAFE[2] - L.u(60) if RTL else SAFE[0] + L.u(60)
+
+
+def w_text_edge():
+    """Where the lines of a wide text column start: next to its accent bar."""
+    return w_edge() + DIRN * (W_BAR + W_GAP)
+
+
+def w_line(c, s, edge, base, size, col, a=1.0, bold=True):
+    """One line of a wide column, its start (the left end for English, the right end for Arabic and Sorani) on `edge`, on the baseline `base`."""
+    if is_arabic(s):
+        fam = AR_B if bold else AR_M
+        return draw_line(c, s, edge + DIRN * line_width(s, fam, size) / 2, base, fam, size, col, a)
+    return mv.text(c, s, edge, base, _inter(size, 800 if bold else 500), col, a, align='right' if RTL else 'left', anchor='baseline')
+
+
+def w_head(c, text, edge, top, max_w, max_size, col, a=1.0, max_lines=2, plan=None):
+    """A headline in a wide column, its first line box starting at `top`. Returns (size, lines, widest line, height)."""
+    size, lines = plan if plan is not None else head_plan(text, max_w, max_size, max_lines)
+    if not lines:
+        return 0, 0, 0.0, 0.0
+    lh = size * 1.22
+    for k, s in enumerate(lines):
+        w_line(c, s, edge, top + size * 0.98 + lh * k, size, col, a, True)
+    widest = max(line_width(s, AR_B, size) if is_arabic(text) else mv.width(s, _inter(size, 800)) for s in lines)
+    return size, len(lines), widest, lh * len(lines)
+
+
+def w_small(c, text, edge, top, max_w, size, col, a=1.0, plan=None):
+    """The small lines under a wide headline, the first line box starting at `top`. Returns the number of lines."""
+    sz, lines = plan if plan is not None else small_plan(text, max_w, size)
+    for k, s in enumerate(lines):
+        w_line(c, s, edge, top + sz * 1.05 + sz * 1.4 * k, sz, col, a, False)
+    return len(lines)
+
+
+def w_block(c, u, text, sub, bottom, col, soft, max_w, head_max, sub_max, t0=0.35, soft_a=1.0, max_lines=2):
+    """A wide text column (an accent bar, a headline, the small line) with its bottom edge on `bottom`, sliding in from the side it
+    starts at. Returns (top, height)."""
+    hp = head_plan(text, max_w, head_max, max_lines)
+    sp = small_plan(sub, max_w * 0.92, sub_max)
+    sub_h = small_height(sp) if sp[1] else 0.0
+    gap = L.u(26) if sub_h else 0.0
+    h = (hp[0] * 1.22 * len(hp[1]) if hp[1] else 0.0) + gap + sub_h
+    top = bottom - h
+    edge, tx = w_edge(), w_text_edge()
+    q = out_cubic(S(u, t0, t0 + 0.65))
+    with Layer(c, clamp(q * 1.5), dx=-DIRN * (1 - q) * L.u(70)):
+        bh = h * out_cubic(S(u, t0 + 0.1, t0 + 0.9))
+        x0 = edge - W_BAR if RTL else edge
+        c.drawRect(skia.Rect.MakeLTRB(x0, top, x0 + W_BAR, top + bh), paint(T['accent'], 0.95))
+        head_h = w_head(c, text, tx, top, max_w, head_max, col, plan=hp)[3]
+    if sp[1]:
+        q2 = out_cubic(S(u, t0 + 0.3, t0 + 0.95))
+        with Layer(c, clamp(q2 * 1.5), dx=-DIRN * (1 - q2) * L.u(40)):
+            w_small(c, sub, tx, top + head_h + gap, max_w * 0.92, sub_max, soft, a=soft_a, plan=sp)
+    return top, h
+
+
+_wbright = {}
+
+
+def wide_brightness(index):
+    """How bright the part of a wide photograph that the text column sits over is, 0 (black) to 1 (white): the brighter quarter of the
+    lower two thirds of the picture on the side the text starts at, read from a small copy and kept. An unreadable picture counts as dark."""
+    photos = JOB.get('photos') or []
+    if not photos or not isinstance(index, int):
+        return 0.0
+    key = index % len(photos)
+    if key not in _wbright:
+        value = 0.0
+        try:
+            import numpy as np
+            small = mv.image(local(photos[key])).resize(32, 18)
+            rows = small.toarray()[5:17, (32 - 20 if RTL else 0):(32 if RTL else 20), :3].astype(float) / 255.0
+            value = float(np.percentile(0.2126 * rows[..., 0] + 0.7152 * rows[..., 1] + 0.0722 * rows[..., 2], 75))
+        except Exception:
+            value = 0.0
+        _wbright[key] = value
+    return _wbright[key]
+
+
+def wide_veil(c, photo=None):
+    """The dark veil that lets white text be read over a wide photograph or a clip: the picture dimmed a little, a gradient that is darkest
+    at the edge the text starts at, and the lower part (for the caption). A bright photograph gets a darker band behind the text column."""
+    c.drawRect(skia.Rect.MakeWH(W, H), paint('#000000', 0.26))
+    x0, x1 = (W, W * 0.14) if RTL else (0.0, W * 0.86)
+    c.drawRect(skia.Rect.MakeWH(W, H), linear(x0, 0, x1, 0, ['#000000'] * 3, alphas=[0.8, 0.7, 0.0], pos=[0.0, 0.6, 1.0]))
+    extra = clamp((wide_brightness(photo) - 0.62) / 0.38) * 0.34 if photo is not None else 0.0
+    if extra > 0:
+        c.drawRect(skia.Rect.MakeWH(W, H), linear(x0, 0, x1, 0, ['#000000'] * 3, alphas=[extra, extra, 0.0], pos=[0.0, 0.7, 1.0]))
+    c.drawRect(skia.Rect.MakeLTRB(0, H * 0.55, W, H), linear(0, H * 0.55, 0, H, ['#000000'] * 2, alphas=[0.0, 0.7]))
+
+
 # ---- timing -----------------------------------------------------------------------------------------
 
 LEAD, TAIL, DUR_VO = [], [], []
@@ -668,7 +938,8 @@ for _i, _s in enumerate(SCENES):
         _d = 3.0
     first, last = _i == 0, _i == len(SCENES) - 1
     LEAD.append(_lead if first else min(_lead, 0.5))
-    TAIL.append(2.4 if last else _tail)
+    # the closing scene of a story with photo credits stays a little longer, so the credits can be read
+    TAIL.append((3.6 if CREDITS else 2.4) if last else _tail)
     DUR_VO.append(_d)
 
 
@@ -688,9 +959,49 @@ class Hook(Scene):
         self.i = i
         super().__init__(length(i))
 
-    def draw(self, c, u):
+    def draw_wide(self, c, u):
+        """The hook of a wide story: the title in a column at the lower part of the frame, on the reading-start side, over the photograph
+        (the brand's mark a small stamp in the top corner) or, with no photograph, beside a large mark on the other side."""
         sc = SCENES[self.i]
-        stage(c, u, gy=0.32, seed=1)
+        pic = False
+        if STORY and isinstance(sc.get('photo'), int):
+            pic = story_picture(c, u, sc, min(1.0, u / max(1.0, length(self.i))), 0)
+        if pic:
+            wide_veil(c, sc.get('photo'))
+        else:
+            stage(c, u, gy=0.45, seed=1, gx=0.5 + DIRN * 0.25)
+        ink, soft = ('#FFFFFF', '#FFFFFF') if pic else (T['ink'], T['soft'])
+        text = sc.get('text') or NAME
+        sub = sc.get('sub') or BR.get('tagline')
+        if EN and is_arabic(sub or ''):
+            sub = None      # an English video has no Arabic-script letters on it
+        w_block(c, u, text, sub, CAP_TOP - L.u(40), ink, soft, W * 0.52, L.u(130), L.u(44), t0=0.55, soft_a=0.92 if pic else 1.0)
+        p = out_cubic(S(u, 0.0, 1.0))
+        if pic:
+            ms = L.u(120)
+            cx, cy = w_text_edge() + DIRN * ms / 2, SAFE[1] + L.u(52) + ms / 2
+        else:
+            ms = L.u(330)
+            cx, cy = W / 2 + DIRN * W * 0.25, (SAFE[1] + CAP_TOP) / 2
+        cy += drift(u)
+        with Layer(c, clamp(p * 1.6), scale=0.82 + 0.18 * p, pivot=(cx, cy)):
+            mark(c, cx, cy, ms)
+        caption(c, u, self.i)
+
+    def draw(self, c, u):
+        if WIDE:
+            return self.draw_wide(c, u)
+        sc = SCENES[self.i]
+        # The hook of a story may sit over a photograph (the striking opening shot, set by the app from Wikimedia Commons). An ad's
+        # hook, a story's without a photograph, and a photograph that cannot be read are drawn exactly as they always were.
+        pic = False
+        if STORY and isinstance(sc.get('photo'), int):
+            pic = story_picture(c, u, sc, min(1.0, u / max(1.0, length(self.i))), 0)
+        if pic:
+            picture_veil(c, sc.get('photo'))
+        else:
+            stage(c, u, gy=0.32, seed=1)
+        ink, soft = ('#FFFFFF', '#FFFFFF') if pic else (T['ink'], T['soft'])
         text = sc.get('text') or NAME
         sub = sc.get('sub') or BR.get('tagline')
         if EN and is_arabic(sub or ''):
@@ -707,6 +1018,8 @@ class Hook(Scene):
         # headline of a video in Arabic or English) starts higher by half its height, and the mark rises with it,
         # inside the safe area (a smaller mark when the room is short). A Sorani ad is placed exactly as it was.
         msize = L.u(330)
+        if pic:
+            msize = L.u(200)      # over a photograph the mark is a small brand stamp, not the picture of the scene
         lift = (push + L.u(20)) if (len(hp[1]) > 1 and (STORY or LANG in ('ar', 'en'))) else 0.0
         if lift:
             msize = min(msize, max(L.u(190), y - hp[0] * 0.55 - L.u(30) - lift - SAFE[1]))
@@ -715,10 +1028,10 @@ class Hook(Scene):
             mark(c, cx, cy, msize)
         q = out_cubic(S(u, 0.55, 1.2))
         with Layer(c, clamp(q * 1.5), dy=(1 - q) * L.u(44) + drift(u)):
-            headline(c, text, y, W * 0.8, L.u(190), T['ink'], plan=hp)
+            headline(c, text, y, W * 0.8, L.u(190), ink, plan=hp)
         q2 = out_cubic(S(u, 0.95, 1.5))
         with Layer(c, clamp(q2 * 1.5), dy=(1 - q2) * L.u(22)):
-            small(c, sub, y + push + L.u(120), W * 0.78, L.u(46), T['soft'], plan=sp)
+            small(c, sub, y + push + L.u(120), W * 0.78, L.u(46), soft, plan=sp)
         underline(c, u, y + push + L.u(205) + max(0, len(sp[1]) - 1) * sp[0] * 1.4, L.u(300), t0=1.2)
         caption(c, u, self.i)
 
@@ -780,6 +1093,59 @@ def photo_image(index):
         return mv.image(local(photos[index % len(photos)]))
     except Exception:
         return None
+
+
+_bright = {}
+
+
+def photo_brightness(index):
+    """How bright the part of a story's photograph that the text sits over is, 0 (black) to 1 (white): the brighter quarter of
+    the middle rows of the picture, read from a small copy and kept (a picture is read once). A picture that cannot be read
+    counts as dark: it is not drawn either."""
+    photos = JOB.get('photos') or []
+    if not photos or not isinstance(index, int):
+        return 0.0
+    key = index % len(photos)
+    if key not in _bright:
+        value = 0.0
+        try:
+            import numpy as np
+            small = mv.image(local(photos[key])).resize(16, 28)
+            rows = small.toarray()[7:21, :, :3].astype(float) / 255.0
+            value = float(np.percentile(0.2126 * rows[..., 0] + 0.7152 * rows[..., 1] + 0.0722 * rows[..., 2], 75))
+        except Exception:
+            value = 0.0
+        _bright[key] = value
+    return _bright[key]
+
+
+def picture_veil(c, photo=None):
+    """The dark veil that lets white text be read over a photograph or a clip. A dark or ordinary photograph gets the veil it
+    always had. A bright one (snow, a white wall, an old paper) gets a softer darker band behind the middle of the picture as
+    well, so the headline keeps a contrast of at least 4.5 to 1 over it, in any language and either reading direction."""
+    c.drawRect(skia.Rect.MakeWH(W, H), paint('#000000', 0.34))
+    extra = clamp((photo_brightness(photo) - 0.62) / 0.38) * 0.36 if photo is not None else 0.0
+    if extra > 0:
+        top, bottom = H * 0.18, H * 0.84
+        c.drawRect(skia.Rect.MakeLTRB(0, top, W, bottom), linear(0, top, 0, bottom, ['#000000'] * 4, alphas=[0.0, extra, extra, 0.0], pos=[0.0, 0.2, 0.75, 1.0]))
+    tint_bottom(c, H * 0.3, 0.9)
+
+
+def story_picture(c, u, sc, prog, k):
+    """The picture behind a story scene (a beat's, or the hook's): a slow push-in that drifts sideways, the direction
+    alternating with `k`. True when it was drawn (the text then sits on a dark veil); False when the scene has no
+    picture or it could not be read, and nothing was drawn."""
+    if not isinstance(sc.get('photo'), int):
+        return False
+    img = photo_image(sc['photo'])
+    if img is None:
+        return False
+    p = out_cubic(S(u, 0.0, 0.6))
+    c.clear(color(T['bg']))
+    sgn = 1 if k % 2 == 0 else -1
+    mv.cover(c, img, 0, 0, W, H, a=clamp(p * 1.5), zoom=1.04 + 0.12 * prog,
+             fx=0.5 + sgn * (prog - 0.5) * 0.4, fy=0.5 - sgn * (prog - 0.5) * 0.2)
+    return True
 
 
 class Product(Scene):
@@ -893,6 +1259,13 @@ class Clip(Scene):
             f.draw(c, u, (0, 0, W, H), mode='cover', a=clamp(p * 1.5), zoom=1.0 + 0.04 * min(1.0, u / 6.0))
         else:
             stage(c, u, gy=0.4, seed=5)
+        if WIDE:
+            # a wide story's footage beat (the owner's own clip): the text column of the other beats over the wide veil
+            wide_veil(c, None)
+            if sc.get('text'):
+                w_block(c, u, sc['text'], sc.get('sub'), CAP_TOP - L.u(30), '#FFFFFF', '#FFFFFF', W * 0.54, L.u(92), L.u(40), t0=0.4)
+            caption(c, u, self.i)
+            return
         tint_bottom(c, H * 0.4, 0.86)
         text = sc.get('text') or ''
         if text:
@@ -924,15 +1297,9 @@ class Story(Scene):
                 c.clear(color(T['bg']))
                 f.draw(c, u, (0, 0, W, H), mode='cover', a=clamp(p * 1.5), zoom=1.0 + 0.05 * prog)
                 return True
-        if isinstance(sc.get('photo'), int):
-            img = photo_image(sc['photo'])
-            if img is not None:
-                c.clear(color(T['bg']))
-                # A slow push-in that drifts sideways; the direction alternates from beat to beat.
-                sgn = 1 if self.k % 2 == 0 else -1
-                mv.cover(c, img, 0, 0, W, H, a=clamp(p * 1.5), zoom=1.04 + 0.12 * prog,
-                         fx=0.5 + sgn * (prog - 0.5) * 0.4, fy=0.5 - sgn * (prog - 0.5) * 0.2)
-                return True
+        # A slow push-in that drifts sideways; the direction alternates from beat to beat.
+        if story_picture(c, u, sc, prog, self.k):
+            return True
         stage(c, u, gy=0.34 + 0.05 * math.sin(u * 0.4 + self.k), seed=21 + self.k)
         # A beat lasts ten seconds or more: a soft light drifts across the empty background so it never looks frozen.
         gx, gy = W * (0.5 + 0.28 * math.sin(u * 0.33 + self.k * 1.7)), H * (0.30 + 0.05 * math.cos(u * 0.27 + self.k))
@@ -943,9 +1310,17 @@ class Story(Scene):
         sc = SCENES[self.i]
         prog = min(1.0, u / max(1.0, length(self.i)))
         pic = self.backdrop(c, u, sc, prog)
+        if WIDE:
+            # a wide beat: the kicker in a column on the reading-start side, over a veil that is darkest at that edge
+            if pic:
+                wide_veil(c, None if isinstance(sc.get('clip'), int) else sc.get('photo'))
+            ink, soft = ('#FFFFFF', '#FFFFFF') if pic else (T['ink'], T['soft'])
+            if sc.get('text'):
+                w_block(c, u, sc['text'], sc.get('sub'), CAP_TOP - L.u(30), ink, soft, W * 0.54, L.u(92), L.u(40), t0=0.35, soft_a=0.9 if pic else 1.0)
+            caption(c, u, self.i)
+            return
         if pic:
-            c.drawRect(skia.Rect.MakeWH(W, H), paint('#000000', 0.34))
-            tint_bottom(c, H * 0.3, 0.9)
+            picture_veil(c, None if isinstance(sc.get('clip'), int) else sc.get('photo'))
         ink, soft = ('#FFFFFF', '#FFFFFF') if pic else (T['ink'], T['soft'])
         text = sc.get('text') or ''
         if text:
@@ -994,7 +1369,57 @@ class CTA(Scene):
         self.i = i
         super().__init__(length(i))
 
+    def draw_wide(self, c, u):
+        """The closing card of a wide story: the call and the name in a column on the reading-start side, the large mark on the other
+        side, the photo credits under the column, all above the caption."""
+        sc = SCENES[self.i]
+        stage(c, u, gy=0.45, seed=9, gx=0.5 + DIRN * 0.25)
+        handle = BR.get('handle')
+        phone = BR.get('phone')
+        rows = [('phone-call', phone), ('at-sign', handle)] if (PLAN or {}).get('cta') not in ('dm', 'comment') else [('at-sign', handle), ('phone-call', phone)]
+        rows = [x for x in rows if x[1]]
+        col_w = W * 0.5
+        hp = head_plan(sc.get('text', ''), col_w, L.u(112))
+        np_ = head_plan(NAME, col_w, L.u(54), max_lines=1) if NAME else (0, ())
+        head_h = hp[0] * 1.22 * len(hp[1]) if hp[1] else 0.0
+        row_h = L.u(70)
+        name_h = np_[0] * 1.22 if np_[1] else 0.0
+        h = head_h + (L.u(34) + row_h * len(rows) if rows else 0.0) + (L.u(30) + name_h if name_h else 0.0)
+        credit_w = W * 0.62
+        low = CAP_TOP - credits_height(credit_w) - L.u(30)
+        top = max(SAFE[1] + L.u(40), (SAFE[1] + low) / 2 - h / 2)
+        edge, tx = w_edge(), w_text_edge()
+        q = out_cubic(S(u, 0.3, 0.95))
+        with Layer(c, clamp(q * 1.5), dx=-DIRN * (1 - q) * L.u(70)):
+            bh = h * out_cubic(S(u, 0.4, 1.2))
+            x0 = edge - W_BAR if RTL else edge
+            c.drawRect(skia.Rect.MakeLTRB(x0, top, x0 + W_BAR, top + bh), paint(T['accent'], 0.95))
+            w_head(c, sc.get('text', ''), tx, top, col_w, L.u(112), T['ink'], plan=hp)
+        y = top + head_h + L.u(34)
+        for k, (ic, text) in enumerate(rows):
+            rq = out_cubic(S(u, 1.1 + 0.25 * k, 1.7 + 0.25 * k))
+            ry = y + row_h * k + row_h / 2
+            with Layer(c, clamp(rq * 1.6), dx=-DIRN * (1 - rq) * L.u(50)):
+                ix = tx + DIRN * L.u(30)
+                icons.draw(c, ic, ix, ry, L.u(52), T['accent'], stroke=2.2)
+                f = mv.fit('Inter', text, col_w - L.u(90), L.u(52), wght=700)
+                mv.text(c, text, tx + DIRN * L.u(76), ry, f, T['ink'], align='right' if RTL else 'left')
+        if name_h:
+            q2 = out_cubic(S(u, 1.7, 2.3))
+            ny = top + head_h + (L.u(34) + row_h * len(rows) if rows else 0.0) + L.u(30)
+            with Layer(c, clamp(q2 * 1.6), dx=-DIRN * (1 - q2) * L.u(40)):
+                w_head(c, NAME, tx, ny, col_w, L.u(54), T['soft'], max_lines=1, plan=np_)
+        # the mark, large, on the other side of the card
+        p = out_cubic(S(u, 0.0, 0.8))
+        cx, cy = W / 2 + DIRN * W * 0.25, (SAFE[1] + low) / 2 + drift(u)
+        with Layer(c, clamp(p * 1.6), scale=0.85 + 0.15 * p, pivot=(cx, cy)):
+            mark(c, cx, cy, L.u(300))
+        credits_block(c, u, CAP_TOP - L.u(8), credit_w, edge=tx)
+        caption(c, u, self.i)
+
     def draw(self, c, u):
+        if WIDE:
+            return self.draw_wide(c, u)
         sc = SCENES[self.i]
         stage(c, u, gy=0.30, seed=9)
         # The way in that the plan asked for comes first: a message on WhatsApp, or a direct message / a comment.
@@ -1013,8 +1438,11 @@ class CTA(Scene):
         # (mark, call, handle, name) is centred between the top safe edge and the caption instead. A Sorani ad
         # (no language in its job, or ckb) keeps its layout exactly as it was, with or without rows.
         dy0 = 0.0
+        # (a story with photo credits keeps the whole block above them: they are the last lines before the caption)
+        credit_w = layout.width(SAFE) - L.u(60)
+        cap_top = CAP_TOP - credits_height(credit_w)
         if STORY or (LANG in ('ar', 'en') and not rows):
-            dy0 = (SAFE[1] + CAP_TOP) / 2 - ((H * 0.135 - L.u(95)) + (name_y + L.u(35))) / 2
+            dy0 = (SAFE[1] + cap_top) / 2 - ((H * 0.135 - L.u(95)) + (name_y + L.u(35))) / 2
             top += dy0
             name_y += dy0
         p = out_cubic(S(u, 0.0, 0.8))
@@ -1039,6 +1467,7 @@ class CTA(Scene):
         q2 = out_cubic(S(u, 1.9, 2.5))
         with Layer(c, clamp(q2 * 1.6), dy=(1 - q2) * L.u(24)):
             headline(c, NAME, name_y, W * 0.8, L.u(70), T['soft'], max_lines=1)
+        credits_block(c, u, CAP_TOP - L.u(8), credit_w)
         caption(c, u, self.i)
 
 
