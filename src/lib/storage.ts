@@ -61,7 +61,12 @@ export async function put(pathname: string, body: string | Uint8Array | ArrayBuf
   const headers: Record<string, string> = { "cache-control": `public, max-age=${o.cacheControlMaxAge ?? (o.allowOverwrite ? 60 : 31536000)}` };
   if (o.contentType) headers["content-type"] = o.contentType;
   if (!o.allowOverwrite) headers["if-none-match"] = "*";
-  const r = await s3().fetch(objectUrl(key), { method: "PUT", body: body as BodyInit, headers, signal: o.abortSignal });
+  // Plain bytes with their length: R2 refuses a body without one (411), and a body wrapped in a Request (as aws4fetch's
+  // own fetch does) goes out as a stream with none on Vercel.
+  const bytes = typeof body === "string" ? new TextEncoder().encode(body) : body instanceof Blob ? new Uint8Array(await body.arrayBuffer()) : new Uint8Array(body);
+  headers["content-length"] = String(bytes.byteLength);
+  const signed = await s3().sign(objectUrl(key), { method: "PUT", body: bytes, headers });
+  const r = await fetch(signed.url, { method: "PUT", headers: signed.headers, body: bytes, signal: o.abortSignal });
   if (!r.ok) throw new Error(r.status === 412 ? `Storage: ${key} already exists` : `Storage: upload failed (${r.status})`);
   return { url: publicUrl(key), pathname: key };
 }
