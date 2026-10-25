@@ -13,7 +13,7 @@ vi.mock("@/lib/ai/provider", () => ({ completeJson: vi.fn() }));
 vi.mock("@/lib/ai/kurdgg", () => ({ kurdggConfigured: () => false, kurdggJson: vi.fn() }));
 vi.mock("@/lib/ai/proofread", () => ({ polishAdRaw: vi.fn(async (raw: unknown) => raw) }));
 vi.mock("@/lib/shop/brand-name", () => ({ brandNameOf: vi.fn(async (s: { name: string }) => s.name) }));
-vi.mock("@vercel/blob", () => ({ put: vi.fn(), head: vi.fn(), list: vi.fn(), del: vi.fn() }));
+vi.mock("@/lib/storage", () => ({ put: vi.fn(), head: vi.fn(), list: vi.fn(), del: vi.fn() }));
 vi.mock("@/lib/voice/tts", () => ({ speak: vi.fn() }));
 vi.mock("@/lib/news/video", () => ({ isNotSoraniRefusal: (e: unknown) => e instanceof Error && /70%/.test(e.message) }));
 

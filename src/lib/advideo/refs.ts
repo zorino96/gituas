@@ -3,7 +3,7 @@
 // own folder; there is no table: the folder listing is the list. The director looks at the pictures
 // (as small JPEGs), the renderer shows both pictures and clips inside the ad.
 
-import { del, list } from "@vercel/blob";
+import { del, list } from "@/lib/storage";
 import sharp from "sharp";
 
 import { isRefPath, REF_LIMITS, refKind, refPrefix, type RefKind } from "./ref-paths";

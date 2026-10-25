@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { upload } from "@vercel/blob/client";
+import { upload } from "@/lib/upload-client";
 import { ImagePlus, Sparkles, X } from "lucide-react";
 
 import { CAPTION_LIMITS, CITY_TAGS, captionProblems, mergeHashtags, YT_DESCRIPTION_MAX, YT_PRIVACY, YT_TITLE_MAX, ytDescriptionBytes, youtubeOptionProblems, youtubeTitle, type Target, type YtPrivacy } from "@/lib/merchant/caption";

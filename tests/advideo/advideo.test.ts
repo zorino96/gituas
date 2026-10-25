@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/db", () => ({ db: {} }));
 vi.mock("@/lib/ai/provider", () => ({ completeJson: vi.fn(), writesSorani: (c: { system?: string }) => /sorani|central kurdish/i.test(c.system ?? "") }));
 vi.mock("@/lib/ai/kurdgg", () => ({ kurdggConfigured: () => false, kurdggJson: vi.fn() }));
-vi.mock("@vercel/blob", () => ({ put: vi.fn() }));
+vi.mock("@/lib/storage", () => ({ put: vi.fn() }));
 vi.mock("@/lib/voice/tts", () => ({ speak: vi.fn() }));
 vi.mock("@/lib/news/video", () => ({ isNotSoraniRefusal: (e: unknown) => e instanceof Error && /70%/.test(e.message) }));
 vi.mock("@/lib/shop/pipeline", () => ({ startOfShopDay: (d: Date) => new Date(Math.floor((d.getTime() + 3 * 3_600_000) / 86_400_000) * 86_400_000 - 3 * 3_600_000) }));

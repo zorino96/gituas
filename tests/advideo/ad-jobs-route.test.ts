@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // The render queue the Actions worker claims from: two videos per call, but a story (it renders for much longer than
 // an ad) is handed out alone, oldest first, so it never holds an ad's upload back or pushes the run past its limit.
 vi.mock("@/lib/db", () => ({ db: { adVideo: { findMany: vi.fn(), updateMany: vi.fn(), count: vi.fn() } } }));
-vi.mock("@vercel/blob/client", () => ({ generateClientTokenFromReadWriteToken: vi.fn(async () => "upload-token") }));
+vi.mock("@/lib/storage", () => ({ presignPut: vi.fn(async () => "https://r2/upload"), publicUrl: (p: string) => `https://media.gituas.com/${p}` }));
 vi.mock("@/lib/advideo/enabled", () => ({ adVideoEnabled: () => true }));
 vi.mock("@/lib/advideo/prepare", () => ({ AD_MAX_TRIES: 3, prepareQueued: vi.fn(), waitingFilter: () => ({}) }));
 
@@ -21,7 +21,7 @@ const claimed = () => m.adVideo.updateMany.mock.calls.map((c) => (c[0] as { wher
 describe("claiming videos to render", () => {
   beforeEach(() => {
     vi.stubEnv("CRON_SECRET", "secret");
-    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "blob-token");
+    vi.stubEnv("R2_SECRET_ACCESS_KEY", "r2-secret");
     m.adVideo.findMany.mockReset();
     m.adVideo.updateMany.mockReset().mockResolvedValue({ count: 1 });
   });

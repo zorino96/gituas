@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { upload } from "@vercel/blob/client";
+import { upload } from "@/lib/upload-client";
 
 import { useT } from "@/lib/i18n/client";
 

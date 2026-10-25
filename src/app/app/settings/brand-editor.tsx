@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { upload } from "@vercel/blob/client";
+import { upload } from "@/lib/upload-client";
 
 import { useT } from "@/lib/i18n/client";
 import { FRAME_TEXT, HEADING_FONT, LOGO_CORNERS, mediaSrc, type FrameText, type LogoCorner } from "@/lib/cards/brand";

@@ -28,6 +28,8 @@ const MAX_FILE = 30 * 1024 * 1024;
 /** The owner's own clips (the app accepts up to 40 MB). */
 const MAX_CLIP = 45 * 1024 * 1024;
 const BLOB_SUFFIX = ".public.blob.vercel-storage.com";
+/** Our storage (Cloudflare R2) on our own domain. */
+const MEDIA_HOST = "media.gituas.com";
 
 const mode = process.argv[2];
 if (!["fetch", "render", "upload"].includes(mode ?? "")) {
@@ -49,12 +51,12 @@ const extOf = (raw, fallback) => {
   return m ? m[1].toLowerCase() : fallback;
 };
 
-/** Only our own Blob store (the host the app named in the job) and our own domain. */
+/** Only our own storage (R2, or the old Blob store the app named in the job) and our own domain. */
 function allowed(raw, blobHost) {
   try {
     const u = new URL(raw);
     if (u.protocol !== "https:") return false;
-    if (u.origin === BASE) return true;
+    if (u.origin === BASE || u.hostname === MEDIA_HOST) return true;
     return blobHost ? u.hostname === blobHost : u.hostname.endsWith(BLOB_SUFFIX);
   } catch {
     return false;
@@ -187,7 +189,7 @@ async function doFetch() {
       props.brand = { ...props.brand, logo };
       delete props.brand.logoUrl;
       fs.writeFileSync(path.join(dir, "job.json"), JSON.stringify(props));
-      manifest.push({ id: job.id, pathname: job.pathname, uploadToken: job.uploadToken });
+      manifest.push({ id: job.id, pathname: job.pathname, uploadUrl: job.uploadUrl, url: job.url });
     } catch (e) {
       const error = String(e?.message ?? e).slice(0, 200);
       console.log(`ad ${job.id}: failed: ${error}`);
@@ -250,7 +252,6 @@ async function doUpload() {
     console.log("CRON_SECRET not set; nothing to do");
     return;
   }
-  const { put } = await import("@vercel/blob/client");
   const auth = { Authorization: `Bearer ${SECRET}` };
   for (const job of readManifest()) {
     try {
@@ -263,14 +264,11 @@ async function doUpload() {
       }
       if (!status.ok) throw new Error(String(status.error ?? "render failed"));
       const file = path.join(dir, "ad.mp4");
-      const blob = await put(job.pathname, fs.readFileSync(file), {
-        access: "public",
-        token: job.uploadToken,
-        contentType: "video/mp4",
-        multipart: true,
-      });
+      // The one-file address the app signed for this job (R2): a plain PUT.
+      const up = await fetch(job.uploadUrl, { method: "PUT", body: fs.readFileSync(file), headers: { "content-type": "video/mp4" } });
+      if (!up.ok) throw new Error(`upload failed (${up.status})`);
       console.log(`ad ${job.id}: ${status.kind ?? "ad"} rendered in ${status.seconds ?? "?"} s`);
-      await report(auth, job.id, { url: blob.url });
+      await report(auth, job.id, { url: job.url });
     } catch (e) {
       const error = String(e?.message ?? e).slice(0, 200);
       console.log(`ad ${job.id}: failed: ${error}`);

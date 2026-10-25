@@ -3,7 +3,7 @@
 // the shop id (shop ids appear in public media links). No database table needed.
 
 import { createHmac } from "node:crypto";
-import { head, put } from "@vercel/blob";
+import { head, put } from "@/lib/storage";
 import { db } from "@/lib/db";
 import type { PostAdvice } from "@/lib/orders/post-advice";
 

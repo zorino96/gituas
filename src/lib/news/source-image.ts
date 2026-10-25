@@ -1,7 +1,7 @@
 // The picture a source's feed gave with a story, kept in the desk's own folder so the card can be drawn from it.
 // Only for desks that turned "source pictures" on; the card then credits the source. Never throws.
 
-import { put } from "@vercel/blob";
+import { put } from "@/lib/storage";
 import sharp from "sharp";
 
 import { assertPublicHost } from "./sources/rss";

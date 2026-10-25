@@ -4,7 +4,7 @@
 // names and length; if that fails the beat fails); a scene that still fails is dropped unless it is the hook or
 // the call to action (in a story no scene can be dropped: the story would jump).
 
-import { head, list, put } from "@vercel/blob";
+import { head, list, put } from "@/lib/storage";
 
 import { completeJson, type Meter } from "@/lib/ai/provider";
 import { isNotSoraniRefusal } from "@/lib/news/video";

@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("puppeteer-core", () => ({ default: { launch: vi.fn() } }));
-vi.mock("@vercel/blob", () => ({ put: vi.fn(), del: vi.fn() }));
+vi.mock("@/lib/storage", () => ({ put: vi.fn(), del: vi.fn() }));
 vi.mock("@/lib/db", () => ({ db: { newsDraft: { findFirst: vi.fn(), updateMany: vi.fn() } } }));
 vi.mock("@/lib/cards/render-token", () => ({ signRenderToken: () => "token" }));
 
-import { put } from "@vercel/blob";
+import { put } from "@/lib/storage";
 import puppeteer from "puppeteer-core";
 
 import { renderAndStoreCard, renderCardServer } from "@/lib/cards/server-render";

@@ -13,7 +13,8 @@
 //
 //  Only our own text, brand and shapes are on screen: no footage from other outlets.
 
-import { put } from "@vercel/blob";
+import { put } from "@/lib/storage";
+import { isStorageHost } from "@/lib/storage-host";
 
 import { db } from "@/lib/db";
 import { polishReelSegments } from "@/lib/ai/proofread";
@@ -347,7 +348,7 @@ export function ownClips(tenantId: string, clips: unknown): string[] | null {
   for (const c of clips) {
     try {
       const u = new URL(String(c));
-      if (u.protocol !== "https:" || !u.hostname.endsWith(".public.blob.vercel-storage.com")) return null;
+      if (u.protocol !== "https:" || !isStorageHost(u.hostname)) return null;
       if (!u.pathname.startsWith(`/merchant/${tenantId}/`) || u.pathname.includes("..")) return null;
       if (!/\.(mp4|mov)$/i.test(u.pathname)) return null;
       out.push(u.toString());

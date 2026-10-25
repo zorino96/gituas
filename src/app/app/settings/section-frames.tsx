@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { upload } from "@vercel/blob/client";
+import { upload } from "@/lib/upload-client";
 
 import { useT } from "@/lib/i18n/client";
 import { brandFrom, FRAME_TEXT, mediaSrc, type FrameText } from "@/lib/cards/brand";

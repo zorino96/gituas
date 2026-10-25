@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db", () => ({ db: {} }));
 vi.mock("@/lib/ai/provider", () => ({ completeJson: vi.fn() }));
-vi.mock("@vercel/blob", () => ({ put: vi.fn() }));
+vi.mock("@/lib/storage", () => ({ put: vi.fn() }));
 
 import { brandFrom } from "@/lib/cards/brand";
 import { cleanClipLabel, parsePick } from "@/lib/news/clips";

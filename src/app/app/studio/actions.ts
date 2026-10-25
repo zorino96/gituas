@@ -1,7 +1,7 @@
 "use server";
 
 import { aiForTenant } from "@/lib/ai/for-store";
-import { del } from "@vercel/blob";
+import { del } from "@/lib/storage";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 

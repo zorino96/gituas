@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { upload } from "@vercel/blob/client";
+import { upload } from "@/lib/upload-client";
 
 import { useT } from "@/lib/i18n/client";
 import { makeVideoAction, videoStatusAction, type VideoView } from "../actions";

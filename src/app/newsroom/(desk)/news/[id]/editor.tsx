@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { upload } from "@vercel/blob/client";
+import { upload } from "@/lib/upload-client";
 import { ExternalLink, ImagePlus, Sparkles, Trash2 } from "lucide-react";
 
 import { NewsCard, CARD_H, CARD_W } from "@/lib/cards/templates";

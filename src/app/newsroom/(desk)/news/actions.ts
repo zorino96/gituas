@@ -12,7 +12,7 @@ import { designFrame, FrameDesignError, frameWindowOk, storeFrame } from "@/lib/
 import { isFrameSection } from "@/lib/news/frames";
 import { TAXONOMY } from "@/lib/news/taxonomy";
 import { canAutoPublish, NEWS_LIMITS, promptFilterFor, videoQuotaFor } from "@/lib/billing/plans";
-import { del, head, put } from "@vercel/blob";
+import { del, head, put } from "@/lib/storage";
 import { cleanDailyMax, isVideoMode, ownClips, prepareVideo, VIDEO_STYLES } from "@/lib/news/video";
 import { CLIP_LIBRARY_MAX, cleanClipLabel, type LibraryClip } from "@/lib/news/clips";
 import { isOwnPhoto, PHOTO_LIBRARY_MAX, photoForStory } from "@/lib/news/photos";

@@ -6,7 +6,7 @@
 // and the desk's own logo is laid on by this code, so what makes the agency recognisable cannot be misdrawn.
 
 import sharp from "sharp";
-import { head, put } from "@vercel/blob";
+import { head, put } from "@/lib/storage";
 
 import { createImage, imageEnabled, ImageError, type ReferencePicture } from "@/lib/ai/image";
 import type { FrameText } from "@/lib/cards/brand";

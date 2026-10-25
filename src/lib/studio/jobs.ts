@@ -8,7 +8,7 @@
 // Every step claims its row with a conditional update, so the webhook and the clock can meet on
 // the same picture without doing the work twice.
 
-import { del, put } from "@vercel/blob";
+import { del, put } from "@/lib/storage";
 
 import { signRenderToken } from "@/lib/cards/render-token";
 import { renderUrlServer } from "@/lib/cards/server-render";

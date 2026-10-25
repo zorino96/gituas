@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/db", () => ({ db: {} }));
 vi.mock("@/lib/ai/provider", () => ({ completeJson: vi.fn() }));
 vi.mock("@/lib/ai/kurdgg", () => ({ kurdggConfigured: () => false, kurdggJson: vi.fn() }));
-vi.mock("@vercel/blob", () => ({ put: vi.fn(), head: vi.fn(), list: vi.fn(), del: vi.fn() }));
+vi.mock("@/lib/storage", () => ({ put: vi.fn(), head: vi.fn(), list: vi.fn(), del: vi.fn() }));
 vi.mock("@/lib/advideo/signals", async (orig) => ({ ...(await orig<typeof import("@/lib/advideo/signals")>()), gatherSignals: vi.fn() }));
 
-import { head, put } from "@vercel/blob";
+import { head, put } from "@/lib/storage";
 import { refStoreOf } from "@/lib/advideo/ref-paths";
 import { gatherSignals, postIdsOf, type Signals } from "@/lib/advideo/signals";
 import { claimProblems, normalizeSpec, type DailyBrief } from "@/lib/advideo/spec";

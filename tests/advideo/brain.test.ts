@@ -4,10 +4,10 @@ import sharp from "sharp";
 vi.mock("@/lib/db", () => ({ db: {} }));
 vi.mock("@/lib/ai/provider", () => ({ completeJson: vi.fn() }));
 vi.mock("@/lib/ai/kurdgg", () => ({ kurdggConfigured: () => false, kurdggJson: vi.fn() }));
-vi.mock("@vercel/blob", () => ({ put: vi.fn(), head: vi.fn(), list: vi.fn(), del: vi.fn() }));
+vi.mock("@/lib/storage", () => ({ put: vi.fn(), head: vi.fn(), list: vi.fn(), del: vi.fn() }));
 vi.mock("@/lib/advideo/signals", async (orig) => ({ ...(await orig<typeof import("@/lib/advideo/signals")>()), gatherSignals: vi.fn() }));
 
-import { head, put } from "@vercel/blob";
+import { head, put } from "@/lib/storage";
 import { describeCalendar, hijriOf, marketCalendar } from "@/lib/advideo/calendar";
 import type { AdBrief } from "@/lib/advideo/brief";
 import { isRefPath, refImagesForModel, refKind, refPrefix, type RefItem } from "@/lib/advideo/refs";

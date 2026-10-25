@@ -18,7 +18,7 @@
 // Nothing here talks to the network except through the injectable `fetchImpl`, and nothing is stored except through
 // the injectable `store`, so the tests never touch either.
 
-import { del, put } from "@vercel/blob";
+import { del, put } from "@/lib/storage";
 import sharp from "sharp";
 
 import { authorDrawable, authorFits, creditAuthor, type PhotoCredit, type PhotoFormat } from "./credits";
@@ -1237,7 +1237,7 @@ export async function findStoryPhotos(o: FindStoryPhotosInput): Promise<FoundPho
 // ---- cleaning up ------------------------------------------------------------------------------------------
 
 /** One of our own stored story photographs: merchant/<tenant>/advideo/<job>/img-<beat>-<run>-<n>.jpg in our Blob store. Nothing else is ever deleted. */
-const OWN_PHOTO = /^https:\/\/[a-z0-9-]+\.public\.blob\.vercel-storage\.com\/merchant\/[A-Za-z0-9_-]+\/advideo\/[A-Za-z0-9_-]+\/img-[A-Za-z0-9_-]+\.jpg$/;
+const OWN_PHOTO = /^https:\/\/(?:[a-z0-9-]+\.public\.blob\.vercel-storage\.com|media\.gituas\.com)\/merchant\/[A-Za-z0-9_-]+\/advideo\/[A-Za-z0-9_-]+\/img-[A-Za-z0-9_-]+\.jpg$/;
 
 export function isOwnPhotoUrl(url: unknown): url is string {
   return typeof url === "string" && url.length < 400 && OWN_PHOTO.test(url);

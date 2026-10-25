@@ -1,9 +1,8 @@
 // The render worker, run by .github/workflows/reel.yml: claims voiced videos from the app, renders
-// each with Remotion, uploads it straight to Blob with the one-file token it was given (videos are
-// larger than a Vercel function accepts), and reports back. Never prints a token: Actions logs are public.
+// each with Remotion, uploads it straight to storage (R2) with the one-file address it was given (videos are
+// larger than a Vercel function accepts), and reports back. Never prints that address: Actions logs are public.
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
-import { put } from "@vercel/blob/client";
 
 const BASE = (process.env.APP_URL || "https://gituas.com").replace(/\/$/, "");
 const SECRET = process.env.CRON_SECRET;
@@ -43,14 +42,11 @@ for (const job of jobs) {
       { stdio: "inherit" },
     );
     if (r.status !== 0) throw new Error(`render exited ${r.status}`);
-    const blob = await put(job.pathname, fs.readFileSync(outFile), {
-      access: "public",
-      token: job.uploadToken,
-      contentType: "video/mp4",
-      multipart: true,
-    });
+    // The one-file address the app signed for this job (R2): a plain PUT.
+    const up = await fetch(job.uploadUrl, { method: "PUT", body: fs.readFileSync(outFile), headers: { "content-type": "video/mp4" } });
+    if (!up.ok) throw new Error(`upload failed (${up.status})`);
     console.log(`job ${job.id}: rendered in ${Math.round((Date.now() - started) / 1000)} s`);
-    await report(job.id, { url: blob.url });
+    await report(job.id, { url: job.url });
   } catch (e) {
     console.log(`job ${job.id}: failed: ${String(e?.message ?? e).slice(0, 200)}`);
     await report(job.id, { error: String(e?.message ?? e).slice(0, 200) });

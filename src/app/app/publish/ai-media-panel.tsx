@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { upload } from "@vercel/blob/client";
+import { upload } from "@/lib/upload-client";
 import { ImagePlus, Sparkles, X } from "lucide-react";
 
 import { useT } from "@/lib/i18n/client";

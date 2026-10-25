@@ -3,7 +3,7 @@
 import { useEffect, useId, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { upload } from "@vercel/blob/client";
+import { upload } from "@/lib/upload-client";
 
 import { useLang, useT } from "@/lib/i18n/client";
 import { formatMoney } from "@/lib/shop/money";

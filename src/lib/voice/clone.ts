@@ -8,7 +8,7 @@
 //  record, at a path made from an HMAC of the desk id. Desk ids appear in public card links, so a
 //  path built from the id alone could be guessed; this one cannot without AUTH_SECRET.
 import { createHmac } from "node:crypto";
-import { del, head, put } from "@vercel/blob";
+import { del, head, put } from "@/lib/storage";
 
 /** The value NewsSettings.videoVoice / NewsVideo.voice take for the desk's own voice. */
 export { CUSTOM_VOICE } from "./voices";

@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { upload } from "@vercel/blob/client";
+import { upload } from "@/lib/upload-client";
 
 import { useLang, useT } from "@/lib/i18n/client";
 import { exponentOf, formatMoney } from "@/lib/shop/money";

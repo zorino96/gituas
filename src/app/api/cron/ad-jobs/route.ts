@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
+import { presignPut, publicUrl } from "@/lib/storage";
+import { isStorageHost } from "@/lib/storage-host";
 
 import { db } from "@/lib/db";
 import { adVideoEnabled } from "@/lib/advideo/enabled";
@@ -28,7 +29,7 @@ function ownBlobHost(props: unknown): string | null {
   const first = scenes?.find((s) => typeof s?.audio === "string")?.audio;
   try {
     const host = new URL(first as string).hostname;
-    return host.endsWith(".public.blob.vercel-storage.com") ? host : null;
+    return isStorageHost(host) ? host : null;
   } catch {
     return null;
   }
@@ -55,8 +56,7 @@ export async function GET(req: Request) {
     ]);
     return NextResponse.json({ waiting: queued + ready });
   }
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!token) return NextResponse.json({ error: "blob not configured" }, { status: 500 });
+  if (!process.env.R2_SECRET_ACCESS_KEY) return NextResponse.json({ error: "storage not configured" }, { status: 500 });
 
   // Videos still waiting for their script and voice are prepared here while the call has time, so
   // the worker never leaves empty-handed when the clock has not got to them yet.
@@ -76,16 +76,9 @@ export async function GET(req: Request) {
     });
     if (claim.count !== 1) continue;
     const pathname = `merchant/${c.tenantId}/advideo/${c.id}/ad.mp4`;
-    const uploadToken = await generateClientTokenFromReadWriteToken({
-      token,
-      pathname,
-      allowedContentTypes: ["video/mp4"],
-      maximumSizeInBytes: 150 * 1024 * 1024,
-      validUntil: Date.now() + UPLOAD_TOKEN_MS,
-      addRandomSuffix: false,
-      allowOverwrite: true,
-    });
-    jobs.push({ id: c.id, props: c.props, pathname, uploadToken, blobHost: ownBlobHost(c.props) });
+    // ponytail: the address does not cap the size (the render's size is not known yet); the worker is ours and behind CRON_SECRET.
+    const uploadUrl = await presignPut(pathname, "video/mp4", { expiresSec: UPLOAD_TOKEN_MS / 1000 });
+    jobs.push({ id: c.id, props: c.props, pathname, uploadUrl, url: publicUrl(pathname), blobHost: ownBlobHost(c.props) });
     if (story) break;
   }
   return NextResponse.json({ jobs });

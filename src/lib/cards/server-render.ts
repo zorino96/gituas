@@ -3,7 +3,7 @@
 // else shapes Kurdish text the way the editor's own preview does.
 import { existsSync } from "node:fs";
 
-import { del, put } from "@vercel/blob";
+import { del, put } from "@/lib/storage";
 import puppeteer, { type Browser, type Page } from "puppeteer-core";
 
 import { db } from "@/lib/db";

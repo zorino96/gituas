@@ -36,12 +36,12 @@ vi.mock("@/lib/shop/tenant-plans", () => ({ limitsOf: vi.fn(async () => ({ image
 vi.mock("@/lib/ai/provider", () => ({ completeJson: vi.fn() }));
 vi.mock("@/lib/ai/image", async (orig) => ({ ...(await orig<typeof import("@/lib/ai/image")>()), createImage: vi.fn(), imageEnabled: vi.fn(() => true) }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@vercel/blob", () => ({ put: vi.fn(async (pathname: string) => ({ url: `https://x.public.blob.vercel-storage.com/${pathname}`, pathname })) }));
+vi.mock("@/lib/storage", () => ({ put: vi.fn(async (pathname: string) => ({ url: `https://x.public.blob.vercel-storage.com/${pathname}`, pathname })) }));
 
 import { createImage, ImageError, imageEnabled } from "@/lib/ai/image";
 import { completeJson } from "@/lib/ai/provider";
 import { db } from "@/lib/db";
-import { put } from "@vercel/blob";
+import { put } from "@/lib/storage";
 import { baghdadDay } from "@/lib/ai/slots";
 import { monthKey } from "@/lib/billing/limits";
 import { generateAiImageAction } from "@/app/app/publish/ai-image-action";

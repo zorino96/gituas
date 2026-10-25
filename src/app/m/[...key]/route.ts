@@ -1,4 +1,4 @@
-import { head } from "@vercel/blob";
+import { head } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,6 +40,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ key: string[] }
   if (!headers.has("accept-ranges")) headers.set("accept-ranges", "bytes");
   headers.set("cache-control", "public, max-age=3600");
   headers.set("x-content-type-options", "nosniff");
+  if (new URL(req.url).searchParams.get("download") === "1") headers.set("content-disposition", `attachment; filename="${pathname.split("/").pop()}"`);
   return new Response(upstream.body, { status: upstream.status, headers });
 }
 

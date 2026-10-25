@@ -13,6 +13,7 @@
 // vertical and never sends one.
 
 import { storyFictionAsked, type VideoKind, type VideoLang } from "@/lib/advideo/lang";
+import { MEDIA_HOST } from "@/lib/storage-host";
 
 /** A story is told from the owner's idea: this is the least it needs (the action checks the same). A short word is enough: "Titanic". */
 export const STORY_MIN = 4;
@@ -165,6 +166,8 @@ export function downloadHref(url: string): string {
       u.searchParams.set("download", "1");
       return u.toString();
     }
+    // R2 cannot be told to send an attachment: our own /m/ route does (same origin, so `download` works too).
+    if (u.protocol === "https:" && u.hostname === MEDIA_HOST && u.pathname.startsWith("/merchant/")) return `/m${u.pathname}?download=1`;
   } catch {
     /* not an address: left as it is */
   }

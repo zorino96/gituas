@@ -4,7 +4,7 @@
 //
 //   CF_ACCOUNT_ID, CF_AI_TOKEN   set in Vercel; the feature is off without them
 
-import { put } from "@vercel/blob";
+import { put } from "@/lib/storage";
 import sharp from "sharp";
 
 import { completeJson } from "@/lib/ai/provider";

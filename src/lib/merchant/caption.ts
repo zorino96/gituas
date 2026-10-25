@@ -1,3 +1,5 @@
+import { isStorageHost } from "@/lib/storage-host";
+
 /** Caption limits each platform enforces. Facebook's is effectively unbounded. YouTube's 5000 is the description limit. */
 export const CAPTION_LIMITS = { FB: 63206, IG: 2200, TT: 2200, YT: 5000 } as const;
 export type Target = keyof typeof CAPTION_LIMITS;
@@ -8,7 +10,7 @@ export function isKnownTarget(t: unknown): t is Target {
 }
 
 /**
- * A file this workspace uploaded to Vercel Blob: https, a Blob host, and this workspace's own folder.
+ * A file this workspace uploaded to our storage: https, our storage host (R2, or the old Blob store), and this workspace's own folder.
  * The URL is parsed, so dot-segments are resolved before the folder is checked. Used wherever the
  * server fetches or republishes a URL the browser sent.
  */
@@ -23,7 +25,7 @@ export function isOwnPathname(pathname: unknown, workspaceId: string): pathname 
 export function isOwnBlobUrl(raw: string, workspaceId: string): boolean {
   try {
     const u = new URL(raw);
-    return u.protocol === "https:" && u.hostname.endsWith(".public.blob.vercel-storage.com") && u.pathname.startsWith(`/merchant/${workspaceId}/`);
+    return u.protocol === "https:" && isStorageHost(u.hostname) && u.pathname.startsWith(`/merchant/${workspaceId}/`);
   } catch {
     return false;
   }

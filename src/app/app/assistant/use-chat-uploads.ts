@@ -4,7 +4,7 @@
 // limits as the older assistant screen) and travel with the next message as ChatAttachment. The server gives them their real ids.
 
 import { useCallback, useRef, useState } from "react";
-import { upload } from "@vercel/blob/client";
+import { upload } from "@/lib/upload-client";
 
 import type { ChatAttachment } from "@/lib/chat/types";
 import { useT } from "@/lib/i18n/client";

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db", () => ({ db: {} }));
-vi.mock("@vercel/blob", () => ({ put: vi.fn(), list: vi.fn(), head: vi.fn() }));
+vi.mock("@/lib/storage", () => ({ put: vi.fn(), list: vi.fn(), head: vi.fn() }));
 vi.mock("@/lib/voice/tts", () => ({ speak: vi.fn(), providersFor: () => [] }));
 vi.mock("@/lib/news/video", () => ({ isNotSoraniRefusal: () => false }));
 vi.mock("@/lib/shop/pipeline", () => ({ startOfShopDay: (d: Date) => d }));

@@ -5,6 +5,7 @@ import { isVideoTier, refundVideo } from "@/lib/advideo/limits";
 import { AD_MAX_TRIES } from "@/lib/advideo/prepare";
 import { adVideoEnabled } from "@/lib/advideo/enabled";
 import { publishAdVideo } from "@/lib/advideo/publish";
+import { MEDIA_HOST } from "@/lib/storage-host";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,7 +31,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   let ok = false;
   try {
     const u = new URL(url);
-    ok = u.protocol === "https:" && u.hostname.endsWith(".public.blob.vercel-storage.com") && u.pathname === `/${pathname}`;
+    ok = u.protocol === "https:" && u.hostname === MEDIA_HOST && u.pathname === `/${pathname}`;
   } catch {
     ok = false;
   }

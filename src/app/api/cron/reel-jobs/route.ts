@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
+import { presignPut, publicUrl } from "@/lib/storage";
 
 import { db } from "@/lib/db";
 import { adVideoEnabled } from "@/lib/advideo/enabled";
@@ -43,8 +43,7 @@ export async function GET(req: Request) {
       (await db.adVideo.count({ where: waitingFilter() }).catch(() => 0));
     return NextResponse.json({ waiting: reels + ads, reels, ads });
   }
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!token) return NextResponse.json({ error: "blob not configured" }, { status: 500 });
+  if (!process.env.R2_SECRET_ACCESS_KEY) return NextResponse.json({ error: "storage not configured" }, { status: 500 });
 
   // Videos still waiting for their script and voice (the autopilot usually does this) are voiced
   // here too, oldest first, while the call has time: the worker then never waits on a quiet desk.
@@ -65,16 +64,8 @@ export async function GET(req: Request) {
     });
     if (claim.count !== 1) continue;
     const pathname = `merchant/${c.tenantId}/video/${c.id}/reel.mp4`;
-    const uploadToken = await generateClientTokenFromReadWriteToken({
-      token,
-      pathname,
-      allowedContentTypes: ["video/mp4"],
-      maximumSizeInBytes: 100 * 1024 * 1024,
-      validUntil: Date.now() + UPLOAD_TOKEN_MS,
-      addRandomSuffix: false,
-      allowOverwrite: true,
-    });
-    jobs.push({ id: c.id, props: c.props, pathname, uploadToken });
+    const uploadUrl = await presignPut(pathname, "video/mp4", { expiresSec: UPLOAD_TOKEN_MS / 1000 });
+    jobs.push({ id: c.id, props: c.props, pathname, uploadUrl, url: publicUrl(pathname) });
   }
   return NextResponse.json({ jobs });
 }

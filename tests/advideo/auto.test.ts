@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // The daily AI video: each store's own language (Store.videoLang) and kind (from the page's goal), stories as drafts only,
 // and the stores that can not make their video today are skipped without spending the day.
 vi.mock("@/lib/db", () => ({ db: { store: { findMany: vi.fn(), updateMany: vi.fn() }, adVideo: {} } }));
-vi.mock("@vercel/blob", () => ({ put: vi.fn(), head: vi.fn(), list: vi.fn(), del: vi.fn() }));
+vi.mock("@/lib/storage", () => ({ put: vi.fn(), head: vi.fn(), list: vi.fn(), del: vi.fn() }));
 vi.mock("@/lib/shop/pipeline", () => ({ startOfShopDay: (d: Date) => new Date(Math.floor((d.getTime() + 3 * 3_600_000) / 86_400_000) * 86_400_000 - 3 * 3_600_000) }));
 vi.mock("@/lib/ai/meter", () => ({ chooseTier: vi.fn(async () => "haiku"), recordSpend: vi.fn() }));
 vi.mock("@/lib/shop/tenant-plans", () => ({ limitsOf: vi.fn(async () => ({ videos: { LITE: 10, PRO: 0 }, videosPerDay: 1 })) }));

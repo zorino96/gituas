@@ -5,7 +5,7 @@
 // Nothing the assistant writes runs by itself: every action is a card with the exact values and a Confirm button.
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { upload } from "@vercel/blob/client";
+import { upload } from "@/lib/upload-client";
 import { ArrowUp, MessageCircle, Plus, Sparkles, X } from "lucide-react";
 
 import { useT } from "@/lib/i18n/client";

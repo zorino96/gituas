@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => undefined, refresh: () => undefined }) }));
 vi.mock("next/link", () => ({ default: ({ href, children }: { href: string; children?: unknown }) => createElement("a", { href }, children as never) }));
-vi.mock("@vercel/blob/client", () => ({ upload: vi.fn() }));
+vi.mock("@/lib/upload-client", () => ({ upload: vi.fn() }));
 vi.mock("@/app/app/video/actions", () => ({
   createVideoAction: vi.fn(),
   publishVideoAction: vi.fn(),

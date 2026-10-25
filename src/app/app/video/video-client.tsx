@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { upload } from "@vercel/blob/client";
+import { upload } from "@/lib/upload-client";
 
 import { defaultVoice, type VideoKind, type VideoLang } from "@/lib/advideo/lang";
 import type { VideoAutoPlan } from "@/lib/advideo/plan";

@@ -7,7 +7,7 @@
 // prompt forbids claiming any, and the owner's notes are the way to tell it what the market is doing.
 
 import { createHmac } from "node:crypto";
-import { head, put } from "@vercel/blob";
+import { head, put } from "@/lib/storage";
 
 import { OCCASION_KU } from "./calendar";
 import type { VideoTier } from "./limits";

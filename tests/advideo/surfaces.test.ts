@@ -36,9 +36,10 @@ vi.mock("@/lib/advideo/prepare", () => ({ createAdVideo: vi.fn(), prepareAdVideo
 vi.mock("@/lib/advideo/publish", () => ({ publishAdVideo: vi.fn() }));
 vi.mock("@/lib/ai/review-idea", () => ({ reviewIdea: vi.fn(), ReviewFailed: class ReviewFailed extends Error {} }));
 vi.mock("@/lib/shop/profile", async (original) => ({ ...(await original<typeof import("@/lib/shop/profile")>()), loadProfile: vi.fn(async () => null) }));
-vi.mock("@vercel/blob/client", () => ({
-  // Hands the route's own policy back, so the test reads exactly what a token would be issued for.
-  handleUpload: vi.fn(async (o: { body: { pathname: string }; onBeforeGenerateToken: (p: string) => Promise<unknown> }) => o.onBeforeGenerateToken(o.body.pathname)),
+vi.mock("@/lib/storage", () => ({
+  presignPut: vi.fn(async (p: string) => `https://r2/${p}?signed`),
+  publicUrl: (p: string) => `https://media.gituas.com/${p}`,
+  withRandomSuffix: (p: string) => p,
 }));
 
 import { after } from "next/server";
@@ -124,18 +125,23 @@ describe("the plan actions", () => {
   });
 });
 
-const upload = async (pathname: string) => {
-  const res = (await uploadRoute(new Request("http://x/api/app/upload", { method: "POST", body: JSON.stringify({ pathname }) }))) as unknown as { body: Record<string, unknown>; status: number };
+const MB = 1024 * 1024;
+const typeOf = (p: string) => (/\.mp4$/.test(p) ? "video/mp4" : /\.png$/.test(p) ? "image/png" : "image/jpeg");
+const upload = async (pathname: string, size = 1000, contentType = typeOf(pathname)) => {
+  const res = (await uploadRoute(new Request("http://x/api/app/upload", { method: "POST", body: JSON.stringify({ pathname, contentType, size }) }))) as unknown as { body: Record<string, unknown>; status: number };
   return res;
 };
 
 describe("the upload route's policy for reference files", () => {
-  it("issues a token for a picture of a store of this workspace, with that kind's types and size", async () => {
+  it("signs an upload for a picture of a store of this workspace, with that kind's types and size", async () => {
     const r = await upload("merchant/t1/advideo-ref/s1/1.jpg");
     expect(r.status).toBe(200);
-    expect(r.body).toMatchObject({ allowedContentTypes: ["image/jpeg", "image/png", "image/webp"], maximumSizeInBytes: 12 * 1024 * 1024 });
-    const v = await upload("merchant/t1/advideo-ref/s1/1.mp4");
-    expect(v.body).toMatchObject({ allowedContentTypes: ["video/mp4", "video/quicktime"], maximumSizeInBytes: 40 * 1024 * 1024 });
+    expect(r.body).toMatchObject({ url: "https://media.gituas.com/merchant/t1/advideo-ref/s1/1.jpg", pathname: "merchant/t1/advideo-ref/s1/1.jpg" });
+    expect((await upload("merchant/t1/advideo-ref/s1/1.jpg", 12 * MB)).status).toBe(200);
+    expect((await upload("merchant/t1/advideo-ref/s1/1.jpg", 12 * MB + 1)).status).toBe(400);
+    expect((await upload("merchant/t1/advideo-ref/s1/1.jpg", 1000, "video/mp4")).status).toBe(400);
+    expect((await upload("merchant/t1/advideo-ref/s1/1.mp4", 40 * MB)).status).toBe(200);
+    expect((await upload("merchant/t1/advideo-ref/s1/1.mp4", 40 * MB + 1)).status).toBe(400);
   });
 
   it("refuses a member, a store of another workspace and a path that is not a reference file", async () => {
@@ -150,14 +156,14 @@ describe("the upload route's policy for reference files", () => {
   });
 
   it("leaves the other uploads as they were for a paying workspace", async () => {
-    const r = await upload("merchant/t1/photo-1.png");
-    expect(r.status).toBe(200);
-    expect(r.body).toMatchObject({ maximumSizeInBytes: 250 * 1024 * 1024 });
+    expect((await upload("merchant/t1/photo-1.png", 250 * MB)).status).toBe(200);
+    expect((await upload("merchant/t1/photo-1.png", 250 * MB + 1)).status).toBe(400);
   });
 
   it("gives a workspace that pays nothing smaller files, and everyone a number of files a day", async () => {
     paid.aiUsd = 0.08;
-    expect((await upload("merchant/t1/photo-1.png")).body).toMatchObject({ maximumSizeInBytes: 40 * 1024 * 1024 });
+    expect((await upload("merchant/t1/photo-1.png", 40 * MB)).status).toBe(200);
+    expect((await upload("merchant/t1/photo-1.png", 40 * MB + 1)).status).toBe(400);
     expect(vi.mocked(takeDaily).mock.calls.at(-1)).toEqual(["t1", "upload_day", 1, 20]);
     paid.aiUsd = 2;
     await upload("merchant/t1/photo-1.png");

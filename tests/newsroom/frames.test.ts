@@ -41,7 +41,7 @@ vi.mock("@/lib/ai/image", async (orig) => {
   const real = await orig<typeof import("@/lib/ai/image")>();
   return { ...real, createImage: h.createImage, imageEnabled: () => true };
 });
-vi.mock("@vercel/blob", () => ({ head: vi.fn(), put: h.put, del: vi.fn() }));
+vi.mock("@/lib/storage", () => ({ head: vi.fn(), put: h.put, del: vi.fn() }));
 
 import { brandWithFrame, categoryOfStory, frameFor, FRAME_SECTIONS, isFrameSection } from "@/lib/news/frames-shared";
 import { designFrame as realDesignFrame, fillHeadlineBand, FrameDesignError, framePrompt, hexRgb, keyOutMagenta } from "@/lib/news/frame-design";
