@@ -294,6 +294,40 @@ export function limitsFor(kind: VideoKind = "ad", lang: VideoLang = "ckb"): Vide
 }
 
 const hasDigit = (s: string) => /\p{Nd}/u.test(s.normalize("NFKC"));
+
+// A Sorani story's writer gives years and numbers in digits and the code says them: models spelled 2025 as «هەزار و بیست و پێنج» (1025).
+const CKB_ONES = ["سفر", "یەک", "دوو", "سێ", "چوار", "پێنج", "شەش", "حەوت", "هەشت", "نۆ", "دە", "یازدە", "دوازدە", "سێزدە", "چواردە", "پازدە", "شازدە", "حەڤدە", "هەژدە", "نۆزدە"];
+const CKB_TENS = ["", "", "بیست", "سی", "چل", "پەنجا", "شەست", "حەفتا", "هەشتا", "نەوەد"];
+const CKB_HUNDREDS = ["", "سەد", "دووسەد", "سێسەد", "چوارسەد", "پێنسەد", "شەشسەد", "حەوتسەد", "هەشتسەد", "نۆسەد"];
+function ckbBelow1000(n: number): string {
+  const r = n % 100;
+  const parts = [CKB_HUNDREDS[Math.floor(n / 100)], r < 20 ? (r ? CKB_ONES[r] : "") : CKB_TENS[Math.floor(r / 10)], r >= 20 && r % 10 ? CKB_ONES[r % 10] : ""];
+  return parts.filter(Boolean).join(" و ");
+}
+/** A whole number in Sorani words: 2025 is «دوو هەزار و بیست و پێنج». Past 12 digits it is read digit by digit. */
+export function ckbNumber(digits: string): string {
+  if (digits.length > 12) return Array.from(digits, (d) => CKB_ONES[Number(d)]).join(" ");
+  let n = Number(digits);
+  if (n === 0) return CKB_ONES[0];
+  const parts: string[] = [];
+  for (const [v, w] of [[1e9, "ملیار"], [1e6, "ملیۆن"], [1e3, "هەزار"]] as const) {
+    const q = Math.floor(n / v);
+    if (q) parts.push(q === 1 ? w : `${ckbBelow1000(q)} ${w}`);
+    n %= v;
+  }
+  if (n) parts.push(ckbBelow1000(n));
+  return parts.join(" و ");
+}
+/** A Sorani spoken line with its digits said as words ("1,200", "3.5", "50%" and Arabic-Indic digits too). */
+export function ckbSpokenNumbers(line: string): string {
+  if (!hasDigit(line)) return line;
+  return asciiDigits(line)
+    .replace(/(\p{L})(\d)/gu, "$1 $2")
+    .replace(/\d{1,3}(?:,\d{3})+(?!\d)/g, (m) => m.replace(/,/g, ""))
+    .replace(/(\d+)\s*[%٪]/g, "لەسەدا $1")
+    .replace(/(\d+)[.٫](\d+)/g, (_, a: string, b: string) => `${ckbNumber(a)} پۆینت ${Array.from(b, (d) => CKB_ONES[Number(d)]).join(" ")}`)
+    .replace(/\d+/g, ckbNumber);
+}
 /** Any letter of the Arabic script (Arabic, Sorani and Persian letters alike): English lines must have none. */
 const hasArabicLetters = (s: string) => /\p{Script=Arabic}/u.test(s);
 
@@ -518,7 +552,8 @@ export function normalizeSpec(raw: unknown, o: NormalizeOptions): Normalized {
     if (type === "product" && o.photos < 1) continue;
     if (type === "footage" && clips < 1) continue;
     if (type === "offer" && !o.hasTopic) continue;
-    const voice = clean(s.voice, lim.voiceWords, story ? 400 : 220);
+    const said = clean(s.voice, lim.voiceWords, story ? 400 : 220);
+    const voice = story && lang === "ckb" && mode !== "classic" ? ckbSpokenNumbers(said) : said;
     const text = clean(s.text, lim.textWords, 60);
     const sub = clean(s.sub, lim.subWords, 90);
     if (!voice) {

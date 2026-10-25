@@ -857,13 +857,16 @@ async function imageInfos(ctx: Ctx, titles: string[]): Promise<CommonsPage[]> {
   return pages.sort((a, b) => (rank.get(String(a.title ?? "").toLowerCase()) ?? 1e9) - (rank.get(String(b.title ?? "").toLowerCase()) ?? 1e9));
 }
 
-/** The case's own pictures, judged (no relevance check: they belong to the article), in the article's order. */
+/**
+ * The case's own pictures, judged (no relevance check: they belong to the article), in the article's order. No era check either: the
+ * article's editors chose them for the case, and a topic's article ("Peak oil", years 1956-1971 by its lead) shows charts of 2015.
+ */
 async function articlePool(ctx: Ctx, titles: string[], opts: JudgeOptions): Promise<Candidate[]> {
   if (!titles.length) return [];
   const req = requestSignal(ctx.signal, POOL_MS);
   try {
     const pages = await imageInfos({ ...ctx, signal: req.signal }, titles);
-    return pages.map((p) => judge(p, null, { ...opts, lenient: true }).candidate).filter((c): c is Candidate => !!c);
+    return pages.map((p) => judge(p, null, { ...opts, era: null, lenient: true }).candidate).filter((c): c is Candidate => !!c);
   } catch {
     return [];
   } finally {

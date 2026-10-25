@@ -251,7 +251,7 @@ describe("the prompt of a documented story", () => {
       expect(s).toContain("up to 32 words");
       expect(s).toContain("palette: brand-dark | brand-light | brand-flood | duotone | cream | midnight");
       expect(s).toContain("dark and moody");
-      expect(s).toContain("NO digits (write years and numbers as words)");
+      expect(s).toContain(lang === "ckb" ? "years and numbers as Western digits" : "NO digits (write years and numbers as words)");
     }
     expect(sys).toContain("natural spoken English");
     expect(directorSystem("LITE", "ar", "story", "real")).toContain("Modern Standard Arabic");
@@ -264,8 +264,8 @@ describe("the prompt of a documented story", () => {
     expect(ckb).toContain("Central Kurdish (Sorani, Arabic script, letters ە ێ ۆ ڕ ڵ). Natural, spoken, the way a good storyteller speaks; no English words, no Latin letters. Hashtags in Kurdish letters.");
     expect(ckb).toContain("story_source is in English: translate its facts and tell them in natural spoken Sorani");
     expect(ckb).toContain("write every name, place and title in Sorani letters");
-    expect(ckb).toContain("هەزار و نۆسەد و بیست و دوو");
-    expect(ckb).toContain("never as digits");
+    expect(ckb).toContain("as Western digits (1922, 2025, 3.5), never as words");
+    expect(ckb).toContain("سەبسکرایب بکە");
   });
 
   it("translates for Arabic, and tells names and numbers in the language of the video", () => {
@@ -536,8 +536,8 @@ describe("the subject of a documented story: the code's, never the model's", () 
     expect(spec.subject).toEqual(SUBJECT);
     expect(spec.scenes[0].queries).toEqual(["Hinterkaifeck", "Bavaria farm"]);
     expect(spec.scenes[0].visual).toBe("farmhouse in Bavaria");
-    // A year in digits in the spoken line is still refused.
-    expect(refused({ ...ckb, scenes: [{ ...ckb.scenes[0], voice: "لە ساڵی 1922 شەش کەس کوژران" }, ...ckb.scenes.slice(1)] }, { ...real, lang: "ckb" })).toContain("digits");
+    // A year in digits in the spoken line is said by the code in Sorani words (models spelled 2025 as 1025).
+    expect(ok({ ...ckb, scenes: [{ ...ckb.scenes[0], voice: "لە ساڵی 1922 شەش کەس کوژران" }, ...ckb.scenes.slice(1)] }, { ...real, lang: "ckb" }).scenes[0].voice).toBe("لە ساڵی هەزار و نۆسەد و بیست و دوو شەش کەس کوژران");
   });
 });
 
