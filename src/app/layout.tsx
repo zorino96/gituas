@@ -34,6 +34,8 @@ export const metadata: Metadata = {
     "Gituas answers your Facebook and Instagram comments and messages in Kurdish and Arabic, collects orders, and makes video ads and pictures with AI. Free to start.",
   applicationName: "Gituas",
   openGraph: { siteName: "Gituas", type: "website" },
+  // The Meta app "Gituas Chat": Facebook's Sharing Debugger asks for it.
+  facebook: { appId: "1602806601306973" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
