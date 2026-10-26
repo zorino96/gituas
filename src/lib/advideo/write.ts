@@ -146,10 +146,13 @@ const ckbDigits = (lang: VideoLang, mode: StoryMode): boolean => lang === "ckb" 
 /** The Sorani cta as Kurdish channels say it: the writers translated "follow the channel" word for word («بەدوای کەناڵەکەدا بێ»). */
 const CKB_STORY_CTA = "The cta is said the way Kurdish channels say it, for example «ئەگەر پێت خۆش بوو سەبسکرایب بکە و بۆچوونی خۆت لە کۆمێنتدا بنووسە», never a word-for-word translation such as «بەدوای کەناڵەکەدا بێ».";
 
+/** The owner's own outline wins: a real video skipped the asked-for definition and the week-by-week steps. */
+const STORY_ORDER = "If story_request lays out an order or parts (for example a short definition first, then day by day, week by week, month by month), follow that order exactly: one beat for every part asked, in that order, nothing skipped or merged, and use the whole word budget and the most scenes allowed.";
+
 const storyCore = (lang: VideoLang, mode: StoryMode = "classic", photos = true): string => {
   const lim = limitsFor("story", lang);
   const style = mode === "real" ? `\n${STORY_DOCUMENTARY}${photos ? `\n${STORY_PICTURES}` : ""}\n${STORY_FACTS}\n${STORY_SOURCE_LANG[lang]}\n${STORY_NUMBERS[lang]}\n${storyLength(lang)}` : "";
-  const ckbCta = ckbDigits(lang, mode) ? `\n${CKB_STORY_CTA}` : "";
+  const ckbCta = (ckbDigits(lang, mode) ? `\n${CKB_STORY_CTA}` : "") + (mode !== "classic" ? `\n${STORY_ORDER}` : "");
   return `You are a storyteller who makes short vertical story videos (Reels, TikTok, Shorts) for a content channel. You write the storyboard as JSON; a separate engine draws it over a dark, moody look and a narrator reads it aloud.
 
 ${STORY_LANG_RULE[lang]}

@@ -140,7 +140,8 @@ describe("the assistant's prompts", () => {
     /with free-licence photographs from Wikimedia Commons where free ones are found, credited in the post and on the last scene \(not every part of a story gets a photograph: never promise that\)/,
     /Gituas chooses a case only when the owner names none/,
     /The idea is the owner's own words, exactly as they said them: never add a country, an era, a year, a genre, a name or any fact they did not say/,
-    /If the owner wants an invented story, the idea must contain the word fiction/,
+    /then the idea must contain the word fiction; never add that word yourself/,
+    /never tell the owner it cannot be done or that it is not a real case, and never offer fiction instead/,
     /A one-off real story is never posted by itself/,
     /Only the owner's daily plan can post a story by itself, and only when the story was told from a read article/,
   ];
@@ -179,7 +180,7 @@ describe("the assistant's prompts", () => {
     expect(STORY_VIDEO_ARGS).toMatch(/left out, the owner's own "review my idea" switch in the chat decides \(switched off: the words go straight to the video maker exactly as written\)/);
     expect(STORY_VIDEO_ARGS).toMatch(/photos: false removes the photographs/);
     expect(STORY_VIDEO_ARGS).toMatch(/format: "vertical" \(the default, 9:16, for Reels\) or "wide" \(16:9, for YouTube\)/);
-    expect(STORY_VIDEO_ARGS).toMatch(/pass "wide" whenever the owner mentions YouTube, 16:9, wide, landscape or horizontal/);
+    expect(STORY_VIDEO_ARGS).toMatch(/pass "wide" whenever the owner mentions YouTube, 16:9, wide, landscape, horizontal, a documentary/);
     expect(STORY_VIDEO_ARGS).toMatch(/only a story can be wide, an ad is always vertical/);
     // The length: the truth about the short aim, never "cannot be chosen".
     expect(STORY_VIDEO_ARGS).toMatch(/Length: a story is about 60 to 70 seconds; if the idea asks for a short video Gituas aims for about 30 seconds but cannot promise it/);

@@ -1038,7 +1038,7 @@ describe("the video's language and kind", () => {
     expect(d).toMatch(/review: true only when the owner asks Gituas to improve or rewrite the idea first/);
     expect(d).toMatch(/photos: false removes the photographs/);
     expect(d).toMatch(/format: "vertical" \(the default, 9:16, for Reels\) or "wide" \(16:9, for YouTube\)/);
-    expect(d).toMatch(/pass "wide" whenever the owner mentions YouTube, 16:9, wide, landscape or horizontal/);
+    expect(d).toMatch(/pass "wide" whenever the owner mentions YouTube, 16:9, wide, landscape, horizontal, a documentary/);
     expect(d).toMatch(/an ad of about 35 seconds or a story of about 60 to 70 seconds \(a story aims for about 30 seconds when its idea asks for a short video, with no promise\)/);
     expect(d).toMatch(/There is still no multi-minute documentary, and a video made now is not uploaded to YouTube from here/);
     // The two answers agree: no "cannot be chosen" any more, and the review wording is the tool's own (the chat's switch decides when the owner said nothing).
